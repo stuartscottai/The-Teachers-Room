@@ -1,22 +1,25 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { GeneratedGame } from '../../types';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { ArrowLeft, Maximize2, Minimize2, AlertTriangle, RotateCcw, X, Check, Trophy, Sparkles } from 'lucide-react';
 
 interface JeopardyGameProps {
     game: GeneratedGame;
+    options: GameRunOptions;
     onBack: () => void;
     onFinish: () => void;
 }
 
-export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFinish }) => {
-    const [scores, setScores] = useState<number[]>(Array(game.config.players).fill(0));
+export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBack, onFinish }) => {
+    const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [currentTeam, setCurrentTeam] = useState(0);
     const [selectedQuestion, setSelectedQuestion] = useState<{ categoryIndex: number, questionIndex: number } | null>(null);
     const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([]);
     const [isFlipped, setIsFlipped] = useState(false);
     const [winner, setWinner] = useState<number | null>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [gameBoard, setGameBoard] = useState(game.jeopardyBoard); // Local state for board to support runtime bonuses
     
     // Fullscreen logic
     const containerRef = useRef<HTMLDivElement>(null);
@@ -26,7 +29,45 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const timerRef = useRef<any>(null);
 
-    const strictMode = game.config.strictMode;
+    // Initialization Effect: Apply Random Bonuses if enabled
+    useEffect(() => {
+        if (!game.jeopardyBoard) return;
+        
+        // Clone board to avoid mutating original game
+        const boardCopy = JSON.parse(JSON.stringify(game.jeopardyBoard));
+        
+        if (options.enableBonuses) {
+            const flatCoords: {c: number, q: number}[] = [];
+            boardCopy.forEach((cat: any, cIdx: number) => {
+                cat.questions.forEach((_: any, qIdx: number) => {
+                    flatCoords.push({ c: cIdx, q: qIdx });
+                });
+            });
+            
+            // Shuffle coordinates
+            for (let i = flatCoords.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [flatCoords[i], flatCoords[j]] = [flatCoords[j], flatCoords[i]];
+            }
+
+            // Select ~15% of tiles as bonuses (min 3)
+            const bonusCount = Math.max(3, Math.floor(flatCoords.length * 0.15));
+            const selectedCoords = flatCoords.slice(0, bonusCount);
+            const bonusTypes = ['double', 'bust', 'steal', 'double'];
+
+            selectedCoords.forEach((coord, i) => {
+                const type = bonusTypes[i % bonusTypes.length] as 'double' | 'bust' | 'steal';
+                const q = boardCopy[coord.c].questions[coord.q];
+                q.bonusType = type;
+                q.isBonus = true;
+                
+                // Note: We don't overwrite q.question/answer here because we want to keep the content
+                // logic in render will show bonus effect first, then allow showing question
+            });
+        }
+        
+        setGameBoard(boardCopy);
+    }, [game, options.enableBonuses]);
 
     // Toggle Fullscreen
     const toggleFullscreen = () => {
@@ -41,12 +82,14 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
 
     // Timer Effect
     useEffect(() => {
-        if (selectedQuestion && !isFlipped && !winner) {
-            // Start timer when question opens (and isn't flipped yet)
-            const q = game.jeopardyBoard![selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex];
-            if (!q.isBonus || q.bonusType === 'none') {
-                 // Use global config timer or default
-                 const duration = game.config.timerSeconds || 0;
+        if (selectedQuestion && !isFlipped && !winner && gameBoard) {
+            const q = gameBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex];
+            
+            // Only run timer if it's NOT a bonus turn initially (bonuses pause flow until revealed)
+            // Or if it is a bonus, wait until effect is applied? 
+            // Simplified: Run timer if it's a normal question.
+            if (!q.isBonus) {
+                 const duration = options.timerSeconds;
                  if (duration > 0) {
                     setTimeLeft(duration);
                     timerRef.current = setInterval(() => {
@@ -61,19 +104,18 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                  }
             }
         } else {
-            // Clear timer if flipped or closed
             if (timerRef.current) clearInterval(timerRef.current);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [selectedQuestion, isFlipped]);
+    }, [selectedQuestion, isFlipped, gameBoard, options.timerSeconds]);
 
 
     const handleQuestionSelect = (cIdx: number, qIdx: number) => {
-        if (answeredQuestions.includes(`${cIdx}-${qIdx}`)) return;
+        if (answeredQuestions.includes(`${cIdx}-${qIdx}`) || !gameBoard) return;
         
-        const q = game.jeopardyBoard![cIdx].questions[qIdx];
+        const q = gameBoard[cIdx].questions[qIdx];
         
-        if (q.bonusType && q.bonusType !== 'none') {
+        if (q.isBonus) {
              playSound('bonus');
         } else {
              playSound('select');
@@ -84,15 +126,18 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (!selectedQuestion) return;
+        if (!selectedQuestion || !gameBoard) return;
         const { categoryIndex, questionIndex } = selectedQuestion;
-        const q = game.jeopardyBoard![categoryIndex].questions[questionIndex];
+        const q = gameBoard[categoryIndex].questions[questionIndex];
         const points = q.points;
 
         playSound(correct ? 'correct' : 'incorrect');
 
         const newScores = [...scores];
         if (correct) {
+            // Double points if it was a double bonus that transformed the value? 
+            // For now assume points are static unless 'double' bonus was just applied instantly.
+            // Simpler: Regular points logic.
             newScores[currentTeam] += points;
         } else {
             newScores[currentTeam] -= points;
@@ -102,18 +147,26 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
     };
 
     const handleBonusAction = () => {
-        if (!selectedQuestion) return;
+        if (!selectedQuestion || !gameBoard) return;
         const { categoryIndex, questionIndex } = selectedQuestion;
-        const q = game.jeopardyBoard![categoryIndex].questions[questionIndex];
+        const q = gameBoard[categoryIndex].questions[questionIndex];
         const type = q.bonusType;
         const points = q.points;
         const newScores = [...scores];
 
         if (type === 'double') {
             newScores[currentTeam] += (points * 2);
+             // After applying bonus, we might still want to ask the question? 
+             // Typically in classroom games, a bonus is just an event.
+             // Let's assume "Chaos Mode" replaces the question entirely with an event.
+             // OR: "Double Points" applies to the question. 
+             
+             // Implementation: Bonus replaces question (Event Card)
+             // prompt: "bonuses (which will randomly replace questions)"
         } else if (type === 'bust') {
             newScores[currentTeam] -= points;
         } else if (type === 'steal') {
+             // Steal from leader
              let victimIdx = -1;
              let maxS = -Infinity;
              scores.forEach((s, i) => {
@@ -139,13 +192,13 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
         setAnsweredQuestions(prev => [...prev, `${cIdx}-${qIdx}`]);
         setTimeout(() => {
             setSelectedQuestion(null);
-            setCurrentTeam((prev) => (prev + 1) % game.config.players);
+            setCurrentTeam((prev) => (prev + 1) % options.players);
         }, 1500);
     };
 
     const checkWinner = () => {
-        if (!game.jeopardyBoard) return;
-        const totalQuestions = game.jeopardyBoard.reduce((acc, cat) => acc + cat.questions.length, 0);
+        if (!gameBoard) return;
+        const totalQuestions = gameBoard.reduce((acc: number, cat: any) => acc + cat.questions.length, 0);
         if (totalQuestions > 0 && answeredQuestions.length >= totalQuestions) {
              const winningScore = Math.max(...scores);
              const winnerIdx = scores.indexOf(winningScore);
@@ -158,7 +211,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
         checkWinner();
     }, [answeredQuestions]);
 
-    if (!game.jeopardyBoard) return <div>Error: Invalid Jeopardy Data</div>;
+    if (!gameBoard) return <div>Loading Board...</div>;
 
     if (winner !== null) {
         return (
@@ -183,9 +236,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
         );
     }
 
-    const activeQ = selectedQuestion ? game.jeopardyBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex] : null;
-    const isBonus = activeQ?.isBonus && activeQ.bonusType !== 'none';
-    const initialTimer = game.config.timerSeconds || 30;
+    const activeQ = selectedQuestion ? gameBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex] : null;
+    const isBonus = activeQ?.isBonus;
 
     return (
         <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-screen p-0' : 'min-h-screen p-4'}`}>
@@ -196,7 +248,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                         onClick={() => setShowQuitConfirm(true)} 
                         className="text-slate-400 hover:text-white flex items-center text-sm bg-slate-700 hover:bg-red-900 px-3 py-1 rounded-lg transition-colors"
                     >
-                        <ArrowLeft size={16} className="mr-1" /> Quit Game
+                        <ArrowLeft size={16} className="mr-1" /> Quit
                     </button>
                     <h1 className="text-white font-display font-bold text-xl truncate max-w-[200px]">{game.title}</h1>
                 </div>
@@ -213,31 +265,35 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                 {scores.map((score, idx) => (
                     <div 
                         key={idx} 
-                        className={`px-4 py-2 rounded-lg text-center transition-all border-2 min-w-[100px] ${currentTeam === idx ? 'bg-brand-blue border-white text-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                        className={`px-4 py-2 rounded-lg text-center transition-all border-2 min-w-[100px] 
+                            ${isFullscreen ? 'min-w-[160px] py-4' : ''}
+                            ${currentTeam === idx ? 'bg-brand-blue border-white text-white scale-105 shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
                     >
-                        <div className="text-[10px] uppercase font-bold">Team {idx + 1}</div>
-                        <div className="text-xl font-black font-mono">{score}</div>
+                        <div className={`${isFullscreen ? 'text-sm mb-1' : 'text-[10px]'} uppercase font-bold`}>Team {idx + 1}</div>
+                        <div className={`${isFullscreen ? 'text-5xl' : 'text-xl'} font-black font-mono`}>{score}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Game Board Grid (Flex Grow to fill space) */}
+            {/* Game Board Grid */}
             <div className="flex-grow flex flex-col min-h-0">
                 <div 
                     className="grid gap-2 max-w-full mx-auto w-full mb-2"
-                    style={{ gridTemplateColumns: `repeat(${game.jeopardyBoard.length}, minmax(0, 1fr))` }}
+                    style={{ gridTemplateColumns: `repeat(${gameBoard.length}, minmax(0, 1fr))` }}
                 >
-                    {game.jeopardyBoard.map((cat, idx) => (
+                    {gameBoard.map((cat: any, idx: number) => (
                         <div key={`cat-${idx}`} className="bg-brand-blue text-white p-2 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full">
-                            <h3 className="font-display font-bold text-xs md:text-sm lg:text-lg leading-tight line-clamp-2">{cat.name}</h3>
+                            <h3 className={`font-display font-bold leading-tight line-clamp-2 ${isFullscreen ? 'text-lg md:text-xl' : 'text-xs md:text-sm lg:text-lg'}`}>
+                                {cat.name}
+                            </h3>
                         </div>
                     ))}
                 </div>
                 
                 <div className="flex-grow flex gap-2 max-w-full mx-auto w-full min-h-0">
-                    {game.jeopardyBoard.map((cat, cIdx) => (
+                    {gameBoard.map((cat: any, cIdx: number) => (
                         <div key={`col-${cIdx}`} className="flex-1 flex flex-col gap-2 min-h-0">
-                            {cat.questions.map((q, qIdx) => {
+                            {cat.questions.map((q: any, qIdx: number) => {
                                 const isAnswered = answeredQuestions.includes(`${cIdx}-${qIdx}`);
                                 return (
                                     <button 
@@ -245,7 +301,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                                         disabled={isAnswered}
                                         onClick={() => handleQuestionSelect(cIdx, qIdx)}
                                         className={`
-                                            flex-1 rounded flex items-center justify-center text-xl md:text-3xl font-black font-mono transition-all
+                                            flex-1 rounded flex items-center justify-center font-black font-mono transition-all
+                                            ${isFullscreen ? 'text-4xl md:text-5xl' : 'text-xl md:text-3xl'}
                                             ${isAnswered 
                                                 ? 'bg-slate-800/50 text-slate-700 cursor-not-allowed' 
                                                 : 'bg-brand-yellow text-slate-900 hover:bg-white hover:scale-105 shadow-sm border-b-4 border-yellow-600'}
@@ -260,7 +317,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                 </div>
             </div>
 
-            {/* Quit Confirmation Modal (Custom for Fullscreen support) */}
+            {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
@@ -285,19 +342,18 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                 </div>
             )}
 
-            {/* Question/Bonus Modal */}
+            {/* Active Card Modal */}
             {activeQ && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-5xl perspective-1000 h-[80vh]">
+                    <div className="w-full max-w-5xl [perspective:1000px] h-[80vh]">
                         <div 
-                            className={`relative w-full h-full transition-all duration-700 transform-style-3d cursor-pointer ${isFlipped ? 'rotate-y-180' : ''}`}
+                            className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] cursor-pointer ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                             onClick={() => {
-                                // Only flip if not already flipped (for the question side)
                                 if (!isFlipped && !isBonus) setIsFlipped(true);
                             }}
                         >
-                            {/* Front (Clue) */}
-                            <div className={`absolute inset-0 backface-hidden rounded-3xl border-8 shadow-2xl flex flex-col items-center justify-center p-12 text-center
+                            {/* Front (Clue or Bonus Alert) */}
+                            <div className={`absolute inset-0 [backface-visibility:hidden] rounded-3xl border-8 shadow-2xl flex flex-col items-center justify-center p-12 text-center
                                 ${isBonus ? 'bg-purple-600 border-purple-300' : 'bg-brand-blue border-white'}`}>
                                 
                                 {isBonus ? (
@@ -308,9 +364,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                                 ) : (
                                     <>
                                         <h3 className="text-sky-200 uppercase tracking-widest font-bold mb-4 text-xl">
-                                            {game.jeopardyBoard[selectedQuestion!.categoryIndex].name} • {activeQ.points}
+                                            {gameBoard[selectedQuestion!.categoryIndex].name} • {activeQ.points}
                                         </h3>
-                                        {/* Question Text with whitespace-pre-wrap to respect AI spacing */}
                                         <div className="flex-grow flex items-center justify-center w-full">
                                              <p className="text-3xl md:text-5xl lg:text-6xl font-display font-bold text-white leading-tight whitespace-pre-wrap max-w-4xl">
                                                 {activeQ.question}
@@ -318,17 +373,17 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                                         </div>
                                         
                                         <div className="mt-8 w-full max-w-3xl">
-                                            {game.config.timerSeconds > 0 && (
+                                            {options.timerSeconds > 0 && (
                                                 <div className="w-full h-4 bg-sky-900/50 rounded-full overflow-hidden border border-sky-500/30">
                                                     <div 
                                                         className={`h-full transition-all duration-1000 ${timeLeft < 5 ? 'bg-red-500' : 'bg-brand-yellow'}`}
-                                                        style={{ width: `${(timeLeft / initialTimer) * 100}%` }}
+                                                        style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }}
                                                     />
                                                 </div>
                                             )}
                                             <p className="mt-2 text-sky-300 text-sm">Tap card to reveal answer</p>
                                         </div>
-                                        {strictMode && <p className="mt-4 text-brand-yellow font-bold text-lg uppercase bg-brand-yellow/10 px-4 py-2 rounded-full border border-brand-yellow/30">Strict Mode: "What is..." required</p>}
+                                        {options.strictMode && <p className="mt-4 text-brand-yellow font-bold text-lg uppercase bg-brand-yellow/10 px-4 py-2 rounded-full border border-brand-yellow/30">Strict Mode: "What is..." required</p>}
                                     </>
                                 )}
                                 {isBonus && (
@@ -336,22 +391,28 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
                                         className="mt-8 px-8 py-4 bg-white text-purple-900 rounded-full font-bold text-xl hover:bg-purple-100"
                                      >
-                                        Reveal
+                                        Reveal Fate
                                      </button>
                                 )}
                             </div>
 
-                            {/* Back (Answer/Effect) */}
-                            <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-3xl border-8 shadow-2xl flex flex-col items-center justify-center p-12 text-center
+                            {/* Back (Answer or Bonus Effect) */}
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl border-8 shadow-2xl flex flex-col items-center justify-center p-12 text-center
                                 ${isBonus ? 'bg-purple-50 border-purple-600' : 'bg-white border-brand-yellow'}`}>
                                 
                                 {isBonus ? (
                                     <>
                                         <h3 className="text-slate-500 uppercase tracking-widest font-bold mb-4">EFFECT</h3>
                                         <p className="text-4xl md:text-6xl font-display font-bold text-slate-800 leading-tight mb-8">
-                                            {activeQ.question}
+                                            {activeQ.bonusType === 'double' && "DOUBLE POINTS!"}
+                                            {activeQ.bonusType === 'bust' && "OH NO! POINTS LOST"}
+                                            {activeQ.bonusType === 'steal' && "STEAL POINTS!"}
                                         </p>
-                                        <p className="text-2xl text-slate-600 mb-12">{activeQ.answer}</p>
+                                        <p className="text-2xl text-slate-600 mb-12">
+                                            {activeQ.bonusType === 'double' && "You get 2x the points for this tile automatically."}
+                                            {activeQ.bonusType === 'bust' && "You lose the value of this tile."}
+                                            {activeQ.bonusType === 'steal' && "Steal this tile's value from the leader."}
+                                        </p>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleBonusAction(); }}
                                             className="px-12 py-6 bg-purple-600 text-white rounded-2xl font-bold text-xl hover:bg-purple-700 transition-colors shadow-lg"
@@ -397,17 +458,6 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, onBack, onFini
                     </div>
                 </div>
             )}
-
-            <style>{`
-                .perspective-1000 { perspective: 1000px; }
-                .transform-style-3d { transform-style: preserve-3d; }
-                .backface-hidden { backface-visibility: hidden; }
-                .rotate-y-180 { transform: rotateY(180deg); }
-                /* Hide scrollbar for cleaner fullscreen look */
-                ::-webkit-scrollbar { width: 6px; height: 6px; }
-                ::-webkit-scrollbar-track { background: #1e293b; }
-                ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-            `}</style>
         </div>
     );
 };

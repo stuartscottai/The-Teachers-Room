@@ -9,10 +9,7 @@ export enum GameType {
 export interface GameConfig {
   type: GameType;
   title?: string; // User defined title
-  players: number;
   questionCount: number; // Used for list-based games
-  timerSeconds: number;
-  bonusQuestions: boolean;
   questionType: 'multiple-choice' | 'gap-fill' | 'open' | 'mixed' | 'ai-decide';
   topic: string; // Still used for non-Jeopardy games
   isAI: boolean;
@@ -22,7 +19,14 @@ export interface GameConfig {
   jeopardyCategoryNames?: string[]; // Specific names for columns
   jeopardyRows?: number; // Rows (questions per category)
   strictMode?: boolean; // "What is..." requirement
-  hiddenBonuses?: boolean; // "Random hidden bonuses"
+}
+
+// New Interface for Runtime Options (Players, Timer, Bonuses)
+export interface GameRunOptions {
+  players: number;
+  timerSeconds: number;
+  enableBonuses: boolean;
+  strictMode: boolean; // Can override config
 }
 
 export interface GeneratedQuestion {

@@ -72,8 +72,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       Create a ${config.type} game titled "${gameTitle}" about "${config.topic}".
       Number of questions: ${config.questionCount}.
       Question Type: ${qTypeInstruction}.
-      Timer per question: ${config.timerSeconds}s.
-      Includes Bonus Questions: ${config.bonusQuestions}.
+      Includes Bonus Questions: false.
       Custom Instructions: ${config.customInstructions || "None"}.
       
       Output strictly JSON matching this schema structure:
@@ -109,50 +108,6 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     
     const data = JSON.parse(text);
     
-    // --- POST PROCESSING FOR HIDDEN BONUSES (Jeopardy Only) ---
-    if (isJeopardy && config.hiddenBonuses && data.jeopardyBoard) {
-        const board = data.jeopardyBoard as JeopardyCategory[];
-        const flatCoords: {c: number, q: number}[] = [];
-        
-        // Gather all coordinates
-        board.forEach((cat, cIdx) => {
-            cat.questions.forEach((_, qIdx) => {
-                flatCoords.push({ c: cIdx, q: qIdx });
-            });
-        });
-
-        // Shuffle coordinates
-        for (let i = flatCoords.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [flatCoords[i], flatCoords[j]] = [flatCoords[j], flatCoords[i]];
-        }
-
-        // Select random spots for bonuses (e.g., 10% of tiles or min 3)
-        const bonusCount = Math.max(3, Math.floor(flatCoords.length * 0.1));
-        const selectedCoords = flatCoords.slice(0, bonusCount);
-        const bonusTypes = ['double', 'bust', 'steal', 'double']; // Weighted types
-
-        selectedCoords.forEach((coord, i) => {
-            const type = bonusTypes[i % bonusTypes.length] as 'double' | 'bust' | 'steal';
-            const q = board[coord.c].questions[coord.q];
-            
-            q.bonusType = type;
-            q.isBonus = true;
-            
-            // Rewrite text to describe bonus (for display after reveal)
-            if (type === 'double') {
-                q.question = "DOUBLE POINTS!";
-                q.answer = "You gain 2x the value of this tile.";
-            } else if (type === 'bust') {
-                q.question = "OH NO! POINT LOSS";
-                q.answer = "You lose the value of this tile.";
-            } else if (type === 'steal') {
-                q.question = "STEAL!";
-                q.answer = "Steal this tile's value from the leading team.";
-            }
-        });
-    }
-
     return {
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),

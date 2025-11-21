@@ -1,13 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { GameType, GameConfig, GeneratedGame } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
-import { ArrowLeft, Settings, Sparkles, Edit, Gift, X } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X } from 'lucide-react';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-fade-in">
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
@@ -57,10 +58,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     const [config, setConfig] = useState<GameConfig>({
         type,
         title: '',
-        players: 2,
         questionCount: 10,
-        timerSeconds: 30,
-        bonusQuestions: true,
         questionType: 'mixed',
         topic: '',
         isAI: mode === 'ai',
@@ -68,8 +66,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         jeopardyCategories: 5,
         jeopardyCategoryNames: Array(5).fill(''),
         jeopardyRows: 5,
-        strictMode: false,
-        hiddenBonuses: false
+        strictMode: false
     });
     const [loading, setLoading] = useState(false);
 
@@ -160,7 +157,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     </div>
                     <div>
                         <h2 className="font-display text-2xl font-bold text-slate-800">Configure {type}</h2>
-                        <p className="text-slate-500 text-sm">{mode === 'ai' ? 'Define parameters for AI generation' : 'Setup game structure'}</p>
+                        <p className="text-slate-500 text-sm">{mode === 'ai' ? 'Define content parameters for AI generation' : 'Setup game structure'}</p>
                     </div>
                 </div>
 
@@ -190,32 +187,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             />
                         </div>
                     )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Number of Players/Teams</label>
-                            <select 
-                                value={config.players}
-                                onChange={(e) => setConfig({...config, players: Number(e.target.value)})}
-                                className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                            >
-                                {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Teams</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Timer (Seconds)</label>
-                            <select 
-                                value={config.timerSeconds}
-                                onChange={(e) => setConfig({...config, timerSeconds: Number(e.target.value)})}
-                                className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                            >
-                                <option value={0}>No Timer</option>
-                                <option value={15}>15s</option>
-                                <option value={30}>30s</option>
-                                <option value={60}>60s</option>
-                            </select>
-                        </div>
-                    </div>
 
                     {/* Specific Jeopardy Settings */}
                     {type === GameType.JEOPARDY ? (
@@ -292,21 +263,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     />
                                     <label htmlFor="strictMode" className="text-slate-700 text-sm font-medium">Strict Mode (Must say "What is...")</label>
                                 </div>
-                                {mode === 'ai' && (
-                                    <div className="flex items-center space-x-3">
-                                        <input 
-                                            type="checkbox" 
-                                            id="hiddenBonuses"
-                                            checked={config.hiddenBonuses}
-                                            onChange={(e) => setConfig({...config, hiddenBonuses: e.target.checked})}
-                                            className="w-5 h-5 text-sky-600 rounded focus:ring-sky-500"
-                                        />
-                                        <label htmlFor="hiddenBonuses" className="text-slate-700 text-sm font-medium flex items-center">
-                                            <Gift size={16} className="mr-2 text-brand-accent" />
-                                            Random Hidden Bonuses (Double pts, Bankrupt, Steal)
-                                        </label>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     ) : (
@@ -361,10 +317,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         ${loading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-brand-blue text-white hover:bg-sky-600 hover:shadow-lg'}`}
                     >
                         {loading ? (
-                            <>Generating Game...</>
+                            <>Generating Game Content...</>
                         ) : (
                             <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />} 
-                              {mode === 'ai' ? 'Create Game with AI' : 'Open Game Editor'}</>
+                              {mode === 'ai' ? 'Create Game' : 'Open Editor'}</>
                         )}
                     </button>
                 </div>

@@ -64,7 +64,7 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 };
 
 // --- LOCAL STORAGE UTILS ---
-export const saveGameToLibrary = (game: GeneratedGame) => {
+export const saveGameToLibrary = (game: GeneratedGame): boolean => {
     try {
         const existing = localStorage.getItem('teachersRoomGames');
         const library = existing ? JSON.parse(existing) : [];
@@ -76,10 +76,10 @@ export const saveGameToLibrary = (game: GeneratedGame) => {
             library.push(game);
         }
         localStorage.setItem('teachersRoomGames', JSON.stringify(library));
-        alert('Game saved to your profile!');
+        return true;
     } catch (e) {
         console.error("Save failed", e);
-        alert('Failed to save game locally.');
+        return false;
     }
 };
 

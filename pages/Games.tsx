@@ -1,13 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
-import { GameType, GeneratedGame } from '../types';
+import { useLocation } from 'react-router-dom';
+import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
+import { GameSetup } from '../components/games/GameSetup';
 
 // 1. Game Hub Selection
 const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () => void }> = ({ onSelect, onViewLibrary }) => {
@@ -155,10 +159,22 @@ const LibraryView: React.FC<{ onBack: () => void, onLoadGame: (game: GeneratedGa
 
 // 7. MAIN COMPONENT
 export const Games: React.FC = () => {
-    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'editor' | 'play' | 'library'>('hub');
+    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'editor' | 'setup' | 'play' | 'library'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual'>('ai');
     const [generatedGame, setGeneratedGame] = useState<GeneratedGame | null>(null);
+    const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
+    
+    const location = useLocation();
+    const { setIsDirty } = useUnsavedChanges();
+
+    // Check for navigation from Navbar "My Saved Games"
+    useEffect(() => {
+        if (location.state && location.state.view === 'library') {
+            setIsDirty(false); 
+            setStep('library');
+        }
+    }, [location, setIsDirty]);
 
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
@@ -178,6 +194,7 @@ export const Games: React.FC = () => {
     const handleConfigProceed = (game: GeneratedGame) => {
         setGeneratedGame(game);
         setStep('editor');
+        setIsDirty(true); // New game unsaved
     };
 
     const handleEditorSave = (updatedGame: GeneratedGame) => {
@@ -186,30 +203,49 @@ export const Games: React.FC = () => {
 
     const handleEditorPlay = (updatedGame: GeneratedGame) => {
         setGeneratedGame(updatedGame);
+        setIsDirty(false); // Playing is fine, changes likely saved or user accepts loss
+        // Move to Setup Screen first
+        setStep('setup');
+    };
+
+    const handleGameStart = (options: GameRunOptions) => {
+        setPlayOptions(options);
         setStep('play');
     };
 
     const handleLoadGame = (game: GeneratedGame) => {
         setGeneratedGame(game);
         setStep('editor');
+        setIsDirty(false); 
     };
 
     const handleBack = () => {
-        if (step === 'play') {
-            // Logic handled by in-game modal now, this is fallback or confirmed action
-            setStep('editor');
-        } else if (step === 'editor') {
-            // If viewing a saved game, simpler to go back to library, else config
-            // For simplicity now, go to Hub to be safe, or previous step if tracked.
-            setStep('hub');
-        } else if (step === 'config') {
-            selectedType === GameType.JEOPARDY ? setStep('mode') : setStep('hub');
-        } else if (step === 'mode') {
-            setStep('hub');
-        } else if (step === 'library') {
-            setStep('hub');
+        const goBack = () => {
+            setIsDirty(false);
+            if (step === 'play') {
+                setStep('setup'); // Back to setup from play
+            } else if (step === 'setup') {
+                setStep('editor'); // Back to editor from setup
+            } else if (step === 'editor') {
+                setStep('hub');
+            } else if (step === 'config') {
+                selectedType === GameType.JEOPARDY ? setStep('mode') : setStep('hub');
+            } else if (step === 'mode') {
+                setStep('hub');
+            } else if (step === 'library') {
+                setStep('hub');
+            } else {
+                setStep('hub');
+            }
+        };
+
+        // If in editor, check for dirty state via context check handled by parent or custom confirm here
+        if (step === 'editor') {
+             if (window.confirm("Leave editor? Unsaved changes will be lost.")) {
+                 goBack();
+             }
         } else {
-            setStep('hub');
+            goBack();
         }
     };
 
@@ -221,17 +257,17 @@ export const Games: React.FC = () => {
         <div className="min-h-screen bg-slate-50">
             {step === 'hub' && <GameHub onSelect={handleSelect} onViewLibrary={() => setStep('library')} />}
 
-            {step === 'library' && <LibraryView onBack={handleBack} onLoadGame={handleLoadGame} />}
+            {step === 'library' && <LibraryView onBack={() => setStep('hub')} onLoadGame={handleLoadGame} />}
             
             {step === 'mode' && selectedType && (
-                <ModeSelector type={selectedType} onBack={handleBack} onModeSelect={handleModeSelect} />
+                <ModeSelector type={selectedType} onBack={() => setStep('hub')} onModeSelect={handleModeSelect} />
             )}
 
             {step === 'config' && selectedType && (
                 <GameConfigurator 
                     type={selectedType} 
                     mode={creationMode}
-                    onBack={handleBack} 
+                    onBack={() => selectedType === GameType.JEOPARDY ? setStep('mode') : setStep('hub')} 
                     onProceed={handleConfigProceed} 
                 />
             )}
@@ -244,13 +280,26 @@ export const Games: React.FC = () => {
                 />
             )}
 
-            {step === 'play' && generatedGame && (
+            {step === 'setup' && generatedGame && (
+                <GameSetup 
+                    game={generatedGame}
+                    onBack={() => setStep('editor')}
+                    onStart={handleGameStart}
+                />
+            )}
+
+            {step === 'play' && generatedGame && playOptions && (
                 selectedType === GameType.JEOPARDY ? (
-                    <JeopardyGame game={generatedGame} onBack={handleBack} onFinish={handleGameEnd} />
+                    <JeopardyGame 
+                        game={generatedGame} 
+                        options={playOptions}
+                        onBack={handleGameEnd} 
+                        onFinish={() => setStep('library')} 
+                    />
                 ) : (
                     <div className="max-w-6xl mx-auto px-4 py-12">
                          <div className="flex items-center justify-between mb-8">
-                            <button onClick={handleBack} className="flex items-center text-slate-500 hover:text-sky-600">
+                            <button onClick={handleGameEnd} className="flex items-center text-slate-500 hover:text-sky-600">
                                 <ArrowLeft size={18} className="mr-2" /> Exit Game
                             </button>
                         </div>

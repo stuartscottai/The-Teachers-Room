@@ -1,8 +1,42 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogOut, Grid } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
+
+// SafeLink Component to intercept navigation if changes are unsaved
+const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
+    const { isDirty, setIsDirty } = useUnsavedChanges();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const isActive = location.pathname === to;
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (isActive && !state) return; // Don't navigate if already there unless checking for state changes
+
+        const performNavigation = () => {
+            setIsDirty(false); // Clear dirty state on confirmed navigation
+            if (onClick) onClick();
+            navigate(to, { state });
+        };
+
+        if (isDirty) {
+            if (window.confirm("You have unsaved changes. Are you sure you want to leave? Your progress will be lost.")) {
+                performNavigation();
+            }
+        } else {
+            performNavigation();
+        }
+    };
+
+    return (
+        <a href={to} onClick={handleClick} className={className}>
+            {children}
+        </a>
+    );
+};
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,7 +44,7 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-
+  
   const navItems = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
     { name: 'Games', path: '/games', icon: <GraduationCap size={18} /> },
@@ -25,64 +59,69 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-    <nav className="bg-white sticky top-0 z-50 shadow-sm border-b border-slate-100 print:hidden">
+    <nav className="bg-white sticky top-0 z-[100] shadow-sm border-b border-slate-100 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex-shrink-0 flex items-center">
+            <SafeLink to="/" className="flex-shrink-0 flex items-center">
               <div className="bg-brand-yellow p-2 rounded-full mr-2 shadow-sm">
                 <GraduationCap className="h-6 w-6 text-sky-900" />
               </div>
               <span className="font-display font-bold text-xl text-slate-800">The Teachers' Room</span>
-            </Link>
+            </SafeLink>
           </div>
           
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => (
-              <Link
+              <SafeLink
                 key={item.name}
                 to={item.path}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer
                   ${isActive(item.path) 
                     ? 'bg-sky-50 text-sky-700' 
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
               >
                 {item.icon}
                 {item.name}
-              </Link>
+              </SafeLink>
             ))}
             <div className="ml-4 pl-4 border-l border-slate-200 relative">
               {user ? (
                 <div className="relative">
                   <button 
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 text-slate-700 hover:text-brand-blue"
+                    className="flex items-center space-x-2 text-slate-700 hover:text-brand-blue relative z-[101]"
                   >
                     <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-slate-200" />
-                    <span className="font-bold text-sm">{user.name}</span>
+                    <span className="font-bold text-sm max-w-[100px] truncate">{user.name}</span>
                   </button>
                   
                   {showUserMenu && (
-                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
+                     <>
+                     {/* Backdrop to close menu when clicking outside */}
+                     <div className="fixed inset-0 z-[100]" onClick={() => setShowUserMenu(false)} />
+                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[102] animate-fade-in">
                         <div className="px-4 py-2 border-b border-slate-50 mb-2">
                           <p className="text-xs text-slate-400 uppercase">Signed in as</p>
                           <p className="font-bold text-slate-800 truncate">{user.email}</p>
                         </div>
-                        <Link 
+                        <SafeLink 
                           to="/games" 
+                          state={{ view: 'library' }}
                           onClick={() => setShowUserMenu(false)}
-                          className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center"
+                          className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <Grid size={16} className="mr-2" /> My Saved Games
-                        </Link>
+                          <Grid size={16} className="mr-2 text-brand-blue" /> My Saved Games
+                        </SafeLink>
                         <button 
                           onClick={() => { logout(); setShowUserMenu(false); }}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                          className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center"
                         >
                           <LogOut size={16} className="mr-2" /> Sign Out
                         </button>
                      </div>
+                     </>
                   )}
                 </div>
               ) : (
@@ -116,7 +155,7 @@ const Navbar: React.FC = () => {
         <div className="md:hidden bg-white border-t border-slate-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
-              <Link
+              <SafeLink
                 key={item.name}
                 to={item.path}
                 onClick={() => setIsOpen(false)}
@@ -127,7 +166,7 @@ const Navbar: React.FC = () => {
               >
                 {item.icon}
                 {item.name}
-              </Link>
+              </SafeLink>
             ))}
             <div className="border-t border-slate-100 pt-3 mt-3">
                 {user ? (
@@ -136,6 +175,9 @@ const Navbar: React.FC = () => {
                        <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mr-2" />
                        <span className="font-bold text-slate-800">{user.name}</span>
                     </div>
+                    <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
+                        My Saved Games
+                    </SafeLink>
                     <button onClick={logout} className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
                   </>
                 ) : (
@@ -159,30 +201,30 @@ const Navbar: React.FC = () => {
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden">
+    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div>
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Site</h3>
             <ul className="space-y-3">
-              <li><Link to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</Link></li>
-              <li><Link to="/worksheets" className="hover:text-brand-yellow text-sm transition-colors">Worksheets</Link></li>
-              <li><Link to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</Link></li>
-              <li><Link to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</Link></li>
+              <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</SafeLink></li>
+              <li><SafeLink to="/worksheets" className="hover:text-brand-yellow text-sm transition-colors">Worksheets</SafeLink></li>
+              <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</SafeLink></li>
+              <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</SafeLink></li>
             </ul>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Support</h3>
             <ul className="space-y-3">
-              <li><Link to="/info" className="hover:text-brand-yellow text-sm transition-colors">FAQs</Link></li>
-              <li><Link to="/contact" className="hover:text-brand-yellow text-sm transition-colors">Contact</Link></li>
+              <li><SafeLink to="/info" className="hover:text-brand-yellow text-sm transition-colors">FAQs</SafeLink></li>
+              <li><SafeLink to="/contact" className="hover:text-brand-yellow text-sm transition-colors">Contact</SafeLink></li>
             </ul>
           </div>
            <div>
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Legal</h3>
             <ul className="space-y-3">
-              <li><Link to="/terms" className="hover:text-brand-yellow text-sm transition-colors">Terms of Service</Link></li>
-              <li><Link to="/privacy" className="hover:text-brand-yellow text-sm transition-colors">Privacy Policy</Link></li>
+              <li><SafeLink to="/terms" className="hover:text-brand-yellow text-sm transition-colors">Terms of Service</SafeLink></li>
+              <li><SafeLink to="/privacy" className="hover:text-brand-yellow text-sm transition-colors">Privacy Policy</SafeLink></li>
             </ul>
           </div>
            <div className="col-span-2 md:col-span-1">
@@ -208,7 +250,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
       <Navbar />
-      <main className="flex-grow bg-white relative">
+      <main className="flex-grow bg-white relative z-0">
         {children}
       </main>
       <Footer />
