@@ -63,6 +63,9 @@ export interface WorksheetConfig {
 }
 
 export interface GeneratedWorksheet {
+  id?: string;
+  createdAt?: string;
+  config?: WorksheetConfig;
   title: string;
   content: string; // HTML or structured text representation
   type: string;

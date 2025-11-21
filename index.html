@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The Teachers' Room</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
@@ -41,22 +41,73 @@
       }
       
       @media print {
-        .no-print {
+        @page {
+          margin: 1.5cm;
+          size: auto;
+        }
+
+        /* Reset main containers to allow flow */
+        body, html, #root, main {
+          background-color: white !important;
+          height: auto !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          position: static !important;
+        }
+
+        /* Hide non-printable interface elements */
+        nav, footer, .no-print, .no-print-inside, button {
+            display: none !important;
+        }
+
+        /* Explicitly hide any element with the tailwind print:hidden class (backup) */
+        .print\:hidden {
           display: none !important;
         }
-        .print-only {
+        
+        /* Target the printable content directly */
+        #printable-area {
           display: block !important;
+          width: 100% !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          color: black !important;
+          background: white !important;
+          box-shadow: none !important;
+          border: none !important;
+          position: relative !important;
+          left: auto !important;
+          top: auto !important;
         }
-        body {
-          background-color: white;
-          -webkit-print-color-adjust: exact;
+
+        /* Ensure Typography plugin doesn't constrain width */
+        .prose {
+          max-width: none !important;
         }
-        /* Force page break */
+
+        /* Clean up borders and backgrounds for print economy */
+        * {
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important; 
+        }
+        
+        /* Force page break utilities */
         .page-break { 
           page-break-before: always; 
           break-before: page;
           display: block;
           margin-top: 2rem;
+        }
+        
+        /* Avoid breaking inside elements */
+        tr, img, .avoid-break {
+          page-break-inside: avoid;
+        }
+        h1, h2, h3, h4 {
+          page-break-after: avoid;
         }
       }
     </style>

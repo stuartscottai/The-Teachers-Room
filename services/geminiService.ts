@@ -128,14 +128,19 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   const systemInstruction = `You are an expert teacher creating professional worksheets for printing.
   Generate the 'content' as a complete, well-structured HTML string.
   
-  Formatting Rules:
-  1. Use a clear, 100% width table for the header (Name, Date, Score).
-  2. Use <h3> or <h4> for section headings.
-  3. For 'wordsearch', create a grid using a table with monospace font, centered text, and borders.
-  4. For 'matching', use a 2-column layout.
-  5. Use inline CSS styles to ensure it looks good when printed (black text, clear borders, ample padding).
-  6. IMPORTANT: Put the Answer Key at the very bottom. Wrap the Answer Key section in a div with class "page-break" so it prints on a new page.
-  7. Do not include <html>, <head>, or <body> tags, just the inner content for the worksheet container.
+  STRICT STYLING RULES (Do NOT use inline CSS. Use these specific class names):
+  1. Header: Wrap the name/date/score block in <div class="ws-header">...</div>. Inside, use <div class="ws-field">Name: ____________</div>.
+  2. Title: Use <h1 class="ws-title">Title Here</h1>.
+  3. Instructions: Use <p class="ws-instructions">...</p>. Keep instructions concise to save space.
+  4. Sections: Wrap distinct parts in <div class="ws-section"> with <h3 class="ws-section-title">Section Title</h3>.
+  5. Tables: For grids or matching, use <table class="ws-table">.
+  6. Answer Key: Wrap the ENTIRE answer key section in <div class="ws-answer-key">. Inside, use <h3>Answer Key</h3> and then lists.
+  
+  CONTENT LAYOUT RULES:
+  - Fit the QUESTIONS and ACTIVITIES on the first page if possible.
+  - The ANSWER KEY is strictly on a separate page (enforced by CSS), so you do not need to fit it on the first page.
+  - For multiple choice or short answers, use a 2-column layout where possible by wrapping them in a div with style="columns: 2; gap: 2rem;".
+  - Do not include <html>, <head>, or <body> tags, just the inner content.
   `;
 
   const prompt = `
@@ -143,6 +148,13 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     Topic: ${config.topic}.
     Grade Level: ${config.gradeLevel}.
     Additional Instructions: ${config.customInstructions || "None"}.
+    
+    Output strictly valid JSON matching this structure:
+    {
+      "title": "The worksheet title",
+      "content": "The HTML string of the worksheet",
+      "type": "${config.type}"
+    }
   `;
 
   try {
@@ -152,22 +164,19 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING, description: "Title of the worksheet" },
-            content: { type: Type.STRING, description: "HTML content of the worksheet including answer key" },
-            type: { type: Type.STRING, description: "The type of worksheet generated" }
-          },
-          required: ["title", "content", "type"]
-        }
       }
     });
 
     const text = response.text;
     if (!text) throw new Error("No response from AI");
     
-    return JSON.parse(text) as GeneratedWorksheet;
+    const result = JSON.parse(text) as GeneratedWorksheet;
+    return {
+        ...result,
+        id: Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        config: config
+    };
   } catch (error) {
     console.error("Error generating worksheet:", error);
     throw error;
@@ -184,4 +193,33 @@ export const chatWithAI = async (message: string, history: string[]): Promise<st
         User: ${message}`
     });
     return response.text || "I'm sorry, I couldn't process that.";
+};
+
+export const generateBlogPost = async (title: string, subtitle: string): Promise<string> => {
+  const ai = getClient();
+  const prompt = `
+    Write a comprehensive, engaging blog post for teachers.
+    Title: "${title}"
+    Subtitle: "${subtitle}"
+    Target Audience: Teachers and Educators.
+    Tone: Professional, inspiring, and helpful.
+    Length: 500 words.
+    Format: HTML (use <h2>, <p>, <ul>, <li>). 
+    IMPORTANT: Return ONLY the raw HTML content. Do not include markdown code blocks (like \`\`\`html). Do not include <html> or <body> tags.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt
+    });
+    
+    let text = response.text || '';
+    // Cleanup markdown if present
+    text = text.replace(/```html/g, '').replace(/```/g, '');
+    return text;
+  } catch (error) {
+    console.error("Error generating blog post:", error);
+    return "<p>Unable to generate article content at this time.</p>";
+  }
 };

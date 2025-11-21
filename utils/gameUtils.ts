@@ -1,4 +1,4 @@
-import { GeneratedGame } from "../types";
+import { GeneratedGame, GeneratedWorksheet } from "../types";
 
 // --- AUDIO UTILS (Web Audio API) ---
 export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bonus') => {
@@ -63,7 +63,7 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
     }
 };
 
-// --- LOCAL STORAGE UTILS ---
+// --- GAME LOCAL STORAGE UTILS ---
 export const saveGameToLibrary = (game: GeneratedGame): boolean => {
     try {
         const existing = localStorage.getItem('teachersRoomGames');
@@ -98,6 +98,46 @@ export const deleteSavedGame = (id: string) => {
         if (existing) {
             const library = JSON.parse(existing).filter((g: GeneratedGame) => g.id !== id);
             localStorage.setItem('teachersRoomGames', JSON.stringify(library));
+        }
+    } catch(e) {
+        console.error(e);
+    }
+};
+
+// --- WORKSHEET LOCAL STORAGE UTILS ---
+export const saveWorksheetToLibrary = (worksheet: GeneratedWorksheet): boolean => {
+    try {
+        const existing = localStorage.getItem('teachersRoomWorksheets');
+        const library = existing ? JSON.parse(existing) : [];
+        const index = library.findIndex((w: GeneratedWorksheet) => w.id === worksheet.id);
+        if (index >= 0) {
+            library[index] = worksheet;
+        } else {
+            library.push(worksheet);
+        }
+        localStorage.setItem('teachersRoomWorksheets', JSON.stringify(library));
+        return true;
+    } catch (e) {
+        console.error("Save failed", e);
+        return false;
+    }
+};
+
+export const getSavedWorksheets = (): GeneratedWorksheet[] => {
+    try {
+        const existing = localStorage.getItem('teachersRoomWorksheets');
+        return existing ? JSON.parse(existing) : [];
+    } catch (e) {
+        return [];
+    }
+};
+
+export const deleteSavedWorksheet = (id: string) => {
+    try {
+        const existing = localStorage.getItem('teachersRoomWorksheets');
+        if (existing) {
+            const library = JSON.parse(existing).filter((w: GeneratedWorksheet) => w.id !== id);
+            localStorage.setItem('teachersRoomWorksheets', JSON.stringify(library));
         }
     } catch(e) {
         console.error(e);
