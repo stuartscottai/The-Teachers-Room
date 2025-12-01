@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GeneratedGame, GameRunOptions } from '../../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, Maximize2, Minimize2, AlertTriangle, RotateCcw, X, Check, Trophy, Sparkles, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Trophy, Sparkles, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
-interface JeopardyGameProps {
+interface TriviaGameProps {
     game: GeneratedGame;
     options: GameRunOptions;
     onBack: () => void;
@@ -56,17 +56,17 @@ const AnimatedScore: React.FC<{ score: number }> = ({ score }) => {
     );
 };
 
-export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
     const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
     const [currentTeam, setCurrentTeam] = useState(0);
-    const [selectedQuestion, setSelectedQuestion] = useState<{ categoryIndex: number, questionIndex: number } | null>(null);
-    const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([]);
+    const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
+    const [answeredIndices, setAnsweredIndices] = useState<number[]>([]);
     const [isFlipped, setIsFlipped] = useState(false);
     const [isGameOver, setIsGameOver] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
-    const [gameBoard, setGameBoard] = useState(game.jeopardyBoard); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+
     
     // Audio State
     const [isMuted, setIsMuted] = useState(options.muted);
@@ -76,60 +76,138 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const [editName, setEditName] = useState('');
     const [editScore, setEditScore] = useState(0);
 
+    // Local state for runtime questions
+    const [gameQuestions, setGameQuestions] = useState<GeneratedQuestion[]>([]);
+
     // Fullscreen logic
     const containerRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
-    // Timer State
+    // Grid Calculation State
+    const [gridDimensions, setGridDimensions] = useState({ width: 100, height: 100 });
+    const gridWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Timer
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const [isTimesUp, setIsTimesUp] = useState(false);
     const timerRef = useRef<any>(null);
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = selectedQuestion !== null || isGameOver;
+        const shouldLock = activeQuestionIndex !== null || isGameOver;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [selectedQuestion, isGameOver]);
+    }, [activeQuestionIndex, isGameOver]);
 
-    // Initialization Effect: Apply Random Bonuses if enabled
+    // Update dimensions using ResizeObserver for robustness
     useEffect(() => {
-        if (!game.jeopardyBoard) return;
-        
-        // Clone board to avoid mutating original game
-        const boardCopy = JSON.parse(JSON.stringify(game.jeopardyBoard));
-        
-        if (options.enableBonuses) {
-            const flatCoords: {c: number, q: number}[] = [];
-            boardCopy.forEach((cat: any, cIdx: number) => {
-                cat.questions.forEach((_: any, qIdx: number) => {
-                    flatCoords.push({ c: cIdx, q: qIdx });
-                });
-            });
-            
-            // Shuffle coordinates
-            for (let i = flatCoords.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [flatCoords[i], flatCoords[j]] = [flatCoords[j], flatCoords[i]];
+        if (!gridWrapperRef.current) return;
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                 setGridDimensions({
+                     width: entry.contentRect.width,
+                     height: entry.contentRect.height
+                 });
             }
+        });
+        observer.observe(gridWrapperRef.current);
+        return () => observer.disconnect();
+    }, []);
 
-            // Select ~15% of tiles as bonuses (min 3)
-            const bonusCount = Math.max(3, Math.floor(flatCoords.length * 0.15));
-            const selectedCoords = flatCoords.slice(0, bonusCount);
+    // Clean up fullscreen on unmount
+    useEffect(() => {
+        return () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log(err));
+            }
+        };
+    }, []);
+
+    // Initialize Game Logic (Divisibility & Bonuses)
+    useEffect(() => {
+        if (!game.questions) return;
+        
+        // 1. Enforce Divisibility by Players (handled partially by Setup, but confirmed here)
+        const rawLimit = options.questionLimit || game.questions.length;
+        const validCount = Math.floor(rawLimit / options.players) * options.players;
+        
+        let questionsCopy = JSON.parse(JSON.stringify(game.questions)).slice(0, validCount);
+        
+        // 2. Apply Chaos Mode (Bonuses) - 20%
+        if (options.enableBonuses) {
+            const indices = questionsCopy.map((_: any, i: number) => i);
+            // Shuffle indices
+            for (let i = indices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [indices[i], indices[j]] = [indices[j], indices[i]];
+            }
+            
+            const bonusCount = Math.max(2, Math.floor(questionsCopy.length * 0.20));
             const bonusTypes = ['double', 'bust', 'steal', 'double'];
+            
+            for (let i = 0; i < bonusCount; i++) {
+                const targetIndex = indices[i];
+                if (questionsCopy[targetIndex]) {
+                    questionsCopy[targetIndex].isBonus = true;
+                    questionsCopy[targetIndex].bonusType = bonusTypes[i % bonusTypes.length];
+                }
+            }
+        }
+        setGameQuestions(questionsCopy);
+    }, [game, options.enableBonuses, options.questionLimit, options.players]);
 
-            selectedCoords.forEach((coord, i) => {
-                const type = bonusTypes[i % bonusTypes.length] as 'double' | 'bust' | 'steal';
-                const q = boardCopy[coord.c].questions[coord.q];
-                q.bonusType = type;
-                q.isBonus = true;
-            });
+    // Calculate Optimal Grid Dimensions (Perfect Rectangles Priority)
+    const gridStyle = useMemo(() => {
+        const count = gameQuestions.length;
+        if (count === 0) return {};
+
+        // Find factor pairs that make perfect rectangles
+        const pairs: {r: number, c: number, ratio: number}[] = [];
+        for (let i = 1; i <= Math.sqrt(count); i++) {
+            if (count % i === 0) {
+                const r = i;
+                const c = count / i;
+                // We typically want columns > rows for landscape screens
+                pairs.push({ r, c, ratio: c / r });
+                if (r !== c) {
+                     pairs.push({ r: c, c: r, ratio: r / c });
+                }
+            }
         }
         
-        setGameBoard(boardCopy);
-    }, [game, options.enableBonuses]);
+        // If no perfect factors (shouldn't happen with our valid counts, but just in case), fall back
+        if (pairs.length === 0) pairs.push({r: 1, c: count, ratio: count});
 
-    // Toggle Fullscreen
+        const { width, height } = gridDimensions;
+        const containerRatio = (width || 1000) / (height || 600);
+
+        // Find the pair closest to the container aspect ratio to maximize tile size
+        let bestPair = pairs[0];
+        let bestDiff = Infinity;
+
+        pairs.forEach(p => {
+            const diff = Math.abs(p.ratio - containerRatio);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestPair = p;
+            }
+        });
+
+        // Use the rows/cols from the best fit pair
+        const bestRows = bestPair.r > bestPair.c && containerRatio > 1 ? bestPair.c : bestPair.r; // Swap if tall but container is wide
+        const bestCols = count / bestRows;
+
+        return {
+            display: 'grid',
+            gridTemplateColumns: `repeat(${bestCols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${bestRows}, minmax(0, 1fr))`, 
+            gap: isFullscreen ? '0.5rem' : '0.35rem', 
+            width: '100%',
+            height: '100%', 
+            paddingBottom: '0.5rem'
+        };
+    }, [gameQuestions.length, gridDimensions, isFullscreen]);
+
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
             containerRef.current?.requestFullscreen();
@@ -140,83 +218,81 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         }
     };
 
-    // Timer Effect
+    // Timer Logic
     useEffect(() => {
-        if (selectedQuestion && !isFlipped && !isGameOver && gameBoard) {
-            const q = gameBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex];
-            
+        if (activeQuestionIndex !== null && !isFlipped && !isGameOver && gameQuestions.length > 0) {
+            const q = gameQuestions[activeQuestionIndex];
             if (!q.isBonus) {
-                 const duration = options.timerSeconds;
-                 if (duration > 0 && timeLeft > 0) {
+                const duration = options.timerSeconds;
+                if (duration > 0 && timeLeft > 0) {
                      // Ensure we don't start multiple intervals
                      if (timerRef.current) clearInterval(timerRef.current);
-
+                     
                      timerRef.current = setInterval(() => {
                         setTimeLeft(prev => {
                             if (prev <= 1) {
-                                clearInterval(timerRef.current!);
+                                clearInterval(timerRef.current);
                                 return 0;
                             }
                             return prev - 1;
                         });
                     }, 1000);
-                 }
+                }
             }
         } else {
             if (timerRef.current) clearInterval(timerRef.current);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [selectedQuestion, isFlipped, gameBoard, options.timerSeconds, isGameOver]);
+    }, [activeQuestionIndex, isFlipped, gameQuestions, options.timerSeconds, isGameOver]);
 
     // Check for Time's Up Detection
     useEffect(() => {
-        if (timeLeft === 0 && options.timerSeconds > 0 && selectedQuestion && !isFlipped && !isTimesUp && !isGameOver) {
+        if (timeLeft === 0 && options.timerSeconds > 0 && activeQuestionIndex !== null && !isFlipped && !isTimesUp && !isGameOver) {
             setIsTimesUp(true);
             playSound('times-up', isMuted, options.soundConfig?.timesUp);
         }
-    }, [timeLeft, options.timerSeconds, selectedQuestion, isFlipped, isTimesUp, isGameOver, isMuted, options.soundConfig]);
+    }, [timeLeft, options.timerSeconds, activeQuestionIndex, isFlipped, isTimesUp, isGameOver, isMuted, options.soundConfig]);
 
-    const handleQuestionSelect = (cIdx: number, qIdx: number) => {
-        if (answeredQuestions.includes(`${cIdx}-${qIdx}`) || !gameBoard) return;
+    const handleCardClick = (index: number) => {
+        if (answeredIndices.includes(index)) return;
         
-        const q = gameBoard[cIdx].questions[qIdx];
-        
+        const q = gameQuestions[index];
         if (q.isBonus) {
-             playSound('bonus', isMuted, options.soundConfig?.bonus);
+            playSound('bonus', isMuted, options.soundConfig?.bonus);
         } else {
-             playSound('select', isMuted, options.soundConfig?.select);
+            playSound('select', isMuted, options.soundConfig?.select);
         }
         
         // Initialize timer immediately to avoid 0 flash
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
         setMcResult(null);
-        setSelectedQuestion({ categoryIndex: cIdx, questionIndex: qIdx });
+        setActiveQuestionIndex(index);
         setIsFlipped(false);
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (!selectedQuestion || !gameBoard) return;
-        const { categoryIndex, questionIndex } = selectedQuestion;
-        const q = gameBoard[categoryIndex].questions[questionIndex];
-        const points = q.points;
-
+        if (activeQuestionIndex === null) return;
+        
         playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
-
+        
+        const q = gameQuestions[activeQuestionIndex];
+        const points = q.points || 100;
         const newScores = [...scores];
+        
         if (correct) {
             newScores[currentTeam] += points;
         } else {
             newScores[currentTeam] -= points;
         }
+        
         setScores(newScores);
-        finalizeTurn(categoryIndex, questionIndex);
+        finalizeTurn();
     };
 
     const handleMcSelect = (selectedOption: string) => {
-        if (!selectedQuestion || !gameBoard) return;
-        const { categoryIndex, questionIndex } = selectedQuestion;
-        const q = gameBoard[categoryIndex].questions[questionIndex];
+        if (activeQuestionIndex === null) return;
+        const q = gameQuestions[activeQuestionIndex];
         
         // Normalize Strings (remove "A) ", trim, lowercase)
         const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
@@ -228,19 +304,17 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     };
 
     const handleBonusAction = () => {
-        if (!selectedQuestion || !gameBoard) return;
-        const { categoryIndex, questionIndex } = selectedQuestion;
-        const q = gameBoard[categoryIndex].questions[questionIndex];
-        const type = q.bonusType;
-        const points = q.points;
+        if (activeQuestionIndex === null) return;
+        
+        const q = gameQuestions[activeQuestionIndex];
         const newScores = [...scores];
+        const points = q.points || 100;
 
-        if (type === 'double') {
+        if (q.bonusType === 'double') {
             newScores[currentTeam] += (points * 2);
-        } else if (type === 'bust') {
+        } else if (q.bonusType === 'bust') {
             newScores[currentTeam] -= points;
-        } else if (type === 'steal') {
-             // Steal from leader
+        } else if (q.bonusType === 'steal') {
              let victimIdx = -1;
              let maxS = -Infinity;
              scores.forEach((s, i) => {
@@ -257,32 +331,24 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                  newScores[currentTeam] += points;
              }
         }
-
+        
         setScores(newScores);
-        finalizeTurn(categoryIndex, questionIndex);
+        finalizeTurn();
     };
 
-    const finalizeTurn = (cIdx: number, qIdx: number) => {
-        const id = `${cIdx}-${qIdx}`;
-        setAnsweredQuestions(prev => {
-            if (prev.includes(id)) return prev;
-            return [...prev, id];
-        });
-        
+    const finalizeTurn = () => {
+        if (activeQuestionIndex !== null) {
+            setAnsweredIndices(prev => {
+                // Prevent duplicates
+                if (prev.includes(activeQuestionIndex)) return prev;
+                return [...prev, activeQuestionIndex];
+            });
+        }
         setIsTimesUp(false);
         setTimeout(() => {
-            setSelectedQuestion(null);
+            setActiveQuestionIndex(null);
             setCurrentTeam((prev) => (prev + 1) % options.players);
         }, 1500);
-    };
-
-    const checkWinner = () => {
-        if (!gameBoard || isGameOver) return;
-        const totalQuestions = gameBoard.reduce((acc: number, cat: any) => acc + cat.questions.length, 0);
-        if (totalQuestions > 0 && answeredQuestions.length >= totalQuestions) {
-             playSound('win', isMuted, options.soundConfig?.win);
-             setIsGameOver(true);
-        }
     };
 
     // Edit Team Handler
@@ -294,21 +360,22 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
     const saveTeamEdit = () => {
         if (editingTeamIndex === null) return;
-        
         const newNames = [...teamNames];
         newNames[editingTeamIndex] = editName;
         setTeamNames(newNames);
-
         const newScores = [...scores];
         newScores[editingTeamIndex] = editScore;
         setScores(newScores);
-
         setEditingTeamIndex(null);
     };
 
+    // Check Winner
     useEffect(() => {
-        checkWinner();
-    }, [answeredQuestions]);
+        if (gameQuestions.length > 0 && answeredIndices.length === gameQuestions.length && !isGameOver) {
+            playSound('win', isMuted, options.soundConfig?.win);
+            setIsGameOver(true);
+        }
+    }, [answeredIndices, gameQuestions, isGameOver, isMuted, options.soundConfig]);
 
     // Helper for dynamic font size - Optimized for larger text
     const getFontSizeClass = (text: string) => {
@@ -330,8 +397,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         return 'text-lg md:text-2xl';
     };
 
-    if (!gameBoard) return <div>Loading Board...</div>;
+    if (gameQuestions.length === 0) return <div className="text-slate-500 text-center p-8">Loading Game...</div>;
 
+    // Winner Screen with Podium
     if (isGameOver) {
         // Calculate Winners
         const maxScore = Math.max(...scores);
@@ -395,7 +463,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         {second && (
                             <div className="flex flex-col items-center order-2 md:order-1 w-1/3 md:w-1/4 animate-[slide-up_1s_ease-out]">
                                 <div className="text-slate-600 font-bold text-xl md:text-2xl mb-2 text-center drop-shadow-sm truncate w-full">{second.name}</div>
-                                <div className="w-full h-32 md:h-48 bg-gradient-to-b from-slate-200 to-slate-300 rounded-t-xl flex items-center justify-center border-t-4 border-white/50 relative shadow-xl">
+                                <div className="w-full h-24 md:h-48 bg-gradient-to-b from-slate-200 to-slate-300 rounded-t-xl flex items-center justify-center border-t-4 border-white/50 relative shadow-xl">
                                      <span className="text-6xl md:text-7xl font-black text-slate-400 opacity-50">2</span>
                                 </div>
                                 <div className="bg-white px-4 py-2 rounded-b-xl mt-2 text-slate-600 font-mono text-xl md:text-3xl font-bold border border-slate-200 min-w-[80px] text-center shadow-md">
@@ -416,7 +484,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 ))}
                              </div>
 
-                             <div className="w-full h-48 md:h-72 bg-gradient-to-b from-brand-yellow to-yellow-500 rounded-t-xl flex items-center justify-center border-t-8 border-yellow-200 relative shadow-2xl shadow-yellow-500/20 mt-4">
+                             <div className="w-full h-40 md:h-72 bg-gradient-to-b from-brand-yellow to-yellow-500 rounded-t-xl flex items-center justify-center border-t-8 border-yellow-200 relative shadow-2xl shadow-yellow-500/20 mt-4">
                                  <span className="text-8xl md:text-9xl font-black text-white opacity-40">1</span>
                              </div>
                              <div className="bg-white px-6 py-3 rounded-b-2xl mt-2 text-brand-yellow font-mono text-4xl md:text-6xl font-black border-2 border-yellow-100 min-w-[120px] text-center shadow-lg">
@@ -428,7 +496,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         {third && (
                             <div className="flex flex-col items-center order-3 w-1/3 md:w-1/4 animate-[slide-up_1.2s_ease-out]">
                                 <div className="text-orange-800 font-bold text-xl md:text-2xl mb-2 text-center drop-shadow-sm truncate w-full">{third.name}</div>
-                                <div className="w-full h-24 md:h-36 bg-gradient-to-b from-orange-300 to-orange-400 rounded-t-xl flex items-center justify-center border-t-4 border-orange-200 relative shadow-xl">
+                                <div className="w-full h-16 md:h-36 bg-gradient-to-b from-orange-300 to-orange-400 rounded-t-xl flex items-center justify-center border-t-4 border-orange-200 relative shadow-xl">
                                      <span className="text-5xl md:text-6xl font-black text-orange-800 opacity-30">3</span>
                                 </div>
                                 <div className="bg-white px-4 py-2 rounded-b-xl mt-2 text-orange-500 font-mono text-xl md:text-3xl font-bold border border-slate-200 min-w-[80px] text-center shadow-md">
@@ -447,7 +515,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         </button>
                         <button 
                             onClick={onFinish} 
-                            className="px-12 py-5 bg-white text-slate-800 rounded-full font-bold text-2xl hover:bg-brand-blue hover:text-white hover:scale-105 transition-all shadow-xl hover:shadow-2xl border-2 border-slate-100"
+                            className="px-12 py-5 bg-white text-slate-800 rounded-full font-bold text-2xl hover:bg-slate-50 hover:scale-105 transition-all shadow-xl hover:shadow-2xl border-2 border-slate-100"
                         >
                             Back to Library
                         </button>
@@ -457,12 +525,13 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         );
     }
 
-    const activeQ = selectedQuestion ? gameBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex] : null;
+    const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
 
     return (
-        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative`}>
+        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+            
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
             <div className="bg-white p-4 shrink-0 z-[250] shadow-sm flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
                 <div className="flex flex-col items-start gap-2 min-w-[140px]">
@@ -474,7 +543,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                     </button>
                     <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
                 </div>
-
+                
                 {/* Scoreboard Cards */}
                 <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 h-full items-center">
                     {scores.map((score, idx) => (
@@ -491,7 +560,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
                             </div>
                             <AnimatedScore score={score} />
-                             {/* Hover Edit Icon */}
+                            
+                            {/* Hover Edit Icon */}
                             <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Edit2 size={12} />
                             </div>
@@ -513,51 +583,51 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 </div>
             </div>
 
-            {/* Game Board Grid */}
-            <div className="flex-grow flex flex-col min-h-0 p-4">
-                <div 
-                    className="grid gap-2 max-w-full mx-auto w-full mb-2"
-                    style={{ gridTemplateColumns: `repeat(${gameBoard.length}, minmax(0, 1fr))` }}
-                >
-                    {gameBoard.map((cat: any, idx: number) => (
-                        <div key={`cat-${idx}`} className="bg-brand-blue text-white p-2 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[100px] overflow-hidden">
-                            {/* Increased Text Size Here & Wrapped */}
-                            <h3 className={`font-display font-bold leading-tight break-words w-full ${isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl'}`}>
-                                {cat.name}
-                            </h3>
-                        </div>
-                    ))}
-                </div>
-                
-                <div className="flex-grow flex gap-2 max-w-full mx-auto w-full min-h-0">
-                    {gameBoard.map((cat: any, cIdx: number) => (
-                        <div key={`col-${cIdx}`} className="flex-1 flex flex-col gap-2 min-h-0">
-                            {cat.questions.map((q: any, qIdx: number) => {
-                                const isAnswered = answeredQuestions.includes(`${cIdx}-${qIdx}`);
-                                return (
-                                    <button 
-                                        key={`q-${cIdx}-${qIdx}`}
-                                        disabled={isAnswered}
-                                        onClick={() => handleQuestionSelect(cIdx, qIdx)}
-                                        className={`
-                                            flex-1 rounded flex items-center justify-center font-black font-mono transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
-                                            ${isFullscreen ? 'text-5xl md:text-7xl' : 'text-3xl md:text-5xl'}
-                                            ${isAnswered 
-                                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-none' 
-                                                : 'bg-brand-yellow text-slate-900 border-b-4 border-yellow-600 shadow-sm hover:scale-110 hover:bg-white z-10 hover:z-50 hover:shadow-2xl'}
-                                        `}
-                                    >
-                                        {isAnswered ? '' : q.points}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    ))}
+            {/* 2. MAIN GRID AREA */}
+            <div ref={gridWrapperRef} className="flex-grow w-full h-full relative p-2 overflow-hidden flex flex-col items-center justify-center z-10">
+                <div className="w-full h-full">
+                     <div style={gridStyle}>
+                        {gameQuestions.map((q, idx) => {
+                            const isAnswered = answeredIndices.includes(idx);
+                            
+                            // Vibrant colors
+                            const styles = [
+                                { bg: 'bg-sky-500', border: 'border-sky-700', text: 'text-white' },
+                                { bg: 'bg-yellow-400', border: 'border-yellow-600', text: 'text-slate-900' },
+                                { bg: 'bg-emerald-500', border: 'border-emerald-700', text: 'text-white' },
+                                { bg: 'bg-violet-500', border: 'border-violet-700', text: 'text-white' },
+                                { bg: 'bg-orange-500', border: 'border-orange-700', text: 'text-white' },
+                            ];
+                            const style = styles[idx % styles.length];
+
+                            return (
+                                <button
+                                    key={idx}
+                                    disabled={isAnswered}
+                                    onClick={() => handleCardClick(idx)}
+                                    className={`
+                                        w-full h-full rounded-lg font-display font-black shadow-md relative overflow-hidden flex flex-col items-center justify-center
+                                        border-b-[4px] active:border-b-0 active:translate-y-[4px]
+                                        transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+                                        ${gameQuestions.length > 20 ? 'text-3xl md:text-5xl' : 'text-5xl md:text-8xl'}
+                                        ${isAnswered 
+                                            ? 'bg-slate-200 border-slate-300 text-slate-400 shadow-none cursor-default border-b-0 translate-y-[2px]' 
+                                            : `${style.bg} ${style.border} ${style.text} hover:bg-white hover:text-slate-900 hover:border-slate-300 hover:scale-110 z-10 hover:z-50 hover:shadow-2xl`}
+                                    `}
+                                >
+                                    <span className="relative z-10 drop-shadow-md">{idx + 1}</span>
+                                    {!isAnswered && (
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
-             {/* Team Edit Modal */}
-             {editingTeamIndex !== null && (
+            {/* 3. TEAM EDIT MODAL */}
+            {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
                         <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Team Details</h3>
@@ -601,16 +671,16 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 </div>
             )}
 
-            {/* Active Card Modal - Z-Index 200 */}
+            {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px]">
-                    {/* ENFORCED RECTANGLE ASPECT RATIO HERE: aspect-[16/9] */}
+                    
                     <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(100vh-180px)] [perspective:1000px]">
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                         >
-                            {/* Front (Clue or Bonus Alert) */}
+                            {/* FRONT (QUESTION) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
                                 ${isBonus ? 'bg-purple-600' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 
@@ -631,26 +701,21 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                     <>
                                         {/* HEADER BAR (Blue) */}
                                         <div className="bg-brand-blue text-white p-4 flex justify-between items-center h-20 flex-shrink-0 relative z-10">
-                                             <div className="font-bold text-xl opacity-80 truncate max-w-[200px]">{gameBoard[selectedQuestion!.categoryIndex].name}</div>
-                                             <div className="font-black text-4xl">{activeQ.points}</div>
+                                             <div className="font-bold text-xl opacity-80">Question {activeQuestionIndex! + 1}</div>
+                                             <div className="font-black text-4xl">{activeQ.points || 100}</div>
                                              <div className="font-bold text-xl opacity-80">{teamNames[currentTeam]}</div>
                                         </div>
 
                                         {/* CONTENT BODY (White) - Scrollable */}
-                                        <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden relative z-0">
+                                        <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden z-0">
+                                            {/* Scrollable Content Container */}
                                             <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
                                                  <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full ${getFontSizeClass(activeQ.question)}`}>
                                                     {activeQ.question}
                                                 </div>
                                             </div>
 
-                                            {options.strictMode && (
-                                                <div className="mt-4 bg-brand-yellow/20 text-brand-yellow-dark px-4 py-2 rounded-full font-bold text-sm border border-brand-yellow/50 self-center flex-shrink-0">
-                                                    Strict Mode: Answer must start with "What is..."
-                                                </div>
-                                            )}
-
-                                            {/* Multiple Choice Buttons - Fixed at bottom of content area */}
+                                            {/* Multiple Choice Buttons - Fixed at bottom of the body */}
                                             {hasOptions && !isFlipped && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl mt-6 flex-shrink-0 relative z-10">
                                                     {(() => {
@@ -671,10 +736,10 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         </div>
                                         
                                         {/* FOOTER BAR (Blue/Gradient/Red) */}
-                                        <div className={`h-24 flex items-center justify-center relative flex-shrink-0 transition-colors duration-300 z-50 
+                                        <div className={`h-24 flex items-center justify-center relative z-50 flex-shrink-0 transition-colors duration-300 
                                             ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
                                             
-                                            {/* Timer Overlay */}
+                                            {/* Timer Overlay (Only if not Time's Up) */}
                                             {options.timerSeconds > 0 && timeLeft > 0 && !isTimesUp && (
                                                 <div className="absolute inset-0 bg-black/10 flex items-center justify-start pointer-events-none">
                                                     <div 
@@ -693,10 +758,10 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                 </button>
                                             )}
 
-                                            {/* Clock or Time's Up Text */}
+                                            {/* Clock Display or TIME'S UP Text */}
                                             {options.timerSeconds > 0 && (
                                                 <div className="absolute right-6 top-1/2 -translate-y-1/2 text-white font-mono font-bold text-3xl opacity-80 flex items-center pointer-events-none">
-                                                     {isTimesUp ? (
+                                                    {isTimesUp ? (
                                                         <span className="animate-pulse font-black text-white drop-shadow-md">TIME'S UP!</span>
                                                     ) : (
                                                         <><Clock size={24} className="mr-2" /> {timeLeft}</>
@@ -708,7 +773,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 )}
                             </div>
 
-                            {/* Back (Answer or Bonus Effect) */}
+                            {/* BACK (ANSWER) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
                                 ${isBonus ? 'bg-purple-100' : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 
@@ -750,7 +815,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
                                         {/* CONTENT (White) */}
                                         <div className="flex-grow flex flex-col items-center justify-center p-12 bg-white text-center overflow-hidden w-full relative z-0">
-                                             <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
+                                            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
                                                     <div className="animate-bounce mb-8">
@@ -777,6 +842,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         {/* FOOTER (Buttons) */}
                                         <div className="h-24 flex flex-shrink-0 relative z-50">
                                             {hasOptions ? (
+                                                // Multiple Choice Footer
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
                                                     className={`flex-1 text-white font-bold text-2xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
@@ -787,6 +853,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                     Continue
                                                 </button>
                                             ) : (
+                                                // Standard Footer
                                                 <>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleAnswer(false); }}
@@ -811,17 +878,16 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 </div>
             )}
 
-            {/* Quit Confirmation Modal - Z-Index 300 */}
+            {/* 5. QUIT CONFIRM */}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
-                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <p className="text-slate-500 mb-6">Unsaved progress will be lost.</p>
                         <div className="flex space-x-4">
                             <button 
                                 onClick={() => setShowQuitConfirm(false)}
-                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
+                                className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
                             >
                                 Cancel
                             </button>

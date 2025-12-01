@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { X, LogIn } from 'lucide-react';
+import { X, LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginModalProps {
@@ -12,16 +13,37 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const { login, signup } = useAuth();
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate auth
-    if (email && (isLogin || name)) {
-        login(name || email.split('@')[0], email);
+    setLoading(true);
+    setError(null);
+
+    try {
+        if (isLogin) {
+            const { error } = await login(email, password);
+            if (error) throw error;
+        } else {
+            if (!name) {
+                setError("Name is required");
+                setLoading(false);
+                return;
+            }
+            const { error } = await signup(email, password, name);
+            if (error) throw error;
+        }
         onClose();
+    } catch (err: any) {
+        setError(err.message || "An unexpected error occurred");
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -47,6 +69,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               {isLogin ? 'Login to access your saved games' : 'Create an account to start saving'}
             </p>
           </div>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-start">
+                <AlertCircle size={16} className="mr-2 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
@@ -54,7 +83,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                 <input 
                   type="text" 
-                  required 
+                  required={!isLogin} 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none"
@@ -77,21 +106,36 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-              <input 
-                type="password" 
-                required 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none"
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input 
+                    type={showPassword ? "text" : "password"} 
+                    required 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none pr-10"
+                    placeholder="••••••••"
+                />
+                <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button 
               type="submit"
-              className="w-full py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md mt-4"
+              disabled={loading}
+              className={`w-full py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md mt-4 flex items-center justify-center
+                ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
+              {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                  isLogin ? 'Sign In' : 'Create Account'
+              )}
             </button>
           </form>
 
@@ -99,7 +143,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             <p className="text-sm text-slate-500">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
               <button 
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => { setIsLogin(!isLogin); setError(null); }}
                 className="text-brand-blue font-bold hover:underline"
               >
                 {isLogin ? 'Sign Up' : 'Log In'}

@@ -21,6 +21,9 @@
                 dark: '#0F172A', // Slate 900
                 accent: '#FB923C', // Orange 400
               }
+            },
+            animation: {
+                'pop': 'pop 0.3s ease-in-out',
             }
           }
         }
@@ -38,6 +41,13 @@
       .no-scrollbar {
         -ms-overflow-style: none; 
         scrollbar-width: none;  
+      }
+
+      /* Custom Pop Animation */
+      @keyframes pop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
       }
       
       @media print {
@@ -119,7 +129,8 @@
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6"
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
   }
 }
 </script>

@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2 } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2, Beer } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
+import { TriviaGame } from '../components/games/TriviaGame';
+import { PubQuizGame } from '../components/games/PubQuizGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -20,6 +22,7 @@ const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () 
         { type: GameType.SNAKES_LADDERS, icon: <Dice5 size={40} />, desc: "Classic board game fun with a learning twist." },
         { type: GameType.TRIVIA, icon: <HelpCircle size={40} />, desc: "Fast-paced questions to test knowledge." },
         { type: GameType.JEOPARDY, icon: <Grid size={40} />, desc: "Strategic team quiz based on categories." },
+        { type: GameType.PUB_QUIZ, icon: <Beer size={40} />, desc: "Round-based quiz with manual scoring." },
         { type: GameType.DARTS, icon: <Target size={40} />, desc: "Hit the target by answering correctly." },
     ];
 
@@ -80,17 +83,25 @@ const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () 
 // 2. Library View (Saved Games)
 const LibraryView: React.FC<{ onBack: () => void, onLoadGame: (game: GeneratedGame) => void }> = ({ onBack, onLoadGame }) => {
     const [savedGames, setSavedGames] = useState<GeneratedGame[]>([]);
+    const [loading, setLoading] = useState(true);
     const { user } = useAuth();
 
     useEffect(() => {
-        setSavedGames(getSavedGames());
-    }, []);
+        setLoading(true);
+        // Async Fetch
+        getSavedGames(user?.id).then(games => {
+            setSavedGames(games);
+            setLoading(false);
+        });
+    }, [user?.id]);
 
     const handleDelete = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
+        e.preventDefault(); 
+        e.stopPropagation(); 
         if (window.confirm("Are you sure you want to delete this game?")) {
-            deleteSavedGame(id);
-            setSavedGames(prev => prev.filter(g => g.id !== id));
+            deleteSavedGame(id, user?.id).then(() => {
+                setSavedGames(prev => prev.filter(g => g.id !== id));
+            });
         }
     };
 
@@ -111,6 +122,18 @@ const LibraryView: React.FC<{ onBack: () => void, onLoadGame: (game: GeneratedGa
         );
     }
 
+    if (loading) {
+        return (
+            <div className="max-w-6xl mx-auto px-4 py-12 text-center">
+                <button onClick={onBack} className="flex items-center text-slate-500 hover:text-sky-600 mb-8">
+                    <ArrowLeft size={18} className="mr-2" /> Back to Hub
+                </button>
+                <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p>Loading your library...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-6xl mx-auto px-4 py-12">
             <button onClick={onBack} className="flex items-center text-slate-500 hover:text-sky-600 mb-8">
@@ -127,14 +150,14 @@ const LibraryView: React.FC<{ onBack: () => void, onLoadGame: (game: GeneratedGa
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {savedGames.map((game) => (
-                        <div key={game.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100 p-6 relative group">
+                        <div key={game.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100 p-6 relative group cursor-pointer" onClick={() => onLoadGame(game)}>
                             <div className="flex justify-between items-start mb-4">
                                 <div className="bg-sky-50 text-sky-700 px-3 py-1 rounded-full text-xs font-bold uppercase">
                                     {game.config.type}
                                 </div>
                                 <button 
                                     onClick={(e) => handleDelete(game.id!, e)}
-                                    className="text-slate-300 hover:text-red-500 p-1 rounded transition-colors"
+                                    className="text-slate-300 hover:text-red-500 p-2 -mr-2 -mt-2 rounded-full hover:bg-red-50 transition-colors z-10"
                                 >
                                     <Trash2 size={18} />
                                 </button>
@@ -143,12 +166,11 @@ const LibraryView: React.FC<{ onBack: () => void, onLoadGame: (game: GeneratedGa
                             <p className="text-slate-500 text-sm mb-6">
                                 Created: {new Date(game.createdAt || Date.now()).toLocaleDateString()}
                             </p>
-                            <button 
-                                onClick={() => onLoadGame(game)}
-                                className="w-full py-3 bg-white border-2 border-brand-yellow text-slate-800 font-bold rounded-lg hover:bg-brand-yellow transition-colors"
+                            <div 
+                                className="w-full py-3 text-center bg-white border-2 border-brand-yellow text-slate-800 font-bold rounded-lg group-hover:bg-brand-yellow transition-colors"
                             >
                                 Open Game
-                            </button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -164,9 +186,10 @@ export const Games: React.FC = () => {
     const [creationMode, setCreationMode] = useState<'ai' | 'manual'>('ai');
     const [generatedGame, setGeneratedGame] = useState<GeneratedGame | null>(null);
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
-    
+    const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'library' | 'hub'>('hub');
+
     const location = useLocation();
-    const { setIsDirty } = useUnsavedChanges();
+    const { setIsDirty, confirmAction } = useUnsavedChanges();
 
     // Check for navigation from Navbar "My Saved Games"
     useEffect(() => {
@@ -178,7 +201,8 @@ export const Games: React.FC = () => {
 
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
-        if (type === GameType.JEOPARDY) {
+        setGeneratedGame(null); // Ensure fresh start for new game types
+        if (type === GameType.JEOPARDY || type === GameType.TRIVIA || type === GameType.PUB_QUIZ) {
              setStep('mode');
         } else {
              setCreationMode('ai');
@@ -193,6 +217,7 @@ export const Games: React.FC = () => {
 
     const handleConfigProceed = (game: GeneratedGame) => {
         setGeneratedGame(game);
+        setEditorReturnStep('config');
         setStep('editor');
         setIsDirty(true); // New game unsaved
     };
@@ -215,21 +240,24 @@ export const Games: React.FC = () => {
 
     const handleLoadGame = (game: GeneratedGame) => {
         setGeneratedGame(game);
+        // Determine type based on saved config
+        setSelectedType(game.config.type);
+        setEditorReturnStep('library');
         setStep('editor');
         setIsDirty(false); 
     };
 
     const handleBack = () => {
-        const goBack = () => {
+        const performBack = () => {
             setIsDirty(false);
             if (step === 'play') {
-                setStep('setup'); // Back to setup from play
+                setStep('setup');
             } else if (step === 'setup') {
-                setStep('editor'); // Back to editor from setup
+                setStep('editor');
             } else if (step === 'editor') {
-                setStep('hub');
+                setStep(editorReturnStep);
             } else if (step === 'config') {
-                selectedType === GameType.JEOPARDY ? setStep('mode') : setStep('hub');
+                (selectedType === GameType.JEOPARDY || selectedType === GameType.TRIVIA || selectedType === GameType.PUB_QUIZ) ? setStep('mode') : setStep('hub');
             } else if (step === 'mode') {
                 setStep('hub');
             } else if (step === 'library') {
@@ -239,18 +267,21 @@ export const Games: React.FC = () => {
             }
         };
 
-        // If in editor, check for dirty state via context check handled by parent or custom confirm here
         if (step === 'editor') {
-             if (window.confirm("Leave editor? Unsaved changes will be lost.")) {
-                 goBack();
-             }
+             // Use custom modal action
+             confirmAction("Leave editor? Any unsaved changes will be lost.", performBack);
         } else {
-            goBack();
+            performBack();
         }
     };
 
     const handleGameEnd = () => {
         setStep('editor'); 
+    };
+
+    const handleReplay = () => {
+        setIsDirty(false);
+        setStep('setup');
     };
 
     return (
@@ -267,8 +298,9 @@ export const Games: React.FC = () => {
                 <GameConfigurator 
                     type={selectedType} 
                     mode={creationMode}
-                    onBack={() => selectedType === GameType.JEOPARDY ? setStep('mode') : setStep('hub')} 
+                    onBack={handleBack} 
                     onProceed={handleConfigProceed} 
+                    initialConfig={generatedGame?.config}
                 />
             )}
             
@@ -277,6 +309,7 @@ export const Games: React.FC = () => {
                     game={generatedGame} 
                     onSave={handleEditorSave} 
                     onPlay={handleEditorPlay} 
+                    onBack={handleBack}
                 />
             )}
 
@@ -295,6 +328,23 @@ export const Games: React.FC = () => {
                         options={playOptions}
                         onBack={handleGameEnd} 
                         onFinish={() => setStep('library')} 
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.TRIVIA ? (
+                    <TriviaGame 
+                        game={generatedGame} 
+                        options={playOptions}
+                        onBack={handleGameEnd} 
+                        onFinish={() => setStep('library')} 
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.PUB_QUIZ ? (
+                    <PubQuizGame 
+                        game={generatedGame} 
+                        options={playOptions}
+                        onBack={handleGameEnd} 
+                        onFinish={() => setStep('library')} 
+                        onReplay={handleReplay}
                     />
                 ) : (
                     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -308,7 +358,7 @@ export const Games: React.FC = () => {
                                 <h1 className="text-2xl font-display font-bold">{generatedGame.title}</h1>
                             </div>
                             <div className="p-8 text-center text-slate-500">
-                                Standard game mode under construction. Please try Jeopardy!
+                                Standard game mode under construction. Please try Jeopardy or Trivia!
                             </div>
                         </div>
                     </div>

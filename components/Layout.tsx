@@ -8,7 +8,7 @@ import { LoginModal } from './LoginModal';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
-    const { isDirty, setIsDirty } = useUnsavedChanges();
+    const { isDirty, setIsDirty, confirmAction } = useUnsavedChanges();
     const navigate = useNavigate();
     const location = useLocation();
     const isActive = location.pathname === to;
@@ -24,9 +24,10 @@ const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: st
         };
 
         if (isDirty) {
-            if (window.confirm("You have unsaved changes. Are you sure you want to leave? Your progress will be lost.")) {
-                performNavigation();
-            }
+            confirmAction(
+                "You have unsaved changes. Are you sure you want to leave? Your progress will be lost.",
+                performNavigation
+            );
         } else {
             performNavigation();
         }
@@ -108,6 +109,13 @@ const Navbar: React.FC = () => {
                           <p className="font-bold text-slate-800 truncate">{user.email}</p>
                         </div>
                         <SafeLink 
+                          to="/profile" 
+                          onClick={() => setShowUserMenu(false)}
+                          className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
+                        >
+                          <User size={16} className="mr-2 text-brand-blue" /> My Profile
+                        </SafeLink>
+                        <SafeLink 
                           to="/games" 
                           state={{ view: 'library' }}
                           onClick={() => setShowUserMenu(false)}
@@ -184,6 +192,9 @@ const Navbar: React.FC = () => {
                        <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mr-2" />
                        <span className="font-bold text-slate-800">{user.name}</span>
                     </div>
+                    <SafeLink to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
+                        My Profile
+                    </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games
                     </SafeLink>

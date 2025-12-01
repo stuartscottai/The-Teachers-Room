@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -7,6 +8,7 @@ import { Worksheets } from './pages/Worksheets';
 import { Pricing, Info, Contact, Legal } from './pages/InfoPages';
 import { Blog } from './pages/Blog';
 import { BlogPostPage } from './pages/BlogPost';
+import { Profile } from './pages/Profile';
 import { AuthProvider } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 
@@ -27,6 +29,7 @@ const App: React.FC = () => {
               <Route path="/contact" element={<Contact />} />
               <Route path="/terms" element={<Legal type="terms" />} />
               <Route path="/privacy" element={<Legal type="privacy" />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </Layout>
         </Router>

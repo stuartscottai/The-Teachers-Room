@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameType, GameConfig, GeneratedGame } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
-import { ArrowLeft, Settings, Sparkles, Edit, X } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, RefreshCw, Type } from 'lucide-react';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
@@ -52,25 +52,46 @@ interface GameConfiguratorProps {
     mode: 'ai' | 'manual';
     onBack: () => void;
     onProceed: (game: GeneratedGame) => void;
+    initialConfig?: GameConfig;
 }
 
-export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed }) => {
-    const [config, setConfig] = useState<GameConfig>({
-        type,
-        title: '',
-        questionCount: 10,
-        questionType: 'mixed',
-        topic: '',
-        isAI: mode === 'ai',
-        customInstructions: '',
-        jeopardyCategories: 5,
-        jeopardyCategoryNames: Array(5).fill(''),
-        jeopardyRows: 5,
-        strictMode: false
+export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed, initialConfig }) => {
+    // Set default question count based on game type
+    const defaultCount = type === GameType.TRIVIA ? 12 : 10;
+
+    const [config, setConfig] = useState<GameConfig>(() => {
+        if (initialConfig && initialConfig.type === type) {
+            return initialConfig;
+        }
+        return {
+            type,
+            title: '',
+            questionCount: defaultCount,
+            questionType: 'mixed',
+            pointsMode: 'fixed', // Default to fixed
+            topic: '',
+            isAI: mode === 'ai',
+            customInstructions: '',
+            // Jeopardy
+            jeopardyCategories: 5,
+            jeopardyCategoryNames: Array(5).fill(''),
+            jeopardyRows: 5,
+            strictMode: false,
+            // Pub Quiz
+            pubQuizRoundsCount: 3,
+            pubQuizRoundNames: Array(3).fill(''),
+            pubQuizQuestionsPerRound: 5,
+        };
     });
+    
+    // Check if mode changed from saved config
+    useEffect(() => {
+        setConfig(prev => ({ ...prev, isAI: mode === 'ai' }));
+    }, [mode]);
+
     const [loading, setLoading] = useState(false);
 
-    // Update category names array when number of categories changes
+    // Update category names array (Jeopardy)
     useEffect(() => {
         if (type === GameType.JEOPARDY && config.jeopardyCategories) {
             setConfig(prev => {
@@ -88,6 +109,24 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         }
     }, [config.jeopardyCategories, type]);
 
+    // Update round names array (Pub Quiz)
+    useEffect(() => {
+        if (type === GameType.PUB_QUIZ && config.pubQuizRoundsCount) {
+            setConfig(prev => {
+                const current = prev.pubQuizRoundNames || [];
+                const targetLen = prev.pubQuizRoundsCount || 3;
+                if (current.length === targetLen) return prev;
+                
+                const newNames = [...current];
+                if (newNames.length < targetLen) {
+                    return { ...prev, pubQuizRoundNames: [...newNames, ...Array(targetLen - newNames.length).fill('')] };
+                } else {
+                    return { ...prev, pubQuizRoundNames: newNames.slice(0, targetLen) };
+                }
+            });
+        }
+    }, [config.pubQuizRoundsCount, type]);
+
     const handleGenerate = async () => {
         if (!config.title) {
             alert("Please enter a Game Title!");
@@ -96,7 +135,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         
         // AI MODE
         if (mode === 'ai') {
-            if (type !== GameType.JEOPARDY && !config.topic) {
+            if (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && !config.topic) {
                 alert("Please enter a Topic!");
                 return;
             }
@@ -106,6 +145,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     return;
                 }
             }
+            if (type === GameType.PUB_QUIZ) {
+                if (config.pubQuizRoundNames?.some(n => !n.trim())) {
+                   alert("Please name all your Pub Quiz Rounds!");
+                   return;
+               }
+           }
 
             setLoading(true);
             try {
@@ -125,7 +170,15 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 createdAt: new Date().toISOString(),
                 title: config.title,
                 config: config,
-                questions: [],
+                questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ) 
+                    ? Array.from({ length: config.questionCount }).map((_, i) => ({
+                        id: i,
+                        question: '',
+                        answer: '',
+                        points: 100,
+                        isBonus: false
+                    }))
+                    : [],
                 jeopardyBoard: type === GameType.JEOPARDY 
                     ? (config.jeopardyCategoryNames || []).map(name => ({
                         name: name || 'Category',
@@ -138,7 +191,20 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             bonusType: 'none'
                         }))
                     }))
-                    : []
+                    : undefined,
+                pubQuizRounds: type === GameType.PUB_QUIZ
+                    ? (config.pubQuizRoundNames || []).map(name => ({
+                        name: name || 'Round',
+                        questions: Array.from({ length: config.pubQuizQuestionsPerRound || 5 }).map((_, i) => ({
+                            id: i,
+                            question: '',
+                            answer: '',
+                            points: 1, // Pub quiz usually 1 point
+                            isBonus: false,
+                            bonusType: 'none'
+                        }))
+                    }))
+                    : undefined
             };
             onProceed(emptyGame);
         }
@@ -175,7 +241,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     </div>
 
                     {/* AI Specific Fields */}
-                    {mode === 'ai' && type !== GameType.JEOPARDY && (
+                    {mode === 'ai' && type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Topic / Subject <span className="text-red-500">*</span></label>
                             <input 
@@ -188,8 +254,69 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         </div>
                     )}
 
-                    {/* Specific Jeopardy Settings */}
-                    {type === GameType.JEOPARDY ? (
+                    {/* CONFIG RENDER SWITCH */}
+                    {type === GameType.TRIVIA ? (
+                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Grid Size</label>
+                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                                    {[12, 15, 20, 24, 30, 36].map(num => (
+                                        <button
+                                            key={num}
+                                            onClick={() => setConfig({...config, questionCount: num})}
+                                            className={`py-3 rounded-lg font-bold text-sm transition-all border-2
+                                                ${config.questionCount === num 
+                                                    ? 'bg-brand-blue text-white border-brand-blue shadow-md' 
+                                                    : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
+                                        >
+                                            {num}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Choose a number that divides well by your student teams.
+                                    <br/>(e.g. 20 questions works for 2, 4, or 5 teams).
+                                </p>
+                            </div>
+
+                            {mode === 'ai' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                        <select 
+                                            value={config.questionType}
+                                            onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                            className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                        >
+                                            <option value="open">Open Ended (Standard)</option>
+                                            <option value="multiple-choice">Multiple Choice</option>
+                                            <option value="mixed">Mixed Variety</option>
+                                            <option value="ai-decide">Let AI Decide</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Points Strategy</label>
+                                        <div className="flex space-x-2">
+                                            <button 
+                                                onClick={() => setConfig({...config, pointsMode: 'fixed'})}
+                                                className={`flex-1 py-2.5 rounded-lg border text-xs font-bold flex items-center justify-center
+                                                    ${config.pointsMode === 'fixed' ? 'bg-sky-100 border-sky-300 text-sky-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                                            >
+                                                <Coins size={14} className="mr-1" /> Fixed (100)
+                                            </button>
+                                            <button 
+                                                onClick={() => setConfig({...config, pointsMode: 'ai-random'})}
+                                                className={`flex-1 py-2.5 rounded-lg border text-xs font-bold flex items-center justify-center
+                                                    ${config.pointsMode === 'ai-random' ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                                            >
+                                                <Sparkles size={14} className="mr-1" /> AI Random
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : type === GameType.JEOPARDY ? (
                         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                              <div className="grid grid-cols-2 gap-6">
                                 <div>
@@ -231,7 +358,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 </div>
                             )}
                             
-                            {/* Dynamic Category Name Inputs */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-3">Category Names <span className="text-red-500">*</span></label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -265,8 +391,69 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 </div>
                             </div>
                         </div>
+                    ) : type === GameType.PUB_QUIZ ? (
+                        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
+                                   <select 
+                                       value={config.pubQuizRoundsCount}
+                                       onChange={(e) => setConfig({...config, pubQuizRoundsCount: Number(e.target.value)})}
+                                       className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                   >
+                                       {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Rounds</option>)}
+                                   </select>
+                               </div>
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-700 mb-2">Questions per Round</label>
+                                   <select 
+                                       value={config.pubQuizQuestionsPerRound}
+                                       onChange={(e) => setConfig({...config, pubQuizQuestionsPerRound: Number(e.target.value)})}
+                                       className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                   >
+                                       {[3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} Questions</option>)}
+                                   </select>
+                               </div>
+                           </div>
+
+                           {mode === 'ai' && (
+                               <div>
+                                   <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                   <select 
+                                       value={config.questionType}
+                                       onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                       className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                   >
+                                       <option value="mixed">Mixed (Recommended)</option>
+                                       <option value="open">Open Ended</option>
+                                       <option value="multiple-choice">Multiple Choice</option>
+                                       <option value="ai-decide">Let AI Decide</option>
+                                   </select>
+                               </div>
+                           )}
+                           
+                           <div>
+                               <label className="block text-sm font-bold text-slate-700 mb-3">Round Titles <span className="text-red-500">*</span></label>
+                               <div className="grid grid-cols-1 gap-3">
+                                   {config.pubQuizRoundNames?.map((name, idx) => (
+                                       <input 
+                                           key={idx}
+                                           type="text"
+                                           value={name}
+                                           onChange={(e) => {
+                                               const newNames = [...(config.pubQuizRoundNames || [])];
+                                               newNames[idx] = e.target.value;
+                                               setConfig({...config, pubQuizRoundNames: newNames});
+                                           }}
+                                           placeholder={`Round ${idx + 1} Name (e.g. Geography, Music)`}
+                                           className="p-2 rounded border border-slate-300 text-sm focus:border-sky-500 outline-none"
+                                       />
+                                   ))}
+                               </div>
+                           </div>
+                       </div>
                     ) : (
-                        // Standard Game config parts...
+                        // STANDARD GAME CONFIG (Fallback)
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>

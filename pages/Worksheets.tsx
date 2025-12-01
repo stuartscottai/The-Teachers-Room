@@ -1,23 +1,71 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check } from 'lucide-react';
-import { WorksheetConfig, GeneratedWorksheet } from '../types';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ZoomIn, ZoomOut, Columns, AlignJustify } from 'lucide-react';
+import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet } from '../utils/gameUtils';
 
 // --- STANDARD WORKSHEET STYLESHEET ---
 const WORKSHEET_CSS = `
-  @page { size: A4; margin: 0.5in; } 
+  /* 
+     CRITICAL: Set @page margins to 0. 
+     We control ALL spacing via padding on .ws-container.
+     This ensures Screen and Print look identical.
+  */
+  @page { 
+    size: A4; 
+    margin: 0mm; 
+  } 
   
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #e2e8f0; /* Grey background for app context */
+    -webkit-print-color-adjust: exact; 
+    print-color-adjust: exact;
+  }
+
   .ws-container { 
     font-family: 'Quicksand', sans-serif; 
     color: #1e293b; 
-    line-height: 1.3; 
-    width: 100%; 
-    max-width: 100%; 
+    line-height: 1.5; 
+    text-rendering: optimizeLegibility;
+    
+    /* Explicit A4 sizing */
+    width: 210mm; 
+    /* Visual safety buffer height */
+    min-height: 275mm;
+    
+    /* 
+       UNIFIED PADDING: 20mm
+       This padding acts as the "Margin" for both Screen and Print.
+       Since @page margin is 0, this is the only whitespace.
+    */
+    padding: 20mm; 
+    
     background: white;
+    box-sizing: border-box;
+    margin: 0 auto;
+    position: relative;
+    word-wrap: break-word;
+  }
+
+  /* Two Column Layout Mode */
+  .ws-container.two-column {
+    column-count: 2;
+    column-gap: 10mm;
+    column-rule: 1px solid #f1f5f9;
+  }
+  
+  /* Elements that span across columns */
+  .ws-container.two-column > .ws-header,
+  .ws-container.two-column > .ws-title,
+  .ws-container.two-column > .ws-instructions,
+  .ws-container.two-column > .ws-answer-key,
+  .ws-container.two-column > .forced-page-break {
+    column-span: all;
+    -webkit-column-span: all;
   }
   
   /* Header Block */
@@ -27,16 +75,17 @@ const WORKSHEET_CSS = `
     align-items: center;
     margin-bottom: 1rem; 
     padding: 0.5rem 1rem; 
-    border: 2px solid #e2e8f0; 
+    border: 2px solid #cbd5e1; 
     border-radius: 0.5rem; 
     background-color: #f8fafc; 
-    font-size: 0.9rem;
+    font-size: 0.9em;
+    break-inside: avoid;
   }
   .ws-field { 
     font-weight: 600; 
     color: #475569; 
     min-width: 120px;
-    border-bottom: 1px solid #cbd5e1;
+    border-bottom: 1px solid #94a3b8;
     display: inline-block;
     padding-bottom: 0.2rem;
   }
@@ -44,14 +93,15 @@ const WORKSHEET_CSS = `
   /* Typography */
   .ws-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 2rem; 
+    font-size: 24pt; 
     font-weight: 700; 
     text-align: center; 
     color: #0f172a; 
     margin: 0 0 0.5rem 0; 
     text-transform: uppercase; 
     letter-spacing: 0.05em; 
-    line-height: 1.1;
+    line-height: 1.2;
+    break-after: avoid;
   }
   .ws-instructions { 
     font-style: italic; 
@@ -61,23 +111,25 @@ const WORKSHEET_CSS = `
     max-width: 90%; 
     margin-left: auto; 
     margin-right: auto; 
-    font-size: 0.95rem;
+    font-size: 11pt;
     line-height: 1.4;
   }
 
   /* Sections */
   .ws-section { 
     margin-bottom: 1.5rem; 
-    break-inside: avoid; 
+    display: block;
+    break-inside: auto; 
   }
   .ws-section-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 1.2rem; 
+    font-size: 14pt; 
     font-weight: 600; 
     color: #0284c7; 
     border-bottom: 2px solid #e0f2fe; 
-    padding-bottom: 0.25rem; 
-    margin-bottom: 0.75rem; 
+    padding-bottom: 0.2rem; 
+    margin-bottom: 0.8rem; 
+    break-after: avoid;
   }
 
   /* Tables & Grids */
@@ -85,11 +137,12 @@ const WORKSHEET_CSS = `
     width: 100%; 
     border-collapse: collapse; 
     margin: 0.5rem 0; 
-    font-size: 0.95rem;
+    font-size: 11pt;
+    break-inside: auto;
   }
   .ws-table td, .ws-table th { 
     border: 1px solid #cbd5e1; 
-    padding: 0.5rem 0.75rem; 
+    padding: 0.5rem 0.7rem; 
     text-align: left; 
     vertical-align: middle;
   }
@@ -99,36 +152,26 @@ const WORKSHEET_CSS = `
     font-family: 'Fredoka', sans-serif;
     color: #334155;
   }
-  /* Center align for wordsearch grids */
-  .ws-table.grid td {
-      text-align: center;
-      font-family: monospace;
-      font-size: 1.1rem;
-      padding: 0.25rem;
-      width: 2rem;
-      height: 2rem;
+  
+  li, tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
-
+  
   /* Answer Key - ALWAYS ON SEPARATE PAGE */
   .ws-answer-key { 
-    /* Force page break */
     page-break-before: always;
     break-before: page;
     display: block;
-    
-    /* Reset layout for new page */
     margin-top: 0; 
     padding-top: 2rem; 
     border-top: none; 
     background-color: #fff;
-    
-    /* Multi-column layout for answers */
     column-count: 2;
     column-gap: 3rem;
     column-fill: balance;
-    
-    font-size: 0.9rem;
-    line-height: 1.5;
+    font-size: 10pt;
+    line-height: 1.4;
   }
   
   .ws-answer-key h3 { 
@@ -138,66 +181,159 @@ const WORKSHEET_CSS = `
     font-weight: bold;
     margin-bottom: 1.5rem;
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 16pt;
     border-bottom: 2px solid #ef4444;
     padding-bottom: 0.5rem;
   }
 
-  /* Prevent split elements in columns */
   .ws-answer-key p, 
   .ws-answer-key li,
   .ws-answer-key tr {
     break-inside: avoid;
-    page-break-inside: avoid;
   }
 
-  .ws-answer-key ul, .ws-answer-key ol {
-      margin-top: 0;
-      margin-bottom: 0.5rem;
-      padding-left: 1.5rem;
-  }
-
-  /* List Styling */
   ul, ol {
       margin-left: 1.5rem;
       margin-bottom: 0.5rem;
   }
   li {
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.4rem;
+  }
+  
+  /* Forced Page Break Class */
+  .forced-page-break {
+    page-break-after: always;
+    break-after: page;
+    margin: 0;
+    border: none;
+    display: flex;
+    /* Hatched Pattern for Screen */
+    background-image: repeating-linear-gradient(
+      45deg,
+      #fff7ed,
+      #fff7ed 10px,
+      #ffedd5 10px,
+      #ffedd5 20px
+    );
+    border-bottom: 2px dashed #f97316;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 8px;
+    box-sizing: border-box;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
   }
 
   /* Print Overrides */
   @media print {
-    body { margin: 0; padding: 0; background: white; }
-    .ws-container { width: 100%; max-width: none; border: none; }
-    .ws-header { border: 1px solid #94a3b8; background: none; }
-    .ws-section-title { color: #000; border-bottom-color: #cbd5e1; }
-    
-    /* Enforce separate page for answer key */
-    .ws-answer-key {
-        page-break-before: always !important;
-        break-before: page !important;
-        margin-top: 0 !important;
+    body { background: white; }
+    .ws-container { 
+        /* Keep dimensions for print to match screen */
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        /* PADDING IS KEY: It provides the margin for the PDF */
+        padding: 20mm !important; 
+        box-shadow: none; 
+        background-image: none !important;
+        transform: none !important; 
+        min-height: 0;
     }
+    
+    /* Hide UI helpers */
+    .forced-page-break {
+        height: 0 !important;
+        border: none !important;
+        background: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .forced-page-break::after,
+    .delete-break-btn,
+    .break-line,
+    .break-label {
+        display: none !important;
+    }
+  }
 
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  /* SCREEN PREVIEW MODE ONLY */
+  @media screen {
+     .ws-container {
+        /* Shadow for paper effect */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 2rem; 
+        transform-origin: top center; 
+        
+        /* 
+           VISUAL GUIDES:
+           1. Blue Dashed Line: Safe Print Limit (275mm)
+           2. Red Tint Zone: Bottom ~22mm (Danger Zone).
+        */
+        background-image: 
+            /* Page Break Line (Blue) at 275mm */
+            linear-gradient(to bottom, transparent calc(275mm - 2px), #3b82f6 calc(275mm - 2px), #3b82f6 275mm),
+            /* Bottom Margin Warning Zone (Red tint) */
+            linear-gradient(to bottom, transparent 275mm, rgba(254, 202, 202, 0.2) 275mm, rgba(254, 202, 202, 0.2) 297mm);
+        background-size: 100% 297mm; /* Repeats exactly every A4 height */
+        background-repeat: repeat-y;
+     }
+     
+     .break-label {
+        color: #f97316;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 4px 10px;
+        text-transform: uppercase;
+        background: rgba(255,255,255,0.8);
+        border-radius: 4px;
+     }
+     .delete-break-btn {
+        position: absolute;
+        right: 4px;
+        top: 4px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0.8;
+        z-index: 10;
+     }
+     .delete-break-btn:hover {
+        opacity: 1;
+        background: #dc2626;
+     }
   }
 `;
 
 // Library Component
 const LibraryView: React.FC<{ onBack: () => void, onLoad: (ws: GeneratedWorksheet) => void }> = ({ onBack, onLoad }) => {
     const [savedWorksheets, setSavedWorksheets] = useState<GeneratedWorksheet[]>([]);
+    const [loading, setLoading] = useState(true);
     const { user } = useAuth();
 
     useEffect(() => {
-        setSavedWorksheets(getSavedWorksheets());
-    }, []);
+        setLoading(true);
+        getSavedWorksheets(user?.id).then(worksheets => {
+            setSavedWorksheets(worksheets);
+            setLoading(false);
+        });
+    }, [user?.id]);
 
     const handleDelete = (id: string, e: React.MouseEvent) => {
+        e.preventDefault();
         e.stopPropagation();
-        if (window.confirm("Delete this worksheet?")) {
-            deleteSavedWorksheet(id);
-            setSavedWorksheets(prev => prev.filter(w => w.id !== id));
+        if (window.confirm("Delete this worksheet permanently?")) {
+            deleteSavedWorksheet(id, user?.id).then(() => {
+                setSavedWorksheets(prev => prev.filter(w => w.id !== id));
+            });
         }
     };
 
@@ -214,6 +350,15 @@ const LibraryView: React.FC<{ onBack: () => void, onLoad: (ws: GeneratedWorkshee
                     <h2 className="text-2xl font-bold text-slate-800 mb-2">Please Log In</h2>
                     <p className="text-slate-500 mb-6">You need to be logged in to view your saved worksheets.</p>
                 </div>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="max-w-6xl mx-auto px-4 py-12 text-center">
+                <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p>Loading your worksheets...</p>
             </div>
         );
     }
@@ -235,14 +380,14 @@ const LibraryView: React.FC<{ onBack: () => void, onLoad: (ws: GeneratedWorkshee
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {savedWorksheets.map((ws) => (
-                        <div key={ws.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100 p-6 relative group">
+                        <div key={ws.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100 p-6 relative group cursor-pointer" onClick={() => onLoad(ws)}>
                              <div className="flex justify-between items-start mb-4">
-                                <div className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase">
-                                    {ws.type}
+                                <div className="bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase truncate max-w-[150px]">
+                                    {ws.type || 'Worksheet'}
                                 </div>
                                 <button 
                                     onClick={(e) => handleDelete(ws.id!, e)}
-                                    className="text-slate-300 hover:text-red-500 p-1 rounded transition-colors"
+                                    className="text-slate-300 hover:text-red-500 p-2 -mr-2 -mt-2 rounded-full hover:bg-red-50 transition-colors z-10"
                                 >
                                     <Trash2 size={18} />
                                 </button>
@@ -252,12 +397,9 @@ const LibraryView: React.FC<{ onBack: () => void, onLoad: (ws: GeneratedWorkshee
                             <p className="text-slate-400 text-xs mb-6">
                                 Created: {new Date(ws.createdAt || Date.now()).toLocaleDateString()}
                             </p>
-                            <button 
-                                onClick={() => onLoad(ws)}
-                                className="w-full py-3 bg-white border-2 border-teal-500 text-teal-600 font-bold rounded-lg hover:bg-teal-50 transition-colors"
-                            >
+                            <div className="w-full py-3 text-center bg-white border-2 border-teal-500 text-teal-600 font-bold rounded-lg group-hover:bg-teal-50 transition-colors">
                                 Open Worksheet
-                            </button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -266,19 +408,152 @@ const LibraryView: React.FC<{ onBack: () => void, onLoad: (ws: GeneratedWorkshee
     );
 };
 
+// Page Guides Component (Sidebar Labels)
+const PageGuides: React.FC<{ contentHeight: number; zoom: number }> = ({ contentHeight, zoom }) => {
+    const pageHeightPx = 1122.5; // Approx 297mm @ 96dpi
+    const pageCount = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+    
+    return (
+        <div className="absolute top-0 -left-24 h-full hidden xl:block pointer-events-none select-none" style={{ transform: `scale(${zoom})`, transformOrigin: 'top right' }}>
+             {Array.from({ length: pageCount }).map((_, i) => (
+                <div 
+                    key={i} 
+                    className="text-right text-xs font-bold text-slate-400 flex items-end justify-end pr-4 border-b border-dashed border-slate-300/50 relative"
+                    style={{ height: '297mm' }}
+                >
+                    <span className="bg-slate-100 px-2 py-1 rounded shadow-sm mb-2">Page {i + 1}</span>
+                    {/* Danger Zone Label */}
+                    <span className="absolute right-2 bottom-[10mm] text-[9px] text-red-400 font-bold uppercase opacity-80 bg-white/80 px-1 rounded">Danger Zone</span>
+                    {/* Visual Line for 275mm (22mm from bottom of 297mm page) */}
+                    <div className="absolute right-0 w-12 border-b border-red-200" style={{ bottom: '22mm' }}></div>
+                </div>
+             ))}
+        </div>
+    );
+};
+
+// Memoized Preview Component
+const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, { 
+    htmlContent: string, 
+    fontSize: number, 
+    zoom: number,
+    isEditing: boolean,
+    layoutMode: 'single' | 'columns',
+    onHeightChange: (h: number) => void,
+    onInput?: (e: React.FormEvent<HTMLDivElement>) => void,
+    onClick?: (e: React.MouseEvent) => void
+}>(({ htmlContent, fontSize, zoom, isEditing, layoutMode, onHeightChange, onInput, onClick }, ref) => {
+    const internalRef = useRef<HTMLDivElement>(null);
+    React.useImperativeHandle(ref, () => internalRef.current as HTMLDivElement);
+
+    // Function to recalculate page break heights
+    const updatePageBreaks = useCallback(() => {
+        if (!internalRef.current) return;
+        const breaks = internalRef.current.querySelectorAll('.forced-page-break');
+        const PAGE_HEIGHT = 1122.5; // 297mm in pixels
+
+        breaks.forEach(b => (b as HTMLElement).style.height = '24px');
+
+        breaks.forEach(b => {
+            const el = b as HTMLElement;
+            const top = el.offsetTop;
+            const nextBoundary = Math.ceil((top + 10) / PAGE_HEIGHT) * PAGE_HEIGHT;
+            let gap = nextBoundary - top;
+            
+            if (gap < 24) gap += PAGE_HEIGHT;
+            el.style.height = `${gap - 1}px`;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (internalRef.current && htmlContent) {
+            if (internalRef.current.innerHTML !== htmlContent) {
+                internalRef.current.innerHTML = htmlContent;
+            }
+            requestAnimationFrame(updatePageBreaks);
+        }
+    }, [htmlContent, updatePageBreaks]);
+
+    useEffect(() => {
+        if (!internalRef.current) return;
+        const observer = new ResizeObserver((entries) => {
+            window.requestAnimationFrame(() => {
+                if (!internalRef.current) return;
+                for (const entry of entries) {
+                    onHeightChange(entry.contentRect.height);
+                    updatePageBreaks();
+                }
+            });
+        });
+        observer.observe(internalRef.current);
+        return () => observer.disconnect();
+    }, [onHeightChange, updatePageBreaks]);
+
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        if (onInput) onInput(e);
+        setTimeout(updatePageBreaks, 100);
+    };
+
+    return (
+        <div 
+            ref={internalRef}
+            className={`ws-container ${layoutMode === 'columns' ? 'two-column' : ''} outline-none transition-all ${isEditing ? 'ring-2 ring-blue-200 cursor-text' : ''}`}
+            style={{ fontSize: `${fontSize}pt`, transform: `scale(${zoom})` }}
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onInput={handleInput}
+            onClick={onClick}
+        />
+    );
+}), (prev, next) => {
+    return (
+        prev.htmlContent === next.htmlContent &&
+        prev.fontSize === next.fontSize &&
+        prev.zoom === next.zoom && 
+        prev.isEditing === next.isEditing &&
+        prev.layoutMode === next.layoutMode
+    );
+});
+
 export const Worksheets: React.FC = () => {
     const { user } = useAuth();
     const location = useLocation();
     const [view, setView] = useState<'builder' | 'library'>('builder');
+    
+    // Configuration State
     const [config, setConfig] = useState<WorksheetConfig>({
-        type: 'wordsearch',
         topic: '',
         gradeLevel: 'Elementary',
-        customInstructions: ''
+        customInstructions: '',
+        layout: 'single',
+        activities: [] // Initial state empty
     });
+
     const [generatedWs, setGeneratedWs] = useState<GeneratedWorksheet | null>(null);
     const [loading, setLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    
+    const [isEditing, setIsEditing] = useState(false);
+    const [fontSize, setFontSize] = useState(11); 
+    const [zoom, setZoom] = useState(0.75); 
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [contentHeight, setContentHeight] = useState(0);
+
+    const [showAddMenu, setShowAddMenu] = useState(false);
+    const addMenuRef = useRef<HTMLDivElement>(null);
+
+    const [history, setHistory] = useState<string[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const [historyTimeout, setHistoryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+    const availableActivities: { type: ActivityType, label: string }[] = [
+        { type: 'multiple-choice', label: 'Multiple Choice' },
+        { type: 'wordsearch', label: 'Wordsearch' },
+        { type: 'matching', label: 'Matching' },
+        { type: 'gap-fill', label: 'Gap Fill' },
+        { type: 'sentence-transform', label: 'Sentence Transform' },
+        { type: 'word-formation', label: 'Word Formation' },
+    ];
 
     useEffect(() => {
         if (location.state && location.state.view === 'library') {
@@ -286,12 +561,182 @@ export const Worksheets: React.FC = () => {
         }
     }, [location]);
 
+    useEffect(() => {
+        const calculateZoom = () => {
+            if (view === 'builder' && generatedWs) {
+                const container = document.getElementById('preview-wrapper');
+                if (container) {
+                    const availableWidth = container.clientWidth - 64; 
+                    const a4Width = 794; 
+                    const newZoom = Math.min(1, availableWidth / a4Width);
+                    setZoom(prev => Math.abs(prev - newZoom) > 0.02 ? parseFloat(newZoom.toFixed(2)) : prev);
+                }
+            }
+        };
+        
+        const timer = setTimeout(calculateZoom, 100);
+        window.addEventListener('resize', calculateZoom);
+        return () => {
+            window.removeEventListener('resize', calculateZoom);
+            clearTimeout(timer);
+        }
+    }, [view, generatedWs]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+                setShowAddMenu(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const addToHistory = (content: string) => {
+        const newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push(content);
+        if (newHistory.length > 20) newHistory.shift();
+        setHistory(newHistory);
+        setHistoryIndex(newHistory.length - 1);
+    };
+
+    const handleUndo = () => {
+        if (historyIndex > 0) {
+            const newIndex = historyIndex - 1;
+            setHistoryIndex(newIndex);
+            if (generatedWs) {
+                setGeneratedWs({ ...generatedWs, content: history[newIndex] });
+            }
+        }
+    };
+
+    const handleRedo = () => {
+        if (historyIndex < history.length - 1) {
+            const newIndex = historyIndex + 1;
+            setHistoryIndex(newIndex);
+            if (generatedWs) {
+                setGeneratedWs({ ...generatedWs, content: history[newIndex] });
+            }
+        }
+    };
+
+    const handleContentInput = (e: React.FormEvent<HTMLDivElement>) => {
+        const currentContent = e.currentTarget.innerHTML;
+        if (historyTimeout) clearTimeout(historyTimeout);
+        const timeout = setTimeout(() => {
+            if (currentContent !== history[historyIndex]) {
+                addToHistory(currentContent);
+                if (generatedWs) {
+                    setGeneratedWs(prev => prev ? ({ ...prev, content: currentContent }) : null);
+                }
+            }
+        }, 1000);
+        setHistoryTimeout(timeout);
+    };
+
+    useEffect(() => {
+        if (generatedWs && history.length === 0) {
+            setHistory([generatedWs.content]);
+            setHistoryIndex(0);
+        } else if (generatedWs && generatedWs.content !== history[historyIndex] && !isEditing) {
+            setHistory([generatedWs.content]);
+            setHistoryIndex(0);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [generatedWs?.id]);
+
+    const addActivity = (type: ActivityType) => {
+        const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform'].includes(type);
+        setConfig(prev => ({
+            ...prev,
+            activities: [
+                ...prev.activities, 
+                { 
+                    id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type, 
+                    count: 5,
+                    contextType: supportsContext ? 'sentences' : undefined 
+                }
+            ]
+        }));
+        setShowAddMenu(false);
+    };
+
+    const removeActivity = (id: string, e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.filter(a => a.id !== id)
+        }));
+    };
+
+    const updateActivityCount = (id: string, count: number) => {
+        setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.map(a => a.id === id ? { ...a, count } : a)
+        }));
+    };
+
+    const updateActivityContext = (id: string, contextType: 'sentences' | 'text') => {
+         setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.map(a => a.id === id ? { ...a, contextType } : a)
+        }));
+    };
+
+    const updateMcOptions = (id: string, optionCount: 2 | 3 | 4) => {
+        setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.map(a => a.id === id ? { ...a, options: { mcCount: optionCount } } : a)
+        }));
+    };
+
+    const handleDragStart = (e: React.DragEvent, index: number) => {
+        e.dataTransfer.setData("text/plain", index.toString());
+        e.dataTransfer.effectAllowed = "move";
+        const target = e.target as HTMLElement;
+        target.style.opacity = '0.5';
+    };
+
+    const handleDragEnd = (e: React.DragEvent) => {
+        const target = e.target as HTMLElement;
+        target.style.opacity = '1';
+    }
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault(); 
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+        e.preventDefault();
+        const sourceIndexStr = e.dataTransfer.getData("text/plain");
+        if (!sourceIndexStr) return;
+        const sourceIndex = parseInt(sourceIndexStr);
+
+        if (sourceIndex === targetIndex) return;
+
+        const newActivities = [...config.activities];
+        const [movedItem] = newActivities.splice(sourceIndex, 1);
+        newActivities.splice(targetIndex, 0, movedItem);
+
+        setConfig(prev => ({ ...prev, activities: newActivities }));
+    };
+
     const handleGenerate = async () => {
         if (!config.topic) {
             alert("Please enter a topic!");
             return;
         }
+        if (config.activities.length === 0 && !window.confirm("You have no activities selected. Generate blank worksheet?")) {
+             return;
+        }
+
         setLoading(true);
+        setIsEditing(false);
         try {
             const data = await generateWorksheetContent(config);
             setGeneratedWs(data);
@@ -304,6 +749,13 @@ export const Worksheets: React.FC = () => {
         }
     };
 
+    const getCurrentContent = () => {
+        if (contentRef.current) {
+            return contentRef.current.innerHTML;
+        }
+        return generatedWs?.content || '';
+    };
+
     const handleSave = () => {
         if (!user) {
             alert("Please log in to save worksheets.");
@@ -311,33 +763,86 @@ export const Worksheets: React.FC = () => {
         }
         if (!generatedWs) return;
 
+        const currentContent = getCurrentContent();
+        const finalWs = { ...generatedWs, content: currentContent };
+
         setSaveStatus('saving');
-        setTimeout(() => {
-            const success = saveWorksheetToLibrary(generatedWs);
+        
+        saveWorksheetToLibrary(finalWs, user.id).then(success => {
             if (success) {
                 setSaveStatus('saved');
+                setGeneratedWs(finalWs); 
                 setTimeout(() => setSaveStatus('idle'), 2000);
             } else {
                 alert("Failed to save worksheet.");
                 setSaveStatus('idle');
             }
-        }, 800);
+        });
     };
 
     const handleLoad = (ws: GeneratedWorksheet) => {
         setGeneratedWs(ws);
         if (ws.config) setConfig(ws.config);
         setView('builder');
-        setSaveStatus('saved'); // It's already saved
+        setSaveStatus('saved');
+    };
+
+    const insertPageBreak = () => {
+        if (!isEditing) {
+            alert("Please click 'Edit Text' first to modify the worksheet.");
+            return;
+        }
+        if (contentRef.current) contentRef.current.focus();
+
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (contentRef.current && contentRef.current.contains(range.commonAncestorContainer)) {
+                const div = document.createElement('div');
+                div.className = 'forced-page-break';
+                div.contentEditable = 'false'; 
+                div.innerHTML = `
+                    <span class="break-label">PAGE BREAK</span>
+                    <button class="delete-break-btn" title="Remove Page Break">×</button>
+                `;
+                
+                range.deleteContents();
+                range.insertNode(div);
+                range.setStartAfter(div);
+                range.setEndAfter(div);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                if (contentRef.current) addToHistory(contentRef.current.innerHTML);
+                
+                // Trigger height calculation immediately
+                setTimeout(() => {
+                    // Handled by observer
+                }, 50);
+            } else {
+                alert("Click inside the worksheet where you want to insert the break.");
+            }
+        }
+    };
+
+    const handlePreviewClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('delete-break-btn')) {
+            const breakElement = target.closest('.forced-page-break');
+            if (breakElement) {
+                breakElement.remove();
+                if (contentRef.current) addToHistory(contentRef.current.innerHTML);
+            }
+        }
     };
 
     const handlePrint = () => {
         if (!generatedWs) return;
+        const currentContent = getCurrentContent();
 
         const printWindow = window.open('', '_blank');
-        
         if (!printWindow) {
-            alert("Pop-up blocked! Please allow pop-ups for this site to print.");
+            alert("Pop-up blocked! Please allow pop-ups to print.");
             return;
         }
 
@@ -350,15 +855,16 @@ export const Worksheets: React.FC = () => {
                 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
                 <style>
                     ${WORKSHEET_CSS}
+                    .ws-container { font-size: ${fontSize}pt; }
+                    /* Inject the layout class if needed */
+                    ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; }' : ''}
+                    ${config.layout === 'columns' ? '.ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''}
                     body { padding: 0; margin: 0; }
-                    @media print {
-                       body { -webkit-print-color-adjust: exact; }
-                    }
                 </style>
             </head>
             <body>
-                <div class="ws-container">
-                    ${generatedWs.content}
+                <div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">
+                    ${currentContent}
                 </div>
                 <script>
                     document.fonts.ready.then(() => {
@@ -376,153 +882,319 @@ export const Worksheets: React.FC = () => {
         printWindow.document.close();
     };
 
+    const handleHeightChange = useCallback((height: number) => {
+        setContentHeight(height);
+    }, []);
+
     if (view === 'library') {
         return <LibraryView onBack={() => setView('builder')} onLoad={handleLoad} />;
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 py-12">
-            {/* Header Area */}
-            <div className="max-w-7xl mx-auto px-4 mb-8 flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
-                <div>
-                    <h1 className="font-display text-3xl font-bold text-slate-800">Worksheet Builder</h1>
-                    <p className="text-slate-500">Create custom printables in seconds.</p>
-                </div>
-                <button 
-                    onClick={() => setView('library')}
-                    className="bg-white border-2 border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center shadow-sm"
-                >
-                    {user ? <BookOpen size={20} className="mr-2" /> : <LogIn size={20} className="mr-2" />}
-                    {user ? 'My Saved Worksheets' : 'Log in to View Saved'}
-                </button>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                {/* Sidebar Form */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
-                        <h2 className="font-display text-2xl font-bold text-slate-800 mb-6 flex items-center">
-                            <LayoutTemplate className="mr-2 text-brand-accent" />
+        <div className="flex h-[calc(100vh-64px)] bg-slate-50 overflow-hidden">
+            {/* Left Sidebar */}
+            <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col h-full z-20 shadow-xl">
+                <div className="p-6 border-b border-slate-100 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <h1 className="font-display text-xl font-bold text-slate-800 flex items-center">
+                            <LayoutTemplate className="mr-2 text-brand-accent" size={20} />
                             Builder
-                        </h2>
-                        
-                        <div className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Activity Type</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {['wordsearch', 'matching', 'gap-fill', 'sentence-transform'].map(t => (
-                                        <button 
-                                            key={t}
-                                            onClick={() => setConfig({...config, type: t as any})}
-                                            className={`p-2 rounded-lg text-sm capitalize border transition-colors
-                                            ${config.type === t 
-                                                ? 'bg-teal-50 border-teal-500 text-teal-700 font-bold' 
-                                                : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                        >
-                                            {t.replace('-', ' ')}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                        </h1>
+                    </div>
+                    <button 
+                        onClick={() => setView('library')}
+                        className="w-full bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center shadow-sm text-sm"
+                    >
+                        {user ? <BookOpen size={16} className="mr-2" /> : <LogIn size={16} className="mr-2" />}
+                        {user ? 'My Saved Worksheets' : 'Log in to View Saved'}
+                    </button>
+                </div>
 
+                {/* Scrollable Builder Content */}
+                <div className="flex-1 overflow-y-auto no-scrollbar p-6">
+                    <div className="space-y-6 pb-20">
+                        <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Topic</label>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Topic</label>
                                 <input 
                                     type="text" 
                                     value={config.topic}
                                     onChange={(e) => setConfig({...config, topic: e.target.value})}
-                                    placeholder="e.g. Space Exploration"
-                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none"
+                                    placeholder="e.g. Space"
+                                    className="w-full p-2 rounded border border-slate-200 focus:ring-1 focus:ring-teal-400 outline-none text-sm"
                                 />
                             </div>
-
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Grade Level</label>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Grade</label>
                                 <select 
                                     value={config.gradeLevel}
                                     onChange={(e) => setConfig({...config, gradeLevel: e.target.value})}
-                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none bg-white"
+                                    className="w-full p-2 rounded border border-slate-200 outline-none bg-white text-sm"
                                 >
-                                    <option value="Elementary">Elementary (A1-A2)</option>
-                                    <option value="Intermediate">Intermediate (B1-B2)</option>
-                                    <option value="Advanced">Advanced (C1-C2)</option>
+                                    <option value="Elementary">Elementary</option>
+                                    <option value="Intermediate">Intermediate</option>
+                                    <option value="Advanced">Advanced</option>
                                 </select>
                             </div>
-
+                            
+                            {/* Layout Toggle */}
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-2">Custom Instructions</label>
-                                <textarea 
-                                    value={config.customInstructions}
-                                    onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
-                                    placeholder="Specific vocabulary to include..."
-                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
-                                />
-                            </div>
-
-                            <button 
-                                onClick={handleGenerate}
-                                disabled={loading}
-                                className={`w-full py-3 rounded-xl font-bold shadow-md transition-all flex items-center justify-center text-white
-                                ${loading ? 'bg-slate-300 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 hover:shadow-lg'}`}
-                            >
-                                {loading ? 'Creating...' : <><Sparkles size={18} className="mr-2" /> Generate Worksheet</>}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Preview Area */}
-                <div className="lg:col-span-2">
-                    {generatedWs ? (
-                        <div className="bg-white shadow-lg p-8 min-h-[800px] relative">
-                            {/* Inject Styles for Preview */}
-                            <style>{WORKSHEET_CSS}</style>
-
-                            {/* Toolbar */}
-                            <div className="flex justify-between items-center mb-8 no-print">
-                                <h2 className="text-xl font-bold text-slate-400">Preview</h2>
-                                <div className="flex space-x-2">
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Page Layout</label>
+                                <div className="flex bg-slate-100 rounded-lg p-1">
                                     <button 
-                                        onClick={handleSave}
-                                        disabled={saveStatus === 'saving' || saveStatus === 'saved'}
-                                        className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors border
-                                            ${saveStatus === 'saved' 
-                                                ? 'bg-green-50 text-green-600 border-green-200' 
-                                                : 'bg-white text-slate-700 border-slate-200 hover:border-teal-500 hover:text-teal-600'}`}
+                                        onClick={() => setConfig({...config, layout: 'single'})}
+                                        className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'single' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                     >
-                                        {saveStatus === 'saved' ? <Check size={18} className="mr-2"/> : <Save size={18} className="mr-2" />}
-                                        {saveStatus === 'saved' ? 'Saved' : 'Save'}
+                                        <AlignJustify size={14} className="mr-1" /> Single Col
                                     </button>
-                                    <div className="group relative">
-                                        <button 
-                                            onClick={handlePrint} 
-                                            className="flex items-center px-4 py-2 bg-brand-yellow hover:bg-yellow-300 rounded-lg text-slate-900 font-bold transition-colors shadow-sm"
-                                        >
-                                            <Printer size={18} className="mr-2" /> Print / Save PDF
-                                        </button>
-                                        <div className="absolute top-full mt-2 right-0 w-48 bg-slate-800 text-white text-xs p-2 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                                            Opens a print dialog. Allow pop-ups if blocked.
-                                        </div>
-                                    </div>
+                                    <button 
+                                        onClick={() => setConfig({...config, layout: 'columns'})}
+                                        className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'columns' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <Columns size={14} className="mr-1" /> Two Cols
+                                    </button>
                                 </div>
                             </div>
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between items-end mb-2">
+                                <label className="block text-xs font-bold text-slate-700">Activities</label>
+                                <span className="text-[10px] text-slate-400">{config.activities.length} items</span>
+                            </div>
                             
-                            {/* The actual content (Preview only) */}
-                            <div className="ws-container">
-                                <div 
-                                    dangerouslySetInnerHTML={{ __html: generatedWs.content }} 
+                            <div className="space-y-2 mb-3">
+                                {config.activities.length === 0 && (
+                                    <div className="text-center p-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50">
+                                        <p className="text-slate-400 text-xs">Add activities below</p>
+                                    </div>
+                                )}
+                                {config.activities.map((act, index) => {
+                                    const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
+                                    const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform'].includes(act.type);
+                                    
+                                    return (
+                                        <div 
+                                            key={act.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, index)}
+                                            onDragEnd={handleDragEnd}
+                                            onDragOver={handleDragOver}
+                                            onDrop={(e) => handleDrop(e, index)}
+                                            className="border border-teal-200 bg-teal-50/30 rounded p-2 relative group cursor-move hover:shadow-sm transition-all active:cursor-grabbing"
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <div className="flex items-center text-slate-700 font-bold text-xs select-none truncate">
+                                                    <GripVertical size={12} className="text-slate-400 mr-1" />
+                                                    <span className="bg-teal-100 text-teal-800 text-[9px] px-1 py-0.5 rounded mr-1">#{index + 1}</span>
+                                                    {activityLabel}
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => removeActivity(act.id, e)} 
+                                                    className="text-slate-300 hover:text-red-500 p-0.5 rounded hover:bg-red-50 transition-colors"
+                                                    title="Remove"
+                                                    type="button"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="pl-4 flex flex-wrap gap-2">
+                                                <div className="flex-1 min-w-[60px]">
+                                                    <label className="text-[9px] text-slate-500 font-bold uppercase block">Qty</label>
+                                                    <input 
+                                                        type="number" 
+                                                        min={1} 
+                                                        max={20}
+                                                        value={act.count}
+                                                        onChange={(e) => updateActivityCount(act.id, parseInt(e.target.value))}
+                                                        className="w-full p-1 text-xs border border-slate-300 rounded text-center focus:ring-1 focus:ring-teal-500 outline-none bg-white"
+                                                    />
+                                                </div>
+                                                {act.type === 'multiple-choice' && (
+                                                    <div className="flex-1 min-w-[60px]">
+                                                        <label className="text-[9px] text-slate-500 font-bold uppercase block">Opts</label>
+                                                        <select 
+                                                            value={act.options?.mcCount || 3}
+                                                            onChange={(e) => updateMcOptions(act.id, parseInt(e.target.value) as any)}
+                                                            className="w-full p-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-teal-500 outline-none bg-white"
+                                                        >
+                                                            <option value={2}>2</option>
+                                                            <option value={3}>3</option>
+                                                            <option value={4}>4</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {supportsContext && (
+                                                <div className="mt-1 pt-1 border-t border-teal-100 pl-4">
+                                                    <div className="flex bg-white rounded border border-slate-200 overflow-hidden">
+                                                            <button 
+                                                            className={`flex-1 text-[9px] py-0.5 transition-colors ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                            onClick={() => updateActivityContext(act.id, 'sentences')}
+                                                            >Sentences</button>
+                                                            <button 
+                                                            className={`flex-1 text-[9px] py-0.5 transition-colors ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500 hover:bg-slate-50'}`}
+                                                            onClick={() => updateActivityContext(act.id, 'text')}
+                                                            >Story</button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="relative" ref={addMenuRef}>
+                                <button 
+                                    onClick={() => setShowAddMenu(!showAddMenu)}
+                                    className={`w-full py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded font-bold text-xs hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center ${showAddMenu ? 'border-teal-500 text-teal-600' : ''}`}
+                                >
+                                    <Plus size={14} className="mr-1" /> Add Activity <ChevronDown size={12} className={`ml-1 transition-transform ${showAddMenu ? 'rotate-180' : ''}`} />
+                                </button>
+                                
+                                {showAddMenu && (
+                                    <div className="absolute top-full left-0 w-full pt-2 z-20">
+                                        <div className="bg-white border border-slate-200 shadow-xl rounded-lg p-2 max-h-[250px] overflow-y-auto">
+                                            {availableActivities.map(a => (
+                                                <button 
+                                                    key={a.type}
+                                                    onClick={() => addActivity(a.type)}
+                                                    className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-teal-50 hover:text-teal-700 rounded transition-colors"
+                                                >
+                                                    {a.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Instructions</label>
+                            <textarea 
+                                value={config.customInstructions}
+                                onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
+                                placeholder="E.g. vocabulary..."
+                                className="w-full p-2 rounded border border-slate-200 outline-none h-16 resize-none text-xs"
+                            />
+                        </div>
+
+                        <button 
+                            onClick={handleGenerate}
+                            disabled={loading}
+                            className={`w-full py-3 rounded-xl font-bold shadow-md transition-all flex items-center justify-center text-white text-sm
+                            ${loading ? 'bg-slate-300 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 hover:shadow-lg'}`}
+                        >
+                            {loading ? 'Creating...' : <><Sparkles size={16} className="mr-2" /> Generate</>}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Right Content (Preview - Takes remaining space) */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-100/50">
+                {generatedWs ? (
+                    <div className="flex flex-col h-full">
+                        <style>{WORKSHEET_CSS}</style>
+                        <div className="flex flex-wrap gap-4 justify-between items-center p-4 border-b border-slate-200 bg-white z-10 shadow-sm flex-shrink-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <button 
+                                    onClick={() => setIsEditing(!isEditing)}
+                                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors
+                                    ${isEditing ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                >
+                                    <Edit size={16} className="mr-2" /> {isEditing ? 'Done' : 'Edit'}
+                                </button>
+                                
+                                <div className="flex items-center gap-1 bg-slate-50 rounded-lg border border-slate-200 p-1 mx-2">
+                                    <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Undo size={16} /></button>
+                                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Redo size={16} /></button>
+                                </div>
+                                
+                                {isEditing && (
+                                    <button 
+                                        onClick={insertPageBreak}
+                                        className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100"
+                                        title="Insert Page Break at Cursor"
+                                    >
+                                        <Scissors size={16} className="mr-2 transform rotate-90" /> Break
+                                    </button>
+                                )}
+                                
+                                <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
+                                    <button onClick={() => setFontSize(Math.max(8, fontSize - 0.5))} className="p-1 hover:bg-slate-200 rounded"><Minus size={14} /></button>
+                                    <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{fontSize.toFixed(1)}pt</span>
+                                    <button onClick={() => setFontSize(Math.min(24, fontSize + 0.5))} className="p-1 hover:bg-slate-200 rounded"><Plus size={14} /></button>
+                                </div>
+
+                                <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
+                                    <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomOut size={14} /></button>
+                                    <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{Math.round(zoom * 100)}%</span>
+                                    <button onClick={() => setZoom(Math.min(1.5, zoom + 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomIn size={14} /></button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={handleSave}
+                                    disabled={saveStatus === 'saving' || saveStatus === 'saved'}
+                                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors border text-sm
+                                        ${saveStatus === 'saved' 
+                                            ? 'bg-green-50 text-green-600 border-green-200' 
+                                            : 'bg-white text-slate-700 border-slate-200 hover:border-teal-500 hover:text-teal-600'}`}
+                                >
+                                    {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-500 border-t-transparent mr-2"></div>}
+                                    {saveStatus === 'saved' && <Check size={16} className="mr-2"/>}
+                                    {saveStatus === 'idle' && <Save size={16} className="mr-2" />}
+                                    
+                                    {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
+                                </button>
+                                
+                                <button 
+                                    onClick={handlePrint} 
+                                    className="flex items-center px-4 py-2 bg-brand-yellow hover:bg-yellow-300 rounded-lg text-slate-900 font-bold transition-colors shadow-sm text-sm"
+                                >
+                                    <Printer size={16} className="mr-2" /> Print / PDF
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Updated Preview Wrapper with ID for Auto-Zoom calculation */}
+                        <div id="preview-wrapper" className="flex-1 overflow-y-auto overflow-x-auto p-8 flex justify-center bg-slate-100">
+                            <div className="relative shadow-xl h-fit">
+                                <PageGuides contentHeight={contentHeight} zoom={zoom} />
+                                <EditablePreview 
+                                    ref={contentRef}
+                                    htmlContent={generatedWs.content}
+                                    fontSize={fontSize}
+                                    zoom={zoom}
+                                    isEditing={isEditing}
+                                    layoutMode={config.layout || 'single'}
+                                    onHeightChange={handleHeightChange}
+                                    onInput={handleContentInput}
+                                    onClick={handlePreviewClick}
                                 />
                             </div>
                         </div>
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-400 min-h-[400px] border-2 border-dashed border-slate-200 rounded-2xl">
-                            <FileText size={48} className="mb-4 opacity-50" />
-                            <p>Your generated worksheet will appear here.</p>
+                        
+                        {isEditing && (
+                            <div className="absolute bottom-4 right-8 text-blue-400 text-xs animate-pulse pointer-events-none bg-white/80 px-2 rounded">
+                                Editing Mode Active
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 border-l border-slate-200 bg-slate-50/50">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                            <LayoutTemplate size={40} className="text-slate-300" />
                         </div>
-                    )}
-                </div>
+                        <p className="font-bold text-lg">Your worksheet canvas is empty</p>
+                        <p className="text-sm">Add and configure activities to generate.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
