@@ -1,9 +1,4 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-
-export const config = {
-  runtime: 'edge', // Use Edge runtime for faster cold starts
-};
 
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
