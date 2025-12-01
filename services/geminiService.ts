@@ -68,7 +68,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
           });
 
           if (!response.ok) {
-              throw new Error(`External API Error: ${response.statusText}`);
+              const errText = await response.text();
+              console.error("External API Error Response:", errText);
+              throw new Error(`External API Error: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -269,7 +271,11 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
               })
           });
 
-          if (!response.ok) throw new Error(`External API Error: ${response.statusText}`);
+          if (!response.ok) {
+              const errText = await response.text();
+              console.error("External API Error Response:", errText);
+              throw new Error(`External API Error: ${response.status} ${response.statusText}`);
+          }
 
           const data = await response.json();
           if (!data.id) data.id = generateUUID();

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { randomUUID } from "node:crypto";
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 // Helper to clean JSON
@@ -15,25 +16,31 @@ const cleanJson = (text: string): string => {
   return cleaned.trim();
 };
 
-export default async function handler(req: Request) {
-  // 1. Handle CORS
+export default async function handler(req: any, res: any) {
+  // 1. Handle CORS manually for Vercel Node Functions
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+  );
+
+  // Handle preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
+    res.status(200).end();
+    return;
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const body = await req.json();
-    const { action, config, message, history } = body;
+    // Vercel parses JSON body automatically for Node functions
+    const { action, config, message, history } = req.body;
+
+    console.log(`Processing action: ${action}`);
 
     // 2. Handle GAME Generation
     if (action === 'game') {
@@ -139,13 +146,11 @@ export default async function handler(req: Request) {
       const data = JSON.parse(cleanJson(text || "{}"));
       
       // Ensure ID exists for database
-      data.id = crypto.randomUUID();
+      data.id = randomUUID();
       data.createdAt = new Date().toISOString();
       data.config = config; // Pass config back
 
-      return new Response(JSON.stringify(data), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      return res.status(200).json(data);
     }
 
     // 3. Handle WORKSHEET Generation
@@ -189,14 +194,12 @@ export default async function handler(req: Request) {
        const text = response.text;
        const result = JSON.parse(cleanJson(text || "{}"));
        
-       return new Response(JSON.stringify({
+       return res.status(200).json({
            ...result,
-           id: crypto.randomUUID(),
+           id: randomUUID(),
            createdAt: new Date().toISOString(),
            config: config
-       }), {
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+       });
     }
 
     // 4. Handle CHAT
@@ -208,18 +211,13 @@ export default async function handler(req: Request) {
             User: ${message}`
         });
         
-        return new Response(JSON.stringify({ text: response.text }), {
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        return res.status(200).json({ text: response.text });
     }
 
-    return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400 });
+    return res.status(400).json({ error: 'Invalid action' });
 
   } catch (error: any) {
-    console.error(error);
-    return new Response(JSON.stringify({ error: error.message }), { 
-        status: 500,
-        headers: { 'Access-Control-Allow-Origin': '*' }
-    });
+    console.error("Generate API Error:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 }

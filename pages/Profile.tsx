@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Terminal, Server, Key } from 'lucide-react';
+import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Terminal, Server, Key, Info } from 'lucide-react';
 import { DevSettings } from '../types';
 
 export const Profile: React.FC = () => {
@@ -187,21 +187,37 @@ export const Profile: React.FC = () => {
                                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center">
                                         <Terminal size={16} className="mr-2" /> Developer / API Settings
                                     </h3>
-                                    <div className="flex items-center">
-                                        <label htmlFor="devToggle" className="mr-3 text-sm font-medium text-slate-700">
-                                            {devSettings.useExternalApi ? "External API Enabled" : "Using Internal SDK"}
-                                        </label>
+                                    <div className="flex items-center bg-slate-100 rounded-full p-1">
                                         <button 
                                             type="button"
-                                            onClick={() => setDevSettings({...devSettings, useExternalApi: !devSettings.useExternalApi})}
-                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${devSettings.useExternalApi ? 'bg-brand-blue' : 'bg-slate-200'}`}
+                                            onClick={() => setDevSettings({...devSettings, useExternalApi: false})}
+                                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!devSettings.useExternalApi ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                                         >
-                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${devSettings.useExternalApi ? 'translate-x-5' : 'translate-x-0'}`} />
+                                            Internal SDK (Dev)
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setDevSettings({...devSettings, useExternalApi: true})}
+                                            className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${devSettings.useExternalApi ? 'bg-brand-blue text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            External API (Prod)
                                         </button>
                                     </div>
                                 </div>
                                 
-                                <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${devSettings.useExternalApi ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                                <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-start gap-3">
+                                    <Info className="text-blue-500 mt-0.5 shrink-0" size={16} />
+                                    <div className="text-xs text-blue-800">
+                                        <p className="font-bold mb-1">Mode Selection:</p>
+                                        {devSettings.useExternalApi ? (
+                                            <p>All AI requests will be sent to the <strong>External Endpoint</strong> defined below. Use this for production (Vercel) to protect your API Key.</p>
+                                        ) : (
+                                            <p>All AI requests will use the <strong>Browser SDK</strong> directly with your local environment key. Use this for testing in AI Studio or StackBlitz.</p>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${devSettings.useExternalApi ? 'opacity-100' : 'opacity-50 pointer-events-none grayscale'}`}>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">External Endpoint URL</label>
                                         <div className="relative">
@@ -212,13 +228,10 @@ export const Profile: React.FC = () => {
                                                 type="text"
                                                 value={devSettings.externalEndpoint}
                                                 onChange={(e) => setDevSettings({...devSettings, externalEndpoint: e.target.value})}
-                                                placeholder="https://my-vercel-app.vercel.app/api/generate"
+                                                placeholder="https://your-app.vercel.app/api/generate"
                                                 className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-brand-blue focus:border-brand-blue sm:text-sm outline-none font-mono"
                                             />
                                         </div>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            Must accept POST requests with JSON body <code>{`{ action: 'game'|'worksheet', config: ... }`}</code>
-                                        </p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">API Secret / Bearer Token (Optional)</label>
