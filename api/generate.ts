@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { randomUUID } from "node:crypto";
 
@@ -57,7 +58,7 @@ export default async function handler(req: any, res: any) {
       const isPubQuiz = config.type === 'Pub Quiz';
       const gameTitle = config.title || `My ${config.type} Game`;
       
-      let systemInstruction = `You are an expert educational content creator. 
+      const systemInstruction = `You are an expert educational content creator. 
       Create a structured game based on the following parameters. 
       Return ONLY valid JSON. Do not use Markdown code blocks.
       Ensure questions are appropriate for a classroom setting.
@@ -73,15 +74,20 @@ export default async function handler(req: any, res: any) {
       if (isJeopardy) {
         const rows = config.jeopardyRows || 5;
         const categories = config.jeopardyCategoryNames || ["Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"];
+        const qTypeInstruction = config.questionType === 'ai-decide' 
+            ? "Mix of question types suitable for the category (some open, some multiple choice, etc)" 
+            : config.questionType;
+
         prompt = `
           Create a Jeopardy game with the title "${gameTitle}".
-          Categories: ${JSON.stringify(categories)}.
-          For EACH category, create exactly ${rows} questions with increasing difficulty (100-${rows * 100}).
-          Question Style: ${config.questionType}.
-          Strict Mode: ${config.strictMode}.
+          The game must have exactly ${categories.length} categories.
+          The category names are: ${JSON.stringify(categories)}.
+          For EACH category, create exactly ${rows} questions with increasing difficulty (e.g. 100, 200, 300, 400, 500).
+          Question Style: ${qTypeInstruction}.
+          Strict Mode: ${config.strictMode ? "Answers must be phrased as questions (What is...)" : "Standard answers"}.
           Custom Instructions: ${config.customInstructions || "None"}.
           
-          Output JSON matching:
+          Output JSON matching this structure:
           {
             "title": "${gameTitle}",
             "jeopardyBoard": [
@@ -92,7 +98,7 @@ export default async function handler(req: any, res: any) {
                     "id": 1,
                     "question": "Clue text",
                     "answer": "Answer text",
-                    "options": ["Opt1", "Opt2", "Opt3"],
+                    "options": ["Opt1", "Opt2", "Opt3"], // REQUIRED if multiple choice
                     "points": 100,
                     "isBonus": false
                   }
@@ -102,22 +108,34 @@ export default async function handler(req: any, res: any) {
           }
         `;
       } else if (isPubQuiz) {
+        const roundCount = config.pubQuizRoundsCount || 3;
+        const questionsPerRound = config.pubQuizQuestionsPerRound || 5;
+        const roundNames = config.pubQuizRoundNames || ["Round 1", "Round 2", "Round 3"];
+        const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats" : config.questionType;
+
         prompt = `
           Create a Pub Quiz game titled "${gameTitle}".
-          Rounds: ${config.pubQuizRoundsCount}.
-          Round Names: ${JSON.stringify(config.pubQuizRoundNames)}.
-          Questions per round: ${config.pubQuizQuestionsPerRound}.
-          Question Style: ${config.questionType}.
+          The game must have exactly ${roundCount} rounds.
+          The round names are: ${JSON.stringify(roundNames)}.
+          For EACH round, create exactly ${questionsPerRound} questions.
+          Question Style: ${qTypeInstruction}.
           Custom Instructions: ${config.customInstructions || "None"}.
           
-          Output JSON matching:
+          Output JSON matching this structure:
           {
             "title": "${gameTitle}",
             "pubQuizRounds": [
               {
                 "name": "Round Name",
                 "questions": [
-                  { "id": 1, "question": "...", "answer": "...", "options": [], "points": 1, "isBonus": false }
+                  { 
+                    "id": 1, 
+                    "question": "Question text", 
+                    "answer": "Answer text", 
+                    "options": ["Opt1", "Opt2"], // REQUIRED if multiple choice
+                    "points": 1, 
+                    "isBonus": false 
+                  }
                 ]
               }
             ]
@@ -125,22 +143,31 @@ export default async function handler(req: any, res: any) {
         `;
       } else {
         // Standard Game
+        const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
+        
+        // Points Logic
+        let pointsInstruction = "Assign 100 points to every question.";
+        if (config.pointsMode === 'ai-random') {
+            pointsInstruction = "Assign random point values between 5, 10, 15, 20, 25, 30, 35, 40, 45, 50 based on the difficulty of the question.";
+        }
+
         prompt = `
           Create a ${config.type} game titled "${gameTitle}" about "${config.topic}".
-          Questions: ${config.questionCount}.
-          Type: ${config.questionType}.
-          Points: ${config.pointsMode}.
-          Instructions: ${config.customInstructions || "None"}.
+          Number of questions: ${config.questionCount}.
+          Question Type: ${qTypeInstruction}.
+          Points Strategy: ${pointsInstruction}.
+          Includes Bonus Questions: false.
+          Custom Instructions: ${config.customInstructions || "None"}.
           
-          Output JSON matching:
+          Output JSON matching this structure:
           {
             "title": "${gameTitle}",
             "questions": [
               {
                 "id": 1,
-                "question": "Question...",
-                "answer": "Answer...",
-                "options": ["A", "B", "C", "D"],
+                "question": "Question text",
+                "answer": "Answer text",
+                "options": ["A", "B", "C", "D"], // REQUIRED if multiple choice
                 "points": 10,
                 "isBonus": false,
                 "category": "General"
@@ -173,22 +200,41 @@ export default async function handler(req: any, res: any) {
     // 4. Handle WORKSHEET Generation
     if (action === 'worksheet') {
        const activityPrompts = config.activities.map((act: any, index: number) => {
-        return `Activity ${index + 1}: ${act.type} (${act.count} items). ${act.contextType || ''}`;
+        let details = `Activity ${index + 1}: ${act.type} (${act.count} items).`;
+        if (act.type === 'multiple-choice' && act.options?.mcCount) {
+            details += ` Provide exactly ${act.options.mcCount} options per question.`;
+        }
+        if (act.contextType === 'text') {
+            details += ` FORMAT: Embedded within a single coherent story/text.`;
+        } else if (act.contextType === 'sentences') {
+            details += ` FORMAT: Separate numbered sentences.`;
+        }
+        return details;
        }).join('\n');
 
        const prompt = `
         Create a worksheet.
         Topic: ${config.topic}.
         Grade: ${config.gradeLevel}.
-        Instructions: ${config.customInstructions}.
-        Layout: ${config.layout}.
+        Instructions: ${config.customInstructions || "None"}.
+        Layout: ${config.layout || 'single'}.
         
-        Activities:
+        Activities (Create in this order):
         ${activityPrompts}
        `;
 
-       const systemInstruction = `You are an expert teacher. Generate HTML content for a worksheet.
-       Do NOT include <html> or <body> tags. Use classes: .ws-header, .ws-title, .ws-section, .ws-table, .ws-answer-key.`;
+       const systemInstruction = `You are an expert teacher creating professional worksheets for printing.
+       Generate the 'content' as a complete, well-structured HTML string.
+       
+       STRICT STYLING RULES:
+       1. Header: <div class="ws-header"><div class="ws-field">Name: ____________</div></div>
+       2. Title: <h1 class="ws-title">Title Here</h1>
+       3. Instructions: <p class="ws-instructions">...</p>
+       4. Sections: <div class="ws-section"><h3 class="ws-section-title">...</h3></div>
+       5. Tables: <table class="ws-table">
+       6. Answer Key: <div class="ws-answer-key"><h3>Answer Key</h3>...</div>
+       
+       Do NOT include <html> or <body> tags.`;
 
        const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -223,7 +269,7 @@ export default async function handler(req: any, res: any) {
     if (action === 'chat') {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `Context: You are a helpful teaching assistant AI.
+            contents: `Context: You are a helpful teaching assistant AI on "The Teachers' Room" website.
             Previous context: ${history.join('\n')}
             User: ${message}`
         });
