@@ -1,9 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { randomUUID } from "node:crypto";
 
-const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
-
 // Helper to clean JSON
 const cleanJson = (text: string): string => {
   if (!text) return "{}";
@@ -37,12 +34,24 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    // 2. Initialize AI Client safely inside the request
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      console.error("Server Error: API_KEY or GEMINI_API_KEY environment variable is missing.");
+      return res.status(500).json({ 
+        error: "Server Configuration Error: API Key is missing. Please add API_KEY to Vercel Environment Variables." 
+      });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
     // Vercel parses JSON body automatically for Node functions
     const { action, config, message, history } = req.body;
 
     console.log(`Processing action: ${action}`);
 
-    // 2. Handle GAME Generation
+    // 3. Handle GAME Generation
     if (action === 'game') {
       const isJeopardy = config.type === 'Jeopardy';
       const isPubQuiz = config.type === 'Pub Quiz';
@@ -51,7 +60,13 @@ export default async function handler(req: any, res: any) {
       let systemInstruction = `You are an expert educational content creator. 
       Create a structured game based on the following parameters. 
       Return ONLY valid JSON. Do not use Markdown code blocks.
-      Ensure questions are appropriate for a classroom setting.`;
+      Ensure questions are appropriate for a classroom setting.
+      FORMATTING RULE: When creating questions, separate the main instruction, the sentence context, and the options (if any) with double line breaks (\\n\\n) so they appear clearly separated on screen.
+      
+      CRITICAL FOR MULTIPLE CHOICE:
+      1. You MUST provide an array of strings in the 'options' field (e.g. ["Apple", "Banana"]).
+      2. **IMPORTANT**: Do NOT include the options list in the 'question' text itself. The question text should ONLY contain the question stem. The UI will generate the buttons automatically from the 'options' array.
+      3. Do NOT label options with A), B) in the 'options' array. Just provide the raw text.`;
 
       let prompt = '';
 
@@ -93,6 +108,7 @@ export default async function handler(req: any, res: any) {
           Round Names: ${JSON.stringify(config.pubQuizRoundNames)}.
           Questions per round: ${config.pubQuizQuestionsPerRound}.
           Question Style: ${config.questionType}.
+          Custom Instructions: ${config.customInstructions || "None"}.
           
           Output JSON matching:
           {
@@ -126,7 +142,8 @@ export default async function handler(req: any, res: any) {
                 "answer": "Answer...",
                 "options": ["A", "B", "C", "D"],
                 "points": 10,
-                "isBonus": false
+                "isBonus": false,
+                "category": "General"
               }
             ]
           }
@@ -153,7 +170,7 @@ export default async function handler(req: any, res: any) {
       return res.status(200).json(data);
     }
 
-    // 3. Handle WORKSHEET Generation
+    // 4. Handle WORKSHEET Generation
     if (action === 'worksheet') {
        const activityPrompts = config.activities.map((act: any, index: number) => {
         return `Activity ${index + 1}: ${act.type} (${act.count} items). ${act.contextType || ''}`;
@@ -202,7 +219,7 @@ export default async function handler(req: any, res: any) {
        });
     }
 
-    // 4. Handle CHAT
+    // 5. Handle CHAT
     if (action === 'chat') {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',

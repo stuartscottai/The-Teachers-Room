@@ -7,8 +7,8 @@ const apiKey = process.env.API_KEY || '';
 // Helper to initialize client safely
 const getClient = () => {
   if (!apiKey) {
-    console.error("API Key is missing");
-    throw new Error("API Key is missing");
+    console.error("API Key is missing in client environment");
+    throw new Error("API Key is missing. If you are using the External API, check your Profile settings.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -52,7 +52,11 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const settings = getDevSettings();
 
   // --- EXTERNAL API PATH ---
-  if (settings.useExternalApi && settings.externalEndpoint) {
+  if (settings.useExternalApi) {
+      if (!settings.externalEndpoint) {
+          throw new Error("External API mode is enabled, but no Endpoint URL is configured in Profile.");
+      }
+
       console.log("Routing to External API:", settings.externalEndpoint);
       try {
           const response = await fetch(settings.externalEndpoint, {
@@ -69,8 +73,14 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
           if (!response.ok) {
               const errText = await response.text();
-              console.error("External API Error Response:", errText);
-              throw new Error(`External API Error: ${response.status} ${response.statusText}`);
+              let errMsg = `External API Error: ${response.status} ${response.statusText}`;
+              try {
+                  const jsonErr = JSON.parse(errText);
+                  if (jsonErr.error) errMsg = `Server Error: ${jsonErr.error}`;
+              } catch(e) { /* ignore */ }
+              
+              console.error(errMsg);
+              throw new Error(errMsg);
           }
 
           const data = await response.json();
@@ -124,11 +134,6 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       Strict Mode: ${config.strictMode ? "Answers must be phrased as questions (What is...)" : "Standard answers"}.
       Custom Instructions: ${config.customInstructions || "None"}.
       
-      Formatting for Multiple Choice: 
-      1. Provide the main stem in 'question'. DO NOT list the options here.
-      2. Provide 3 or 4 distractors in the 'options' array.
-      3. Provide the correct answer in 'answer'.
-      
       Output JSON matching this structure:
       {
         "title": "${gameTitle}",
@@ -138,7 +143,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
             "questions": [
               {
                 "id": 1,
-                "question": "The clue text (WITHOUT listing options)",
+                "question": "The clue text",
                 "answer": "The correct response",
                 "options": ["Option 1", "Option 2", "Option 3"], // REQUIRED if multiple choice
                 "points": 100,
@@ -162,11 +167,6 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       For EACH round, create exactly ${questionsPerRound} questions.
       Question Style: ${qTypeInstruction}.
       Custom Instructions: ${config.customInstructions || "None"}.
-      
-      Formatting for Multiple Choice: 
-      1. Provide the main stem in 'question'. DO NOT list the options here.
-      2. Provide 3 or 4 distractors in the 'options' array.
-      3. Provide the correct answer in 'answer'.
       
       Output JSON matching this structure:
       {
@@ -211,7 +211,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         "questions": [
           {
             "id": 1,
-            "question": "Question text only (DO NOT include options list here)",
+            "question": "Question text only",
             "answer": "Answer text",
             "options": ["Option A", "Option B", "Option C", "Option D"], // REQUIRED if multiple choice
             "points": 10,
@@ -257,7 +257,9 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   const settings = getDevSettings();
 
   // --- EXTERNAL API PATH ---
-  if (settings.useExternalApi && settings.externalEndpoint) {
+  if (settings.useExternalApi) {
+      if (!settings.externalEndpoint) throw new Error("External API enabled but no Endpoint URL provided.");
+      
       try {
           const response = await fetch(settings.externalEndpoint, {
               method: 'POST',
@@ -273,8 +275,7 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
 
           if (!response.ok) {
               const errText = await response.text();
-              console.error("External API Error Response:", errText);
-              throw new Error(`External API Error: ${response.status} ${response.statusText}`);
+              throw new Error(`External API Error: ${response.status} ${errText}`);
           }
 
           const data = await response.json();
@@ -387,7 +388,8 @@ export const chatWithAI = async (message: string, history: string[]): Promise<st
     const settings = getDevSettings();
 
     // --- EXTERNAL API PATH ---
-    if (settings.useExternalApi && settings.externalEndpoint) {
+    if (settings.useExternalApi) {
+        if (!settings.externalEndpoint) return "Error: External API enabled but no endpoint configured.";
         try {
             const response = await fetch(settings.externalEndpoint, {
                 method: 'POST',
@@ -421,29 +423,31 @@ export const chatWithAI = async (message: string, history: string[]): Promise<st
 };
 
 export const generateBlogPost = async (title: string, subtitle: string): Promise<string> => {
-  const ai = getClient();
-  const prompt = `
-    Write a comprehensive, engaging blog post for teachers.
-    Title: "${title}"
-    Subtitle: "${subtitle}"
-    Target Audience: Teachers and Educators.
-    Tone: Professional, inspiring, and helpful.
-    Length: 500 words.
-    Format: HTML (use <h2>, <p>, <ul>, <li>). 
-    IMPORTANT: Return ONLY the raw HTML content. Do not include markdown code blocks (like \`\`\`html). Do not include <html> or <body> tags.
-  `;
-
+  // Always use local client for this demo feature, or implement external if needed
+  // For safety in this hybrid mode, we can try client first
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt
-    });
-    
-    let text = response.text || '';
-    text = text.replace(/```html/g, '').replace(/```/g, '');
-    return text;
+      const ai = getClient();
+      const prompt = `
+        Write a comprehensive, engaging blog post for teachers.
+        Title: "${title}"
+        Subtitle: "${subtitle}"
+        Target Audience: Teachers and Educators.
+        Tone: Professional, inspiring, and helpful.
+        Length: 500 words.
+        Format: HTML (use <h2>, <p>, <ul>, <li>). 
+        IMPORTANT: Return ONLY the raw HTML content. Do not include markdown code blocks (like \`\`\`html). Do not include <html> or <body> tags.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      
+      let text = response.text || '';
+      text = text.replace(/```html/g, '').replace(/```/g, '');
+      return text;
   } catch (error) {
-    console.error("Error generating blog post:", error);
-    return "<p>Unable to generate article content at this time.</p>";
+      console.error("Error generating blog post:", error);
+      return "<p>Unable to generate article content. Please ensure you have a local API key for this feature or disable External API mode.</p>";
   }
 };
