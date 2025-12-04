@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GameType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -28,7 +28,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
         bonus: 'Secret',
         timesUp: 'Gong'
     },
-    dartsMode: 'high-score'
+    dartsMode: 'high-score',
+    dartsLegs: 5 // Default 5 turns per player for high score
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
@@ -41,7 +42,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
     setOptions(prev => {
         const currentNames = prev.teamNames || [];
         const newNames = Array.from({ length: prev.players }, (_, i) => {
-            return currentNames[i] || `Team ${i + 1}`;
+            return currentNames[i] || (prev.players === 1 ? 'Player 1' : `Team ${i + 1}`);
         });
         return { ...prev, teamNames: newNames };
     });
@@ -133,10 +134,10 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                 {/* Teams Count */}
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                    <Users size={16} className="mr-2 text-brand-blue" /> Number of Teams
+                    <Users size={16} className="mr-2 text-brand-blue" /> Players / Teams
                   </label>
                   <div className="flex space-x-2">
-                    {[2, 3, 4, 5, 6].map(num => (
+                    {[1, 2, 3, 4, 5, 6].map(num => (
                       <button
                         key={num}
                         onClick={() => setOptions({ ...options, players: num })}
@@ -154,7 +155,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                 {/* Team Names Inputs */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                        <Edit3 size={16} className="mr-2 text-brand-blue" /> Team Names
+                        <Edit3 size={16} className="mr-2 text-brand-blue" /> Names
                     </label>
                     <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto pr-2">
                         {options.teamNames?.map((name, idx) => (
@@ -192,22 +193,42 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
 
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                            <Target size={16} className="mr-2 text-brand-blue" /> Game Mode
-                        </label>
-                        <select 
-                            value={options.dartsMode}
-                            onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
-                            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
-                        >
-                            <option value="high-score">High Score (Standard)</option>
-                            <option value="301">301 (Double Out)</option>
-                        </select>
-                        <p className="text-xs text-slate-500 mt-2">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                <Target size={16} className="mr-2 text-brand-blue" /> Game Mode
+                            </label>
+                            <select 
+                                value={options.dartsMode}
+                                onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
+                                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                            >
+                                <option value="high-score">High Score (Standard)</option>
+                                <option value="301">301 (Double Out)</option>
+                            </select>
+                        </div>
+                        
+                        {options.dartsMode === 'high-score' && (
+                            <div className="animate-fade-in">
+                                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                    <Hash size={16} className="mr-2 text-brand-blue" /> Turns per Player
+                                </label>
+                                <select 
+                                    value={options.dartsLegs}
+                                    onChange={(e) => setOptions({ ...options, dartsLegs: Number(e.target.value) })}
+                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                                >
+                                    <option value={3}>3 Turns (Short)</option>
+                                    <option value={5}>5 Turns (Standard)</option>
+                                    <option value={10}>10 Turns (Long)</option>
+                                    <option value={15}>15 Turns (Marathon)</option>
+                                </select>
+                            </div>
+                        )}
+                        <p className="text-xs text-slate-500">
                             {options.dartsMode === '301' 
                                 ? "Start at 301, finish exactly on 0. Must end with a Double."
-                                : "Score as many points as possible. Highest score wins."}
+                                : `Players take turns scoring. Highest score after ${options.dartsLegs} turns wins.`}
                         </p>
                     </div>
                 )}

@@ -185,19 +185,19 @@ const AnimatedDart: React.FC<{
     // Random "sag": gravity effect on the dart's tail
     const sagAngle = useMemo(() => (Math.random() * 0.15) + 0.05, []);
 
-    // Realistic 2D Flight Geometry (Standard Shape) - SCALED UP 25%
+    // Realistic 2D Flight Geometry (Standard Shape) - SCALED UP Another 25% (Total ~56% increase from base)
     const flightGeometry = useMemo(() => {
         const s = new THREE.Shape();
         // Shape drawn in XY plane. 
-        // 25% increase from previous values
+        // Scaled up by 1.25x from previous
         
-        s.moveTo(0, 0);         // Start at shaft
-        s.lineTo(0.031, 0.075);  // Neck (was 0.025, 0.06)
-        s.lineTo(0.375, 0.237);   // Leading Edge (Widest) (was 0.30, 0.19)
-        s.lineTo(0.375, 0.625);   // Outer Edge (was 0.30, 0.50)
-        s.lineTo(0.075, 0.78);  // Trailing Taper (was 0.06, 0.625)
-        s.lineTo(0, 0.78);     // Back to shaft line
-        s.lineTo(0, 0);         // Close
+        s.moveTo(0, 0);         
+        s.lineTo(0.04, 0.09);   
+        s.lineTo(0.47, 0.30);   
+        s.lineTo(0.47, 0.78);   
+        s.lineTo(0.09, 0.98);   
+        s.lineTo(0, 0.98);      
+        s.lineTo(0, 0);         
         
         return new THREE.ShapeGeometry(s);
     }, []);
@@ -247,38 +247,32 @@ const AnimatedDart: React.FC<{
             {/* Z-Rotation Group: Rotates the entire dart around its axis for random landing angle */}
             <group rotation={[0, 0, randomRoll]}>
                 <group rotation={[0, 0, 0]}>
-                    {/* 1. Steel Tip */}
+                    {/* 1. Steel Tip - Longer (0.5) */}
                     <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.02, 0.02, 0.4, 8]} />
+                        <cylinderGeometry args={[0.02, 0.02, 0.5, 8]} />
                         <meshStandardMaterial color="#999" metalness={1} roughness={0.3} />
                     </mesh>
                     
-                    {/* 2. Barrel */}
-                    <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.08, 0.08, 1.4, 16]} />
+                    {/* 2. Barrel - Longer (1.75), shifted back to connect to tip */}
+                    <mesh position={[0, 0, -1.125]} rotation={[Math.PI / 2, 0, 0]}>
+                        <cylinderGeometry args={[0.08, 0.08, 1.75, 16]} />
                         <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
                     </mesh>
-                    <mesh position={[0, 0, -0.9]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.085, 0.085, 1.0, 16]} />
+                    <mesh position={[0, 0, -1.125]} rotation={[Math.PI / 2, 0, 0]}>
+                        <cylinderGeometry args={[0.085, 0.085, 1.2, 16]} />
                         <meshStandardMaterial color="#334155" transparent opacity={0.3} /> 
                     </mesh>
                     
-                    {/* 3. Shaft (Stem) */}
-                    <mesh position={[0, 0, -2.0]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.05, 0.08, 0.8, 12]} />
+                    {/* 3. Shaft (Stem) - Longer (1.0), shifted back */}
+                    <mesh position={[0, 0, -2.5]} rotation={[Math.PI / 2, 0, 0]}>
+                        <cylinderGeometry args={[0.05, 0.08, 1.0, 12]} />
                         <meshStandardMaterial color="#111" roughness={0.6} />
                     </mesh>
 
-                    {/* 4. Flights (2D Cross) */}
-                    {/* Position: Shaft ends at -2.4. Flight extends from -2.4 backwards */}
-                    <group position={[0, 0, -2.4]}>
+                    {/* 4. Flights (2D Cross) - Scaled Up and Shifted */}
+                    <group position={[0, 0, -3.0]}>
                         {[0, 1, 2, 3].map((i) => (
                             <group key={i} rotation={[0, 0, (Math.PI / 2) * i]}>
-                                {/* 
-                                    Rotate geometry: 
-                                    -90 X: Maps (X,Y) -> (X, Z). 
-                                    This aligns the flight length (Y in shape) with Z axis.
-                                */}
                                 <mesh geometry={flightGeometry} rotation={[-Math.PI / 2, 0, 0]}>
                                     <meshStandardMaterial 
                                         color={dart.color} 
@@ -314,6 +308,22 @@ const DartboardScene = ({
     const texture = useMemo(() => createDartboardTexture(), []);
     const highlightRef = useRef<THREE.Mesh>(null);
     const lastHoverLabel = useRef<string>("");
+    const lastHoverYPositive = useRef<boolean>(true);
+
+    // Determines if bubble should be above or below cursor
+    const isTopSector = useMemo(() => {
+        if (!hoverData) return true;
+        const s = hoverData.sector;
+        // Bullseye
+        if (s === 50 || s === 25) return true; 
+        // Fallback for Miss using cursor Y position
+        if (s === 0) return (hoverData.y || 0) >= 0;
+        // Explicit "Top" sectors including 11 & 6
+        const topSectors = [11, 14, 9, 12, 5, 20, 1, 18, 4, 13, 6];
+        return topSectors.includes(s);
+    }, [hoverData]);
+
+    const bubbleY = isTopSector ? -5 : 5;
 
     const handlePointerMove = (e: any) => {
         if (!isAiming) return;
@@ -321,9 +331,12 @@ const DartboardScene = ({
         if (!uv) return;
         
         const data = getHitData(uv);
+        const isYPositive = e.point.y >= 0;
         
-        if (data.label !== lastHoverLabel.current) {
+        // Update if label changes OR if we cross Y equator (important for MISS zones)
+        if (data.label !== lastHoverLabel.current || isYPositive !== lastHoverYPositive.current) {
             lastHoverLabel.current = data.label;
+            lastHoverYPositive.current = isYPositive;
             onHover(data, e.point);
         }
 
@@ -358,10 +371,11 @@ const DartboardScene = ({
                     <ringGeometry args={[0.2, 0.4, 32]} />
                     <meshBasicMaterial color="#fbbf24" toneMapped={false} transparent opacity={0.8} />
                     {hoverData && hoverData.points > 0 && (
-                        <Html position={[0, -2, 0]} center pointerEvents="none" zIndexRange={[100, 0]}>
-                            <div className="bg-slate-900/90 text-white px-4 py-2 rounded-xl whitespace-nowrap text-center backdrop-blur-md border border-brand-yellow shadow-2xl">
-                                <div className="text-xl font-black font-display leading-none text-brand-yellow">{hoverData.label}</div>
-                                <div className="text-xs font-mono font-bold mt-1 text-slate-300">{hoverData.points} Points</div>
+                        /* Smart positioning based on sector + Transparency */
+                        <Html position={[0, bubbleY, 0]} center pointerEvents="none" zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+                            <div className="bg-slate-900/80 text-white px-8 py-6 rounded-3xl whitespace-nowrap text-center backdrop-blur-md border-4 border-brand-yellow shadow-2xl scale-125 origin-center pointer-events-none select-none">
+                                <div className="text-6xl font-black font-mono leading-none text-brand-yellow mb-2 drop-shadow-md">{hoverData.points}</div>
+                                <div className="text-xl font-bold font-display uppercase tracking-widest text-white/90">{hoverData.label}</div>
                             </div>
                         </Html>
                     )}
@@ -453,9 +467,22 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             } as GeneratedQuestion];
     }, [game.questions]);
 
-    // Target Limit Logic: Game aims to end after 'config.questionCount' questions are used.
-    // The '+10' in reserve are for if we need to finish the round.
-    const targetQuestionCount = game.config.questionCount || (questions.length - 10 > 0 ? questions.length - 10 : questions.length);
+    // Target Limit Logic:
+    // If High Score Mode + Turns Limit Set: limit = players * turns
+    // Else use the config limit or length of array
+    const turnsPerPlayer = options.dartsLegs || 0;
+    const totalTurnsHighscore = (!is301 && turnsPerPlayer > 0) ? turnsPerPlayer * options.players : 0;
+    
+    const targetQuestionCount = totalTurnsHighscore > 0 
+        ? totalTurnsHighscore 
+        : (game.config.questionCount || (questions.length - 10 > 0 ? questions.length - 10 : questions.length));
+
+    // SCROLL LOCK EFFECT
+    useEffect(() => {
+        const shouldLock = phase === 'question';
+        document.body.style.overflow = shouldLock ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [phase]);
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -466,7 +493,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     }, []);
 
     const handleBoardHover = (data: any, pos: THREE.Vector3) => {
-        if (phase === 'aim') setHoverData(data);
+        if (phase === 'aim') setHoverData({ ...data, y: pos.y }); // Capture Y for smart tooltip positioning
     };
 
     const handleBoardClick = (data: any) => {
@@ -733,9 +760,11 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const getFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (len < 20) return 'text-6xl md:text-8xl';
+        // Adjusted sizes to be more conservative and prevent scrolling
+        if (len < 20) return 'text-6xl md:text-8xl'; 
         if (len < 60) return 'text-5xl md:text-7xl';
-        if (len < 100) return 'text-4xl md:text-6xl';
+        if (len < 120) return 'text-4xl md:text-6xl';
+        if (len < 200) return 'text-3xl md:text-5xl';
         return 'text-2xl md:text-4xl';
     };
 
@@ -751,6 +780,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     // Helper to determine winner name
     const getWinnerName = () => {
         if (is301) return teamNames[currentTeam]; // The person who just hit 0
+        if (options.players === 1) return "Game Complete!";
         
         const maxScore = Math.max(...scores);
         const winners = scores
