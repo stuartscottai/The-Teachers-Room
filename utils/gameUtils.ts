@@ -28,7 +28,7 @@ export const SOUND_VARIANTS = {
     timesUp: ['Gong', 'Alarm', 'Whistle', 'ClockEnd', 'Siren', 'Explosion', 'Fade', 'BuzzerLong']
 };
 
-export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bonus' | 'times-up', muted: boolean = false, variant: string = '') => {
+export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bonus' | 'times-up' | 'dart-hit', muted: boolean = false, variant: string = '') => {
     if (muted) return;
     
     const ctx = getAudioCtx();
@@ -96,8 +96,16 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 
     // --- SOUND DEFINITIONS ---
 
+    // 0. REALISTIC DART THUD
+    if (type === 'dart-hit') {
+        // Short, low frequency impact thud
+        playNoise(now, 0.05, 0.8, 600); // Thwack
+        playTone(80, 'square', now, 0.1, 0.3); // Low body resonance
+        playTone(150, 'triangle', now, 0.05, 0.2); // Higher knock
+    }
+
     // 1. CORRECT
-    if (type === 'correct') {
+    else if (type === 'correct') {
         const v = variant || 'Modern';
         if (v === 'Retro') {
             playTone(987.77, 'square', now, 0.1, 0.1); // B5

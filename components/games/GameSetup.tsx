@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GameType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2 } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -27,7 +27,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
         win: 'Orchestral',
         bonus: 'Secret',
         timesUp: 'Gong'
-    }
+    },
+    dartsMode: 'high-score'
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
@@ -51,13 +52,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
         const totalAvailable = game.questions.length;
         const validOptions: number[] = [];
         
-        // Find the maximum number divisible by players that is <= totalAvailable
-        // Then step down by 'players' count to offer smaller game sizes
-        // e.g. 20 total, 3 players -> Max valid is 18 (3x6). Options: 18, 15, 12, 9...
         const maxValid = Math.floor(totalAvailable / options.players) * options.players;
         
         for (let i = maxValid; i >= options.players; i -= options.players) {
-            // Only show reasonable game lengths (min 4 questions)
             if (i >= 4) {
                  validOptions.unshift(i);
             }
@@ -65,7 +62,6 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
         
         setValidQuestionCounts(validOptions);
         
-        // Default to max valid count
         if (validOptions.length > 0) {
             setOptions(prev => ({ ...prev, questionLimit: validOptions[validOptions.length - 1] }));
         }
@@ -194,6 +190,28 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                   </select>
                 </div>
 
+                {/* Darts Mode Selection */}
+                {game.config.type === GameType.DARTS && (
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <Target size={16} className="mr-2 text-brand-blue" /> Game Mode
+                        </label>
+                        <select 
+                            value={options.dartsMode}
+                            onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
+                            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                        >
+                            <option value="high-score">High Score (Standard)</option>
+                            <option value="301">301 (Double Out)</option>
+                        </select>
+                        <p className="text-xs text-slate-500 mt-2">
+                            {options.dartsMode === '301' 
+                                ? "Start at 301, finish exactly on 0. Must end with a Double."
+                                : "Score as many points as possible. Highest score wins."}
+                        </p>
+                    </div>
+                )}
+
                 {/* Trivia Specific: Grid Size Selection */}
                 {game.config.type === GameType.TRIVIA && (
                     <div>
@@ -225,7 +243,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                 )}
 
                 {/* Random Bonuses - Hidden for Pub Quiz */}
-                {game.config.type !== GameType.PUB_QUIZ && (
+                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && (
                     <div 
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all
                         ${options.enableBonuses 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GameType, GeneratedGame } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -73,7 +72,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                     question: '',
                     answer: '',
                     points: 100,
-                    isBonus: false
+                    isBonus: false,
+                    difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined
                 }
             ]
         }));
@@ -113,6 +113,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             } else {
                 newQuestions[index].options = current.slice(0, count);
             }
+            return { ...prev, questions: newQuestions };
+        });
+    };
+
+    const updateQuestionDifficulty = (index: number, difficulty: string) => {
+        handleChange(prev => {
+            const newQuestions = [...prev.questions];
+            newQuestions[index].difficulty = difficulty as 'easy' | 'medium' | 'hard';
             return { ...prev, questions: newQuestions };
         });
     };
@@ -159,6 +167,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isGrouped = editedGame.config.type === GameType.JEOPARDY || editedGame.config.type === GameType.PUB_QUIZ;
     const groups = editedGame.config.type === GameType.JEOPARDY ? editedGame.jeopardyBoard : editedGame.pubQuizRounds;
     const groupLabel = editedGame.config.type === GameType.JEOPARDY ? "Category" : "Round";
+
+    // For Darts, we hide the reserve questions in the editor view (but keep them in data)
+    // The main questions are indices 0 to config.questionCount - 1
+    const displayQuestions = (editedGame.config.type === GameType.DARTS) 
+        ? editedGame.questions.slice(0, editedGame.config.questionCount) 
+        : editedGame.questions;
 
     return (
         <div className="fixed inset-0 top-16 bg-slate-50 z-40 overflow-hidden flex flex-col">
@@ -343,10 +357,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 </div>
                             </div>
                         ) : (
-                            // STANDARD EDITOR (Trivia, Snakes, etc.)
+                            // STANDARD EDITOR (Trivia, Snakes, Darts, etc.)
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden p-6">
                                 <div className="space-y-6">
-                                    {editedGame.questions.map((q, index) => (
+                                    {displayQuestions.map((q, index) => (
                                         <div key={index} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
                                             <button 
                                                 onClick={() => removeQuestion(index)}
@@ -361,21 +375,41 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         {index + 1}
                                                     </span>
                                                     
-                                                    {/* Points Editor */}
-                                                    <div className="flex items-center ml-2 bg-white px-2 py-1 rounded border border-slate-200">
-                                                        <Coins size={14} className="text-brand-yellow mr-2" />
-                                                        <input 
-                                                            type="number"
-                                                            value={q.points}
-                                                            onChange={(e) => handleChange(prev => {
-                                                                const newQuestions = [...prev.questions];
-                                                                newQuestions[index].points = parseInt(e.target.value) || 0;
-                                                                return {...prev, questions: newQuestions};
-                                                            })}
-                                                            className="w-12 p-0.5 text-xs border-none text-center focus:ring-0 outline-none font-bold"
-                                                        />
-                                                        <span className="text-[10px] font-bold text-slate-400 ml-1">pts</span>
-                                                    </div>
+                                                    {/* Points Editor (If not Darts - Darts points are dynamic) */}
+                                                    {editedGame.config.type !== GameType.DARTS && (
+                                                        <div className="flex items-center ml-2 bg-white px-2 py-1 rounded border border-slate-200">
+                                                            <Coins size={14} className="text-brand-yellow mr-2" />
+                                                            <input 
+                                                                type="number"
+                                                                value={q.points}
+                                                                onChange={(e) => handleChange(prev => {
+                                                                    const newQuestions = [...prev.questions];
+                                                                    newQuestions[index].points = parseInt(e.target.value) || 0;
+                                                                    return {...prev, questions: newQuestions};
+                                                                })}
+                                                                className="w-12 p-0.5 text-xs border-none text-center focus:ring-0 outline-none font-bold"
+                                                            />
+                                                            <span className="text-[10px] font-bold text-slate-400 ml-1">pts</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Darts Difficulty Selector */}
+                                                    {editedGame.config.type === GameType.DARTS && (
+                                                        <div className="flex items-center ml-2">
+                                                            <select 
+                                                                value={q.difficulty || 'easy'}
+                                                                onChange={(e) => updateQuestionDifficulty(index, e.target.value)}
+                                                                className={`text-xs font-bold uppercase py-1 px-2 rounded border border-slate-200 outline-none
+                                                                    ${q.difficulty === 'hard' ? 'text-red-600 bg-red-50' : 
+                                                                      q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-50' : 
+                                                                      'text-green-600 bg-green-50'}`}
+                                                            >
+                                                                <option value="easy">Easy</option>
+                                                                <option value="medium">Medium</option>
+                                                                <option value="hard">Hard</option>
+                                                            </select>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
 

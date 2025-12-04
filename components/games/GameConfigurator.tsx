@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameType, GameConfig, GeneratedGame } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, RefreshCw, Type } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Coins } from 'lucide-react';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
@@ -192,7 +192,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         question: '',
                         answer: '',
                         points: 100,
-                        isBonus: false
+                        isBonus: false,
+                        difficulty: type === GameType.DARTS ? 'easy' : undefined
                     }))
                     : [],
                 jeopardyBoard: type === GameType.JEOPARDY 

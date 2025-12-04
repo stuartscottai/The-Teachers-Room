@@ -11,6 +11,7 @@ import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
 import { JeopardyGame } from '../components/games/JeopardyGame';
 import { TriviaGame } from '../components/games/TriviaGame';
 import { PubQuizGame } from '../components/games/PubQuizGame';
+import { DartsGame } from '../components/games/DartsGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -202,7 +203,7 @@ export const Games: React.FC = () => {
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
         setGeneratedGame(null); // Ensure fresh start for new game types
-        if (type === GameType.JEOPARDY || type === GameType.TRIVIA || type === GameType.PUB_QUIZ) {
+        if (type === GameType.JEOPARDY || type === GameType.TRIVIA || type === GameType.PUB_QUIZ || type === GameType.DARTS) {
              setStep('mode');
         } else {
              setCreationMode('ai');
@@ -257,7 +258,7 @@ export const Games: React.FC = () => {
             } else if (step === 'editor') {
                 setStep(editorReturnStep);
             } else if (step === 'config') {
-                (selectedType === GameType.JEOPARDY || selectedType === GameType.TRIVIA || selectedType === GameType.PUB_QUIZ) ? setStep('mode') : setStep('hub');
+                (selectedType === GameType.JEOPARDY || selectedType === GameType.TRIVIA || selectedType === GameType.PUB_QUIZ || selectedType === GameType.DARTS) ? setStep('mode') : setStep('hub');
             } else if (step === 'mode') {
                 setStep('hub');
             } else if (step === 'library') {
@@ -344,6 +345,14 @@ export const Games: React.FC = () => {
                         options={playOptions}
                         onBack={handleGameEnd} 
                         onFinish={() => setStep('library')} 
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.DARTS ? (
+                    <DartsGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('library')}
                         onReplay={handleReplay}
                     />
                 ) : (

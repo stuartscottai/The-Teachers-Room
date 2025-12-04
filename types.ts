@@ -44,6 +44,9 @@ export interface GameRunOptions {
     bonus: string;
     timesUp: string;
   };
+  // Darts specific runtime options
+  dartsLegs?: number; // How many rounds per game
+  dartsMode?: 'high-score' | '301';
 }
 
 export interface GeneratedQuestion {
@@ -56,6 +59,7 @@ export interface GeneratedQuestion {
   category?: string;
   // New bonus types for hidden tiles
   bonusType?: 'none' | 'double' | 'bust' | 'steal'; 
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface JeopardyCategory {

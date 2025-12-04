@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { randomUUID } from "node:crypto";
 
 // Helper to clean JSON
@@ -56,20 +56,40 @@ export default async function handler(req: any, res: any) {
     if (action === 'game') {
       const isJeopardy = config.type === 'Jeopardy';
       const isPubQuiz = config.type === 'Pub Quiz';
+      const isDarts = config.type === 'Darts';
       const gameTitle = config.title || `My ${config.type} Game`;
       
       const systemInstruction = `You are an expert educational content creator. 
       Create a structured game based on the following parameters. 
-      Return ONLY valid JSON. Do not use Markdown code blocks.
-      Ensure questions are appropriate for a classroom setting.
-      FORMATTING RULE: When creating questions, separate the main instruction, the sentence context, and the options (if any) with double line breaks (\\n\\n) so they appear clearly separated on screen.
       
-      CRITICAL FOR MULTIPLE CHOICE:
-      1. You MUST provide an array of strings in the 'options' field (e.g. ["Apple", "Banana"]).
-      2. **IMPORTANT**: Do NOT include the options list in the 'question' text itself. The question text should ONLY contain the question stem. The UI will generate the buttons automatically from the 'options' array.
-      3. Do NOT label options with A), B) in the 'options' array. Just provide the raw text.`;
+      CRITICAL JSON RULES:
+      1. Return ONLY valid JSON.
+      2. STRICTLY escape all special characters in strings. 
+      3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
+      
+      Ensure questions are appropriate for a classroom setting.
+      `;
 
       let prompt = '';
+      
+      // Define base question schema
+      const questionSchema: Schema = {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.INTEGER },
+          question: { type: Type.STRING },
+          answer: { type: Type.STRING },
+          options: { type: Type.ARRAY, items: { type: Type.STRING } },
+          points: { type: Type.INTEGER },
+          isBonus: { type: Type.BOOLEAN },
+          category: { type: Type.STRING },
+          difficulty: { type: Type.STRING },
+          bonusType: { type: Type.STRING }
+        },
+        required: ["id", "question", "answer", "points"]
+      };
+
+      let responseSchema: Schema;
 
       if (isJeopardy) {
         const rows = config.jeopardyRows || 5;
@@ -86,27 +106,27 @@ export default async function handler(req: any, res: any) {
           Question Style: ${qTypeInstruction}.
           Strict Mode: ${config.strictMode ? "Answers must be phrased as questions (What is...)" : "Standard answers"}.
           Custom Instructions: ${config.customInstructions || "None"}.
-          
-          Output JSON matching this structure:
-          {
-            "title": "${gameTitle}",
-            "jeopardyBoard": [
-              {
-                "name": "Category Name",
-                "questions": [
-                  {
-                    "id": 1,
-                    "question": "Clue text",
-                    "answer": "Answer text",
-                    "options": ["Opt1", "Opt2", "Opt3"], // REQUIRED if multiple choice
-                    "points": 100,
-                    "isBonus": false
-                  }
-                ]
-              }
-            ]
-          }
         `;
+        
+        responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                jeopardyBoard: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING },
+                            questions: { type: Type.ARRAY, items: questionSchema }
+                        },
+                        required: ["name", "questions"]
+                    }
+                }
+            },
+            required: ["title", "jeopardyBoard"]
+        };
+
       } else if (isPubQuiz) {
         const roundCount = config.pubQuizRoundsCount || 3;
         const questionsPerRound = config.pubQuizQuestionsPerRound || 5;
@@ -120,27 +140,27 @@ export default async function handler(req: any, res: any) {
           For EACH round, create exactly ${questionsPerRound} questions.
           Question Style: ${qTypeInstruction}.
           Custom Instructions: ${config.customInstructions || "None"}.
-          
-          Output JSON matching this structure:
-          {
-            "title": "${gameTitle}",
-            "pubQuizRounds": [
-              {
-                "name": "Round Name",
-                "questions": [
-                  { 
-                    "id": 1, 
-                    "question": "Question text", 
-                    "answer": "Answer text", 
-                    "options": ["Opt1", "Opt2"], // REQUIRED if multiple choice
-                    "points": 1, 
-                    "isBonus": false 
-                  }
-                ]
-              }
-            ]
-          }
         `;
+
+        responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                pubQuizRounds: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING },
+                            questions: { type: Type.ARRAY, items: questionSchema }
+                        },
+                        required: ["name", "questions"]
+                    }
+                }
+            },
+            required: ["title", "pubQuizRounds"]
+        };
+
       } else {
         // Standard Game
         const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
@@ -158,23 +178,25 @@ export default async function handler(req: any, res: any) {
           Points Strategy: ${pointsInstruction}.
           Includes Bonus Questions: false.
           Custom Instructions: ${config.customInstructions || "None"}.
-          
-          Output JSON matching this structure:
-          {
-            "title": "${gameTitle}",
-            "questions": [
-              {
-                "id": 1,
-                "question": "Question text",
-                "answer": "Answer text",
-                "options": ["A", "B", "C", "D"], // REQUIRED if multiple choice
-                "points": 10,
-                "isBonus": false,
-                "category": "General"
-              }
-            ]
-          }
         `;
+
+        if (isDarts) {
+             prompt += `
+             CRITICAL: You MUST categorize them by difficulty.
+             - 33% labeled 'easy' (Simple facts/vocab)
+             - 33% labeled 'medium' (Application/sentences)
+             - 33% labeled 'hard' (Complex/Analysis)
+             `;
+        }
+
+        responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                questions: { type: Type.ARRAY, items: questionSchema }
+            },
+            required: ["title", "questions"]
+        };
       }
 
       const response = await ai.models.generateContent({
@@ -183,6 +205,7 @@ export default async function handler(req: any, res: any) {
         config: {
           systemInstruction,
           responseMimeType: "application/json",
+          responseSchema: responseSchema
         }
       });
 
