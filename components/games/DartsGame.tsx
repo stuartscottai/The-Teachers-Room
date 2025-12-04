@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -7,6 +8,25 @@ import { playSound } from '../../utils/gameUtils';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Trophy, Target, FileQuestion, RefreshCw } from 'lucide-react';
 
 // Fix for R3F Intrinsic Elements missing in JSX types
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      group: any;
+      mesh: any;
+      cylinderGeometry: any;
+      meshStandardMaterial: any;
+      ambientLight: any;
+      spotLight: any;
+      pointLight: any;
+      planeGeometry: any;
+      circleGeometry: any;
+      meshBasicMaterial: any;
+      ringGeometry: any;
+      color: any;
+    }
+  }
+}
+
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -154,6 +174,48 @@ const createDartboardTexture = () => {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+};
+
+// Generate a textured cream wall
+const createWallTexture = () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Base Cream Color
+    ctx.fillStyle = '#fdf6e3'; 
+    ctx.fillRect(0, 0, size, size);
+    
+    // Add subtle noise/texture
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = '#5c5c5c';
+    
+    for(let i=0; i<8000; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size;
+        const r = Math.random() * 2;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI*2);
+        ctx.fill();
+    }
+    
+    // Add faint scratches
+    ctx.globalAlpha = 0.03;
+    for(let i=0; i<200; i++) {
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * size, Math.random() * size);
+        ctx.lineTo(Math.random() * size, Math.random() * size);
+        ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 4); // Repeat for detail
     return texture;
 };
 
@@ -326,6 +388,7 @@ const DartboardScene = ({
     onDartLand: (dart: DartObject) => void
 }) => {
     const texture = useMemo(() => createDartboardTexture(), []);
+    const wallTexture = useMemo(() => createWallTexture(), []);
     const highlightRef = useRef<THREE.Mesh>(null);
     const lastHoverLabel = useRef<string>("");
     const lastHoverYPositive = useRef<boolean>(true);
@@ -374,7 +437,7 @@ const DartboardScene = ({
 
             <mesh position={[0, 0, -2]}>
                 <planeGeometry args={[100, 100]} />
-                <meshStandardMaterial color="#1e293b" roughness={0.9} />
+                <meshStandardMaterial map={wallTexture} roughness={1} />
             </mesh>
 
             <mesh 
@@ -857,10 +920,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                 </div>
             </div>
 
-            <div className="flex-grow relative cursor-crosshair bg-slate-900 overflow-hidden min-h-0">
+            <div className="flex-grow relative cursor-crosshair bg-[#fdf6e3] overflow-hidden min-h-0">
                 <div className="absolute inset-0">
                     <Canvas camera={{ position: [0, 0, 28], fov: 45 }} shadows style={{ width: '100%', height: '100%' }}>
-                        <color attach="background" args={['#1e293b']} />
+                        <color attach="background" args={['#fdf6e3']} />
                         <Suspense fallback={null}>
                             <DartboardScene 
                                 onHover={handleBoardHover} 
