@@ -12,6 +12,7 @@ import { JeopardyGame } from '../components/games/JeopardyGame';
 import { TriviaGame } from '../components/games/TriviaGame';
 import { PubQuizGame } from '../components/games/PubQuizGame';
 import { DartsGame } from '../components/games/DartsGame';
+import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -349,6 +350,14 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.DARTS ? (
                     <DartsGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('library')}
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.SNAKES_LADDERS ? (
+                    <SnakesLaddersGame
                         game={generatedGame}
                         options={playOptions}
                         onBack={handleGameEnd}

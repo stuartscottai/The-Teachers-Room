@@ -73,7 +73,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     }, []);
 
     // Set default question count based on game type
-    const defaultCount = type === GameType.TRIVIA ? 12 : 10;
+    // Snakes and Ladders can have fewer questions because they are reused
+    const defaultCount = type === GameType.TRIVIA ? 12 : 
+                         type === GameType.SNAKES_LADDERS ? 20 : 10;
 
     const [config, setConfig] = useState<GameConfig>(() => {
         if (initialConfig && initialConfig.type === type) {

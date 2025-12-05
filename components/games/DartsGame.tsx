@@ -7,45 +7,6 @@ import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Trophy, Target, FileQuestion, RefreshCw } from 'lucide-react';
 
-// Fix for R3F Intrinsic Elements missing in JSX types
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      group: any;
-      mesh: any;
-      cylinderGeometry: any;
-      meshStandardMaterial: any;
-      ambientLight: any;
-      spotLight: any;
-      pointLight: any;
-      planeGeometry: any;
-      circleGeometry: any;
-      meshBasicMaterial: any;
-      ringGeometry: any;
-      color: any;
-    }
-  }
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      group: any;
-      mesh: any;
-      cylinderGeometry: any;
-      meshStandardMaterial: any;
-      ambientLight: any;
-      spotLight: any;
-      pointLight: any;
-      planeGeometry: any;
-      circleGeometry: any;
-      meshBasicMaterial: any;
-      ringGeometry: any;
-      color: any;
-    }
-  }
-}
-
 interface DartsGameProps {
     game: GeneratedGame;
     options: GameRunOptions;
