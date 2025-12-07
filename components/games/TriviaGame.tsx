@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
@@ -66,6 +65,9 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const [isGameOver, setIsGameOver] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+    
+    // Lock state to prevent double clicks/points
+    const [isProcessing, setIsProcessing] = useState(false);
 
     
     // Audio State
@@ -94,10 +96,10 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = activeQuestionIndex !== null || isGameOver;
+        const shouldLock = activeQuestionIndex !== null || isGameOver || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [activeQuestionIndex, isGameOver]);
+    }, [activeQuestionIndex, isGameOver, editingTeamIndex]);
 
     // Update dimensions using ResizeObserver for robustness
     useEffect(() => {
@@ -254,7 +256,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     }, [timeLeft, options.timerSeconds, activeQuestionIndex, isFlipped, isTimesUp, isGameOver, isMuted, options.soundConfig]);
 
     const handleCardClick = (index: number) => {
-        if (answeredIndices.includes(index)) return;
+        if (answeredIndices.includes(index) || isProcessing) return;
         
         const q = gameQuestions[index];
         if (q.isBonus) {
@@ -267,12 +269,14 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
         setMcResult(null);
+        setIsProcessing(false); // Reset lock for new question
         setActiveQuestionIndex(index);
         setIsFlipped(false);
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (activeQuestionIndex === null) return;
+        if (activeQuestionIndex === null || isProcessing) return;
+        setIsProcessing(true);
         
         playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
         
@@ -304,7 +308,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     };
 
     const handleBonusAction = () => {
-        if (activeQuestionIndex === null) return;
+        if (activeQuestionIndex === null || isProcessing) return;
+        setIsProcessing(true);
         
         const q = gameQuestions[activeQuestionIndex];
         const newScores = [...scores];
@@ -348,6 +353,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         setTimeout(() => {
             setActiveQuestionIndex(null);
             setCurrentTeam((prev) => (prev + 1) % options.players);
+            setIsProcessing(false); // Unlock for next turn
         }, 1500);
     };
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2, Beer } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
@@ -13,6 +13,9 @@ import { TriviaGame } from '../components/games/TriviaGame';
 import { PubQuizGame } from '../components/games/PubQuizGame';
 import { DartsGame } from '../components/games/DartsGame';
 import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
+import { MillionaireGame } from '../components/games/MillionaireGame';
+import { TimeBombGame } from '../components/games/TimeBombGame';
+import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -26,6 +29,9 @@ const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () 
         { type: GameType.JEOPARDY, icon: <Grid size={40} />, desc: "Strategic team quiz based on categories." },
         { type: GameType.PUB_QUIZ, icon: <Beer size={40} />, desc: "Round-based quiz with manual scoring." },
         { type: GameType.DARTS, icon: <Target size={40} />, desc: "Hit the target by answering correctly." },
+        { type: GameType.MILLIONAIRE, icon: <DollarSign size={40} />, desc: "Climb the ladder to win big." },
+        { type: GameType.TIME_BOMB, icon: <Timer size={40} />, desc: "Pass the bomb before time runs out!" },
+        { type: GameType.SURVEY_SHOWDOWN, icon: <List size={40} />, desc: "Guess top answers in this survey game!" },
     ];
 
     return (
@@ -204,9 +210,10 @@ export const Games: React.FC = () => {
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
         setGeneratedGame(null); // Ensure fresh start for new game types
-        if (type === GameType.JEOPARDY || type === GameType.TRIVIA || type === GameType.PUB_QUIZ || type === GameType.DARTS) {
+        if (type === GameType.JEOPARDY || type === GameType.TRIVIA || type === GameType.PUB_QUIZ || type === GameType.DARTS || type === GameType.MILLIONAIRE || type === GameType.TIME_BOMB || type === GameType.SURVEY_SHOWDOWN) {
              setStep('mode');
         } else {
+             // Snakes usually AI preferred or direct config
              setCreationMode('ai');
              setStep('config');
         }
@@ -231,8 +238,30 @@ export const Games: React.FC = () => {
     const handleEditorPlay = (updatedGame: GeneratedGame) => {
         setGeneratedGame(updatedGame);
         setIsDirty(false); // Playing is fine, changes likely saved or user accepts loss
-        // Move to Setup Screen first
-        setStep('setup');
+        
+        // Skip setup for Millionaire (standard rules)
+        if (updatedGame.config.type === GameType.MILLIONAIRE) {
+             setPlayOptions({
+                 players: 1, // Single player focus
+                 timerSeconds: 0,
+                 enableBonuses: false,
+                 strictMode: false,
+                 muted: false
+             });
+             setStep('play');
+        } else if (updatedGame.config.type === GameType.SURVEY_SHOWDOWN) {
+             // Survey default options
+             setPlayOptions({
+                 players: 2, 
+                 timerSeconds: 0, 
+                 enableBonuses: false,
+                 strictMode: false,
+                 muted: false
+             });
+             setStep('setup');
+        } else {
+             setStep('setup');
+        }
     };
 
     const handleGameStart = (options: GameRunOptions) => {
@@ -253,13 +282,14 @@ export const Games: React.FC = () => {
         const performBack = () => {
             setIsDirty(false);
             if (step === 'play') {
-                setStep('setup');
+                if (selectedType === GameType.MILLIONAIRE) setStep('editor');
+                else setStep('setup');
             } else if (step === 'setup') {
                 setStep('editor');
             } else if (step === 'editor') {
                 setStep(editorReturnStep);
             } else if (step === 'config') {
-                (selectedType === GameType.JEOPARDY || selectedType === GameType.TRIVIA || selectedType === GameType.PUB_QUIZ || selectedType === GameType.DARTS) ? setStep('mode') : setStep('hub');
+                (selectedType === GameType.JEOPARDY || selectedType === GameType.TRIVIA || selectedType === GameType.PUB_QUIZ || selectedType === GameType.DARTS || selectedType === GameType.MILLIONAIRE || selectedType === GameType.TIME_BOMB || selectedType === GameType.SURVEY_SHOWDOWN) ? setStep('mode') : setStep('hub');
             } else if (step === 'mode') {
                 setStep('hub');
             } else if (step === 'library') {
@@ -283,7 +313,12 @@ export const Games: React.FC = () => {
 
     const handleReplay = () => {
         setIsDirty(false);
-        setStep('setup');
+        if (selectedType === GameType.MILLIONAIRE) {
+             setStep('editor'); 
+             setTimeout(() => setStep('play'), 50); 
+        } else {
+             setStep('setup');
+        }
     };
 
     return (
@@ -364,6 +399,30 @@ export const Games: React.FC = () => {
                         onFinish={() => setStep('library')}
                         onReplay={handleReplay}
                     />
+                ) : selectedType === GameType.MILLIONAIRE ? (
+                    <MillionaireGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('library')}
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.TIME_BOMB ? (
+                    <TimeBombGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('library')}
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.SURVEY_SHOWDOWN ? (
+                    <SurveyShowdownGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('library')}
+                        onReplay={handleReplay}
+                    />
                 ) : (
                     <div className="max-w-6xl mx-auto px-4 py-12">
                          <div className="flex items-center justify-between mb-8">
@@ -376,7 +435,7 @@ export const Games: React.FC = () => {
                                 <h1 className="text-2xl font-display font-bold">{generatedGame.title}</h1>
                             </div>
                             <div className="p-8 text-center text-slate-500">
-                                Standard game mode under construction. Please try Jeopardy or Trivia!
+                                Standard game mode under construction.
                             </div>
                         </div>
                     </div>

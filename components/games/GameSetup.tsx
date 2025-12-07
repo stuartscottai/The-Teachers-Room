@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GameType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -14,7 +14,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
   // Default settings
   const [options, setOptions] = useState<GameRunOptions>({
     players: 2,
-    timerSeconds: 30,
+    timerSeconds: game.config.type === GameType.TIME_BOMB ? 60 : 30, // Default for time bomb
     enableBonuses: false,
     strictMode: game.config.strictMode || false,
     questionLimit: game.questions?.length || 0,
@@ -29,7 +29,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
         timesUp: 'Gong'
     },
     dartsMode: 'high-score',
-    dartsLegs: 5 // Default 5 turns per player for high score
+    dartsLegs: 5,
+    teamLives: 3, // Default lives
+    bombDuration: 60
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
@@ -174,22 +176,64 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
             </div>
 
             <div className="space-y-6">
-                {/* Timer */}
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                    <Clock size={16} className="mr-2 text-brand-blue" /> Answer Timer
-                  </label>
-                  <select 
-                    value={options.timerSeconds}
-                    onChange={(e) => setOptions({ ...options, timerSeconds: Number(e.target.value) })}
-                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white"
-                  >
-                    <option value={0}>No Timer</option>
-                    <option value={15}>15 Seconds</option>
-                    <option value={30}>30 Seconds</option>
-                    <option value={60}>60 Seconds</option>
-                  </select>
-                </div>
+                
+                {/* CONFIGURATION OPTIONS BASED ON GAME TYPE */}
+                
+                {game.config.type === GameType.TIME_BOMB ? (
+                    <>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                <Zap size={16} className="mr-2 text-brand-blue" /> Initial Bomb Time
+                            </label>
+                            <select 
+                                value={options.bombDuration}
+                                onChange={(e) => setOptions({ ...options, bombDuration: Number(e.target.value) })}
+                                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold"
+                            >
+                                <option value={30}>30 Seconds (Blitz)</option>
+                                <option value={45}>45 Seconds (Fast)</option>
+                                <option value={60}>60 Seconds (Standard)</option>
+                                <option value={90}>90 Seconds (Long)</option>
+                                <option value={120}>2 Minutes (Marathon)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                <Heart size={16} className="mr-2 text-brand-blue" /> Lives per Team
+                            </label>
+                            <div className="flex space-x-2">
+                                {[1, 2, 3, 5].map(num => (
+                                    <button
+                                        key={num}
+                                        onClick={() => setOptions({ ...options, teamLives: num })}
+                                        className={`flex-1 py-2 rounded-lg font-bold transition-all border
+                                        ${options.teamLives === num 
+                                            ? 'bg-red-100 text-red-600 border-red-300' 
+                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                    >
+                                        {num}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <Clock size={16} className="mr-2 text-brand-blue" /> Answer Timer
+                        </label>
+                        <select 
+                            value={options.timerSeconds}
+                            onChange={(e) => setOptions({ ...options, timerSeconds: Number(e.target.value) })}
+                            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white"
+                        >
+                            <option value={0}>No Timer</option>
+                            <option value={15}>15 Seconds</option>
+                            <option value={30}>30 Seconds</option>
+                            <option value={60}>60 Seconds</option>
+                        </select>
+                    </div>
+                )}
 
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
@@ -263,8 +307,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                     </div>
                 )}
 
-                {/* Random Bonuses - Hidden for Pub Quiz */}
-                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && (
+                {/* Random Bonuses - Hidden for Pub Quiz, Time Bomb, and Survey Showdown */}
+                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && (
                     <div 
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all
                         ${options.enableBonuses 

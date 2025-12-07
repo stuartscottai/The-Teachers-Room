@@ -57,6 +57,7 @@ export default async function handler(req: any, res: any) {
       const isJeopardy = config.type === 'Jeopardy';
       const isPubQuiz = config.type === 'Pub Quiz';
       const isDarts = config.type === 'Darts';
+      const isTimeBomb = config.type === 'Time Bomb';
       const gameTitle = config.title || `My ${config.type} Game`;
       
       const systemInstruction = `You are an expert educational content creator. 
@@ -187,6 +188,13 @@ export default async function handler(req: any, res: any) {
              - 33% labeled 'medium' (Application/sentences)
              - 33% labeled 'hard' (Complex/Analysis)
              `;
+        }
+        
+        if (isTimeBomb) {
+            prompt += `
+            STYLE: Generate questions that are short, snappy, and suitable for rapid-fire answers.
+            Avoid long reading passages.
+            `;
         }
 
         responseSchema = {

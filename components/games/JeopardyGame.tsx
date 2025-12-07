@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
@@ -68,6 +67,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const [gameBoard, setGameBoard] = useState(game.jeopardyBoard); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     
+    // Lock to prevent double-clicks
+    const [isProcessing, setIsProcessing] = useState(false);
+
     // Audio State
     const [isMuted, setIsMuted] = useState(options.muted);
 
@@ -87,10 +89,10 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = selectedQuestion !== null || isGameOver;
+        const shouldLock = selectedQuestion !== null || isGameOver || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [selectedQuestion, isGameOver]);
+    }, [selectedQuestion, isGameOver, editingTeamIndex]);
 
     // Initialization Effect: Apply Random Bonuses if enabled
     useEffect(() => {
@@ -177,7 +179,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     }, [timeLeft, options.timerSeconds, selectedQuestion, isFlipped, isTimesUp, isGameOver, isMuted, options.soundConfig]);
 
     const handleQuestionSelect = (cIdx: number, qIdx: number) => {
-        if (answeredQuestions.includes(`${cIdx}-${qIdx}`) || !gameBoard) return;
+        if (answeredQuestions.includes(`${cIdx}-${qIdx}`) || !gameBoard || isProcessing) return;
         
         const q = gameBoard[cIdx].questions[qIdx];
         
@@ -191,12 +193,15 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
         setMcResult(null);
+        setIsProcessing(false); // New interaction
         setSelectedQuestion({ categoryIndex: cIdx, questionIndex: qIdx });
         setIsFlipped(false);
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (!selectedQuestion || !gameBoard) return;
+        if (!selectedQuestion || !gameBoard || isProcessing) return;
+        setIsProcessing(true); // Lock
+
         const { categoryIndex, questionIndex } = selectedQuestion;
         const q = gameBoard[categoryIndex].questions[questionIndex];
         const points = q.points;
@@ -228,7 +233,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     };
 
     const handleBonusAction = () => {
-        if (!selectedQuestion || !gameBoard) return;
+        if (!selectedQuestion || !gameBoard || isProcessing) return;
+        setIsProcessing(true); // Lock
+
         const { categoryIndex, questionIndex } = selectedQuestion;
         const q = gameBoard[categoryIndex].questions[questionIndex];
         const type = q.bonusType;
@@ -273,6 +280,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setTimeout(() => {
             setSelectedQuestion(null);
             setCurrentTeam((prev) => (prev + 1) % options.players);
+            setIsProcessing(false); // Unlock for next round
         }, 1500);
     };
 
@@ -544,7 +552,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                             ${isFullscreen ? 'text-5xl md:text-7xl' : 'text-3xl md:text-5xl'}
                                             ${isAnswered 
                                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-none' 
-                                                : 'bg-brand-yellow text-slate-900 border-b-4 border-yellow-600 shadow-sm hover:scale-110 hover:bg-white z-10 hover:z-50 hover:shadow-2xl'}
+                                                : 'bg-brand-yellow text-slate-900 border-b-4 border-yellow-600 shadow-sm hover:scale-110 hover:bg-white hover:text-brand-blue z-10 hover:z-50 hover:shadow-2xl'}
                                         `}
                                     >
                                         {isAnswered ? '' : q.points}

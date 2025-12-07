@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { RoundedBox, Environment, ContactShadows, Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, RefreshCw, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star } from 'lucide-react';
+import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, RefreshCw, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft } from 'lucide-react';
 
 // --- 3D DICE COMPONENT ---
 const PIP_OFFSET = 0.505;
@@ -53,16 +54,17 @@ const Pips = () => {
     );
 };
 
-const Dice3D = ({ rolling, result, onLand }: { rolling: boolean, result: number, onLand: () => void }) => {
+const Dice3D = ({ rolling, result, onLand, isMoving }: { rolling: boolean, result: number, onLand: () => void, isMoving?: boolean }) => {
     const mesh = useRef<THREE.Group>(null);
-    const landedRef = useRef(true); 
+    // If we mount while not rolling, we assume we are already landed (displaying result)
+    const landedRef = useRef(!rolling); 
     
     const getRotation = (num: number): [number, number, number] => {
         switch(num) {
             case 1: return [0, 0, 0]; 
             case 6: return [Math.PI, 0, 0];
-            case 2: return [-Math.PI/2, 0, 0]; 
-            case 5: return [Math.PI/2, 0, 0];
+            case 2: return [Math.PI/2, 0, 0]; 
+            case 5: return [-Math.PI/2, 0, 0];
             case 3: return [0, -Math.PI/2, 0]; 
             case 4: return [0, Math.PI/2, 0]; 
             default: return [0, 0, 0];
@@ -74,6 +76,13 @@ const Dice3D = ({ rolling, result, onLand }: { rolling: boolean, result: number,
     useEffect(() => {
         if (rolling) {
             landedRef.current = false;
+        } else {
+            // Normalize rotation when rolling stops to prevent "unwinding" spins
+            if (mesh.current) {
+                mesh.current.rotation.x = mesh.current.rotation.x % (Math.PI * 2);
+                mesh.current.rotation.y = mesh.current.rotation.y % (Math.PI * 2);
+                mesh.current.rotation.z = mesh.current.rotation.z % (Math.PI * 2);
+            }
         }
     }, [rolling]);
 
@@ -101,13 +110,21 @@ const Dice3D = ({ rolling, result, onLand }: { rolling: boolean, result: number,
                     landedRef.current = true;
                     onLand();
                 }
+            } else if (isMoving) {
+                // Ensure rotation stays precise while jumping
+                mesh.current.rotation.set(targetRot[0], targetRot[1], targetRot[2]);
             }
         }
     });
 
     return (
-        <Float speed={rolling ? 0 : 2} rotationIntensity={rolling ? 0 : 0.5} floatIntensity={0.5}>
-            <group ref={mesh}>
+        <Float 
+            speed={rolling ? 0 : (isMoving ? 12 : 2)} 
+            rotationIntensity={rolling ? 0 : (isMoving ? 0.2 : 0.5)} 
+            floatIntensity={rolling ? 0 : (isMoving ? 1.5 : 0.5)}
+            floatingRange={isMoving ? [-0.1, 0.5] : undefined}
+        >
+            <group ref={mesh} rotation={rolling ? [0,0,0] : targetRot}>
                 <RoundedBox args={[1, 1, 1]} radius={0.15} smoothness={8}>
                     <meshStandardMaterial color="#ffffff" roughness={0.3} metalness={0.1} />
                 </RoundedBox>
@@ -143,11 +160,10 @@ const generateWigglyPath = (start: {x: number, y: number}, end: {x: number, y: n
     return d;
 };
 
-// Helper for snake tongue - UPDATED
+// Helper for snake tongue
 const generateTongue = (start: {x: number, y: number}) => {
     const sX = start.x;
     const sY = start.y;
-    // Start center (y+0.5), go down (y+1.8), fork left/right (y+2.5)
     return `M ${sX} ${sY+0.5} L ${sX} ${sY+1.8} L ${sX-0.6} ${sY+2.8} M ${sX} ${sY+1.8} L ${sX+0.6} ${sY+2.8}`;
 };
 
@@ -209,7 +225,7 @@ interface SnakesLaddersGameProps {
 export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
     const [positions, setPositions] = useState<number[]>(Array(options.players).fill(0));
     const [turnOrder, setTurnOrder] = useState<number[]>(Array.from({length: options.players}, (_, i) => i));
-    const [currentTurnIndex, setCurrentTurnIndex] = useState(0); // Index in turnOrder
+    const [currentTurnIndex, setCurrentTurnIndex] = useState(0); 
     const [phase, setPhase] = useState<'setup' | 'roll' | 'question' | 'moving' | 'ladder-snake' | 'turn-complete' | 'gameover'>('setup');
     const [statusMessage, setStatusMessage] = useState("");
     const [diceValue, setDiceValue] = useState(1);
@@ -220,15 +236,20 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
     
     const [isFlipped, setIsFlipped] = useState(false);
-    const [flipLock, setFlipLock] = useState(false); // Prevents accidental clicks on back
+    const [flipLock, setFlipLock] = useState(false); 
     const [isQuestionVisible, setIsQuestionVisible] = useState(true); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     const [timeLeft, setTimeLeft] = useState(0);
     const [isTimesUp, setIsTimesUp] = useState(false);
     
+    // Processing lock
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const [snakes, setSnakes] = useState<{start: number, end: number, path: string, tongue: string, color: string}[]>([]);
     const [ladders, setLadders] = useState<{start: number, end: number, visuals: any}[]>([]);
     const [bonusTiles, setBonusTiles] = useState<number[]>([]);
+    const [bonusMap, setBonusMap] = useState<Record<number, number>>({});
+
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -236,6 +257,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
     const currentTeamId = turnOrder[currentTurnIndex];
+
+    // SCROLL LOCK EFFECT
+    useEffect(() => {
+        const shouldLock = (phase === 'question' && isQuestionVisible) || phase === 'gameover';
+        document.body.style.overflow = shouldLock ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [phase, isQuestionVisible]);
 
     // --- BOARD INITIALIZATION ---
     useEffect(() => {
@@ -257,7 +285,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         ];
 
         const newLadders = ladderDefs.map(l => {
-            const sCoords = getBoardCoordinates(l.s - 1); // 0-based
+            const sCoords = getBoardCoordinates(l.s - 1); 
             const eCoords = getBoardCoordinates(l.e - 1);
             return { start: l.s - 1, end: l.e - 1, visuals: generateLadderVisuals(sCoords, eCoords) };
         });
@@ -277,29 +305,43 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setSnakes(newSnakes);
         setLadders(newLadders);
 
-        // STRICT EXCLUSION LIST (User defined + 0-index conversion)
-        // 1, 4, 6, 9, 11, 14, 16, 19, 21, 24, 26, 29, 31, 36, 38, 42, 44, 47, 49, 51, 60, 62, 64, 67, 71, 73, 78, 80, 91, 93, 98, 100
-        const PROHIBITED_SQUARES = new Set([0, 3, 5, 8, 10, 13, 15, 18, 20, 23, 25, 28, 30, 35, 37, 41, 43, 46, 48, 50, 59, 61, 63, 66, 70, 72, 77, 79, 90, 92, 97, 99]);
+        // --- DYNAMIC EXCLUSION LIST ---
+        const prohibitedIndices = new Set<number>();
+        newLadders.forEach(l => { prohibitedIndices.add(l.start); prohibitedIndices.add(l.end); });
+        newSnakes.forEach(s => { prohibitedIndices.add(s.start); prohibitedIndices.add(s.end); });
+        prohibitedIndices.add(0);
+        prohibitedIndices.add(99);
 
-        // Generate Bonuses
         if (options.enableBonuses) {
             const pool: number[] = [];
             for (let i=0; i<100; i++) {
-                if (!PROHIBITED_SQUARES.has(i)) {
-                    pool.push(i);
-                }
+                if (!prohibitedIndices.has(i)) pool.push(i);
             }
-
-            // Shuffle pool
+            // Shuffle Pool
             for (let i = pool.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [pool[i], pool[j]] = [pool[j], pool[i]];
             }
             
-            // Take first 15
-            setBonusTiles(pool.slice(0, 15));
+            const selectedIndices = pool.slice(0, 15);
+            const map: Record<number, number> = {};
+            
+            // 1 Super Bonus (+20)
+            if (selectedIndices.length > 0) {
+                map[selectedIndices[0]] = 20;
+            }
+            
+            // Randomly assign standard bonuses (+2, +5, +7, +10) to the rest
+            const values = [2, 5, 7, 10];
+            for (let i = 1; i < selectedIndices.length; i++) {
+                map[selectedIndices[i]] = values[Math.floor(Math.random() * values.length)];
+            }
+            
+            setBonusTiles(selectedIndices);
+            setBonusMap(map);
         } else {
             setBonusTiles([]);
+            setBonusMap({});
         }
 
         pickNewQuestion();
@@ -325,6 +367,27 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     };
 
     const pickNewQuestion = () => {
+        // Crash Prevention: Handle empty question list gracefully
+        if (!questions || questions.length === 0) {
+            const dummyQuestion: GeneratedQuestion = {
+                id: -1,
+                question: "No questions loaded! Roll to continue.",
+                answer: "Free Pass",
+                options: [],
+                points: 0,
+                isBonus: false
+            };
+            setCurrentQuestion(dummyQuestion);
+            setIsFlipped(false);
+            setFlipLock(false);
+            setIsQuestionVisible(true);
+            setMcResult(null);
+            setIsTimesUp(false);
+            setIsProcessing(false);
+            setTimeLeft(options.timerSeconds);
+            return;
+        }
+
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
         let q: GeneratedQuestion;
         if (available.length === 0) {
@@ -338,10 +401,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setIsQuestionVisible(true);
         setMcResult(null);
         setIsTimesUp(false);
+        setIsProcessing(false); // Reset lock
         setTimeLeft(options.timerSeconds);
     };
 
-    // Timer Effect
     useEffect(() => {
         if (phase === 'question' && options.timerSeconds > 0 && !isFlipped && !isTimesUp) {
             const timer = setInterval(() => {
@@ -362,13 +425,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const handleFlip = () => {
         setIsFlipped(true);
         setFlipLock(true);
-        // Lock buttons for 500ms to prevent double clicks going through to "Wrong"
         setTimeout(() => setFlipLock(false), 500);
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (flipLock) return; // Ignore clicks during transition
+        if (flipLock || isProcessing) return;
         if (!currentQuestion) return;
+        setIsProcessing(true);
+
         if (!usedQuestionIds.includes(currentQuestion.id)) {
              setUsedQuestionIds(prev => [...prev, currentQuestion.id]);
         }
@@ -377,11 +441,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (correct) {
             setTimeout(() => {
                 setPhase('moving');
-                movePlayer(diceValue); // Move pre-rolled amount
+                movePlayer(diceValue); // Dice value is state, preserved
+                setIsProcessing(false); // Can release early as phase changes
             }, 1000);
         } else {
-            // Incorrect answer means turn forfeit
-            setTimeout(() => setPhase('turn-complete'), 1500);
+            setTimeout(() => {
+                setPhase('turn-complete');
+                setIsProcessing(false);
+            }, 1500);
         }
     };
 
@@ -398,7 +465,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setIsDiceRolling(true);
         playSound('select', isMuted, 'Glitch'); 
         
-        // Wait for visual, then set result and go to QUESTION phase
         setTimeout(() => {
             const finalValue = Math.ceil(Math.random() * 6);
             setDiceValue(finalValue);
@@ -408,25 +474,32 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const handleDiceLand = () => {
         if (phase === 'roll') {
-            // Show Question after rolling
-            setPhase('question');
+            // Delay showing the question so player can see the dice result
+            setTimeout(() => {
+                setPhase('question');
+            }, 1000);
         }
     };
 
     const movePlayer = (steps: number) => {
         let currentPos = positions[currentTeamId];
+        const targetPos = Math.min(99, currentPos + steps);
         
         let stepCount = 0;
+        
+        // Increased interval to 600ms to allow CSS transition (500ms) to complete visually
         const stepInterval = setInterval(() => {
-            stepCount++;
-            currentPos++;
-            
-            if (currentPos > 99) {
-                currentPos = 99;
-                clearInterval(stepInterval);
-                checkTileEvents(currentPos);
-                return;
+            if (currentPos >= targetPos || currentPos >= 99) {
+                 clearInterval(stepInterval);
+                 setTimeout(() => checkTileEvents(currentPos), 500);
+                 return;
             }
+
+            stepCount++;
+            currentPos++; // Increment logical index
+            
+            // Safety
+            if (currentPos > 99) currentPos = 99;
 
             setPositions(prev => {
                 const newPos = [...prev];
@@ -443,12 +516,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 }, 500);
                 return;
             }
-
+            
+            // Redundant check just in case logic drifts
             if (stepCount >= steps) {
                 clearInterval(stepInterval);
                 setTimeout(() => checkTileEvents(currentPos), 500);
             }
-        }, 400); 
+        }, 600); 
     };
 
     const checkTileEvents = (pos: number) => {
@@ -471,12 +545,12 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 animateSlide(pos, ladder.end);
             }, 500);
         } else if (isBonus) {
-            // Bonus Effect: Slide forward 2 spaces
-            setStatusMessage("Bonus Boost!");
+            const bonusVal = bonusMap[pos] || 2;
+            setStatusMessage(`Bonus! +${bonusVal} Spaces`);
             setPhase('ladder-snake');
             setTimeout(() => {
                 playSound('bonus', isMuted);
-                const target = Math.min(99, pos + 2);
+                const target = Math.min(99, pos + bonusVal);
                 animateSlide(pos, target);
             }, 500);
         } else {
@@ -490,7 +564,16 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             newPos[currentTeamId] = end;
             return newPos;
         });
-        setTimeout(() => setPhase('turn-complete'), 1000);
+        
+        // If a bonus pushes the player to the win, trigger game over immediately
+        if (end === 99) {
+            setTimeout(() => {
+                playSound('win', isMuted);
+                setPhase('gameover');
+            }, 1000);
+        } else {
+            setTimeout(() => setPhase('turn-complete'), 1000);
+        }
     };
 
     const nextTurn = () => {
@@ -508,17 +591,15 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         { bg: 'bg-orange-500', grad: 'radial-gradient(circle at 30% 30%, #fdba74, #f97316)', text: 'text-white' },
     ];
 
-    // Responsive Text Scaler - Adjusted to be very large by default
     const getFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (len < 30) return 'text-6xl md:text-8xl'; // Huge for short text
+        if (len < 30) return 'text-6xl md:text-8xl'; 
         if (len < 60) return 'text-5xl md:text-7xl';
         if (len < 100) return 'text-4xl md:text-6xl';
         if (len < 150) return 'text-3xl md:text-5xl';
-        return 'text-2xl md:text-4xl'; // Smallest fallback
+        return 'text-2xl md:text-4xl'; 
     };
 
-    // Calculate future position status
     const getTargetStatus = () => {
         const currentPos = positions[currentTeamId];
         const target = Math.min(99, currentPos + diceValue);
@@ -559,7 +640,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
                 </div>
                 
-                {/* Current Turn Indicator */}
                 <div className="flex items-center gap-4 bg-slate-100 px-6 py-2 rounded-xl">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Turn</span>
                     <div className="flex items-center gap-2">
@@ -591,24 +671,38 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     <div className="grid grid-cols-10 grid-rows-10 h-full w-full relative z-10">
                         {Array.from({length: 100}).map((_, i) => {
                             const visualRow = Math.floor(i / 10);
-                            const mathRow = 9 - visualRow; 
-                            const isEvenMathRow = mathRow % 2 === 0;
                             const visualCol = i % 10;
+                            const mathRow = 9 - visualRow; 
                             
                             let boardNumber;
-                            if (isEvenMathRow) {
+                            if (mathRow % 2 === 0) {
                                 boardNumber = (mathRow * 10) + visualCol + 1;
                             } else {
                                 boardNumber = (mathRow * 10) + (9 - visualCol) + 1;
                             }
 
+                            const logicalIndex = boardNumber - 1;
                             const isEvenTile = boardNumber % 2 === 0;
                             const bgClass = isEvenTile ? 'bg-[#fff8e1]' : 'bg-[#ffe0b2]';
-                            const isBonus = bonusTiles.includes(i);
+                            
+                            // STRICT check to ensure bonus does not overlay snake/ladder start
+                            const isSnakeHead = snakes.some(s => s.start === logicalIndex);
+                            const isLadderBase = ladders.some(l => l.start === logicalIndex);
+                            const isBonus = bonusTiles.includes(logicalIndex) && !isSnakeHead && !isLadderBase;
+
+                            // Path Direction Indicator
+                            const isRowRight = mathRow % 2 === 0;
+                            const showArrow = visualCol === 0 || visualCol === 9; // Only show on edges
 
                             return (
                                 <div key={i} className={`relative flex items-center justify-center border-[0.5px] border-black/5 ${bgClass}`}>
                                     <span className="absolute top-0.5 left-1 text-[10px] md:text-sm font-bold text-stone-500/60 font-mono z-10">{boardNumber}</span>
+                                    
+                                    {/* Directional Arrows for User Clarity */}
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+                                        {isRowRight ? <ChevronRight size={32} /> : <ChevronLeft size={32} />}
+                                    </div>
+
                                     {boardNumber === 100 && <Trophy className="text-brand-yellow w-8 h-8 drop-shadow-md z-10" />}
                                     {isBonus && (
                                         <div className="absolute inset-0 flex items-center justify-center z-0 opacity-80">
@@ -629,7 +723,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             </filter>
                         </defs>
 
-                        {/* Ladders */}
                         {ladders.map((l, i) => {
                             const v = l.visuals;
                             return (
@@ -643,29 +736,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             );
                         })}
 
-                        {/* Snakes */}
                         {snakes.map((s, i) => {
                             const start = getBoardCoordinates(s.start); 
                             return (
                                 <g key={`snake-${i}`} filter="url(#shadow)">
-                                    <path 
-                                        d={s.path} 
-                                        fill="none" 
-                                        stroke={s.color} 
-                                        strokeWidth="2.5" 
-                                        strokeLinecap="round"
-                                    />
-                                    {/* Tongue */}
-                                    <path d={s.tongue} fill="none" stroke="#ef4444" strokeWidth="0.3" strokeLinecap="round" />
-                                    
-                                    <path 
-                                        d={s.path} 
-                                        fill="none" 
-                                        stroke="rgba(0,0,0,0.1)" 
-                                        strokeWidth="0.5" 
-                                        strokeDasharray="1,1"
-                                    />
+                                    <path d={s.path} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinecap="round" />
+                                    <path d={s.path} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" strokeDasharray="1,1" />
                                     <circle cx={start.x} cy={start.y} r="2.5" fill={s.color} />
+                                    <path d={s.tongue} fill="none" stroke="#ef4444" strokeWidth="0.3" strokeLinecap="round" />
                                     <circle cx={start.x - 0.8} cy={start.y - 0.8} r="0.6" fill="white" />
                                     <circle cx={start.x + 0.8} cy={start.y - 0.8} r="0.6" fill="white" />
                                     <circle cx={start.x - 0.8} cy={start.y - 0.8} r="0.2" fill="black" />
@@ -729,7 +807,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             </div>
                         )}
 
-                        {(phase === 'roll' || phase === 'moving') && (
+                        {/* PERSISTENT DICE CONTAINER - Fix for WebGL Context Thrashing */}
+                        <div style={{ width: '100%', display: (phase === 'roll' || phase === 'moving') ? 'block' : 'none' }}>
                             <div className="flex flex-col items-center w-full animate-fade-in">
                                 <h3 className="text-xl font-bold text-slate-700 mb-2">{teamNames[currentTeamId]}'s Turn</h3>
                                 <div className="w-full h-40 relative mb-4">
@@ -738,7 +817,12 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         <spotLight position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />
                                         <Environment preset="studio" />
                                         <Suspense fallback={null}>
-                                            <Dice3D rolling={isDiceRolling} result={diceValue} onLand={handleDiceLand} />
+                                            <Dice3D 
+                                                rolling={isDiceRolling} 
+                                                result={diceValue} 
+                                                onLand={handleDiceLand} 
+                                                isMoving={phase === 'moving'} 
+                                            />
                                             <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} />
                                         </Suspense>
                                     </Canvas>
@@ -757,13 +841,16 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     <div className="text-slate-400 font-bold animate-pulse mt-2">Rolling...</div>
                                 )}
                             </div>
-                        )}
+                        </div>
                         
                         {phase === 'question' && (
                             <div className="animate-fade-in">
                                 <HelpCircle size={48} className="text-brand-blue mx-auto mb-4 animate-bounce" />
                                 <h3 className="text-xl font-bold text-slate-700 mb-2">Question Time!</h3>
-                                <p className="text-slate-500 text-sm">Answer correctly to move {diceValue} spaces.</p>
+                                <div className="bg-sky-50 text-sky-800 px-4 py-2 rounded-lg font-black text-2xl mb-2 shadow-sm border border-sky-100">
+                                    You rolled a {diceValue}
+                                </div>
+                                <p className="text-slate-500 text-sm">Answer correctly to move.</p>
                             </div>
                         )}
 
@@ -805,7 +892,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             {/* FRONT */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-brand-blue text-white p-4 flex justify-between items-center h-20 flex-shrink-0">
-                                    <div className="font-bold text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="font-bold text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
+                                        <div className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold border border-white/30">You rolled a {diceValue}</div>
+                                    </div>
                                     <div className={`font-bold text-xl ${getTargetStatus().color}`}>{getTargetStatus().text}</div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-8 bg-white">
@@ -864,9 +954,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     </div>
                                 </div>
                                 <div className="h-24 flex gap-0 flex-shrink-0">
-                                    {currentQuestion.options ? (
+                                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
                                         <button 
-                                            disabled={flipLock}
+                                            disabled={flipLock || isProcessing}
                                             onClick={() => handleAnswer(mcResult === 'correct')} 
                                             className={`flex-1 text-white font-bold text-2xl transition-colors ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
@@ -875,14 +965,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     ) : (
                                         <>
                                             <button 
-                                                disabled={flipLock}
+                                                disabled={flipLock || isProcessing}
                                                 onClick={() => handleAnswer(false)} 
                                                 className={`flex-1 bg-red-500 text-white font-bold text-2xl hover:bg-red-600 transition-colors border-t-4 border-red-700 active:border-t-0 ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 Wrong
                                             </button>
                                             <button 
-                                                disabled={flipLock}
+                                                disabled={flipLock || isProcessing}
                                                 onClick={() => handleAnswer(true)} 
                                                 className={`flex-1 bg-green-500 text-white font-bold text-2xl hover:bg-green-600 transition-colors border-t-4 border-green-700 active:border-t-0 ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { GameType, GeneratedGame } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -73,7 +74,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                     answer: '',
                     points: 100,
                     isBonus: false,
-                    difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined
+                    difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined,
+                    surveyAnswers: prev.config.type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
                 }
             ]
         }));
@@ -167,6 +169,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isGrouped = editedGame.config.type === GameType.JEOPARDY || editedGame.config.type === GameType.PUB_QUIZ;
     const groups = editedGame.config.type === GameType.JEOPARDY ? editedGame.jeopardyBoard : editedGame.pubQuizRounds;
     const groupLabel = editedGame.config.type === GameType.JEOPARDY ? "Category" : "Round";
+    const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
+    const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
 
     // For Darts, we hide the reserve questions in the editor view (but keep them in data)
     // The main questions are indices 0 to config.questionCount - 1
@@ -357,7 +361,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 </div>
                             </div>
                         ) : (
-                            // STANDARD EDITOR (Trivia, Snakes, Darts, etc.)
+                            // STANDARD EDITOR (Trivia, Snakes, Darts, Millionaire, Survey)
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden p-6">
                                 <div className="space-y-6">
                                     {displayQuestions.map((q, index) => (
@@ -375,8 +379,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         {index + 1}
                                                     </span>
                                                     
-                                                    {/* Points Editor (If not Darts - Darts points are dynamic) */}
-                                                    {editedGame.config.type !== GameType.DARTS && (
+                                                    {/* Millionaire Label */}
+                                                    {isMillionaire && (
+                                                        <span className="bg-brand-yellow text-slate-900 px-3 py-1 rounded-full text-xs font-bold uppercase ml-2">
+                                                            Level {index + 1}
+                                                        </span>
+                                                    )}
+
+                                                    {/* Points Editor (Hidden for Darts, Millionaire, Survey) */}
+                                                    {editedGame.config.type !== GameType.DARTS && !isMillionaire && !isSurvey && (
                                                         <div className="flex items-center ml-2 bg-white px-2 py-1 rounded border border-slate-200">
                                                             <Coins size={14} className="text-brand-yellow mr-2" />
                                                             <input 
@@ -413,47 +424,49 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 </div>
                                             </div>
 
-                                            {/* QUESTION TYPE TOGGLE BAR */}
-                                            <div className="flex flex-wrap items-center gap-4 mb-4 bg-slate-100 p-2 rounded-lg border border-slate-200">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
-                                                    <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
-                                                        <button 
-                                                            onClick={() => updateQuestionType(index, 'open')}
-                                                            className={`px-3 py-1 text-xs font-bold transition-colors ${!q.options || q.options.length === 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                                                        >
-                                                            Open
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => updateQuestionType(index, 'multiple-choice')}
-                                                            className={`px-3 py-1 text-xs font-bold transition-colors ${q.options && q.options.length > 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                                                        >
-                                                            Multi-Choice
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                {q.options && q.options.length > 0 && (
-                                                    <div className="flex items-center gap-2 animate-fade-in">
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Options:</span>
+                                            {/* QUESTION TYPE TOGGLE BAR - Hidden for Millionaire and Survey */}
+                                            {!isMillionaire && !isSurvey && (
+                                                <div className="flex flex-wrap items-center gap-4 mb-4 bg-slate-100 p-2 rounded-lg border border-slate-200">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
                                                         <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
-                                                            {[2, 3, 4].map(num => (
-                                                                <button 
-                                                                    key={num}
-                                                                    onClick={() => updateQuestionOptionCount(index, num)}
-                                                                    className={`px-3 py-1 text-xs font-bold transition-colors ${q.options!.length === num ? 'bg-brand-yellow text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
-                                                                >
-                                                                    {num}
-                                                                </button>
-                                                            ))}
+                                                            <button 
+                                                                onClick={() => updateQuestionType(index, 'open')}
+                                                                className={`px-3 py-1 text-xs font-bold transition-colors ${!q.options || q.options.length === 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                            >
+                                                                Open
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => updateQuestionType(index, 'multiple-choice')}
+                                                                className={`px-3 py-1 text-xs font-bold transition-colors ${q.options && q.options.length > 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                            >
+                                                                Multi-Choice
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                )}
-                                            </div>
+                                                    
+                                                    {q.options && q.options.length > 0 && (
+                                                        <div className="flex items-center gap-2 animate-fade-in">
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Options:</span>
+                                                            <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
+                                                                {[2, 3, 4].map(num => (
+                                                                    <button 
+                                                                        key={num}
+                                                                        onClick={() => updateQuestionOptionCount(index, num)}
+                                                                        className={`px-3 py-1 text-xs font-bold transition-colors ${q.options!.length === num ? 'bg-brand-yellow text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
+                                                                    >
+                                                                        {num}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question</label>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question / Prompt</label>
                                                     <textarea 
                                                         value={q.question}
                                                         onChange={(e) => handleChange(prev => {
@@ -465,23 +478,68 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         placeholder="Type question here..."
                                                     />
                                                 </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Answer</label>
-                                                    <textarea 
-                                                        value={q.answer}
-                                                        onChange={(e) => handleChange(prev => {
-                                                            const newQuestions = [...prev.questions];
-                                                            newQuestions[index].answer = e.target.value;
-                                                            return {...prev, questions: newQuestions};
-                                                        })}
-                                                        className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
-                                                        placeholder="Type answer here..."
-                                                    />
-                                                </div>
+                                                {!isSurvey && (
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Answer {isMillionaire && <span className="text-red-500">(Must match option text)</span>}</label>
+                                                        <textarea 
+                                                            value={q.answer}
+                                                            onChange={(e) => handleChange(prev => {
+                                                                const newQuestions = [...prev.questions];
+                                                                newQuestions[index].answer = e.target.value;
+                                                                return {...prev, questions: newQuestions};
+                                                            })}
+                                                            className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
+                                                            placeholder="Type answer here..."
+                                                        />
+                                                    </div>
+                                                )}
+                                                
+                                                {/* SURVEY ANSWERS EDITOR */}
+                                                {isSurvey && (
+                                                    <div className="col-span-1 md:col-span-2 bg-white rounded border border-slate-200 p-4">
+                                                        <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">Top 8 Survey Answers</label>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            {(q.surveyAnswers || Array(8).fill({text:"", score:0})).map((ans, aIdx) => (
+                                                                <div key={aIdx} className="flex gap-2">
+                                                                    <div className="w-8 flex items-center justify-center font-bold text-slate-400">#{aIdx+1}</div>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        value={ans.text} 
+                                                                        placeholder="Answer"
+                                                                        onChange={(e) => handleChange(prev => {
+                                                                            const newQuestions = [...prev.questions];
+                                                                            const newAnswers = [...(newQuestions[index].surveyAnswers || [])];
+                                                                            // Ensure array size
+                                                                            while(newAnswers.length <= aIdx) newAnswers.push({text:"", score:0});
+                                                                            newAnswers[aIdx] = { ...newAnswers[aIdx], text: e.target.value };
+                                                                            newQuestions[index].surveyAnswers = newAnswers;
+                                                                            return {...prev, questions: newQuestions};
+                                                                        })}
+                                                                        className="flex-1 p-2 text-sm border border-slate-300 rounded"
+                                                                    />
+                                                                    <input 
+                                                                        type="number" 
+                                                                        value={ans.score} 
+                                                                        placeholder="Pts"
+                                                                        onChange={(e) => handleChange(prev => {
+                                                                            const newQuestions = [...prev.questions];
+                                                                            const newAnswers = [...(newQuestions[index].surveyAnswers || [])];
+                                                                            while(newAnswers.length <= aIdx) newAnswers.push({text:"", score:0});
+                                                                            newAnswers[aIdx] = { ...newAnswers[aIdx], score: parseInt(e.target.value) || 0 };
+                                                                            newQuestions[index].surveyAnswers = newAnswers;
+                                                                            return {...prev, questions: newQuestions};
+                                                                        })}
+                                                                        className="w-16 p-2 text-sm border border-slate-300 rounded text-center"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            {/* OPTIONS EDITOR FOR STANDARD GAMES */}
-                                            {q.options && q.options.length > 0 && (
+                                            {/* OPTIONS EDITOR (MC) */}
+                                            {q.options && q.options.length > 0 && !isSurvey && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 animate-fade-in">
                                                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Multiple Choice Options</label>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

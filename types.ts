@@ -4,7 +4,10 @@ export enum GameType {
   TRIVIA = 'Trivia Quiz',
   JEOPARDY = 'Jeopardy',
   DARTS = 'Darts',
-  PUB_QUIZ = 'Pub Quiz'
+  PUB_QUIZ = 'Pub Quiz',
+  MILLIONAIRE = 'Millionaire Maker',
+  TIME_BOMB = 'Time Bomb',
+  SURVEY_SHOWDOWN = 'Survey Showdown'
 }
 
 export interface GameConfig {
@@ -47,12 +50,21 @@ export interface GameRunOptions {
   // Darts specific runtime options
   dartsLegs?: number; // How many rounds per game
   dartsMode?: 'high-score' | '301';
+  // Time Bomb specific
+  bombDuration?: number; // Starting time for the bomb
+  teamLives?: number; // How many lives per team
+}
+
+export interface SurveyAnswer {
+  text: string;
+  score: number;
+  alts?: string[]; // Synonyms for fuzzy matching
 }
 
 export interface GeneratedQuestion {
   id: number;
   question: string;
-  answer: string;
+  answer: string; // Keep for backward compatibility or as a "top answer"
   options?: string[];
   points: number;
   isBonus: boolean;
@@ -60,6 +72,8 @@ export interface GeneratedQuestion {
   // New bonus types for hidden tiles
   bonusType?: 'none' | 'double' | 'bust' | 'steal'; 
   difficulty?: 'easy' | 'medium' | 'hard';
+  // Survey Showdown specific
+  surveyAnswers?: SurveyAnswer[];
 }
 
 export interface JeopardyCategory {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
@@ -110,10 +109,10 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     // Body Scroll Lock
     useEffect(() => {
-        const shouldLock = phase === 'play' || phase === 'gameover';
+        const shouldLock = phase === 'play' || phase === 'gameover' || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [phase]);
+    }, [phase, editingTeamIndex]);
 
     // Timer Effect
     useEffect(() => {

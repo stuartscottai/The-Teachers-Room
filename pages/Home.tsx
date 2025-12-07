@@ -12,6 +12,14 @@ export const Home: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const trendingGames = [
+      { title: 'Jeopardy', plays: '15.2k' },
+      { title: 'Millionaire Maker', plays: '12.8k' },
+      { title: 'Survey Showdown', plays: '10.5k' },
+      { title: 'Trivia Quiz', plays: '9.3k' },
+      { title: 'Snakes and Ladders', plays: '8.1k' }
+  ];
+
   return (
     <div className="overflow-hidden">
       {/* Hero Section - Parallax Effect */}
@@ -138,16 +146,16 @@ export const Home: React.FC = () => {
                 <span className="border-b-4 border-brand-yellow pb-2">Trending Games</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                {['Jeopardy Extreme', 'Phonics Snakes', 'History Trivia', 'Math Darts', 'Grammar Quiz'].map((game, idx) => (
+                {trendingGames.map((game, idx) => (
                     <Link to="/games" key={idx} className="group block">
-                        <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100">
-                            <div className="h-32 bg-slate-200 relative overflow-hidden">
-                                <img src={`https://picsum.photos/seed/game${idx}/300/200`} alt={game} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
+                            <div className="h-32 bg-slate-200 relative overflow-hidden shrink-0">
+                                <img src={`https://picsum.photos/seed/trend${idx}/300/200`} alt={game.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />
                             </div>
-                            <div className="p-4">
-                                <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors">{game}</h3>
-                                <p className="text-xs text-slate-400 mt-1">2.5k plays this week</p>
+                            <div className="p-4 flex-grow">
+                                <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
+                                <p className="text-xs text-slate-400 mt-1">{game.plays} plays this week</p>
                             </div>
                         </div>
                     </Link>

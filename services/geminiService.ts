@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameType, DevSettings } from "../types";
 
@@ -100,6 +101,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const isJeopardy = config.type === GameType.JEOPARDY;
   const isPubQuiz = config.type === GameType.PUB_QUIZ;
   const isDarts = config.type === GameType.DARTS;
+  const isMillionaire = config.type === GameType.MILLIONAIRE;
+  const isTimeBomb = config.type === GameType.TIME_BOMB;
+  const isSurvey = config.type === GameType.SURVEY_SHOWDOWN;
 
   const systemInstruction = `You are an expert educational content creator. 
   Create a structured game based on the following parameters. 
@@ -129,7 +133,20 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       isBonus: { type: Type.BOOLEAN },
       category: { type: Type.STRING },
       difficulty: { type: Type.STRING },
-      bonusType: { type: Type.STRING }
+      bonusType: { type: Type.STRING },
+      // Survey specific
+      surveyAnswers: {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                text: { type: Type.STRING },
+                score: { type: Type.INTEGER },
+                alts: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["text", "score"]
+        }
+      }
     },
     required: ["id", "question", "answer", "points"]
   };
@@ -206,6 +223,31 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         required: ["title", "pubQuizRounds"]
     };
 
+  } else if (isMillionaire) {
+      prompt = `
+      Create a "Who Wants to Be a Millionaire" style game titled "${gameTitle}" about "${config.topic}".
+      Generate EXACTLY 15 questions.
+      
+      CRITICAL STRUCTURE RULES:
+      1. SORT questions by difficulty:
+         - Questions 1-5: Very Easy (General knowledge / Basic facts)
+         - Questions 6-10: Medium (More specific / Application)
+         - Questions 11-15: Hard/Expert (Obscure facts / Complex analysis)
+      2. EACH question MUST have exactly 4 options.
+      3. The 'answer' field must match one of the options exactly.
+      
+      Custom Instructions: ${config.customInstructions || "None"}.
+      `;
+
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            questions: { type: Type.ARRAY, items: questionSchema }
+        },
+        required: ["title", "questions"]
+      };
+
   } else if (isDarts) {
       const qTypeInstruction = config.questionType === 'ai-decide' ? "Mixed formats" : config.questionType;
       // Add reserve buffer (+10) to ensure rounds can complete if repeats are needed
@@ -232,7 +274,33 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         required: ["title", "questions"]
       };
 
+  } else if (isSurvey) {
+      prompt = `
+      Create a "Family Feud" / "Family Fortunes" style game titled "${gameTitle}" about "${config.topic}".
+      Generate ${config.questionCount} rounds (questions).
+      
+      FOR EACH QUESTION:
+      1. Provide a "survey style" prompt (e.g. "Name something you find in a kitchen", "Name a reason people are late").
+      2. Provide EXACTLY 8 "surveyAnswers".
+      3. Each answer must have a "text" and a "score".
+      4. CRITICAL: Include an "alts" array for each answer containing 3-5 synonyms or acceptable variations (e.g. for "Money", alts=["Cash", "Coins", "Dosh"]).
+      5. Rank the answers by score (highest to lowest).
+      6. Scores should roughly sum to 100.
+      
+      Custom Instructions: ${config.customInstructions || "None"}.
+      `;
+
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            questions: { type: Type.ARRAY, items: questionSchema }
+        },
+        required: ["title", "questions"]
+      };
+
   } else {
+    // Standard Game
     const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
     
     // Points Logic
@@ -249,6 +317,13 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       Includes Bonus Questions: false.
       Custom Instructions: ${config.customInstructions || "None"}.
     `;
+    
+    if (isTimeBomb) {
+        prompt += `
+        STYLE: Generate questions that are short, snappy, and suitable for rapid-fire answers.
+        Avoid long reading passages.
+        `;
+    }
 
     responseSchema = {
         type: Type.OBJECT,
@@ -257,7 +332,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
             questions: { type: Type.ARRAY, items: questionSchema }
         },
         required: ["title", "questions"]
-    };
+      };
   }
 
   try {

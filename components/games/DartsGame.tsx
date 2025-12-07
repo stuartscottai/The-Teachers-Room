@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -497,6 +496,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const [isFullscreen, setIsFullscreen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
+    
+    // NEW: Track total turns played to prevent infinite loop in High Score mode
+    const [turnsPlayed, setTurnsPlayed] = useState(0);
 
     const questions = useMemo<GeneratedQuestion[]>(() => {
         return game.questions && game.questions.length > 0 
@@ -523,10 +525,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     // SCROLL LOCK EFFECT
     useEffect(() => {
-        const shouldLock = phase === 'question';
+        const shouldLock = phase === 'question' || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
-    }, [phase]);
+    }, [phase, editingTeamIndex]);
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -545,6 +547,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         
         playSound('select', isMuted, options.soundConfig?.select);
         setLockedTarget(data);
+        
+        // Count the turn regardless of question reuse
+        setTurnsPlayed(prev => prev + 1);
         
         let difficulty = 'easy';
         if (data.points === 50 || data.multiplier === 3) difficulty = 'hard';
@@ -733,7 +738,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             } else {
                 setTimeout(() => {
                     const isRoundComplete = currentTeam === options.players - 1;
-                    const questionsLimitReached = usedQuestionIds.length >= targetQuestionCount;
+                    // FIX: Use turnsPlayed counter instead of usedQuestionIds.length
+                    const questionsLimitReached = turnsPlayed >= targetQuestionCount;
 
                     // End Game Check
                     if (!is301 && questionsLimitReached && isRoundComplete) {
@@ -850,7 +856,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                         {!is301 && (
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-600 px-2 py-1 rounded flex items-center">
                                 <FileQuestion size={10} className="mr-1" />
-                                Q: {usedQuestionIds.length}/{targetQuestionCount}
+                                Q: {turnsPlayed}/{targetQuestionCount}
                             </span>
                         )}
                         {currentQuestion && (

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { GameType, GameConfig, GeneratedGame } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Coins } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, Plus, Trash2 } from 'lucide-react';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
@@ -73,9 +73,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     }, []);
 
     // Set default question count based on game type
-    // Snakes and Ladders can have fewer questions because they are reused
-    const defaultCount = type === GameType.TRIVIA ? 12 : 
-                         type === GameType.SNAKES_LADDERS ? 20 : 10;
+    let defaultCount = type === GameType.TRIVIA ? 12 : 
+                         type === GameType.SNAKES_LADDERS ? 20 : 
+                         type === GameType.TIME_BOMB ? 25 : 
+                         type === GameType.SURVEY_SHOWDOWN ? 5 : 10;
+    
+    // Millionaire requires exactly 15
+    if (type === GameType.MILLIONAIRE) defaultCount = 15;
 
     const [config, setConfig] = useState<GameConfig>(() => {
         if (initialConfig && initialConfig.type === type) {
@@ -85,8 +89,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             type,
             title: '',
             questionCount: defaultCount,
-            questionType: 'mixed',
-            pointsMode: 'fixed', // Default to fixed
+            questionType: type === GameType.MILLIONAIRE ? 'multiple-choice' : (type === GameType.TIME_BOMB ? 'open' : 'mixed'),
+            pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
             customInstructions: '',
@@ -101,6 +105,20 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pubQuizQuestionsPerRound: 5,
         };
     });
+    
+    // For Survey Showdown custom prompts
+    const [roundPrompts, setRoundPrompts] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (type === GameType.SURVEY_SHOWDOWN) {
+            setRoundPrompts(prev => {
+                const count = config.questionCount || 5;
+                if (prev.length === count) return prev;
+                if (prev.length < count) return [...prev, ...Array(count - prev.length).fill('')];
+                return prev.slice(0, count);
+            });
+        }
+    }, [config.questionCount, type]);
     
     // Check if mode changed from saved config
     useEffect(() => {
@@ -172,7 +190,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
             setLoading(true);
             try {
-                const gameData = await generateGameContent(config);
+                // For Survey Showdown, inject custom prompts into instruction
+                let finalConfig = { ...config };
+                if (type === GameType.SURVEY_SHOWDOWN && roundPrompts.some(p => p.trim())) {
+                    const customList = roundPrompts.map((p, i) => p.trim() ? `Round ${i+1}: ${p}` : `Round ${i+1}: AI Decide`).join('; ');
+                    finalConfig.customInstructions = (finalConfig.customInstructions || "") + `\n\nUSE THESE SPECIFIC QUESTIONS FOR ROUNDS: ${customList}`;
+                }
+
+                const gameData = await generateGameContent(finalConfig);
                 onProceed(gameData);
             } catch (err) {
                 alert("Failed to generate game. Please check API configuration.");
@@ -195,7 +220,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         answer: '',
                         points: 100,
                         isBonus: false,
-                        difficulty: type === GameType.DARTS ? 'easy' : undefined
+                        difficulty: type === GameType.DARTS ? 'easy' : undefined,
+                        options: type === GameType.MILLIONAIRE ? ["", "", "", ""] : undefined,
+                        // Survey Init
+                        surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
                     }))
                     : [],
                 jeopardyBoard: type === GameType.JEOPARDY 
@@ -276,7 +304,74 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             )}
 
                             {/* CONFIG RENDER SWITCH */}
-                            {type === GameType.TRIVIA ? (
+                            {type === GameType.MILLIONAIRE ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+                                    <div className="flex items-start">
+                                        <div className="bg-blue-100 p-2 rounded-lg mr-3 text-blue-700">
+                                            <Sparkles size={20} />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-slate-800">Format Locked</h3>
+                                            <p className="text-sm text-slate-600 mt-1">
+                                                This game mode uses a strict format of 15 multiple-choice questions with 4 options each, sorted by increasing difficulty.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : type === GameType.TIME_BOMB ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>
+                                        <input 
+                                            type="number" 
+                                            min={20} 
+                                            max={100}
+                                            value={config.questionCount}
+                                            onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
+                                            className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">More questions are better for Time Bomb to avoid repeats.</p>
+                                    </div>
+                                </div>
+                            ) : type === GameType.SURVEY_SHOWDOWN ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
+                                        <input 
+                                            type="number" 
+                                            min={1} 
+                                            max={20}
+                                            value={config.questionCount}
+                                            onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
+                                            className="w-full p-3 rounded-lg border border-slate-200 outline-none"
+                                        />
+                                    </div>
+                                    
+                                    {/* Specific Prompts for Survey */}
+                                    <div className="border-t border-slate-200 pt-4">
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Round Prompts (Optional)</label>
+                                        {mode === 'ai' && <p className="text-xs text-slate-500 mb-3">Leave blank to let AI decide based on topic.</p>}
+                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                            {roundPrompts.map((p, i) => (
+                                                <div key={i} className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-400 w-6">#{i+1}</span>
+                                                    <input 
+                                                        type="text" 
+                                                        value={p}
+                                                        onChange={(e) => {
+                                                            const newP = [...roundPrompts];
+                                                            newP[i] = e.target.value;
+                                                            setRoundPrompts(newP);
+                                                        }}
+                                                        placeholder={`e.g. Name a fruit (Round ${i+1})`}
+                                                        className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue outline-none"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : type === GameType.TRIVIA ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Grid Size</label>
@@ -294,48 +389,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 </button>
                                             ))}
                                         </div>
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            Choose a number that divides well by your student teams.
-                                            <br/>(e.g. 20 questions works for 2, 4, or 5 teams).
-                                        </p>
                                     </div>
-
-                                    {mode === 'ai' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
-                                                <select 
-                                                    value={config.questionType}
-                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
-                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                                                >
-                                                    <option value="open">Open Ended (Standard)</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="mixed">Mixed Variety</option>
-                                                    <option value="ai-decide">Let AI Decide</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Points Strategy</label>
-                                                <div className="flex space-x-2">
-                                                    <button 
-                                                        onClick={() => setConfig({...config, pointsMode: 'fixed'})}
-                                                        className={`flex-1 py-2.5 rounded-lg border text-xs font-bold flex items-center justify-center
-                                                            ${config.pointsMode === 'fixed' ? 'bg-sky-100 border-sky-300 text-sky-800' : 'bg-white border-slate-200 text-slate-600'}`}
-                                                    >
-                                                        <Coins size={14} className="mr-1" /> Fixed (100)
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => setConfig({...config, pointsMode: 'ai-random'})}
-                                                        className={`flex-1 py-2.5 rounded-lg border text-xs font-bold flex items-center justify-center
-                                                            ${config.pointsMode === 'ai-random' ? 'bg-purple-100 border-purple-300 text-purple-800' : 'bg-white border-slate-200 text-slate-600'}`}
-                                                    >
-                                                        <Sparkles size={14} className="mr-1" /> AI Random
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
                             ) : type === GameType.JEOPARDY ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
@@ -361,23 +415,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             </select>
                                         </div>
                                     </div>
-
-                                    {mode === 'ai' && (
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
-                                            <select 
-                                                value={config.questionType}
-                                                onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
-                                                className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                                            >
-                                                <option value="open">Open Ended (Standard)</option>
-                                                <option value="multiple-choice">Multiple Choice</option>
-                                                <option value="gap-fill">Gap Fill</option>
-                                                <option value="mixed">Mixed Variety</option>
-                                                <option value="ai-decide">Let AI Decide</option>
-                                            </select>
-                                        </div>
-                                    )}
                                     
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-3">Category Names <span className="text-red-500">*</span></label>
@@ -396,19 +433,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="p-2 rounded border border-slate-300 text-sm focus:border-sky-500 outline-none"
                                                 />
                                             ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col space-y-3 pt-2 border-t border-slate-200">
-                                        <div className="flex items-center space-x-3">
-                                            <input 
-                                                type="checkbox" 
-                                                id="strictMode"
-                                                checked={config.strictMode}
-                                                onChange={(e) => setConfig({...config, strictMode: e.target.checked})}
-                                                className="w-5 h-5 text-sky-600 rounded focus:ring-sky-500"
-                                            />
-                                            <label htmlFor="strictMode" className="text-slate-700 text-sm font-medium">Strict Mode (Must say "What is...")</label>
                                         </div>
                                     </div>
                                 </div>
@@ -436,22 +460,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </select>
                                     </div>
                                 </div>
-
-                                {mode === 'ai' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
-                                        <select 
-                                            value={config.questionType}
-                                            onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
-                                            className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                                        >
-                                            <option value="mixed">Mixed (Recommended)</option>
-                                            <option value="open">Open Ended</option>
-                                            <option value="multiple-choice">Multiple Choice</option>
-                                            <option value="ai-decide">Let AI Decide</option>
-                                        </select>
-                                    </div>
-                                )}
                                 
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-3">Round Titles <span className="text-red-500">*</span></label>
@@ -487,22 +495,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         />
                                     </div>
-                                    {mode === 'ai' && (
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
-                                            <select 
-                                                value={config.questionType}
-                                                onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
-                                                className="w-full p-3 rounded-lg border border-slate-200 outline-none"
-                                            >
-                                                <option value="multiple-choice">Multiple Choice</option>
-                                                <option value="gap-fill">Gap Fill</option>
-                                                <option value="open">Open Ended</option>
-                                                <option value="mixed">Mixed Variety</option>
-                                                <option value="ai-decide">Let AI Decide</option>
-                                            </select>
-                                        </div>
-                                    )}
                                 </div>
                             )}
 
