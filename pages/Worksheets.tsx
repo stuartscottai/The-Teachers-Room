@@ -1,7 +1,7 @@
 // ... (imports remain the same)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -111,7 +111,7 @@ const WORKSHEET_CSS = `
   /* Typography */
   .ws-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 20pt; 
+    font-size: 2em; /* Changed from pt to em to scale with container font size */
     font-weight: 700; 
     text-align: center; 
     color: #0f172a; 
@@ -129,7 +129,7 @@ const WORKSHEET_CSS = `
     max-width: 90%; 
     margin-left: auto; 
     margin-right: auto; 
-    font-size: 11pt;
+    font-size: 1.1em; /* Relative sizing */
     line-height: 1.4;
   }
 
@@ -144,7 +144,7 @@ const WORKSHEET_CSS = `
   }
   .ws-section-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 14pt; 
+    font-size: 1.4em; /* Relative sizing */
     font-weight: 600; 
     color: #0284c7; 
     border-bottom: 2px solid #e0f2fe; 
@@ -158,7 +158,7 @@ const WORKSHEET_CSS = `
     width: 100%; 
     border-collapse: collapse; 
     margin: 1rem 0; 
-    font-size: 11pt;
+    font-size: 1em;
     break-inside: auto;
   }
   .ws-table td, .ws-table th { 
@@ -191,7 +191,7 @@ const WORKSHEET_CSS = `
     column-count: 2;
     column-gap: 3rem;
     column-fill: balance;
-    font-size: 10pt;
+    font-size: 0.9em;
     line-height: 1.4;
     min-height: 50vh;
   }
@@ -203,7 +203,7 @@ const WORKSHEET_CSS = `
     font-weight: bold;
     margin-bottom: 1.5rem;
     text-align: center;
-    font-size: 16pt;
+    font-size: 1.5em; /* Relative sizing */
     border-bottom: 2px solid #ef4444;
     padding-bottom: 0.5rem;
   }
@@ -362,8 +362,6 @@ const GRADE_CATEGORIES = {
     'Grades': ['Kindergarten', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', '5th Grade', '6th Grade', '7th Grade', '8th Grade', '9th Grade', '10th Grade', '11th Grade', '12th Grade'],
     'Ages': ['3-5 years', '6-8 years', '9-11 years', '12-14 years', '15-18 years', 'Adults']
 };
-
-// ... (GradeSelector, PageGuides, EditablePreview, WorksheetBuilder, WorksheetLibrary, CommunityWorksheets components remain largely the same, imports included above)
 
 // --- COMPONENT: GRADE SELECTOR ---
 const GradeSelector: React.FC<{ value: string, onChange: (val: string) => void }> = ({ value, onChange }) => {
@@ -940,6 +938,14 @@ const WorksheetBuilder: React.FC<{
         }
     };
 
+    // Rich Text Formatting Helper
+    const formatSelection = (command: string, value?: string) => {
+        if (!isEditing) return;
+        document.execCommand(command, false, value);
+        const contentDiv = contentRef.current?.querySelector('.ws-content');
+        if (contentDiv) addToHistory(contentDiv.innerHTML);
+    };
+
     const handlePreviewClick = (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).classList.contains('delete-break-btn')) {
             (e.target as HTMLElement).closest('.forced-page-break')?.remove();
@@ -1085,6 +1091,19 @@ const WorksheetBuilder: React.FC<{
                             <div className="flex items-center gap-2 flex-wrap">
                                 <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors ${isEditing ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><Edit size={16} className="mr-2" /> {isEditing ? 'Done' : 'Edit'}</button>
                                 
+                                {/* Rich Text Controls (Visible only in Edit Mode) */}
+                                {isEditing && (
+                                    <div className="flex items-center gap-1 bg-white rounded-lg border border-indigo-200 p-1 mx-2 shadow-sm animate-fade-in">
+                                        <button onClick={() => formatSelection('bold')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Bold"><Bold size={16} /></button>
+                                        <button onClick={() => formatSelection('italic')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Italic"><Italic size={16} /></button>
+                                        <button onClick={() => formatSelection('underline')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Underline"><Underline size={16} /></button>
+                                        <div className="w-px h-4 bg-slate-200 mx-1"></div>
+                                        <button onClick={() => formatSelection('fontSize', '1')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-xs font-bold" title="Small Text">A-</button>
+                                        <button onClick={() => formatSelection('fontSize', '3')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-sm font-bold" title="Normal Text">A</button>
+                                        <button onClick={() => formatSelection('fontSize', '5')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-lg font-bold" title="Large Text">A+</button>
+                                    </div>
+                                )}
+
                                 {/* LOGO UPLOAD BUTTON */}
                                 <div className="relative flex items-center">
                                     <label className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer" title="Upload Logo">
