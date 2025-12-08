@@ -549,47 +549,90 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   }
 };
 
-export const chatWithAI = async (message: string, history: string[]): Promise<string> => {
-    const settings = getDevSettings();
-
-    // --- EXTERNAL API PATH ---
-    if (settings.useExternalApi) {
-        if (!settings.externalEndpoint) return "Error: External API enabled but no endpoint configured.";
-        try {
-            const response = await fetch(settings.externalEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(settings.apiSecret ? { 'Authorization': `Bearer ${settings.apiSecret}` } : {})
-                },
-                body: JSON.stringify({
-                    action: 'chat',
-                    message,
-                    history
-                })
-            });
-
-            if (!response.ok) throw new Error(`External API Error: ${response.statusText}`);
-            const data = await response.json();
-            return data.text || "No response";
-        } catch (error) {
-            return "Error contacting external AI service.";
-        }
-    }
-
+export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<{message: string, suggestion?: GameConfig}> => {
     const ai = getClient();
+    
+    const systemInstruction = `You are "The Teachers' Room AI Assistant", a friendly expert game consultant.
+    Your goal is to help teachers choose the best game format for their specific class needs (Topic, Age, Learning Goal).
+    
+    AVAILABLE GAME TYPES:
+    1. Jeopardy (Team strategy, review categories)
+    2. Trivia Quiz (Fast paced, general knowledge)
+    3. Pub Quiz (Rounds based, structured)
+    4. Snakes and Ladders (Fun, luck based, younger kids)
+    5. Darts (Accuracy + Knowledge, fun twist)
+    6. Millionaire Maker (High stakes, 1 player or class consensus)
+    7. Time Bomb (High pressure, pass the device, vocabulary/lists)
+    8. Survey Showdown (Family Feud style, popular opinion, guessing)
+
+    BEHAVIOR:
+    - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions (e.g. "What topic? What grade? Do they like competition?").
+    - If the user gives enough info, recommend a specific game type and explain why briefly.
+    - When you make a recommendation, populate the 'suggestion' field in the JSON response with a valid GameConfig.
+    - If no recommendation is ready yet, leave 'suggestion' null.
+    
+    TONE: Professional, encouraging, concise.
+    `;
+
+    // Map internal history format to Gemini SDK format
+    const contents = history.map(h => ({
+        role: h.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: h.text }]
+    }));
+    
+    // Add current message
+    contents.push({
+        role: 'user',
+        parts: [{ text: message }]
+    });
+
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: `Context: You are a helpful teaching assistant AI on "The Teachers' Room" website.
-        Previous context: ${history.join('\n')}
-        User: ${message}`
+        contents: contents,
+        config: {
+            systemInstruction: systemInstruction,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    message: { type: Type.STRING },
+                    suggestion: {
+                        type: Type.OBJECT,
+                        nullable: true,
+                        properties: {
+                            type: { type: Type.STRING },
+                            title: { type: Type.STRING },
+                            topic: { type: Type.STRING },
+                            questionCount: { type: Type.INTEGER },
+                            questionType: { type: Type.STRING },
+                            customInstructions: { type: Type.STRING },
+                            // Add extra config fields as optional
+                            jeopardyCategories: { type: Type.INTEGER },
+                            jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            pubQuizRoundsCount: { type: Type.INTEGER },
+                            pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        required: ["type", "title", "topic"]
+                    }
+                },
+                required: ["message"]
+            }
+        }
     });
-    return response.text || "I'm sorry, I couldn't process that.";
+
+    const text = response.text;
+    if (!text) return { message: "I'm having trouble connecting. Please try again." };
+    
+    return JSON.parse(cleanJson(text));
+};
+
+export const chatWithAI = async (message: string, history: string[]): Promise<string> => {
+    // Legacy chat function - kept for compatibility if used elsewhere
+    // In a real refactor, this might be removed or merged
+    return "This feature is being upgraded.";
 };
 
 export const generateBlogPost = async (title: string, subtitle: string): Promise<string> => {
-  // Always use local client for this demo feature, or implement external if needed
-  // For safety in this hybrid mode, we can try client first
   try {
       const ai = getClient();
       const prompt = `

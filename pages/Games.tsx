@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
@@ -18,6 +19,7 @@ import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
+import { AiAssistantChat } from '../components/games/AiAssistantChat';
 
 // Helper to extract stats for display
 const getGameStats = (game: GeneratedGame) => {
@@ -474,8 +476,9 @@ const GameHub: React.FC<{
     onSelect: (type: GameType) => void, 
     initialTab?: 'create' | 'community' | 'library',
     onLoadCommunityGame: (game: GeneratedGame) => void,
-    onLoadPersonalGame: (game: GeneratedGame) => void
-}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame }) => {
+    onLoadPersonalGame: (game: GeneratedGame) => void,
+    onOpenAiAssistant: () => void
+}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant }) => {
     const [activeTab, setActiveTab] = useState<'create' | 'community' | 'library'>(initialTab);
     
     // Sync internal state with prop changes (e.g. from Nav link)
@@ -600,7 +603,10 @@ const GameHub: React.FC<{
                             <p className="text-sky-100 mb-8 text-lg max-w-xl leading-relaxed">
                                 Describe your lesson topic, student level, or learning goals, and our AI will recommend the perfect game format and generate content for you instantly.
                             </p>
-                            <button className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center">
+                            <button 
+                                onClick={onOpenAiAssistant}
+                                className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center"
+                            >
                                 <Sparkles size={20} className="mr-2" /> Open AI Assistant
                             </button>
                         </div>
@@ -634,6 +640,7 @@ export const Games: React.FC = () => {
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
     const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub'>('hub');
     const [hubTab, setHubTab] = useState<'create' | 'community' | 'library'>('create');
+    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
     const location = useLocation();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
@@ -768,6 +775,16 @@ export const Games: React.FC = () => {
         }
     };
 
+    // Handler for when the AI Chat creates a game
+    const handleAiGameGenerated = (game: GeneratedGame) => {
+        setIsAssistantOpen(false);
+        setGeneratedGame(game);
+        setSelectedType(game.config.type);
+        setEditorReturnStep('hub');
+        setStep('editor');
+        setIsDirty(true);
+    };
+
     return (
         <div className="min-h-screen bg-slate-50">
             {step === 'hub' && (
@@ -776,6 +793,7 @@ export const Games: React.FC = () => {
                     initialTab={hubTab}
                     onLoadCommunityGame={handleLoadCommunityGame}
                     onLoadPersonalGame={handleLoadPersonalGame}
+                    onOpenAiAssistant={() => setIsAssistantOpen(true)}
                 />
             )}
             
@@ -892,6 +910,13 @@ export const Games: React.FC = () => {
                         </div>
                     </div>
                 )
+            )}
+
+            {isAssistantOpen && (
+                <AiAssistantChat 
+                    onClose={() => setIsAssistantOpen(false)} 
+                    onGameGenerated={handleAiGameGenerated} 
+                />
             )}
         </div>
     );
