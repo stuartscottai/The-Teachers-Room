@@ -5,7 +5,7 @@ import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { getSavedGames, deleteSavedGame, resolvePath } from '../utils/gameUtils';
+import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -25,7 +25,7 @@ const GameCard: React.FC<{
     game: { type: GameType, icon: React.ReactNode, desc: string, image: string, color: string }, 
     onSelect: (type: GameType) => void 
 }> = ({ game, onSelect }) => {
-    const [imgError, setImgError] = useState(false);
+    const [hasError, setHasError] = useState(false);
 
     return (
         <button 
@@ -33,15 +33,15 @@ const GameCard: React.FC<{
             className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
-            <div className={`h-48 w-full relative overflow-hidden ${imgError ? game.color : 'bg-slate-100'}`}>
-                {!imgError ? (
-                    <img 
-                        src={resolvePath(game.image)} 
-                        alt={game.type}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        onError={() => setImgError(true)}
-                    />
-                ) : (
+            <div className={`h-48 w-full relative overflow-hidden ${hasError ? game.color : 'bg-slate-100'}`}>
+                <img 
+                    src={game.image} 
+                    alt={game.type}
+                    className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${hasError ? 'hidden' : 'block'}`}
+                    onError={() => setHasError(true)}
+                />
+                
+                {hasError && (
                     // Fallback State - Beautiful Gradient and Icon
                     <div className="w-full h-full flex flex-col items-center justify-center text-white/80 relative">
                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
@@ -55,7 +55,7 @@ const GameCard: React.FC<{
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-80 transition-opacity" />
                 
                 {/* Floating Icon Badge (only show if image loaded to avoid double icon) */}
-                {!imgError && (
+                {!hasError && (
                     <div className="absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md bg-white/20 border border-white/30 text-white shadow-lg">
                         {game.icon}
                     </div>
@@ -83,62 +83,62 @@ const GameCard: React.FC<{
 const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () => void }> = ({ onSelect, onViewLibrary }) => {
     const { user } = useAuth();
     
-    // Updated game list with relative image paths and color codes for fallbacks
+    // Updated game list with local file paths as requested
     const games = [
         { 
             type: GameType.SNAKES_LADDERS, 
             icon: <Dice5 size={24} />, 
             desc: "Classic board game fun with a learning twist.",
-            image: "assets/games/snakes.png",
+            image: "/assets/games/snakes.png",
             color: "bg-orange-500"
         },
         { 
             type: GameType.TRIVIA, 
             icon: <HelpCircle size={24} />, 
             desc: "Fast-paced questions to test knowledge.",
-            image: "assets/games/trivia.png",
+            image: "/assets/games/trivia.png",
             color: "bg-purple-600"
         },
         { 
             type: GameType.JEOPARDY, 
             icon: <Grid size={24} />, 
             desc: "Strategic team quiz based on categories.",
-            image: "assets/games/jeopardy.png",
+            image: "/assets/games/jeopardy.png",
             color: "bg-blue-600"
         },
         { 
             type: GameType.PUB_QUIZ, 
             icon: <Beer size={24} />, 
             desc: "Round-based quiz with manual scoring.",
-            image: "assets/games/pubquiz.png",
+            image: "/assets/games/pubquiz.png",
             color: "bg-slate-700"
         },
         { 
             type: GameType.DARTS, 
             icon: <Target size={24} />, 
             desc: "Hit the target by answering correctly.",
-            image: "assets/games/darts.png",
+            image: "/assets/games/darts.png",
             color: "bg-red-600"
         },
         { 
             type: GameType.MILLIONAIRE, 
             icon: <DollarSign size={24} />, 
             desc: "Climb the ladder to win big.",
-            image: "assets/games/millionaire.png",
+            image: "/assets/games/millionaire.png",
             color: "bg-indigo-700"
         },
         { 
             type: GameType.TIME_BOMB, 
             icon: <Timer size={24} />, 
             desc: "Pass the bomb before time runs out!",
-            image: "assets/games/timebomb.png",
+            image: "/assets/games/timebomb.png",
             color: "bg-slate-900"
         },
         { 
             type: GameType.SURVEY_SHOWDOWN, 
             icon: <List size={24} />, 
             desc: "Guess top answers in this survey game!",
-            image: "assets/games/survey.png",
+            image: "/assets/games/survey.png",
             color: "bg-emerald-600"
         },
     ];

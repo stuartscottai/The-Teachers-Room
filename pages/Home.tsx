@@ -3,24 +3,23 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5 } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
-import { resolvePath } from '../utils/gameUtils';
 
 // Robust Card for Trending Games
 const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: string, icon: React.ReactNode, color: string } }> = ({ game }) => {
-    const [imgError, setImgError] = useState(false);
+    const [hasError, setHasError] = useState(false);
 
     return (
         <Link to="/games" className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
-                <div className={`h-32 relative overflow-hidden shrink-0 ${imgError ? `${game.color}` : 'bg-slate-200'}`}>
-                    {!imgError ? (
-                        <img 
-                            src={resolvePath(game.image)} 
-                            alt={game.title} 
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                            onError={() => setImgError(true)}
-                        />
-                    ) : (
+                <div className={`h-32 relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-slate-200'}`}>
+                    <img 
+                        src={game.image} 
+                        alt={game.title} 
+                        className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${hasError ? 'hidden' : 'block'}`}
+                        onError={() => setHasError(true)}
+                    />
+                    
+                    {hasError && (
                         <div className="w-full h-full flex items-center justify-center text-white/50 relative overflow-hidden">
                              {/* Fallback Gradient Design */}
                              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
@@ -31,7 +30,7 @@ const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: 
                     )}
                     
                     {/* Overlay on hover (only if image loaded) */}
-                    {!imgError && <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />}
+                    {!hasError && <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />}
                 </div>
                 <div className="p-4 flex-grow">
                     <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
@@ -52,11 +51,41 @@ export const Home: React.FC = () => {
   }, []);
 
   const trendingGames = [
-      { title: 'Jeopardy', plays: '15.2k', image: 'assets/games/jeopardy.png', icon: <Grid size={40} />, color: 'bg-blue-500' },
-      { title: 'Millionaire Maker', plays: '12.8k', image: 'assets/games/millionaire.png', icon: <Trophy size={40} />, color: 'bg-indigo-600' },
-      { title: 'Survey Showdown', plays: '10.5k', image: 'assets/games/survey.png', icon: <List size={40} />, color: 'bg-emerald-500' },
-      { title: 'Trivia Quiz', plays: '9.3k', image: 'assets/games/trivia.png', icon: <HelpCircle size={40} />, color: 'bg-purple-500' },
-      { title: 'Snakes and Ladders', plays: '8.1k', image: 'assets/games/snakes.png', icon: <Dice5 size={40} />, color: 'bg-orange-500' }
+      { 
+          title: 'Jeopardy', 
+          plays: '15.2k', 
+          image: '/assets/games/jeopardy.png', 
+          icon: <Grid size={40} />, 
+          color: 'bg-blue-500' 
+      },
+      { 
+          title: 'Millionaire Maker', 
+          plays: '12.8k', 
+          image: '/assets/games/millionaire.png', 
+          icon: <Trophy size={40} />, 
+          color: 'bg-indigo-600' 
+      },
+      { 
+          title: 'Survey Showdown', 
+          plays: '10.5k', 
+          image: '/assets/games/survey.png', 
+          icon: <List size={40} />, 
+          color: 'bg-emerald-500' 
+      },
+      { 
+          title: 'Trivia Quiz', 
+          plays: '9.3k', 
+          image: '/assets/games/trivia.png', 
+          icon: <HelpCircle size={40} />, 
+          color: 'bg-purple-500' 
+      },
+      { 
+          title: 'Snakes and Ladders', 
+          plays: '8.1k', 
+          image: '/assets/games/snakes.png', 
+          icon: <Dice5 size={40} />, 
+          color: 'bg-orange-500' 
+      }
   ];
 
   return (
