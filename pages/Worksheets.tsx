@@ -93,9 +93,11 @@ const WORKSHEET_CSS = `
   .ws-container.two-column {
     column-count: 2;
     column-gap: 10mm;
-    column-rule: 1px solid #f1f5f9;
+    column-rule: 1px solid #e2e8f0;
+    column-fill: balance; /* Attempt to balance heights */
   }
   
+  /* Force headers to span across columns */
   .ws-container.two-column > .ws-content > .ws-header,
   .ws-container.two-column > .ws-content > .ws-title,
   .ws-container.two-column > .ws-content > .ws-instructions,
@@ -120,13 +122,12 @@ const WORKSHEET_CSS = `
     color: #475569; 
     min-width: 150px;
     display: inline-block;
-    /* Removed border-bottom as per request */
   }
 
   /* Typography */
   .ws-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 2em; /* Changed from pt to em to scale with container font size */
+    font-size: 2em; 
     font-weight: 700; 
     text-align: center; 
     color: #0f172a; 
@@ -144,7 +145,7 @@ const WORKSHEET_CSS = `
     max-width: 90%; 
     margin-left: auto; 
     margin-right: auto; 
-    font-size: 1.1em; /* Relative sizing */
+    font-size: 1.1em;
     line-height: 1.4;
   }
 
@@ -159,7 +160,7 @@ const WORKSHEET_CSS = `
   }
   .ws-section-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 1.4em; /* Relative sizing */
+    font-size: 1.4em;
     font-weight: 600; 
     color: #0284c7; 
     border-bottom: 2px solid #e0f2fe; 
@@ -648,6 +649,9 @@ const WorksheetBuilder: React.FC<{
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
     const logoDragOffset = useRef({ x: 0, y: 0 });
 
+    // Selection Persistence Ref
+    const selectionRange = useRef<Range | null>(null);
+
     const availableActivities: { type: ActivityType, label: string }[] = [
         { type: 'multiple-choice', label: 'Multiple Choice' },
         { type: 'wordsearch', label: 'Wordsearch' },
@@ -665,20 +669,24 @@ const WorksheetBuilder: React.FC<{
         }
     }, [generatedWs]);
 
-    // Zoom Calculation
+    // Zoom Calculation - Maximizes initial view
     useEffect(() => {
         const calculateZoom = () => {
             if (generatedWs) {
                 const container = document.getElementById('preview-wrapper');
                 if (container) {
-                    const availableWidth = container.clientWidth - 64; 
-                    const a4Width = 794; 
-                    const newZoom = Math.min(1, availableWidth / a4Width);
-                    setZoom(prev => Math.abs(prev - newZoom) > 0.02 ? parseFloat(newZoom.toFixed(2)) : prev);
+                    const availableWidth = container.clientWidth - 40; // Smaller margin for max width
+                    const a4Width = 794; // A4 width at 96 DPI
+                    // If container is smaller than A4, fit width. If larger, cap at 1.0 or fit width up to max.
+                    const fitZoom = availableWidth / a4Width;
+                    // Ensure it's big enough to read but fits width
+                    const newZoom = Math.min(1.2, fitZoom); 
+                    setZoom(parseFloat(newZoom.toFixed(2)));
                 }
             }
         };
-        const timer = setTimeout(calculateZoom, 100);
+        // Run immediately and on resize
+        const timer = setTimeout(calculateZoom, 50);
         window.addEventListener('resize', calculateZoom);
         return () => {
             window.removeEventListener('resize', calculateZoom);
@@ -936,7 +944,7 @@ const WorksheetBuilder: React.FC<{
         const htmlContent = `
             <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${generatedWs.title}</title>
             <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
-            <style>${WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
+            <style>${WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; column-fill: balance; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
             <body><div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">
                 ${logoHTML}
                 <div class="ws-content">
@@ -968,8 +976,6 @@ const WorksheetBuilder: React.FC<{
 
     // Check formatting state of current selection
     const checkFormats = () => {
-        // Use queryCommandState which returns boolean for toggleable commands
-        // or string value for others (like justify)
         setActiveFormats({
             bold: document.queryCommandState('bold'),
             italic: document.queryCommandState('italic'),
@@ -980,21 +986,45 @@ const WorksheetBuilder: React.FC<{
         });
     };
 
+    // --- SELECTION PERSISTENCE LOGIC ---
+    const saveSelection = () => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            selectionRange.current = sel.getRangeAt(0);
+        }
+    };
+
+    const restoreSelection = () => {
+        const sel = window.getSelection();
+        if (sel && selectionRange.current) {
+            sel.removeAllRanges();
+            sel.addRange(selectionRange.current);
+        }
+    };
+
     // Rich Text Formatting Helper
     const formatSelection = (command: string, value?: string) => {
+        restoreSelection(); // Restore range before executing command
         document.execCommand(command, false, value);
         const contentDiv = contentRef.current?.querySelector('.ws-content');
         if (contentDiv) addToHistory(contentDiv.innerHTML);
-        checkFormats(); // Update button states immediately
+        checkFormats(); 
     };
 
     // Helper to prevent losing focus when clicking tool buttons
     const preventLoss = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+    };
+
+    // For complex inputs that steal focus (e.g. Color Picker)
+    const handleComplexInputStart = () => {
+        saveSelection();
     };
 
     const handlePreviewClick = (e: React.MouseEvent) => {
-        checkFormats(); // Update formatting when clicking
+        checkFormats();
+        saveSelection(); // Save on click too to ensure we have latest valid selection
         if ((e.target as HTMLElement).classList.contains('delete-break-btn')) {
             (e.target as HTMLElement).closest('.forced-page-break')?.remove();
             const contentDiv = contentRef.current?.querySelector('.ws-content');
@@ -1130,7 +1160,7 @@ const WorksheetBuilder: React.FC<{
                 </div>
             </div>
 
-            {/* Preview Area */}
+            {/* Preview Area - Container flex-col ensures scrolling happens HERE not on body */}
             <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-100/50">
                 {generatedWs ? (
                     <div className="flex flex-col h-full">
@@ -1208,7 +1238,7 @@ const WorksheetBuilder: React.FC<{
                                         <Palette size={14} className="absolute pointer-events-none text-slate-500" />
                                         <input 
                                             type="color" 
-                                            onMouseDown={preventLoss}
+                                            onMouseDown={handleComplexInputStart}
                                             onChange={(e) => formatSelection('foreColor', e.target.value)} 
                                             className="w-full h-full opacity-0 cursor-pointer"
                                         />
@@ -1223,12 +1253,12 @@ const WorksheetBuilder: React.FC<{
 
                                 {/* LOGO UPLOAD BUTTON */}
                                 <div className="relative flex items-center">
-                                    <label className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer" title="Upload Logo">
+                                    <label className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer" title="Upload Logo" onMouseDown={preventLoss}>
                                         <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                                         <ImageIcon size={16} className="mr-2" /> Logo
                                     </label>
                                     {logoUrl && (
-                                        <button onClick={() => setLogoUrl(null)} className="ml-1 p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" title="Remove Logo">
+                                        <button onMouseDown={preventLoss} onClick={() => setLogoUrl(null)} className="ml-1 p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" title="Remove Logo">
                                             <Trash2 size={16} />
                                         </button>
                                     )}
@@ -1251,17 +1281,17 @@ const WorksheetBuilder: React.FC<{
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <div onClick={handleVisibilityToggle} className={`flex items-center bg-slate-100 rounded-lg p-1 cursor-pointer select-none border border-slate-200 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                <div onClick={handleVisibilityToggle} onMouseDown={preventLoss} className={`flex items-center bg-slate-100 rounded-lg p-1 cursor-pointer select-none border border-slate-200 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                     <div className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Private</div>
                                     <div className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>Public</div>
                                 </div>
-                                <button onClick={handleSave} disabled={saveStatus === 'saving' || saveStatus === 'saved'} className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors border text-sm ${saveStatus === 'saved' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-500 hover:text-teal-600'}`}>
+                                <button onMouseDown={preventLoss} onClick={handleSave} disabled={saveStatus === 'saving' || saveStatus === 'saved'} className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors border text-sm ${saveStatus === 'saved' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-500 hover:text-teal-600'}`}>
                                     {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-500 border-t-transparent mr-2"></div>}
                                     {saveStatus === 'saved' && <Check size={16} className="mr-2"/>}
                                     {saveStatus === 'idle' && <Save size={16} className="mr-2" />}
                                     {saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}
                                 </button>
-                                <button onClick={handlePrint} className="flex items-center px-4 py-2 bg-brand-yellow hover:bg-yellow-300 rounded-lg text-slate-900 font-bold transition-colors shadow-sm text-sm"><Printer size={16} className="mr-2" /> Print</button>
+                                <button onMouseDown={preventLoss} onClick={handlePrint} className="flex items-center px-4 py-2 bg-brand-yellow hover:bg-yellow-300 rounded-lg text-slate-900 font-bold transition-colors shadow-sm text-sm"><Printer size={16} className="mr-2" /> Print</button>
                             </div>
                         </div>
                         <div id="preview-wrapper" className="flex-1 overflow-y-auto overflow-x-auto p-8 flex justify-center bg-slate-100">
@@ -1276,7 +1306,7 @@ const WorksheetBuilder: React.FC<{
                                     onHeightChange={handleHeightChange} 
                                     onInput={handleContentInput} 
                                     onClick={handlePreviewClick}
-                                    onInteract={checkFormats}
+                                    onInteract={() => { checkFormats(); saveSelection(); }}
                                     logoUrl={logoUrl}
                                     logoPos={logoPos}
                                     logoWidth={logoWidth}
@@ -1454,7 +1484,7 @@ export const Worksheets: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <div className="h-[calc(100vh-4rem)] bg-slate-50 flex flex-col font-sans overflow-hidden">
             {/* Header - EXACT MATCH of Games.tsx GameHub structure */}
             <div className="max-w-7xl mx-auto px-4 py-8 w-full shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -1491,9 +1521,9 @@ export const Worksheets: React.FC = () => {
             </div>
 
             {/* Content Area - Filling remaining space */}
-            <div className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto w-full px-4 pb-8">
+            <div className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto w-full px-4 pb-8 overflow-hidden">
                 {activeTab === 'create' ? (
-                    <div className="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col relative"> 
+                    <div className="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col relative h-full"> 
                         <WorksheetBuilder 
                             config={config} 
                             setConfig={setConfig} 
