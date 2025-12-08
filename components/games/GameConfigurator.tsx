@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { GameType, GameConfig, GeneratedGame } from '../../types';
+import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, Plus, Trash2 } from 'lucide-react';
+import { processFile } from '../../utils/gameUtils';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, Plus, Trash2, Paperclip, FileText } from 'lucide-react';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
@@ -94,6 +95,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             topic: '',
             isAI: mode === 'ai',
             customInstructions: '',
+            files: [],
             // Jeopardy
             jeopardyCategories: 5,
             jeopardyCategoryNames: Array(5).fill(''),
@@ -106,6 +108,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         };
     });
     
+    // Files state separate from config until generation for cleaner updates
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+
     // For Survey Showdown custom prompts
     const [roundPrompts, setRoundPrompts] = useState<string[]>([]);
 
@@ -163,6 +168,39 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         }
     }, [config.pubQuizRoundsCount, type]);
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newFiles: UploadedFile[] = [];
+            const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+            
+            for (let i = 0; i < e.target.files.length; i++) {
+                const file = e.target.files[i];
+                if (file.size > MAX_SIZE) {
+                    alert(`File "${file.name}" exceeds the 4MB limit.`);
+                    continue;
+                }
+                if (uploadedFiles.length + newFiles.length >= 3) {
+                    alert("Maximum 3 files allowed.");
+                    break;
+                }
+                try {
+                    const processed = await processFile(file);
+                    newFiles.push(processed);
+                } catch (err) {
+                    console.error("Error reading file", err);
+                    alert(`Failed to read file: ${file.name}`);
+                }
+            }
+            setUploadedFiles(prev => [...prev, ...newFiles]);
+            // Reset input value to allow re-uploading same file if deleted
+            e.target.value = '';
+        }
+    };
+
+    const removeFile = (index: number) => {
+        setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleGenerate = async () => {
         if (!config.title) {
             alert("Please enter a Game Title!");
@@ -171,10 +209,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         
         // AI MODE
         if (mode === 'ai') {
-            if (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && !config.topic) {
-                alert("Please enter a Topic!");
+            // Require topic OR files
+            const hasSource = config.topic || uploadedFiles.length > 0;
+            if (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && !hasSource) {
+                alert("Please enter a Topic or Upload a File!");
                 return;
             }
+            
             if (type === GameType.JEOPARDY) {
                  if (config.jeopardyCategoryNames?.some(n => !n.trim())) {
                     alert("Please name all your Jeopardy Categories!");
@@ -191,7 +232,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             setLoading(true);
             try {
                 // For Survey Showdown, inject custom prompts into instruction
-                let finalConfig = { ...config };
+                let finalConfig = { ...config, files: uploadedFiles };
                 if (type === GameType.SURVEY_SHOWDOWN && roundPrompts.some(p => p.trim())) {
                     const customList = roundPrompts.map((p, i) => p.trim() ? `Round ${i+1}: ${p}` : `Round ${i+1}: AI Decide`).join('; ');
                     finalConfig.customInstructions = (finalConfig.customInstructions || "") + `\n\nUSE THESE SPECIFIC QUESTIONS FOR ROUNDS: ${customList}`;
@@ -200,6 +241,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 const gameData = await generateGameContent(finalConfig);
                 onProceed(gameData);
             } catch (err) {
+                console.error(err);
                 alert("Failed to generate game. Please check API configuration.");
             } finally {
                 setLoading(false);
@@ -300,6 +342,38 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         placeholder="e.g., Ancient Rome, Multiplication Tables" 
                                         className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none" 
                                     />
+                                    <p className="text-xs text-slate-400 mt-1">Or upload a document below to generate from source material.</p>
+                                </div>
+                            )}
+
+                            {/* FILE UPLOAD FOR AI MODE */}
+                            {mode === 'ai' && (
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                        <Paperclip size={16} className="mr-2 text-brand-blue" /> Upload Source Material
+                                    </label>
+                                    <p className="text-xs text-slate-500 mb-3">Upload PDFs or Images (Max 3 files, 4MB each). The AI will use these to generate questions.</p>
+                                    
+                                    <div className="space-y-3">
+                                        {uploadedFiles.map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+                                                <div className="flex items-center truncate">
+                                                    <FileText size={16} className="text-slate-400 mr-2 flex-shrink-0" />
+                                                    <span className="text-sm text-slate-600 truncate max-w-[200px]">{file.name}</span>
+                                                </div>
+                                                <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-1">
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        
+                                        {uploadedFiles.length < 3 && (
+                                            <label className="flex items-center justify-center p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-brand-blue hover:bg-sky-50 cursor-pointer transition-colors text-slate-500 font-bold text-sm">
+                                                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                                                <Plus size={16} className="mr-2" /> Add Document
+                                            </label>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -350,7 +424,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {/* Specific Prompts for Survey */}
                                     <div className="border-t border-slate-200 pt-4">
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Round Prompts (Optional)</label>
-                                        {mode === 'ai' && <p className="text-xs text-slate-500 mb-3">Leave blank to let AI decide based on topic.</p>}
+                                        {mode === 'ai' && <p className="text-xs text-slate-500 mb-3">Leave blank to let AI decide based on topic/files.</p>}
                                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                             {roundPrompts.map((p, i) => (
                                                 <div key={i} className="flex items-center gap-2">

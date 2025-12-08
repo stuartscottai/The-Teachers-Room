@@ -10,6 +10,12 @@ export enum GameType {
   SURVEY_SHOWDOWN = 'Survey Showdown'
 }
 
+export interface UploadedFile {
+  name: string;
+  data: string; // Base64 string (raw)
+  mimeType: string;
+}
+
 export interface GameConfig {
   type: GameType;
   title?: string; // User defined title
@@ -18,7 +24,9 @@ export interface GameConfig {
   pointsMode?: 'fixed' | 'ai-random' | 'manual'; // New points configuration
   topic: string; // Still used for non-Jeopardy games
   isAI: boolean;
+  isPublic?: boolean; // Visibility Flag
   customInstructions?: string;
+  files?: UploadedFile[]; // Source material
   // Jeopardy specific
   jeopardyCategories?: number; // Columns
   jeopardyCategoryNames?: string[]; // Specific names for columns
@@ -47,6 +55,7 @@ export interface GameRunOptions {
     bonus: string;
     timesUp: string;
   };
+  randomizeQuestions?: boolean; // Order of questions (Sequential vs Random)
   // Darts specific runtime options
   dartsLegs?: number; // How many rounds per game
   dartsMode?: 'high-score' | '301';
@@ -85,6 +94,7 @@ export interface GeneratedGame {
   id?: string; // For saving
   createdAt?: string; // For saving
   title: string;
+  authorName?: string; // Display name of creator
   config: GameConfig;
   questions: GeneratedQuestion[]; // For standard games
   jeopardyBoard?: JeopardyCategory[]; // For Jeopardy
@@ -108,7 +118,9 @@ export interface WorksheetConfig {
   gradeLevel: string;
   customInstructions?: string;
   layout?: 'single' | 'columns'; // New Layout Option
-  activities: ActivityConfig[]; 
+  activities: ActivityConfig[];
+  isPublic?: boolean; // Visibility Flag
+  files?: UploadedFile[]; // Source material
 }
 
 export interface GeneratedWorksheet {
@@ -116,6 +128,7 @@ export interface GeneratedWorksheet {
   createdAt?: string;
   config?: WorksheetConfig;
   title: string;
+  authorName?: string;
   content: string; // HTML or structured text representation
   type: string; // Helper for display (e.g. "Mixed", "Wordsearch")
 }

@@ -1,5 +1,5 @@
 
-import { GeneratedGame, GeneratedWorksheet } from "../types";
+import { GeneratedGame, GeneratedWorksheet, UploadedFile } from "../types";
 import { supabase } from "../services/supabase";
 
 // --- ASSET HELPERS ---
@@ -18,6 +18,25 @@ export const resolvePath = (path: string) => {
     const cleanBase = base.endsWith('/') ? base : `${base}/`;
     
     return `${cleanBase}${relativePath}`;
+};
+
+// --- FILE HELPERS ---
+export const processFile = (file: File): Promise<UploadedFile> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            // Strip the data:image/png;base64, prefix to get raw base64
+            const data = result.split(',')[1]; 
+            resolve({
+                name: file.name,
+                mimeType: file.type,
+                data: data
+            });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 };
 
 // --- AUDIO UTILS (Web Audio API) ---
@@ -314,17 +333,31 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 
 const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-export const saveGameToLibrary = async (game: GeneratedGame, userId?: string): Promise<boolean> => {
+// Helper to retrieve local games (Guest Mode)
+export const getLocalGames = (): GeneratedGame[] => {
+    try {
+        const existing = localStorage.getItem('teachersRoomGames');
+        return existing ? JSON.parse(existing) : [];
+    } catch (e) {
+        console.error("Local Storage Error:", e);
+        return [];
+    }
+};
+
+export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, authorName?: string): Promise<boolean> => {
     if (!userId) {
-        // Local Storage for guests
+        // Local Storage for guests - PRIVATE ONLY
         try {
             const existing = localStorage.getItem('teachersRoomGames');
             const library = existing ? JSON.parse(existing) : [];
             const index = library.findIndex((g: GeneratedGame) => g.id === game.id);
+            // Ensure guest games are never accidentally marked public locally to avoid UI confusion
+            const safeGame = { ...game, config: { ...game.config, isPublic: false } };
+            
             if (index >= 0) {
-                library[index] = game;
+                library[index] = safeGame;
             } else {
-                library.push(game);
+                library.push(safeGame);
             }
             localStorage.setItem('teachersRoomGames', JSON.stringify(library));
             return true;
@@ -335,6 +368,7 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string): P
     }
 
     try {
+        // Prepare payload with top-level is_public column
         const payload: any = {
             user_id: userId,
             title: game.title,
@@ -342,6 +376,8 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string): P
             questions: game.questions,
             jeopardy_board: game.jeopardyBoard,
             pub_quiz_rounds: game.pubQuizRounds,
+            is_public: game.config.isPublic || false, // Use new column
+            author_name: authorName || 'Teacher', // New Column
             created_at: new Date()
         };
 
@@ -350,7 +386,6 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string): P
             const { error } = await supabase.from('saved_games').upsert(payload);
             if (error) throw error;
         } else {
-            // Only omit ID if it's not a UUID (to let DB gen it), otherwise include it
             if (game.id && isUUID(game.id)) {
                  payload.id = game.id;
             }
@@ -366,18 +401,14 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string): P
 
 export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> => {
     if (!userId) {
-        try {
-            const existing = localStorage.getItem('teachersRoomGames');
-            return existing ? JSON.parse(existing) : [];
-        } catch (e) {
-            return [];
-        }
+        return getLocalGames();
     }
 
     try {
         const { data, error } = await supabase
             .from('saved_games')
             .select('*')
+            .eq('user_id', userId) 
             .order('created_at', { ascending: false });
         
         if (error) throw error;
@@ -385,7 +416,9 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
         return data.map((d: any) => ({
             id: d.id,
             title: d.title,
-            config: d.config,
+            authorName: d.author_name,
+            // Sync isPublic from column to config object for consistency
+            config: { ...d.config, isPublic: d.is_public },
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
             pubQuizRounds: d.pub_quiz_rounds,
@@ -394,6 +427,112 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
     } catch (e) {
         console.error("Supabase Fetch Error:", e);
         return [];
+    }
+};
+
+// Fetch Public Community Games - Updated to use is_public column
+export const getCommunityGames = async (
+    page: number = 1, 
+    limit: number = 30, 
+    search: string = '', 
+    typeFilter: string = 'all', 
+    sort: string = 'newest',
+    sourceFilter: 'all' | 'ai' | 'manual' = 'all'
+): Promise<{ data: GeneratedGame[], count: number, error: string | null }> => {
+    try {
+        // Query using the top-level is_public column (faster/cleaner)
+        let query = supabase
+            .from('saved_games')
+            .select('*', { count: 'exact' })
+            .eq('is_public', true); 
+
+        if (search) {
+            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%`);
+        }
+
+        if (typeFilter && typeFilter !== 'all') {
+            query = query.contains('config', { type: typeFilter });
+        }
+
+        if (sourceFilter === 'ai') {
+            query = query.contains('config', { isAI: true });
+        } else if (sourceFilter === 'manual') {
+            // Check for isAI: false
+            query = query.contains('config', { isAI: false });
+        }
+
+        if (sort === 'newest') query = query.order('created_at', { ascending: false });
+        if (sort === 'oldest') query = query.order('created_at', { ascending: true });
+        if (sort === 'az') query = query.order('title', { ascending: true });
+        if (sort === 'za') query = query.order('title', { ascending: false });
+
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+        
+        if (error) throw error;
+        
+        const mappedData = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            authorName: d.author_name,
+            config: { ...d.config, isPublic: d.is_public },
+            questions: d.questions,
+            jeopardyBoard: d.jeopardy_board,
+            pubQuizRounds: d.pub_quiz_rounds,
+            createdAt: d.created_at
+        }));
+
+        return { data: mappedData, count: count || 0, error: null };
+    } catch (e: any) {
+        console.error("Community Fetch Error:", e);
+        return { data: [], count: 0, error: e.message || "Failed to fetch games" };
+    }
+};
+
+export const syncPublicGameState = async (userId: string, userName?: string) => {
+    try {
+        // 1. Fetch all user games
+        const { data: games, error } = await supabase
+            .from('saved_games')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        let updateCount = 0;
+
+        // 2. Iterate and check for discrepancies
+        for (const game of games) {
+            const configPublic = game.config?.isPublic || false;
+            const dbPublic = game.is_public;
+            
+            // Fix missing author name
+            const needsAuthorUpdate = !game.author_name && userName;
+
+            // If they mismatch, or if author_name is missing, update
+            if (configPublic !== dbPublic || needsAuthorUpdate) {
+                // If config says public, enforce it on DB. 
+                // If config says private (or undefined), enforce false on DB.
+                // We trust the JSON config as the "user intent" if they just migrated.
+                
+                const updates: any = { is_public: configPublic };
+                if (needsAuthorUpdate) updates.author_name = userName;
+
+                await supabase
+                    .from('saved_games')
+                    .update(updates)
+                    .eq('id', game.id);
+                
+                updateCount++;
+            }
+        }
+        return { success: true, count: updateCount };
+    } catch (e: any) {
+        console.error("Sync Error:", e);
+        return { success: false, error: e.message };
     }
 };
 
@@ -416,16 +555,19 @@ export const deleteSavedGame = async (id: string, userId?: string) => {
     }
 };
 
-export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, userId?: string): Promise<boolean> => {
+export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, userId?: string, authorName?: string): Promise<boolean> => {
     if (!userId) {
         try {
             const existing = localStorage.getItem('teachersRoomWorksheets');
             const library = existing ? JSON.parse(existing) : [];
             const index = library.findIndex((w: GeneratedWorksheet) => w.id === worksheet.id);
+            // Ensure guest worksheets are always private locally
+            const safeWs = { ...worksheet, config: { ...worksheet.config, isPublic: false } };
+            
             if (index >= 0) {
-                library[index] = worksheet;
+                library[index] = safeWs;
             } else {
-                library.push(worksheet);
+                library.push(safeWs);
             }
             localStorage.setItem('teachersRoomWorksheets', JSON.stringify(library));
             return true;
@@ -439,6 +581,8 @@ export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, user
             config: worksheet.config,
             content: worksheet.content,
             type: worksheet.type,
+            is_public: worksheet.config?.isPublic || false,
+            author_name: authorName || 'Teacher',
             created_at: new Date()
         };
 
@@ -472,6 +616,7 @@ export const getSavedWorksheets = async (userId?: string): Promise<GeneratedWork
         const { data, error } = await supabase
             .from('saved_worksheets')
             .select('*')
+            .eq('user_id', userId)
             .order('created_at', { ascending: false });
         
         if (error) throw error;
@@ -479,7 +624,8 @@ export const getSavedWorksheets = async (userId?: string): Promise<GeneratedWork
         return data.map((d: any) => ({
             id: d.id,
             title: d.title,
-            config: d.config,
+            authorName: d.author_name,
+            config: { ...d.config, isPublic: d.is_public },
             content: d.content,
             type: d.type,
             createdAt: d.created_at
@@ -487,6 +633,58 @@ export const getSavedWorksheets = async (userId?: string): Promise<GeneratedWork
     } catch (e) {
         console.error("Supabase Fetch Error:", e);
         return [];
+    }
+};
+
+// Fetch Public Community Worksheets
+export const getCommunityWorksheets = async (
+    page: number = 1, 
+    limit: number = 30, 
+    search: string = '', 
+    gradeFilter: string = 'all',
+    sort: string = 'newest'
+): Promise<{ data: GeneratedWorksheet[], count: number, error: string | null }> => {
+    try {
+        let query = supabase
+            .from('saved_worksheets')
+            .select('*', { count: 'exact' })
+            .eq('is_public', true); 
+
+        if (search) {
+            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%`);
+        }
+
+        if (gradeFilter && gradeFilter !== 'all') {
+            query = query.contains('config', { gradeLevel: gradeFilter });
+        }
+
+        if (sort === 'newest') query = query.order('created_at', { ascending: false });
+        if (sort === 'oldest') query = query.order('created_at', { ascending: true });
+        if (sort === 'az') query = query.order('title', { ascending: true });
+        if (sort === 'za') query = query.order('title', { ascending: false });
+
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        query = query.range(from, to);
+
+        const { data, error, count } = await query;
+        
+        if (error) throw error;
+        
+        const mappedData = data.map((d: any) => ({
+            id: d.id,
+            title: d.title,
+            authorName: d.author_name,
+            config: { ...d.config, isPublic: d.is_public },
+            content: d.content,
+            type: d.type,
+            createdAt: d.created_at
+        }));
+
+        return { data: mappedData, count: count || 0, error: null };
+    } catch (e: any) {
+        console.error("Community Worksheet Fetch Error:", e);
+        return { data: [], count: 0, error: e.message || "Failed to fetch worksheets" };
     }
 };
 
@@ -506,5 +704,38 @@ export const deleteSavedWorksheet = async (id: string, userId?: string) => {
         await supabase.from('saved_worksheets').delete().match({ id, user_id: userId });
     } catch (e) {
         console.error("Supabase Delete Error:", e);
+    }
+};
+
+// NEW: Contact Form Submission
+export const sendContactMessage = async (name: string, email: string, message: string): Promise<{ success: boolean, error?: string }> => {
+    try {
+        const { error } = await supabase
+            .from('contact_messages')
+            .insert({ name, email, message });
+            
+        if (error) throw error;
+        return { success: true };
+    } catch (e: any) {
+        console.error("Contact Form Error:", e);
+        return { success: false, error: e.message || "Failed to send message" };
+    }
+};
+
+// NEW: Fetch Global Stats
+export const getGlobalStats = async () => {
+    try {
+        // Use count: 'exact' and head: true to get only the count without data payload
+        const { count: gamesCount } = await supabase.from('saved_games').select('*', { count: 'exact', head: true });
+        const { count: worksheetsCount } = await supabase.from('saved_worksheets').select('*', { count: 'exact', head: true });
+        
+        return {
+            games: gamesCount || 0,
+            worksheets: worksheetsCount || 0
+        };
+    } catch (e) {
+        console.error("Stats Fetch Error:", e);
+        // Fallback for safety
+        return { games: 0, worksheets: 0 };
     }
 };

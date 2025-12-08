@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Terminal, Server, Key, Info, Zap } from 'lucide-react';
+import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Terminal, Server, Key, Info, Zap, Database, RefreshCw } from 'lucide-react';
 import { DevSettings } from '../types';
+import { syncPublicGameState } from '../utils/gameUtils';
 
 export const Profile: React.FC = () => {
     const { user, updateUserProfile } = useAuth();
@@ -13,6 +14,8 @@ export const Profile: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
     const [devMessage, setDevMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+    const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     // Dev Settings State
     const [devSettings, setDevSettings] = useState<DevSettings>({
@@ -78,6 +81,21 @@ export const Profile: React.FC = () => {
         } catch (e) {
             setDevMessage({ type: 'error', text: "Failed to save settings." });
         }
+    };
+
+    const handleSyncGames = async () => {
+        if (!user) return;
+        setIsSyncing(true);
+        setSyncMessage(null);
+        
+        const result = await syncPublicGameState(user.id, user.name);
+        
+        if (result.success) {
+            setSyncMessage({ type: 'success', text: `Successfully synced ${result.count} games.` });
+        } else {
+            setSyncMessage({ type: 'error', text: `Sync failed: ${result.error}` });
+        }
+        setIsSyncing(false);
     };
 
     if (!user) return (
@@ -210,6 +228,39 @@ export const Profile: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                {/* ACCOUNT MAINTENANCE SECTION */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                                <Database size={20} className="mr-2 text-slate-500" /> Maintenance
+                            </h2>
+                            <p className="text-slate-500 text-sm">Tools to manage your data consistency.</p>
+                        </div>
+                    </div>
+                    <div className="p-8">
+                        {syncMessage && (
+                            <div className={`mb-4 p-3 rounded-lg text-sm font-bold flex items-center ${syncMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                {syncMessage.text}
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-slate-700">Sync Public Status</h3>
+                                <p className="text-sm text-slate-500 max-w-sm">If your games aren't appearing in the Community tab despite being marked "Public", use this to force an update.</p>
+                            </div>
+                            <button 
+                                onClick={handleSyncGames} 
+                                disabled={isSyncing}
+                                className={`px-4 py-2 border border-slate-300 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition-colors flex items-center ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                <RefreshCw size={16} className={`mr-2 ${isSyncing ? 'animate-spin' : ''}`} /> 
+                                {isSyncing ? 'Syncing...' : 'Run Sync'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 

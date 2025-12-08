@@ -179,12 +179,26 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const nextQuestion = () => {
         setIsFlipped(false);
         setDisabledOptions([]); // Reset MC state
+        
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
+        
         if (available.length === 0) {
             setUsedQuestionIds([]);
-            setCurrentQuestionIndex(Math.floor(Math.random() * questions.length));
+            // Restart
+            if (options.randomizeQuestions) {
+                setCurrentQuestionIndex(Math.floor(Math.random() * questions.length));
+            } else {
+                setCurrentQuestionIndex(0);
+            }
         } else {
-            const nextQ = available[Math.floor(Math.random() * available.length)];
+            let nextQ: GeneratedQuestion;
+            if (options.randomizeQuestions) {
+                nextQ = available[Math.floor(Math.random() * available.length)];
+            } else {
+                // Sequential: lowest ID available
+                nextQ = available.sort((a, b) => a.id - b.id)[0];
+            }
+            
             setCurrentQuestionIndex(questions.indexOf(nextQ));
             setUsedQuestionIds(prev => [...prev, nextQ.id]);
         }

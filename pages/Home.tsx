@@ -1,8 +1,46 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5 } from 'lucide-react';
+import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
+import { getGlobalStats } from '../utils/gameUtils';
+
+// Simple Animated Counter Component
+const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) => {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        let start = 0;
+        // Don't animate if 0
+        if (end === 0) return;
+        
+        const duration = 2000; // 2s duration
+        const increment = end / (duration / 16); // 60fps
+        
+        const timer = setInterval(() => {
+            start += increment;
+            if (start >= end) {
+                setCount(end);
+                clearInterval(timer);
+            } else {
+                setCount(Math.floor(start));
+            }
+        }, 16);
+        
+        return () => clearInterval(timer);
+    }, [end]);
+
+    return (
+        <div className="flex flex-col items-center">
+            <div className="text-2xl md:text-3xl font-black text-brand-yellow font-mono">
+                {count.toLocaleString()}
+            </div>
+            <div className="text-xs md:text-sm text-sky-100 font-bold uppercase tracking-wider">
+                {label}
+            </div>
+        </div>
+    );
+};
 
 // Robust Card for Trending Games
 const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: string, icon: React.ReactNode, color: string } }> = ({ game }) => {
@@ -43,10 +81,15 @@ const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: 
 
 export const Home: React.FC = () => {
   const [scrollY, setScrollY] = useState(0);
+  const [stats, setStats] = useState({ games: 0, worksheets: 0 });
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
+    
+    // Fetch global stats
+    getGlobalStats().then(data => setStats(data));
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -179,7 +222,7 @@ export const Home: React.FC = () => {
             The ultimate playground for educators. Create AI-powered games and worksheets in seconds.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-5 justify-center">
+          <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16">
             <Link 
                 to="/games" 
                 className="group px-8 py-4 bg-white text-sky-700 font-bold text-lg rounded-full shadow-lg hover:shadow-2xl hover:bg-sky-50 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
@@ -197,6 +240,19 @@ export const Home: React.FC = () => {
                 Create Worksheets
             </Link>
           </div>
+
+          {/* LIVE STATS TICKER */}
+          <div className="inline-flex flex-col md:flex-row items-center gap-8 bg-white/10 backdrop-blur-md rounded-3xl p-6 md:px-10 border border-white/20 shadow-xl animate-slide-up">
+              <div className="flex items-center gap-2 text-sky-200 uppercase text-xs font-bold tracking-widest mb-2 md:mb-0 md:border-r border-white/20 md:pr-6">
+                  <Activity size={16} className="animate-pulse" /> Live Stats
+              </div>
+              <div className="flex gap-8 md:gap-12">
+                  <StatCounter end={stats.games} label="Games Created" />
+                  <div className="w-px bg-white/20 h-10 hidden md:block"></div>
+                  <StatCounter end={stats.worksheets} label="Worksheets Generated" />
+              </div>
+          </div>
+
         </div>
       </section>
 

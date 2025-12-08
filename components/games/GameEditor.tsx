@@ -4,7 +4,7 @@ import { GameType, GeneratedGame } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 import { saveGameToLibrary } from '../../utils/gameUtils';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle } from 'lucide-react';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -16,6 +16,10 @@ interface GameEditorProps {
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onBack }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [activeTab, setActiveTab] = useState<number>(0);
+    const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
+    const [showAiPrompt, setShowAiPrompt] = useState(false);
+    const [showCopyToast, setShowCopyToast] = useState(false);
+    
     const { user } = useAuth();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
     
@@ -29,8 +33,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         };
     }, []);
 
+    // Sync isPublic back to editedGame config when changed
     useEffect(() => {
-    }, [editedGame]);
+        setEditedGame(prev => ({
+            ...prev,
+            config: { ...prev.config, isPublic }
+        }));
+        setIsDirty(true);
+    }, [isPublic]);
 
     const handleSave = async () => {
         if (!user) {
@@ -39,13 +49,19 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         }
         setSaveStatus('saving');
         
-        // Async save
-        const success = await saveGameToLibrary(editedGame, user.id);
+        // Ensure config is synced
+        const finalGame = {
+            ...editedGame,
+            config: { ...editedGame.config, isPublic }
+        };
+
+        // Async save with Author Name
+        const success = await saveGameToLibrary(finalGame, user.id, user.name);
         
         if (success) {
             setSaveStatus('saved');
             setIsDirty(false);
-            onSave(editedGame);
+            onSave(finalGame);
             setTimeout(() => setSaveStatus('idle'), 2000);
         } else {
             setSaveStatus('idle');
@@ -61,6 +77,20 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setEditedGame(updater);
         setIsDirty(true);
         setSaveStatus('idle');
+    };
+
+    const handleVisibilityToggle = () => {
+        if (!user) {
+            alert("Guests cannot publish games to the community. Please log in to share your creation!");
+            return;
+        }
+        setIsPublic(!isPublic);
+    };
+
+    const handleCopyInstructions = () => {
+        navigator.clipboard.writeText(editedGame.config.customInstructions || "");
+        setShowCopyToast(true);
+        setTimeout(() => setShowCopyToast(false), 2000);
     };
 
     const addQuestion = () => {
@@ -133,7 +163,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             const isJeopardy = prev.config.type === GameType.JEOPARDY;
             const groups = isJeopardy ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
             
+            // Shallow copy the group object
+            groups[activeTab] = { ...groups[activeTab], questions: [...groups[activeTab].questions] };
             const q = groups[activeTab].questions[qIdx];
+            
             if (type === 'open') {
                 q.options = undefined;
             } else {
@@ -152,7 +185,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             const isJeopardy = prev.config.type === GameType.JEOPARDY;
             const groups = isJeopardy ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
             
+            // Shallow copy the group object
+            groups[activeTab] = { ...groups[activeTab], questions: [...groups[activeTab].questions] };
             const q = groups[activeTab].questions[qIdx];
+            
             const current = q.options || [];
             if (count > current.length) {
                 q.options = [...current, ...Array(count - current.length).fill("")];
@@ -179,24 +215,52 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         : editedGame.questions;
 
     return (
-        <div className="fixed inset-0 top-16 bg-slate-50 z-40 overflow-hidden flex flex-col">
+        <div className="fixed inset-0 top-16 bg-slate-50 z-50 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-7xl mx-auto px-4 py-8 relative z-20">
                         <div className="flex flex-col gap-4 mb-6">
-                            <button 
-                                onClick={onBack}
-                                className="self-start text-slate-500 hover:text-sky-600 flex items-center font-bold text-sm transition-colors cursor-pointer bg-slate-50 hover:bg-white px-3 py-2 rounded-lg border border-transparent hover:border-slate-200"
-                            >
-                                <ArrowLeft size={18} className="mr-1" /> Back to Config
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={onBack}
+                                    className="self-start text-slate-500 hover:text-sky-600 flex items-center font-bold text-sm transition-colors cursor-pointer bg-slate-50 hover:bg-white px-3 py-2 rounded-lg border border-transparent hover:border-slate-200"
+                                >
+                                    <ArrowLeft size={18} className="mr-1" /> Back to Config
+                                </button>
+                                
+                                {editedGame.config.isAI && (
+                                    <button 
+                                        onClick={() => setShowAiPrompt(true)}
+                                        className="self-start text-indigo-500 hover:text-indigo-700 flex items-center font-bold text-sm transition-colors cursor-pointer bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg border border-indigo-100"
+                                        title="View AI Instructions"
+                                    >
+                                        <Sparkles size={16} className="mr-1" /> AI Prompt
+                                    </button>
+                                )}
+                            </div>
                             
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <h1 className="font-display text-3xl font-bold text-slate-800 truncate w-full md:w-auto">Editor: {editedGame.title}</h1>
-                                <div className="flex gap-3 w-full md:w-auto">
+                                <h1 className="font-display text-3xl font-bold text-slate-800 truncate w-full md:w-auto">
+                                    Editor: {editedGame.title} 
+                                    <span className="text-sm font-normal text-slate-500 ml-3 bg-slate-100 px-2 py-1 rounded-lg align-middle">
+                                        {editedGame.config.type}
+                                    </span>
+                                </h1>
+                                
+                                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+                                    {/* VISIBILITY TOGGLE */}
+                                    <div className={`flex items-center bg-slate-200 rounded-full p-1 cursor-pointer select-none ${!user ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleVisibilityToggle}>
+                                        <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
+                                            <Lock size={12} className="mr-1" /> Private
+                                        </div>
+                                        <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
+                                            <Globe size={12} className="mr-1" /> Public
+                                        </div>
+                                    </div>
+
                                     <button 
                                         onClick={handleSave} 
                                         disabled={saveStatus === 'saving'}
-                                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer
+                                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer min-w-[140px]
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
                                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'}`}
@@ -220,7 +284,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         {!user && (
                         <div className="mb-6 bg-sky-50 p-4 rounded-xl flex items-center text-sky-800 text-sm border border-sky-100">
                             <AlertCircle size={16} className="mr-2" />
-                            <span>You are editing as a guest. Log in to save this game permanently to your profile.</span>
+                            <span>You are editing as a guest. Log in to save this game permanently to your profile and share it with the community.</span>
                         </div>
                         )}
 
@@ -251,12 +315,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             value={groups[activeTab].name} 
                                             onChange={(e) => handleChange(prev => {
                                                 const newGroups = editedGame.config.type === GameType.JEOPARDY ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
-                                                newGroups[activeTab].name = e.target.value;
+                                                // Create a shallow copy of the object to avoid mutation
+                                                newGroups[activeTab] = { ...newGroups[activeTab], name: e.target.value };
                                                 return editedGame.config.type === GameType.JEOPARDY 
                                                     ? {...prev, jeopardyBoard: newGroups} 
                                                     : {...prev, pubQuizRounds: newGroups};
                                             })}
-                                            className="w-full p-4 text-xl font-bold border border-slate-200 rounded-lg focus:border-brand-blue focus:ring-2 focus:ring-sky-100 outline-none transition-all"
+                                            className="w-full p-4 text-xl font-bold border border-slate-200 rounded-lg focus:border-brand-blue focus:ring-2 focus:ring-sky-100 outline-none transition-all bg-slate-50/50"
+                                            placeholder={`Enter ${groupLabel} Name`}
                                         />
                                     </div>
 
@@ -294,7 +360,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             value={q.question}
                                                             onChange={(e) => handleChange(prev => {
                                                                 const newGroups = editedGame.config.type === GameType.JEOPARDY ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
-                                                                newGroups[activeTab].questions[qIdx].question = e.target.value;
+                                                                // Deep copy questions array for this group
+                                                                newGroups[activeTab] = { 
+                                                                    ...newGroups[activeTab], 
+                                                                    questions: [...newGroups[activeTab].questions] 
+                                                                };
+                                                                newGroups[activeTab].questions[qIdx] = { 
+                                                                    ...newGroups[activeTab].questions[qIdx], 
+                                                                    question: e.target.value 
+                                                                };
                                                                 return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm h-28 resize-none focus:ring-2 focus:ring-sky-200 outline-none transition-all"
@@ -307,7 +381,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             value={q.answer}
                                                             onChange={(e) => handleChange(prev => {
                                                                 const newGroups = editedGame.config.type === GameType.JEOPARDY ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
-                                                                newGroups[activeTab].questions[qIdx].answer = e.target.value;
+                                                                newGroups[activeTab] = { 
+                                                                    ...newGroups[activeTab], 
+                                                                    questions: [...newGroups[activeTab].questions] 
+                                                                };
+                                                                newGroups[activeTab].questions[qIdx] = { 
+                                                                    ...newGroups[activeTab].questions[qIdx], 
+                                                                    answer: e.target.value 
+                                                                };
                                                                 return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm h-28 resize-none focus:ring-2 focus:ring-green-200 outline-none transition-all"
@@ -342,9 +423,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                         value={opt}
                                                                         onChange={(e) => handleChange(prev => {
                                                                             const newGroups = editedGame.config.type === GameType.JEOPARDY ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
+                                                                            newGroups[activeTab] = { ...newGroups[activeTab], questions: [...newGroups[activeTab].questions] };
                                                                             const newOptions = [...(newGroups[activeTab].questions[qIdx].options || [])];
                                                                             newOptions[optIdx] = e.target.value;
-                                                                            newGroups[activeTab].questions[qIdx].options = newOptions;
+                                                                            newGroups[activeTab].questions[qIdx] = { ...newGroups[activeTab].questions[qIdx], options: newOptions };
                                                                             return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                                         })}
                                                                         className="w-full pl-10 p-2 rounded border border-slate-300 text-sm outline-none focus:border-brand-blue"
@@ -578,6 +660,61 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         )}
                 </div>
             </div>
+
+            {/* AI Prompt Info Modal */}
+            {showAiPrompt && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up border border-indigo-100">
+                        <button onClick={() => setShowAiPrompt(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                            <X size={24} />
+                        </button>
+                        <div className="flex items-center mb-6">
+                            <div className="bg-indigo-100 p-3 rounded-full mr-4 text-indigo-600">
+                                <Sparkles size={24} />
+                            </div>
+                            <h2 className="font-display text-2xl font-bold text-slate-800">AI Generation Info</h2>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Original Topic</label>
+                                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
+                                    {editedGame.config.topic || "N/A (Jeopardy/Pub Quiz Mode)"}
+                                </div>
+                            </div>
+                            
+                            <div className="relative">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                                    Custom Instructions
+                                    <button 
+                                        onClick={handleCopyInstructions}
+                                        className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center"
+                                        title="Copy Instructions"
+                                    >
+                                        <Copy size={12} className="mr-1" /> Copy
+                                    </button>
+                                </label>
+                                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-sm min-h-[80px]">
+                                    {editedGame.config.customInstructions || <span className="italic text-slate-400">No custom instructions provided.</span>}
+                                </div>
+                                {showCopyToast && (
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1.5 animate-fade-in z-[110]">
+                                        <CheckCircle size={12} className="text-green-400" /> Instructions Copied!
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
+                                <div className="flex items-center">
+                                    <FileText size={14} className="mr-1" />
+                                    <span>Questions: {editedGame.config.questionCount || 'Auto'}</span>
+                                </div>
+                                <div className="uppercase font-bold tracking-wider">Generated by AI</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

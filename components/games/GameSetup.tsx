@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GameType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -31,10 +31,21 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
     dartsMode: 'high-score',
     dartsLegs: 5,
     teamLives: 3, // Default lives
-    bombDuration: 60
+    bombDuration: 60,
+    randomizeQuestions: true, // Default to random
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
+
+  // Lock scroll when sound lab is open
+  useEffect(() => {
+    if (showSoundLab) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showSoundLab]);
 
   // Calculate valid question counts for Trivia (must be divisible by players)
   const [validQuestionCounts, setValidQuestionCounts] = useState<number[]>([]);
@@ -86,6 +97,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
           }
       }));
   };
+
+  const showRandomizeOption = ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE].includes(game.config.type);
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -232,6 +245,32 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
                             <option value={30}>30 Seconds</option>
                             <option value={60}>60 Seconds</option>
                         </select>
+                    </div>
+                )}
+
+                {/* Question Randomization Toggle (Where applicable) */}
+                {showRandomizeOption && (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <Shuffle size={16} className="mr-2 text-brand-blue" /> Question Order
+                        </label>
+                        <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                            <button
+                                onClick={() => setOptions({...options, randomizeQuestions: true})}
+                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            >
+                                Random
+                            </button>
+                            <button
+                                onClick={() => setOptions({...options, randomizeQuestions: false})}
+                                className={`flex-1 py-2 text-xs font-bold transition-colors ${!options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            >
+                                Sequential
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            {options.randomizeQuestions ? "Shuffle questions each time." : "Play in created order."}
+                        </p>
                     </div>
                 )}
 

@@ -1,5 +1,7 @@
-import React from 'react';
-import { Check } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { Check, AlertCircle, Send, Loader } from 'lucide-react';
+import { sendContactMessage } from '../utils/gameUtils';
 
 export const Info: React.FC = () => {
   return (
@@ -79,25 +81,106 @@ export const Pricing: React.FC = () => {
 };
 
 export const Contact: React.FC = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: ''
+  });
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.email || !formData.message) return;
+
+    setStatus('sending');
+    setErrorMessage('');
+
+    const result = await sendContactMessage(formData.name, formData.email, formData.message);
+
+    if (result.success) {
+        setStatus('success');
+        setFormData({ name: '', email: '', message: '' });
+    } else {
+        setStatus('error');
+        setErrorMessage(result.error || "Failed to send message.");
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-20">
        <h1 className="font-display text-4xl font-bold text-slate-800 mb-8 text-center">Get in Touch</h1>
-       <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100">
-          <form className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-              <input type="text" className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-              <input type="email" className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Message</label>
-              <textarea className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none h-32"></textarea>
-            </div>
-            <button className="w-full py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 transition-colors">Send Message</button>
-          </form>
+       <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100 relative overflow-hidden">
+          
+          {status === 'success' ? (
+              <div className="text-center py-12 animate-fade-in">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Check size={40} className="text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Message Sent!</h2>
+                  <p className="text-slate-500 mb-8">Thanks for reaching out. We'll get back to you shortly.</p>
+                  <button 
+                    onClick={() => setStatus('idle')}
+                    className="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
+                  >
+                    Send Another Message
+                  </button>
+              </div>
+          ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {status === 'error' && (
+                    <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-start text-sm">
+                        <AlertCircle size={18} className="mr-2 flex-shrink-0 mt-0.5" />
+                        <span>{errorMessage}</span>
+                    </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" 
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input 
+                    type="email" 
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" 
+                    placeholder="you@school.edu"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Message</label>
+                  <textarea 
+                    required
+                    value={formData.message}
+                    onChange={(e) => setFormData({...formData, message: e.target.value})}
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none h-32 resize-none"
+                    placeholder="How can we help?"
+                  ></textarea>
+                </div>
+                <button 
+                    type="submit"
+                    disabled={status === 'sending'}
+                    className={`w-full py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 transition-colors flex items-center justify-center ${status === 'sending' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                    {status === 'sending' ? (
+                        <><Loader size={20} className="mr-2 animate-spin" /> Sending...</>
+                    ) : (
+                        <><Send size={20} className="mr-2" /> Send Message</>
+                    )}
+                </button>
+              </form>
+          )}
+
           <div className="mt-8 text-center pt-6 border-t border-slate-100">
              <p className="text-slate-500">Or email us directly at:</p>
              <a href="mailto:info@theteachersroom.app" className="text-teal-600 font-bold hover:underline">info@theteachersroom.app</a>

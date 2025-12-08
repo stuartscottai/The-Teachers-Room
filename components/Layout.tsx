@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogOut, Grid } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
@@ -125,7 +125,7 @@ const Navbar: React.FC = () => {
                         </SafeLink>
                         <SafeLink 
                           to="/worksheets" 
-                          state={{ view: 'library' }}
+                          state={{ tab: 'library' }}
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
@@ -198,7 +198,7 @@ const Navbar: React.FC = () => {
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games
                     </SafeLink>
-                    <SafeLink to="/worksheets" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
+                    <SafeLink to="/worksheets" state={{ tab: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Worksheets
                     </SafeLink>
                     <button onClick={logout} className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
@@ -224,7 +224,7 @@ const Navbar: React.FC = () => {
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden relative z-10">
+    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div>

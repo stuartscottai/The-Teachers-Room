@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
@@ -133,7 +134,17 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         const rawLimit = options.questionLimit || game.questions.length;
         const validCount = Math.floor(rawLimit / options.players) * options.players;
         
-        let questionsCopy = JSON.parse(JSON.stringify(game.questions)).slice(0, validCount);
+        let pool = JSON.parse(JSON.stringify(game.questions));
+        
+        // --- RANDOMIZE ---
+        if (options.randomizeQuestions) {
+            for (let i = pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
+        }
+
+        let questionsCopy = pool.slice(0, validCount);
         
         // 2. Apply Chaos Mode (Bonuses) - 20%
         if (options.enableBonuses) {
@@ -156,7 +167,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             }
         }
         setGameQuestions(questionsCopy);
-    }, [game, options.enableBonuses, options.questionLimit, options.players]);
+    }, [game, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions]);
 
     // Calculate Optimal Grid Dimensions (Perfect Rectangles Priority)
     const gridStyle = useMemo(() => {

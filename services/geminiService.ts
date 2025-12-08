@@ -106,7 +106,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const isSurvey = config.type === GameType.SURVEY_SHOWDOWN;
 
   const systemInstruction = `You are an expert educational content creator. 
-  Create a structured game based on the following parameters. 
+  Create a structured game based on the following parameters.
+  
+  If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
   
   CRITICAL JSON RULES:
   1. Return ONLY valid JSON.
@@ -336,9 +338,27 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   }
 
   try {
+    // Construct payload with potential file attachments
+    const parts: any[] = [];
+    
+    if (config.files && config.files.length > 0) {
+        config.files.forEach(file => {
+            parts.push({
+                inlineData: {
+                    mimeType: file.mimeType,
+                    data: file.data
+                }
+            });
+        });
+        // Add specific instruction to focus on files
+        prompt = `IMPORTANT: Analyze the attached files thoroughly. Create the game content based specifically on the information found in these documents.\n\n` + prompt;
+    }
+    
+    parts.push({ text: prompt });
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents: { parts },
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
@@ -406,11 +426,15 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   const systemInstruction = `You are an expert teacher creating professional worksheets for printing.
   Generate the 'content' as a complete, well-structured HTML string.
   
+  If the user provides source files (images/PDFs), analyze them thoroughly and base the worksheet content/questions specifically on that material.
+  
   STRICT STYLING RULES (Do NOT use inline CSS. Use these specific class names):
   1. Header: Wrap the name/date/score block in <div class="ws-header">...</div>. Inside, use <div class="ws-field">Name: ____________</div>.
   2. Title: Use <h1 class="ws-title">Title Here</h1>.
-  3. Instructions: Use <p class="ws-instructions">...</p>. Keep instructions concise.
-  4. Sections: Wrap distinct activities in <div class="ws-section"> with <h3 class="ws-section-title">Section Title</h3>.
+  3. Instructions (Main): Use <p class="ws-instructions">...</p> ONLY for the main worksheet intro/description (Centered).
+  4. Sections: Wrap distinct activities in <div class="ws-section">.
+     - Start with <h3 class="ws-section-title">Section Title</h3>.
+     - Follow immediately with <p>Activity specific instructions...</p>. Do NOT use the 'ws-instructions' class here; use a standard paragraph (Left Aligned).
   5. Tables: For grids or matching, use <table class="ws-table">.
   6. Answer Key: Wrap the ENTIRE answer key section in <div class="ws-answer-key">. Inside, use <h3>Answer Key</h3> and then lists.
   
@@ -451,7 +475,7 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     ? "Mixed Activities" 
     : (config.activities[0]?.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Custom Worksheet");
 
-  const prompt = `
+  let prompt = `
     Create a "${displayType}" worksheet.
     Topic: ${config.topic}.
     Grade Level: ${config.gradeLevel}.
@@ -462,9 +486,26 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   `;
 
   try {
+    // Construct payload with potential file attachments
+    const parts: any[] = [];
+    
+    if (config.files && config.files.length > 0) {
+        config.files.forEach(file => {
+            parts.push({
+                inlineData: {
+                    mimeType: file.mimeType,
+                    data: file.data
+                }
+            });
+        });
+        prompt = `IMPORTANT: Analyze the attached files thoroughly. Create the worksheet content based specifically on the information found in these documents.\n\n` + prompt;
+    }
+    
+    parts.push({ text: prompt });
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents: { parts },
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
