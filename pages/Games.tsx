@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, ArrowLeft, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { getSavedGames, deleteSavedGame } from '../utils/gameUtils';
+import { getSavedGames, deleteSavedGame, resolvePath } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -20,30 +20,139 @@ import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
 
+// Robust Card Component handles Image Errors Gracefully
+const GameCard: React.FC<{ 
+    game: { type: GameType, icon: React.ReactNode, desc: string, image: string, color: string }, 
+    onSelect: (type: GameType) => void 
+}> = ({ game, onSelect }) => {
+    const [imgError, setImgError] = useState(false);
+
+    return (
+        <button 
+            onClick={() => onSelect(game.type)}
+            className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
+        >
+            {/* Image Container */}
+            <div className={`h-48 w-full relative overflow-hidden ${imgError ? game.color : 'bg-slate-100'}`}>
+                {!imgError ? (
+                    <img 
+                        src={resolvePath(game.image)} 
+                        alt={game.type}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        onError={() => setImgError(true)}
+                    />
+                ) : (
+                    // Fallback State - Beautiful Gradient and Icon
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/80 relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                        <div className="scale-150 mb-2 transform group-hover:scale-125 transition-transform duration-500">
+                            {game.icon}
+                        </div>
+                    </div>
+                )}
+
+                {/* Decoration Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-80 transition-opacity" />
+                
+                {/* Floating Icon Badge (only show if image loaded to avoid double icon) */}
+                {!imgError && (
+                    <div className="absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md bg-white/20 border border-white/30 text-white shadow-lg">
+                        {game.icon}
+                    </div>
+                )}
+                
+                {/* Title Overlay */}
+                <div className="absolute bottom-4 left-4 right-4">
+                     <h3 className="font-display font-bold text-xl text-white mb-1 drop-shadow-md">{game.type}</h3>
+                </div>
+            </div>
+            
+            {/* Content Body */}
+            <div className="p-6 flex-grow flex flex-col">
+                <p className="text-slate-600 text-sm leading-relaxed mb-6 flex-grow">{game.desc}</p>
+                
+                <div className="text-brand-blue font-bold text-sm flex items-center group-hover:translate-x-1 transition-transform mt-auto">
+                    Create Game <ArrowRight size={16} className="ml-1" />
+                </div>
+            </div>
+        </button>
+    );
+};
+
 // 1. Game Hub Selection
 const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () => void }> = ({ onSelect, onViewLibrary }) => {
     const { user } = useAuth();
+    
+    // Updated game list with relative image paths and color codes for fallbacks
     const games = [
-        { type: GameType.SNAKES_LADDERS, icon: <Dice5 size={40} />, desc: "Classic board game fun with a learning twist." },
-        { type: GameType.TRIVIA, icon: <HelpCircle size={40} />, desc: "Fast-paced questions to test knowledge." },
-        { type: GameType.JEOPARDY, icon: <Grid size={40} />, desc: "Strategic team quiz based on categories." },
-        { type: GameType.PUB_QUIZ, icon: <Beer size={40} />, desc: "Round-based quiz with manual scoring." },
-        { type: GameType.DARTS, icon: <Target size={40} />, desc: "Hit the target by answering correctly." },
-        { type: GameType.MILLIONAIRE, icon: <DollarSign size={40} />, desc: "Climb the ladder to win big." },
-        { type: GameType.TIME_BOMB, icon: <Timer size={40} />, desc: "Pass the bomb before time runs out!" },
-        { type: GameType.SURVEY_SHOWDOWN, icon: <List size={40} />, desc: "Guess top answers in this survey game!" },
+        { 
+            type: GameType.SNAKES_LADDERS, 
+            icon: <Dice5 size={24} />, 
+            desc: "Classic board game fun with a learning twist.",
+            image: "assets/games/snakes.png",
+            color: "bg-orange-500"
+        },
+        { 
+            type: GameType.TRIVIA, 
+            icon: <HelpCircle size={24} />, 
+            desc: "Fast-paced questions to test knowledge.",
+            image: "assets/games/trivia.png",
+            color: "bg-purple-600"
+        },
+        { 
+            type: GameType.JEOPARDY, 
+            icon: <Grid size={24} />, 
+            desc: "Strategic team quiz based on categories.",
+            image: "assets/games/jeopardy.png",
+            color: "bg-blue-600"
+        },
+        { 
+            type: GameType.PUB_QUIZ, 
+            icon: <Beer size={24} />, 
+            desc: "Round-based quiz with manual scoring.",
+            image: "assets/games/pubquiz.png",
+            color: "bg-slate-700"
+        },
+        { 
+            type: GameType.DARTS, 
+            icon: <Target size={24} />, 
+            desc: "Hit the target by answering correctly.",
+            image: "assets/games/darts.png",
+            color: "bg-red-600"
+        },
+        { 
+            type: GameType.MILLIONAIRE, 
+            icon: <DollarSign size={24} />, 
+            desc: "Climb the ladder to win big.",
+            image: "assets/games/millionaire.png",
+            color: "bg-indigo-700"
+        },
+        { 
+            type: GameType.TIME_BOMB, 
+            icon: <Timer size={24} />, 
+            desc: "Pass the bomb before time runs out!",
+            image: "assets/games/timebomb.png",
+            color: "bg-slate-900"
+        },
+        { 
+            type: GameType.SURVEY_SHOWDOWN, 
+            icon: <List size={24} />, 
+            desc: "Guess top answers in this survey game!",
+            image: "assets/games/survey.png",
+            color: "bg-emerald-600"
+        },
     ];
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-12">
-            <div className="flex justify-between items-end mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
                 <div>
                     <h1 className="font-display text-4xl font-bold text-slate-800 mb-2">Game Library</h1>
-                    <p className="text-slate-500">Choose a game template to start building</p>
+                    <p className="text-slate-500 text-lg">Choose a template to start building your next lesson.</p>
                 </div>
                 <button 
                     onClick={onViewLibrary}
-                    className="bg-white border-2 border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold hover:border-brand-yellow hover:bg-yellow-50 transition-colors flex items-center shadow-sm"
+                    className="bg-white border-2 border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold hover:border-brand-yellow hover:bg-yellow-50 transition-colors flex items-center shadow-sm shrink-0"
                 >
                     {user ? <BookOpen size={20} className="mr-2 text-brand-accent" /> : <LogIn size={20} className="mr-2 text-slate-400" />}
                     {user ? 'My Saved Games' : 'Log in to View Saved Games'}
@@ -52,36 +161,35 @@ const GameHub: React.FC<{ onSelect: (type: GameType) => void, onViewLibrary: () 
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 {games.map((game) => (
-                    <button 
-                        key={game.type}
-                        onClick={() => onSelect(game.type)}
-                        className="flex flex-col items-center p-8 bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 transition-all transform hover:-translate-y-2 text-center group"
-                    >
-                        <div className="w-20 h-20 bg-brand-yellow rounded-full flex items-center justify-center mb-6 text-slate-800 group-hover:scale-110 transition-transform">
-                            {game.icon}
-                        </div>
-                        <h3 className="font-display text-xl font-bold text-slate-800 mb-3">{game.type}</h3>
-                        <p className="text-slate-500 text-sm">{game.desc}</p>
-                    </button>
+                    <GameCard key={game.type} game={game} onSelect={onSelect} />
                 ))}
             </div>
 
             {/* AI Chatbot Teaser */}
-            <div className="mt-20 bg-brand-blue rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl shadow-sky-100">
-                <div className="md:w-2/3 mb-8 md:mb-0">
-                    <h3 className="font-display text-2xl font-bold text-white mb-4 flex items-center">
-                        <Sparkles className="text-brand-yellow mr-2" /> Create with AI Assistant
-                    </h3>
-                    <p className="text-sky-50 mb-6">
-                        Don't see what you need? Chat with our AI to build a completely custom game structure tailored to your specific lesson plan.
-                    </p>
-                    <div className="flex gap-2">
-                        <input type="text" placeholder="Describe your game idea..." className="flex-1 p-3 rounded-lg border-0 focus:ring-2 focus:ring-brand-yellow outline-none text-slate-800 shadow-inner" />
-                        <button className="bg-brand-yellow text-slate-900 px-6 py-3 rounded-lg font-bold hover:bg-yellow-300 transition-colors shadow-md">Generate</button>
+            <div className="mt-20 bg-brand-blue rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl shadow-sky-100 overflow-hidden relative">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+
+                <div className="md:w-2/3 mb-8 md:mb-0 relative z-10">
+                    <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sky-100 text-xs font-bold uppercase tracking-wider mb-4 border border-white/20">
+                        <Sparkles size={12} className="mr-2 text-brand-yellow" /> AI Assistant
                     </div>
+                    <h3 className="font-display text-3xl font-bold text-white mb-4">
+                        Can't decide? Let AI help you.
+                    </h3>
+                    <p className="text-sky-100 mb-8 text-lg max-w-xl leading-relaxed">
+                        Describe your lesson topic, student level, or learning goals, and our AI will recommend the perfect game format and generate content for you instantly.
+                    </p>
+                    <button className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center">
+                        <Sparkles size={20} className="mr-2" /> Open AI Assistant
+                    </button>
                 </div>
-                <div className="md:w-1/3 flex justify-center">
-                     <img src="https://picsum.photos/seed/robot/200/200" alt="AI Robot" className="rounded-full border-4 border-white/20 shadow-lg" />
+                <div className="md:w-1/3 flex justify-center relative z-10">
+                     <div className="relative">
+                        <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
+                        <img src="https://picsum.photos/seed/robot/300/300" alt="AI Robot" className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-64 h-64 object-cover" />
+                     </div>
                 </div>
             </div>
         </div>

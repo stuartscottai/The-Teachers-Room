@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
@@ -55,7 +56,9 @@ const createDartboardTexture = () => {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
+
     const cx = size / 2;
     const cy = size / 2;
     const radius = size / 2 - 80; 
@@ -143,7 +146,8 @@ const createWallTexture = () => {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Texture();
     
     // Base Cream Color
     ctx.fillStyle = '#fdf6e3'; 

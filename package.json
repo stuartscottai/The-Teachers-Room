@@ -21,7 +21,8 @@
     "three-stdlib": "2.30.4",
     "@react-three/fiber": "8.17.6",
     "@react-three/drei": "9.112.0",
-    "maath": "0.10.8"
+    "maath": "0.10.8",
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -2,6 +2,24 @@
 import { GeneratedGame, GeneratedWorksheet } from "../types";
 import { supabase } from "../services/supabase";
 
+// --- ASSET HELPERS ---
+export const resolvePath = (path: string) => {
+    // If path is external (http/https), return as is
+    if (path.startsWith('http')) return path;
+    
+    // Fix: Cast import.meta to any to avoid Property 'env' does not exist on type 'ImportMeta' error if types are missing
+    // Get base URL from Vite env (defaults to /)
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    
+    // Clean path (remove leading slash)
+    const relativePath = path.startsWith('/') ? path.slice(1) : path;
+    
+    // Clean base (ensure trailing slash)
+    const cleanBase = base.endsWith('/') ? base : `${base}/`;
+    
+    return `${cleanBase}${relativePath}`;
+};
+
 // --- AUDIO UTILS (Web Audio API) ---
 // Singleton AudioContext to prevent "Max AudioContexts" error
 let audioCtx: AudioContext | null = null;

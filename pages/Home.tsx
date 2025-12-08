@@ -1,7 +1,46 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square } from 'lucide-react';
+import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5 } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
+import { resolvePath } from '../utils/gameUtils';
+
+// Robust Card for Trending Games
+const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: string, icon: React.ReactNode, color: string } }> = ({ game }) => {
+    const [imgError, setImgError] = useState(false);
+
+    return (
+        <Link to="/games" className="group block h-full">
+            <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
+                <div className={`h-32 relative overflow-hidden shrink-0 ${imgError ? `${game.color}` : 'bg-slate-200'}`}>
+                    {!imgError ? (
+                        <img 
+                            src={resolvePath(game.image)} 
+                            alt={game.title} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                            onError={() => setImgError(true)}
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white/50 relative overflow-hidden">
+                             {/* Fallback Gradient Design */}
+                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+                             <div className="transform scale-150 group-hover:scale-125 transition-transform duration-500 text-white">
+                                {game.icon}
+                             </div>
+                        </div>
+                    )}
+                    
+                    {/* Overlay on hover (only if image loaded) */}
+                    {!imgError && <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />}
+                </div>
+                <div className="p-4 flex-grow">
+                    <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
+                    <p className="text-xs text-slate-400 mt-1">{game.plays} plays this week</p>
+                </div>
+            </div>
+        </Link>
+    );
+};
 
 export const Home: React.FC = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -13,11 +52,11 @@ export const Home: React.FC = () => {
   }, []);
 
   const trendingGames = [
-      { title: 'Jeopardy', plays: '15.2k' },
-      { title: 'Millionaire Maker', plays: '12.8k' },
-      { title: 'Survey Showdown', plays: '10.5k' },
-      { title: 'Trivia Quiz', plays: '9.3k' },
-      { title: 'Snakes and Ladders', plays: '8.1k' }
+      { title: 'Jeopardy', plays: '15.2k', image: 'assets/games/jeopardy.png', icon: <Grid size={40} />, color: 'bg-blue-500' },
+      { title: 'Millionaire Maker', plays: '12.8k', image: 'assets/games/millionaire.png', icon: <Trophy size={40} />, color: 'bg-indigo-600' },
+      { title: 'Survey Showdown', plays: '10.5k', image: 'assets/games/survey.png', icon: <List size={40} />, color: 'bg-emerald-500' },
+      { title: 'Trivia Quiz', plays: '9.3k', image: 'assets/games/trivia.png', icon: <HelpCircle size={40} />, color: 'bg-purple-500' },
+      { title: 'Snakes and Ladders', plays: '8.1k', image: 'assets/games/snakes.png', icon: <Dice5 size={40} />, color: 'bg-orange-500' }
   ];
 
   return (
@@ -147,18 +186,7 @@ export const Home: React.FC = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                 {trendingGames.map((game, idx) => (
-                    <Link to="/games" key={idx} className="group block">
-                        <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
-                            <div className="h-32 bg-slate-200 relative overflow-hidden shrink-0">
-                                <img src={`https://picsum.photos/seed/trend${idx}/300/200`} alt={game.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />
-                            </div>
-                            <div className="p-4 flex-grow">
-                                <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
-                                <p className="text-xs text-slate-400 mt-1">{game.plays} plays this week</p>
-                            </div>
-                        </div>
-                    </Link>
+                    <TrendingGameCard key={idx} game={game} />
                 ))}
             </div>
         </div>

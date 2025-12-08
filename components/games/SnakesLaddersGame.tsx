@@ -616,7 +616,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             <div className="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center animate-fade-in">
                 <Trophy size={100} className="text-brand-yellow mb-6 animate-bounce" />
                 <h1 className="text-white text-6xl font-black mb-4">WINNER!</h1>
-                <h2 className="text-brand-blue text-4xl font-bold bg-white px-8 py-4 rounded-full mb-8 shadow-xl">
+                <h2 className="text-brand-blue text-4xl font-display font-bold bg-white px-8 py-4 rounded-full mb-8 shadow-xl">
                     {teamNames[currentTeamId]}
                 </h2>
                 <div className="flex gap-4">
