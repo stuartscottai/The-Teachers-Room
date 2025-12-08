@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -270,6 +270,12 @@ const Footer: React.FC = () => {
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
       <Navbar />
