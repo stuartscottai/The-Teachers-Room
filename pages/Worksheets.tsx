@@ -338,6 +338,23 @@ const WORKSHEET_CSS = `
   }
 `;
 
+const SIDEBAR_CSS = `
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+  }
+`;
+
 // --- DATA: GRADE LEVELS ---
 const GRADE_CATEGORIES = {
     'CEFR Levels': ['A1 (Beginner)', 'A2 (Elementary)', 'B1 (Intermediate)', 'B2 (Upper Int)', 'C1 (Advanced)', 'C2 (Proficiency)'],
@@ -942,13 +959,14 @@ const WorksheetBuilder: React.FC<{
         <div className="flex h-[calc(100vh-140px)] bg-slate-50 overflow-hidden relative">
             {/* Sidebar */}
             <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col h-full z-20 shadow-xl">
+                <style>{SIDEBAR_CSS}</style>
                 <div className="p-6 border-b border-slate-100 flex-shrink-0">
                     <h1 className="font-display text-xl font-bold text-slate-800 flex items-center mb-1">
                         <LayoutTemplate className="mr-2 text-brand-accent" size={20} /> Worksheet Config
                     </h1>
                     <p className="text-xs text-slate-500">Configure parameters for AI generation</p>
                 </div>
-                <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6 pb-20">
+                <div className="flex-1 overflow-y-auto sidebar-scrollbar p-6 space-y-6 pb-20">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Topic</label>
