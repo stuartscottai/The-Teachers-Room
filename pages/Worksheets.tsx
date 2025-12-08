@@ -1,4 +1,4 @@
-
+// ... (imports remain the same)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon } from 'lucide-react';
@@ -363,6 +363,8 @@ const GRADE_CATEGORIES = {
     'Ages': ['3-5 years', '6-8 years', '9-11 years', '12-14 years', '15-18 years', 'Adults']
 };
 
+// ... (GradeSelector, PageGuides, EditablePreview, WorksheetBuilder, WorksheetLibrary, CommunityWorksheets components remain largely the same, imports included above)
+
 // --- COMPONENT: GRADE SELECTOR ---
 const GradeSelector: React.FC<{ value: string, onChange: (val: string) => void }> = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -467,7 +469,7 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
     const internalRef = useRef<HTMLDivElement>(null);
     React.useImperativeHandle(ref, () => internalRef.current as HTMLDivElement);
     const resizeStartRef = useRef<{x: number, width: number} | null>(null);
-    const [isResizing, setIsResizing] = useState(false); // New state to control resize listeners
+    const [isResizing, setIsResizing] = useState(false);
 
     const updatePageBreaks = useCallback(() => {
         if (!internalRef.current) return;
@@ -488,7 +490,6 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
     }, []);
 
     useEffect(() => {
-        // Sync HTML content to the editable div
         const contentDiv = internalRef.current?.querySelector('.ws-content');
         if (contentDiv && htmlContent) {
             if (contentDiv.innerHTML !== htmlContent) {
@@ -518,12 +519,11 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
         setTimeout(updatePageBreaks, 100);
     };
 
-    // Resize Logic
     const handleResizeStart = (e: React.MouseEvent) => {
         e.stopPropagation();
-        e.preventDefault(); // Prevent text selection
+        e.preventDefault(); 
         resizeStartRef.current = { x: e.clientX, width: logoWidth };
-        setIsResizing(true); // Trigger effect
+        setIsResizing(true);
     };
 
     useEffect(() => {
@@ -1321,30 +1321,33 @@ export const Worksheets: React.FC = () => {
         <div className="min-h-screen bg-slate-50 flex flex-col">
             <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                        <h1 className="font-display text-2xl font-bold text-slate-800 flex items-center">
-                            <FileText className="mr-2 text-brand-yellow" /> Worksheet Generator
-                        </h1>
+                    <div className="text-center md:text-left">
+                        <h1 className="font-display text-3xl font-bold text-slate-800 mb-1">Worksheet Builder</h1>
+                        <p className="text-slate-500 text-sm">Create, edit, and print educational resources.</p>
                     </div>
                     
-                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                    {/* Consistent Tabs Styling from Games Hub */}
+                    <div className="bg-white p-1.5 rounded-full flex shadow-md border border-slate-100 gap-1">
                         <button 
                             onClick={() => setActiveTab('create')}
-                            className={`px-4 py-2 rounded-md text-sm font-bold flex items-center transition-all ${activeTab === 'create' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                                ${activeTab === 'create' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
-                            <Sparkles size={16} className="mr-2" /> Create
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('library')}
-                            className={`px-4 py-2 rounded-md text-sm font-bold flex items-center transition-all ${activeTab === 'library' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Library size={16} className="mr-2" /> My Library
+                            <Sparkles size={16} /> Create
                         </button>
                         <button 
                             onClick={() => setActiveTab('community')}
-                            className={`px-4 py-2 rounded-md text-sm font-bold flex items-center transition-all ${activeTab === 'community' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                                ${activeTab === 'community' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
-                            <Globe size={16} className="mr-2" /> Community
+                            <Globe size={16} /> Community
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('library')}
+                            className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                                ${activeTab === 'library' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                        >
+                            <Library size={16} /> My Library
                         </button>
                     </div>
                 </div>
