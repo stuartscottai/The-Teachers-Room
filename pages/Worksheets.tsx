@@ -1,3 +1,4 @@
+
 // ... (imports remain the same)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -962,7 +963,7 @@ const WorksheetBuilder: React.FC<{
     };
 
     return (
-        <div className="flex h-[calc(100vh-140px)] bg-slate-50 overflow-hidden relative">
+        <div className="flex h-full bg-slate-50 overflow-hidden relative">
             {/* Sidebar */}
             <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col h-full z-20 shadow-xl">
                 <style>{SIDEBAR_CSS}</style>
@@ -1337,15 +1338,16 @@ export const Worksheets: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
-            <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+            {/* Header - EXACT MATCH of Games.tsx GameHub structure */}
+            <div className="max-w-7xl mx-auto px-4 py-8 w-full shrink-0">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                     <div className="text-center md:text-left">
-                        <h1 className="font-display text-3xl font-bold text-slate-800 mb-1">Worksheet Builder</h1>
-                        <p className="text-slate-500 text-sm">Create, edit, and print educational resources.</p>
+                        <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">Worksheet Builder</h1>
+                        <p className="text-slate-500">Create, edit, and print educational resources.</p>
                     </div>
                     
-                    {/* Consistent Tabs Styling from Games Hub */}
+                    {/* Tabs */}
                     <div className="bg-white p-1.5 rounded-full flex shadow-md border border-slate-100 gap-1">
                         <button 
                             onClick={() => setActiveTab('create')}
@@ -1372,17 +1374,20 @@ export const Worksheets: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            {/* Content Area - Filling remaining space */}
+            <div className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto w-full px-4 pb-8">
                 {activeTab === 'create' ? (
-                    <WorksheetBuilder 
-                        config={config} 
-                        setConfig={setConfig} 
-                        generatedWs={generatedWs} 
-                        setGeneratedWs={setGeneratedWs}
-                        onLoad={() => {}} 
-                    />
+                    <div className="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col relative"> 
+                        <WorksheetBuilder 
+                            config={config} 
+                            setConfig={setConfig} 
+                            generatedWs={generatedWs} 
+                            setGeneratedWs={setGeneratedWs}
+                            onLoad={() => {}} 
+                        />
+                    </div>
                 ) : (
-                    <div className="h-full overflow-y-auto p-6 max-w-7xl mx-auto w-full">
+                    <div className="h-full overflow-y-auto">
                         {activeTab === 'library' && <WorksheetLibrary onLoad={handleLoad} />}
                         {activeTab === 'community' && <CommunityWorksheets onLoad={handleLoad} />}
                     </div>
