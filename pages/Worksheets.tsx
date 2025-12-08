@@ -1,7 +1,7 @@
-// ... (imports remain the same)
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -468,6 +468,7 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
     React.useImperativeHandle(ref, () => internalRef.current as HTMLDivElement);
     const resizeStartRef = useRef<{x: number, width: number} | null>(null);
     const [isResizing, setIsResizing] = useState(false);
+    const breakTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const updatePageBreaks = useCallback(() => {
         if (!internalRef.current) return;
@@ -514,7 +515,12 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         if (onInput) onInput(e);
-        setTimeout(updatePageBreaks, 100);
+        
+        // Debounce expensive page break calculation
+        if (breakTimeoutRef.current) clearTimeout(breakTimeoutRef.current);
+        breakTimeoutRef.current = setTimeout(() => {
+            updatePageBreaks();
+        }, 500);
     };
 
     const handleResizeStart = (e: React.MouseEvent) => {
@@ -946,6 +952,11 @@ const WorksheetBuilder: React.FC<{
         if (contentDiv) addToHistory(contentDiv.innerHTML);
     };
 
+    // Helper to prevent losing focus when clicking tool buttons
+    const preventLoss = (e: React.MouseEvent) => {
+        e.preventDefault();
+    };
+
     const handlePreviewClick = (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).classList.contains('delete-break-btn')) {
             (e.target as HTMLElement).closest('.forced-page-break')?.remove();
@@ -1094,13 +1105,43 @@ const WorksheetBuilder: React.FC<{
                                 {/* Rich Text Controls (Visible only in Edit Mode) */}
                                 {isEditing && (
                                     <div className="flex items-center gap-1 bg-white rounded-lg border border-indigo-200 p-1 mx-2 shadow-sm animate-fade-in">
-                                        <button onClick={() => formatSelection('bold')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Bold"><Bold size={16} /></button>
-                                        <button onClick={() => formatSelection('italic')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Italic"><Italic size={16} /></button>
-                                        <button onClick={() => formatSelection('underline')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Underline"><Underline size={16} /></button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('bold')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Bold"><Bold size={16} /></button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('italic')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Italic"><Italic size={16} /></button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('underline')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Underline"><Underline size={16} /></button>
+                                        
                                         <div className="w-px h-4 bg-slate-200 mx-1"></div>
-                                        <button onClick={() => formatSelection('fontSize', '1')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-xs font-bold" title="Small Text">A-</button>
-                                        <button onClick={() => formatSelection('fontSize', '3')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-sm font-bold" title="Normal Text">A</button>
-                                        <button onClick={() => formatSelection('fontSize', '5')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-lg font-bold" title="Large Text">A+</button>
+                                        
+                                        {/* Alignment */}
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('justifyLeft')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Align Left"><AlignLeft size={16} /></button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('justifyCenter')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Align Center"><AlignCenter size={16} /></button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('justifyRight')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded" title="Align Right"><AlignRight size={16} /></button>
+
+                                        <div className="w-px h-4 bg-slate-200 mx-1"></div>
+
+                                        {/* Font Family Selection (Buttons to preserve selection) */}
+                                        <div className="flex bg-slate-100 rounded overflow-hidden mr-1">
+                                            <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Quicksand')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600" title="Standard">Sans</button>
+                                            <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Times New Roman')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600 font-serif" title="Serif">Serif</button>
+                                            <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Fredoka')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600" title="Fun" style={{fontFamily: 'Fredoka'}}>Fun</button>
+                                            <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Courier New')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600 font-mono" title="Code">Mono</button>
+                                        </div>
+
+                                        {/* Color Picker */}
+                                        <div className="relative flex items-center justify-center w-6 h-6 rounded overflow-hidden cursor-pointer hover:ring-2 ring-indigo-200 ml-1" title="Text Color">
+                                            <Palette size={14} className="absolute pointer-events-none text-slate-500" />
+                                            <input 
+                                                type="color" 
+                                                onMouseDown={preventLoss}
+                                                onChange={(e) => formatSelection('foreColor', e.target.value)} 
+                                                className="w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        <div className="w-px h-4 bg-slate-200 mx-1"></div>
+
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '1')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-xs font-bold" title="Small Text">A-</button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '3')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-sm font-bold" title="Normal Text">A</button>
+                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '5')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-lg font-bold" title="Large Text">A+</button>
                                     </div>
                                 )}
 
@@ -1118,19 +1159,19 @@ const WorksheetBuilder: React.FC<{
                                 </div>
 
                                 <div className="flex items-center gap-1 bg-slate-50 rounded-lg border border-slate-200 p-1 mx-2">
-                                    <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Undo size={16} /></button>
-                                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Redo size={16} /></button>
+                                    <button onMouseDown={preventLoss} onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Undo size={16} /></button>
+                                    <button onMouseDown={preventLoss} onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Redo size={16} /></button>
                                 </div>
-                                {isEditing && <button onClick={insertPageBreak} className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100" title="Insert Page Break"><Scissors size={16} className="mr-2 transform rotate-90" /> Break</button>}
+                                {isEditing && <button onMouseDown={preventLoss} onClick={insertPageBreak} className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100" title="Insert Page Break"><Scissors size={16} className="mr-2 transform rotate-90" /> Break</button>}
                                 <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
-                                    <button onClick={() => setFontSize(Math.max(8, fontSize - 0.5))} className="p-1 hover:bg-slate-200 rounded"><Minus size={14} /></button>
+                                    <button onMouseDown={preventLoss} onClick={() => setFontSize(Math.max(8, fontSize - 0.5))} className="p-1 hover:bg-slate-200 rounded"><Minus size={14} /></button>
                                     <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{fontSize.toFixed(1)}pt</span>
-                                    <button onClick={() => setFontSize(Math.min(24, fontSize + 0.5))} className="p-1 hover:bg-slate-200 rounded"><Plus size={14} /></button>
+                                    <button onMouseDown={preventLoss} onClick={() => setFontSize(Math.min(24, fontSize + 0.5))} className="p-1 hover:bg-slate-200 rounded"><Plus size={14} /></button>
                                 </div>
                                 <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
-                                    <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomOut size={14} /></button>
+                                    <button onMouseDown={preventLoss} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomOut size={14} /></button>
                                     <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{Math.round(zoom * 100)}%</span>
-                                    <button onClick={() => setZoom(Math.min(1.5, zoom + 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomIn size={14} /></button>
+                                    <button onMouseDown={preventLoss} onClick={() => setZoom(Math.min(1.5, zoom + 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomIn size={14} /></button>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
