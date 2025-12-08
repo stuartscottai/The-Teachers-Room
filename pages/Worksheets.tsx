@@ -1,4 +1,3 @@
-
 // ... (imports remain the same)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -1354,7 +1353,7 @@ export const Worksheets: React.FC = () => {
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
                                 ${activeTab === 'create' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
-                            <Sparkles size={16} /> Create
+                            <Sparkles size={16} /> Create New
                         </button>
                         <button 
                             onClick={() => setActiveTab('community')}
