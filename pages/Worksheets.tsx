@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,11 +9,6 @@ import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCo
 
 // --- STANDARD WORKSHEET STYLESHEET ---
 const WORKSHEET_CSS = `
-  /* 
-     CRITICAL: Set @page margins to 0. 
-     We control ALL spacing via padding on .ws-container.
-     This ensures Screen and Print look identical.
-  */
   @page { 
     size: A4; 
     margin: 0mm; 
@@ -22,7 +17,7 @@ const WORKSHEET_CSS = `
   html, body {
     margin: 0;
     padding: 0;
-    background: #e2e8f0; /* Grey background for app context */
+    background: #e2e8f0; 
     -webkit-print-color-adjust: exact; 
     print-color-adjust: exact;
   }
@@ -32,24 +27,51 @@ const WORKSHEET_CSS = `
     color: #1e293b; 
     line-height: 1.5; 
     text-rendering: optimizeLegibility;
-    
-    /* Explicit A4 sizing */
     width: 210mm; 
-    /* Visual safety buffer height */
-    min-height: 275mm;
-    
-    /* 
-       UNIFIED PADDING: 20mm
-       This padding acts as the "Margin" for both Screen and Print.
-       Since @page margin is 0, this is the only whitespace.
-    */
-    padding: 20mm; 
-    
+    min-height: 297mm;
+    padding: 20mm; /* Consistent padding for content */
     background: white;
     box-sizing: border-box;
     margin: 0 auto;
     position: relative;
     word-wrap: break-word;
+  }
+
+  /* Draggable Logo Style */
+  .ws-logo-container {
+    position: absolute;
+    z-index: 50;
+    cursor: grab;
+    user-select: none;
+    display: inline-block;
+  }
+  .ws-logo-container:active {
+    cursor: grabbing;
+  }
+  .ws-logo {
+    width: 100%;
+    height: auto;
+    display: block;
+    pointer-events: none;
+  }
+  /* Resize Handle */
+  .ws-resize-handle {
+    width: 12px;
+    height: 12px;
+    background: #3b82f6;
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    cursor: se-resize;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 60;
+    display: none; /* Hidden by default, shown on hover */
+  }
+  .ws-logo-container:hover .ws-resize-handle,
+  .ws-logo-container:active .ws-resize-handle {
+    display: block;
   }
 
   /* Two Column Layout Mode */
@@ -59,12 +81,11 @@ const WORKSHEET_CSS = `
     column-rule: 1px solid #f1f5f9;
   }
   
-  /* Elements that span across columns */
-  .ws-container.two-column > .ws-header,
-  .ws-container.two-column > .ws-title,
-  .ws-container.two-column > .ws-instructions,
-  .ws-container.two-column > .ws-answer-key,
-  .ws-container.two-column > .forced-page-break {
+  .ws-container.two-column > .ws-content > .ws-header,
+  .ws-container.two-column > .ws-content > .ws-title,
+  .ws-container.two-column > .ws-content > .ws-instructions,
+  .ws-container.two-column > .ws-content > .ws-answer-key,
+  .ws-container.two-column > .ws-content > .forced-page-break {
     column-span: all;
     -webkit-column-span: all;
   }
@@ -74,27 +95,23 @@ const WORKSHEET_CSS = `
     display: flex; 
     justify-content: space-between; 
     align-items: center;
-    margin-bottom: 2rem; /* Increased spacing */
-    padding: 0.5rem 1rem; 
-    border: 2px solid #cbd5e1; 
-    border-radius: 0.5rem; 
-    background-color: #f8fafc; 
+    margin-bottom: 2rem; 
+    padding-bottom: 0.5rem;
     font-size: 0.9em;
     break-inside: avoid;
   }
   .ws-field { 
     font-weight: 600; 
     color: #475569; 
-    min-width: 120px;
-    /* Removed border-bottom as requested */
+    min-width: 150px;
     display: inline-block;
-    padding-bottom: 0.2rem;
+    /* Removed border-bottom as per request */
   }
 
   /* Typography */
   .ws-title { 
     font-family: 'Fredoka', sans-serif; 
-    font-size: 20pt; /* Reduced font size */
+    font-size: 20pt; 
     font-weight: 700; 
     text-align: center; 
     color: #0f172a; 
@@ -118,12 +135,12 @@ const WORKSHEET_CSS = `
 
   /* Sections */
   .ws-section { 
-    margin-bottom: 2.5rem; /* Increased spacing between activities */
+    margin-bottom: 2.5rem; 
     display: block;
     break-inside: auto; 
   }
   .ws-section p {
-    margin-bottom: 1rem; /* Ensure space between instructions and activity */
+    margin-bottom: 1rem; 
   }
   .ws-section-title { 
     font-family: 'Fredoka', sans-serif; 
@@ -162,7 +179,7 @@ const WORKSHEET_CSS = `
     page-break-inside: avoid;
   }
   
-  /* Answer Key - ALWAYS ON SEPARATE PAGE */
+  /* Answer Key */
   .ws-answer-key { 
     page-break-before: always;
     break-before: page;
@@ -212,7 +229,6 @@ const WORKSHEET_CSS = `
     margin: 0;
     border: none;
     display: flex;
-    /* Hatched Pattern for Screen */
     background-image: repeating-linear-gradient(
       45deg,
       #fff7ed,
@@ -232,18 +248,15 @@ const WORKSHEET_CSS = `
 
   /* Print Overrides */
   @media print {
-    /* FORCE HTML/BODY WHITE to remove grey background */
     html, body { 
         background: white !important; 
         background-color: white !important; 
     }
     
     .ws-container { 
-        /* Keep dimensions for print to match screen */
         width: 100% !important;
         max-width: none !important;
         margin: 0 !important;
-        /* PADDING IS KEY: It provides the margin for the PDF */
         padding: 20mm !important; 
         box-shadow: none; 
         background-image: none !important;
@@ -252,7 +265,6 @@ const WORKSHEET_CSS = `
         min-height: 0;
     }
     
-    /* Ensure Answer Key background is white */
     .ws-answer-key {
         background-color: white !important;
     }
@@ -268,7 +280,8 @@ const WORKSHEET_CSS = `
     .forced-page-break::after,
     .delete-break-btn,
     .break-line,
-    .break-label {
+    .break-label,
+    .ws-resize-handle {
         display: none !important;
     }
   }
@@ -283,15 +296,11 @@ const WORKSHEET_CSS = `
         
         /* 
            VISUAL GUIDES:
-           1. Blue Dashed Line: Safe Print Limit (275mm)
-           2. Red Tint Zone: Bottom ~22mm (Danger Zone).
+           Blue Dashed Line: Page Break Markers (297mm)
         */
         background-image: 
-            /* Page Break Line (Blue) at 275mm */
-            linear-gradient(to bottom, transparent calc(275mm - 2px), #3b82f6 calc(275mm - 2px), #3b82f6 275mm),
-            /* Bottom Margin Warning Zone (Red tint) */
-            linear-gradient(to bottom, transparent 275mm, rgba(254, 202, 202, 0.2) 275mm, rgba(254, 202, 202, 0.2) 297mm);
-        background-size: 100% 297mm; /* Repeats exactly every A4 height */
+            linear-gradient(to bottom, transparent calc(297mm - 1px), #3b82f6 calc(297mm - 1px), #3b82f6 297mm);
+        background-size: 100% 297mm; 
         background-repeat: repeat-y;
      }
      
@@ -416,10 +425,6 @@ const PageGuides: React.FC<{ contentHeight: number; zoom: number }> = ({ content
                     style={{ height: '297mm' }}
                 >
                     <span className="bg-slate-100 px-2 py-1 rounded shadow-sm mb-2">Page {i + 1}</span>
-                    {/* Danger Zone Label */}
-                    <span className="absolute right-2 bottom-[10mm] text-[9px] text-red-400 font-bold uppercase opacity-80 bg-white/80 px-1 rounded">Danger Zone</span>
-                    {/* Visual Line for 275mm (22mm from bottom of 297mm page) */}
-                    <div className="absolute right-0 w-12 border-b border-red-200" style={{ bottom: '22mm' }}></div>
                 </div>
              ))}
         </div>
@@ -433,12 +438,19 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
     zoom: number,
     isEditing: boolean,
     layoutMode: 'single' | 'columns',
+    logoUrl: string | null,
+    logoPos: {x: number, y: number},
+    logoWidth: number,
+    onLogoDrag: (e: React.MouseEvent) => void,
+    onLogoResize: (width: number) => void,
     onHeightChange: (h: number) => void,
     onInput?: (e: React.FormEvent<HTMLDivElement>) => void,
     onClick?: (e: React.MouseEvent) => void
-}>(({ htmlContent, fontSize, zoom, isEditing, layoutMode, onHeightChange, onInput, onClick }, ref) => {
+}>(({ htmlContent, fontSize, zoom, isEditing, layoutMode, logoUrl, logoPos, logoWidth, onLogoDrag, onLogoResize, onHeightChange, onInput, onClick }, ref) => {
     const internalRef = useRef<HTMLDivElement>(null);
     React.useImperativeHandle(ref, () => internalRef.current as HTMLDivElement);
+    const resizeStartRef = useRef<{x: number, width: number} | null>(null);
+    const [isResizing, setIsResizing] = useState(false); // New state to control resize listeners
 
     const updatePageBreaks = useCallback(() => {
         if (!internalRef.current) return;
@@ -459,9 +471,11 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
     }, []);
 
     useEffect(() => {
-        if (internalRef.current && htmlContent) {
-            if (internalRef.current.innerHTML !== htmlContent) {
-                internalRef.current.innerHTML = htmlContent;
+        // Sync HTML content to the editable div
+        const contentDiv = internalRef.current?.querySelector('.ws-content');
+        if (contentDiv && htmlContent) {
+            if (contentDiv.innerHTML !== htmlContent) {
+                contentDiv.innerHTML = htmlContent;
             }
             requestAnimationFrame(updatePageBreaks);
         }
@@ -487,16 +501,63 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
         setTimeout(updatePageBreaks, 100);
     };
 
+    // Resize Logic
+    const handleResizeStart = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault(); // Prevent text selection
+        resizeStartRef.current = { x: e.clientX, width: logoWidth };
+        setIsResizing(true); // Trigger effect
+    };
+
+    useEffect(() => {
+        if (!isResizing) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (resizeStartRef.current) {
+                const deltaX = (e.clientX - resizeStartRef.current.x) / zoom;
+                const newWidth = Math.max(50, resizeStartRef.current.width + deltaX);
+                onLogoResize(newWidth);
+            }
+        };
+        const handleMouseUp = () => {
+            setIsResizing(false);
+            resizeStartRef.current = null;
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+    }, [isResizing, zoom, onLogoResize]); 
+
     return (
         <div 
             ref={internalRef}
-            className={`ws-container ${layoutMode === 'columns' ? 'two-column' : ''} outline-none transition-all ${isEditing ? 'ring-2 ring-blue-200 cursor-text' : ''}`}
+            className={`ws-container ${layoutMode === 'columns' ? 'two-column' : ''} outline-none transition-all`}
             style={{ fontSize: `${fontSize}pt`, transform: `scale(${zoom})` }}
-            contentEditable={isEditing}
-            suppressContentEditableWarning={true}
-            onInput={handleInput}
             onClick={onClick}
-        />
+        >
+            {logoUrl && (
+                <div 
+                    className="ws-logo-container" 
+                    style={{ left: logoPos.x, top: logoPos.y, width: logoWidth }}
+                    onMouseDown={onLogoDrag}
+                >
+                    <img src={logoUrl} className="ws-logo" alt="Worksheet Logo" />
+                    <div className="ws-resize-handle" onMouseDown={handleResizeStart} />
+                </div>
+            )}
+            <div 
+                className={`ws-content ${isEditing ? 'ring-2 ring-blue-200 cursor-text' : ''}`}
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onInput={handleInput}
+                dangerouslySetInnerHTML={{ __html: htmlContent }} 
+            />
+        </div>
     );
 }), (prev, next) => {
     return (
@@ -504,7 +565,11 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
         prev.fontSize === next.fontSize &&
         prev.zoom === next.zoom && 
         prev.isEditing === next.isEditing &&
-        prev.layoutMode === next.layoutMode
+        prev.layoutMode === next.layoutMode &&
+        prev.logoUrl === next.logoUrl &&
+        prev.logoPos.x === next.logoPos.x &&
+        prev.logoPos.y === next.logoPos.y && 
+        prev.logoWidth === next.logoWidth
     );
 });
 
@@ -514,7 +579,7 @@ const WorksheetBuilder: React.FC<{
     setConfig: React.Dispatch<React.SetStateAction<WorksheetConfig>>,
     generatedWs: GeneratedWorksheet | null,
     setGeneratedWs: React.Dispatch<React.SetStateAction<GeneratedWorksheet | null>>,
-    onLoad: () => void // Callback to switch tab if needed (not used much here but good for consistency)
+    onLoad: () => void
 }> = ({ config, setConfig, generatedWs, setGeneratedWs }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
@@ -529,8 +594,15 @@ const WorksheetBuilder: React.FC<{
     const [history, setHistory] = useState<string[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
     const [historyTimeout, setHistoryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-    const [isPublic, setIsPublic] = useState(false);
+    const [isPublic, setIsPublic] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    
+    // Logo State
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [logoPos, setLogoPos] = useState({ x: 20, y: 20 });
+    const [logoWidth, setLogoWidth] = useState(150);
+    const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+    const logoDragOffset = useRef({ x: 0, y: 0 });
 
     const availableActivities: { type: ActivityType, label: string }[] = [
         { type: 'multiple-choice', label: 'Multiple Choice' },
@@ -539,6 +611,7 @@ const WorksheetBuilder: React.FC<{
         { type: 'gap-fill', label: 'Gap Fill' },
         { type: 'sentence-transform', label: 'Sentence Transform' },
         { type: 'word-formation', label: 'Word Formation' },
+        { type: 'open-ended', label: 'Open Ended' },
     ];
 
     // Sync visibility state from loaded config
@@ -568,6 +641,65 @@ const WorksheetBuilder: React.FC<{
             clearTimeout(timer);
         }
     }, [generatedWs]);
+
+    // Logo Dragging Logic
+    const handleLogoMouseDown = (e: React.MouseEvent) => {
+        if (!logoUrl || (e.target as HTMLElement).classList.contains('ws-resize-handle')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingLogo(true);
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        logoDragOffset.current = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    };
+
+    const handleWindowMouseMove = useCallback((e: MouseEvent) => {
+        if (isDraggingLogo && contentRef.current) {
+            const containerRect = contentRef.current.getBoundingClientRect();
+            // Calculate relative position accounting for Zoom
+            const rawX = e.clientX - containerRect.left - logoDragOffset.current.x;
+            const rawY = e.clientY - containerRect.top - logoDragOffset.current.y;
+            
+            setLogoPos({
+                x: rawX / zoom,
+                y: rawY / zoom
+            });
+        }
+    }, [isDraggingLogo, zoom]);
+
+    const handleWindowMouseUp = useCallback(() => {
+        setIsDraggingLogo(false);
+    }, []);
+
+    useEffect(() => {
+        if (isDraggingLogo) {
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', handleWindowMouseUp);
+        } else {
+            window.removeEventListener('mousemove', handleWindowMouseMove);
+            window.removeEventListener('mouseup', handleWindowMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleWindowMouseMove);
+            window.removeEventListener('mouseup', handleWindowMouseUp);
+        };
+    }, [isDraggingLogo, handleWindowMouseMove, handleWindowMouseUp]);
+
+    // Handle Logo Upload
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setLogoUrl(ev.target?.result as string);
+                setLogoPos({ x: 20, y: 20 }); // Reset pos
+            };
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+    };
 
     // Add Menu Click Outside
     useEffect(() => {
@@ -652,7 +784,6 @@ const WorksheetBuilder: React.FC<{
                 }
             }
             setUploadedFiles(prev => [...prev, ...newFiles]);
-            // Reset input value to allow re-uploading same file if deleted
             e.target.value = '';
         }
     };
@@ -663,7 +794,7 @@ const WorksheetBuilder: React.FC<{
 
     // Activity Management
     const addActivity = (type: ActivityType) => {
-        const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform'].includes(type);
+        const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform', 'open-ended'].includes(type);
         setConfig(prev => ({
             ...prev,
             activities: [...prev.activities, { 
@@ -730,7 +861,10 @@ const WorksheetBuilder: React.FC<{
         finally { setLoading(false); }
     };
 
-    const getCurrentContent = () => contentRef.current ? contentRef.current.innerHTML : (generatedWs?.content || '');
+    const getCurrentContent = () => {
+        const contentDiv = contentRef.current?.querySelector('.ws-content');
+        return contentDiv ? contentDiv.innerHTML : (generatedWs?.content || '');
+    };
 
     const handleSave = () => {
         if (!user) { alert("Please log in to save."); return; }
@@ -750,29 +884,41 @@ const WorksheetBuilder: React.FC<{
         if (!generatedWs) return;
         const printWindow = window.open('', '_blank');
         if (!printWindow) { alert("Pop-up blocked!"); return; }
+        
+        let logoHTML = '';
+        if (logoUrl) {
+            logoHTML = `<img src="${logoUrl}" class="ws-logo" style="position: absolute; left: ${logoPos.x}px; top: ${logoPos.y}px; width: ${logoWidth}px;" />`;
+        }
+
         const htmlContent = `
             <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${generatedWs.title}</title>
             <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
             <style>${WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
-            <body><div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">${getCurrentContent()}</div>
+            <body><div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">
+                ${logoHTML}
+                <div class="ws-content">
+                ${getCurrentContent()}
+                </div>
+            </div>
             <script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); }, 500); });</script></body></html>`;
         printWindow.document.open(); printWindow.document.write(htmlContent); printWindow.document.close();
     };
 
     const insertPageBreak = () => {
-        if (!isEditing || !contentRef.current) return;
-        contentRef.current.focus();
+        const contentDiv = contentRef.current?.querySelector('.ws-content') as HTMLElement;
+        if (!isEditing || !contentDiv) return;
+        contentDiv.focus();
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
-            if (contentRef.current.contains(range.commonAncestorContainer)) {
+            if (contentDiv.contains(range.commonAncestorContainer)) {
                 const div = document.createElement('div');
                 div.className = 'forced-page-break';
                 div.contentEditable = 'false';
                 div.innerHTML = `<span class="break-label">PAGE BREAK</span><button class="delete-break-btn" title="Remove">×</button>`;
                 range.deleteContents(); range.insertNode(div); range.setStartAfter(div); range.setEndAfter(div);
                 selection.removeAllRanges(); selection.addRange(range);
-                addToHistory(contentRef.current.innerHTML);
+                addToHistory(contentDiv.innerHTML);
             }
         }
     };
@@ -780,7 +926,8 @@ const WorksheetBuilder: React.FC<{
     const handlePreviewClick = (e: React.MouseEvent) => {
         if ((e.target as HTMLElement).classList.contains('delete-break-btn')) {
             (e.target as HTMLElement).closest('.forced-page-break')?.remove();
-            if (contentRef.current) addToHistory(contentRef.current.innerHTML);
+            const contentDiv = contentRef.current?.querySelector('.ws-content');
+            if (contentDiv) addToHistory(contentDiv.innerHTML);
         }
     };
 
@@ -807,7 +954,7 @@ const WorksheetBuilder: React.FC<{
                             <label className="block text-xs font-bold text-slate-700 mb-1">Topic</label>
                             <input type="text" value={config.topic} onChange={(e) => setConfig({...config, topic: e.target.value})} placeholder="e.g. Space" className="w-full p-2 rounded border border-slate-200 text-sm focus:ring-1 focus:ring-teal-400 outline-none" />
                         </div>
-                        {/* New Grade Selector */}
+                        {/* Grade Selector */}
                         <GradeSelector value={config.gradeLevel} onChange={(val) => setConfig({...config, gradeLevel: val})} />
                         
                         <div>
@@ -857,7 +1004,7 @@ const WorksheetBuilder: React.FC<{
                             {config.activities.length === 0 && <div className="text-center p-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50"><p className="text-slate-400 text-xs">Add activities below</p></div>}
                             {config.activities.map((act, index) => {
                                 const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
-                                const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform'].includes(act.type);
+                                const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform', 'open-ended'].includes(act.type);
                                 return (
                                     <div key={act.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index)} className="border border-teal-200 bg-teal-50/30 rounded p-2 relative group cursor-move hover:shadow-sm transition-all active:cursor-grabbing">
                                         <div className="flex items-center justify-between mb-1">
@@ -919,6 +1066,20 @@ const WorksheetBuilder: React.FC<{
                         <div className="flex flex-wrap gap-4 justify-between items-center p-4 border-b border-slate-200 bg-white z-10 shadow-sm flex-shrink-0">
                             <div className="flex items-center gap-2 flex-wrap">
                                 <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors ${isEditing ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><Edit size={16} className="mr-2" /> {isEditing ? 'Done' : 'Edit'}</button>
+                                
+                                {/* LOGO UPLOAD BUTTON */}
+                                <div className="relative flex items-center">
+                                    <label className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer" title="Upload Logo">
+                                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                                        <ImageIcon size={16} className="mr-2" /> Logo
+                                    </label>
+                                    {logoUrl && (
+                                        <button onClick={() => setLogoUrl(null)} className="ml-1 p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" title="Remove Logo">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+
                                 <div className="flex items-center gap-1 bg-slate-50 rounded-lg border border-slate-200 p-1 mx-2">
                                     <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Undo size={16} /></button>
                                     <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Redo size={16} /></button>
@@ -952,7 +1113,22 @@ const WorksheetBuilder: React.FC<{
                         <div id="preview-wrapper" className="flex-1 overflow-y-auto overflow-x-auto p-8 flex justify-center bg-slate-100">
                             <div className="relative shadow-xl h-fit">
                                 <PageGuides contentHeight={contentHeight} zoom={zoom} />
-                                <EditablePreview ref={contentRef} htmlContent={generatedWs.content} fontSize={fontSize} zoom={zoom} isEditing={isEditing} layoutMode={config.layout || 'single'} onHeightChange={handleHeightChange} onInput={handleContentInput} onClick={handlePreviewClick} />
+                                <EditablePreview 
+                                    ref={contentRef} 
+                                    htmlContent={generatedWs.content} 
+                                    fontSize={fontSize} 
+                                    zoom={zoom} 
+                                    isEditing={isEditing} 
+                                    layoutMode={config.layout || 'single'} 
+                                    onHeightChange={handleHeightChange} 
+                                    onInput={handleContentInput} 
+                                    onClick={handlePreviewClick}
+                                    logoUrl={logoUrl}
+                                    logoPos={logoPos}
+                                    logoWidth={logoWidth}
+                                    onLogoDrag={handleLogoMouseDown}
+                                    onLogoResize={setLogoWidth}
+                                />
                             </div>
                         </div>
                     </div>
@@ -1099,7 +1275,8 @@ export const Worksheets: React.FC = () => {
         topic: '',
         gradeLevel: '',
         activities: [],
-        layout: 'single'
+        layout: 'single',
+        isPublic: true
     });
     const [generatedWs, setGeneratedWs] = useState<GeneratedWorksheet | null>(null);
 

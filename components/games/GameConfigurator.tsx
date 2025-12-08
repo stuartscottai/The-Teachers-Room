@@ -94,6 +94,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
+            isPublic: true, // Default to Public
             customInstructions: '',
             files: [],
             // Jeopardy

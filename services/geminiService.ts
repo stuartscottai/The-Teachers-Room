@@ -429,7 +429,12 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   If the user provides source files (images/PDFs), analyze them thoroughly and base the worksheet content/questions specifically on that material.
   
   STRICT STYLING RULES (Do NOT use inline CSS. Use these specific class names):
-  1. Header: Wrap the name/date/score block in <div class="ws-header">...</div>. Inside, use <div class="ws-field">Name: ____________</div>.
+  1. Header: Wrap the top block in <div class="ws-header">...</div>. 
+     - Use justify-content-between to separate Name and Date.
+     - Inside, put Name on the left: <div class="ws-field">Name: ____________</div>
+     - Inside, put Date on the right: <div class="ws-field">Date: ____________</div>
+     - CRITICAL: Do NOT add an underline (<u> tag or CSS style) to the words "Name" and "Date" themselves. The dotted lines provided are sufficient.
+     - Do NOT include a Score field unless explicitly requested.
   2. Title: Use <h1 class="ws-title">Title Here</h1>.
   3. Instructions (Main): Use <p class="ws-instructions">...</p> ONLY for the main worksheet intro/description (Centered).
   4. Sections: Wrap distinct activities in <div class="ws-section">.
@@ -443,6 +448,9 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   - If 'columns', avoid wide tables that might break in a narrow column.
   - The CSS handles the actual columns, just provide standard semantic HTML.
   
+  PRIORITY OVERRIDE:
+  If the user's "Additional Instructions" (provided below) specify custom header details (e.g., "Add a class period field", "No header", "Put Title on left"), YOU MUST FOLLOW THE USER'S INSTRUCTIONS instead of the default header rules above.
+
   CONTENT LAYOUT RULES:
   - Follow the EXACT ORDER of activities provided in the prompt.
   - The ANSWER KEY is strictly on a separate page (enforced by CSS).
@@ -458,6 +466,9 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     }
     if (act.type === 'word-formation') {
         details += ` Format: Sentence with gap ________ (ROOT).`;
+    }
+    if (act.type === 'open-ended') {
+        details += ` Format: Question followed by 3-4 underlines or empty lines for students to write answers.`;
     }
     
     if (act.contextType === 'text') {

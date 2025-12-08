@@ -101,7 +101,7 @@ export interface GeneratedGame {
   pubQuizRounds?: JeopardyCategory[]; // Reusing structure: Category = Round
 }
 
-export type ActivityType = 'wordsearch' | 'matching' | 'gap-fill' | 'sentence-transform' | 'multiple-choice' | 'word-formation';
+export type ActivityType = 'wordsearch' | 'matching' | 'gap-fill' | 'sentence-transform' | 'multiple-choice' | 'word-formation' | 'open-ended';
 
 export interface ActivityConfig {
   id: string; // Unique ID for React keys and D&D
