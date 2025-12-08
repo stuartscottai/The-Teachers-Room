@@ -550,6 +550,39 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
 };
 
 export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<{message: string, suggestion?: GameConfig}> => {
+    const settings = getDevSettings();
+
+    // --- EXTERNAL API PATH ---
+    if (settings.useExternalApi) {
+        if (!settings.externalEndpoint) throw new Error("External API enabled but no URL.");
+        
+        try {
+            const response = await fetch(settings.externalEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(settings.apiSecret ? { 'Authorization': `Bearer ${settings.apiSecret}` } : {})
+                },
+                body: JSON.stringify({
+                    action: 'chat_wizard',
+                    message,
+                    history
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(`API Error: ${err}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error("Chat Wizard External Error", error);
+            return { message: "I'm having trouble reaching the server. Please try again later." };
+        }
+    }
+
+    // --- INTERNAL LOCAL PATH ---
     const ai = getClient();
     
     const systemInstruction = `You are "The Teachers' Room AI Assistant", a friendly expert game consultant.
