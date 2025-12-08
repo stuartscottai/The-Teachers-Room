@@ -114,6 +114,7 @@ export interface ActivityConfig {
 }
 
 export interface WorksheetConfig {
+  title?: string; // Optional user-defined title for the worksheet
   topic: string;
   gradeLevel: string;
   customInstructions?: string;

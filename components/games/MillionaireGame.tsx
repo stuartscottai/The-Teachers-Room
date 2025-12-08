@@ -275,6 +275,14 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         }
     };
 
+    // Helper for dynamic answer font size to allow wrapping
+    const getAnswerFontSize = (text: string) => {
+        const len = text.length;
+        if (len > 60) return isFullscreen ? "text-lg md:text-xl leading-tight" : "text-xs md:text-sm leading-tight";
+        if (len > 30) return isFullscreen ? "text-xl md:text-2xl leading-tight" : "text-sm md:text-base leading-tight";
+        return isFullscreen ? "text-3xl md:text-5xl" : "text-xl md:text-3xl"; 
+    }
+
     // Dynamic Container Class - Z-Index 9999 to cover Navbar absolutely
     const containerClass = isFullscreen 
         ? "fixed inset-0 z-[9999] bg-black text-white flex flex-col overflow-hidden h-screen w-screen top-0 left-0"
@@ -303,21 +311,6 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 @keyframes pulse-gold {
                     0%, 100% { text-shadow: 0 0 20px #eab308; transform: scale(1); }
                     50% { text-shadow: 0 0 50px #fff; transform: scale(1.05); }
-                }
-                /* MARQUEE STYLES */
-                @keyframes marquee-scroll {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(-50%); }
-                }
-                .animate-marquee {
-                    display: flex;
-                    width: fit-content;
-                    animation: marquee-scroll 20s linear infinite;
-                    white-space: nowrap;
-                }
-                .marquee-mask {
-                    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-                    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
                 }
                 `}
             </style>
@@ -491,20 +484,9 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     <span className={`text-yellow-500 mr-4 group-hover:text-white transition-colors font-display ${isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl'}`}>
                                         {['A', 'B', 'C', 'D'][idx]}:
                                     </span>
-                                    
-                                    {/* Scrolling Text Logic for Answers > 25 chars */}
-                                    {opt.length > 25 ? (
-                                        <div className="flex-1 overflow-hidden relative h-full flex items-center mask-linear-fade marquee-mask">
-                                            <div className="animate-marquee">
-                                                <span className="drop-shadow-sm mr-12">{opt}</span>
-                                                <span className="drop-shadow-sm mr-12">{opt}</span>
-                                                {/* 3rd copy for safety on ultra-wide screens */}
-                                                <span className="drop-shadow-sm mr-12">{opt}</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <span className="drop-shadow-sm truncate">{opt}</span>
-                                    )}
+                                    <span className={`drop-shadow-sm w-full leading-tight text-left ${getAnswerFontSize(opt)}`}>
+                                        {opt}
+                                    </span>
                                     
                                     {/* Line connecting to center (Visual Polish) */}
                                     <div className="absolute top-1/2 -left-6 w-6 h-0.5 bg-indigo-500/50 hidden md:block opacity-50"></div>

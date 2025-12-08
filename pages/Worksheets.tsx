@@ -906,6 +906,12 @@ const WorksheetBuilder: React.FC<{
         try {
             const finalConfig = { ...config, files: uploadedFiles };
             const data = await generateWorksheetContent(finalConfig);
+            
+            // Override title if user provided one
+            if (finalConfig.title) {
+                data.title = finalConfig.title;
+            }
+            
             setGeneratedWs(data);
             setSaveStatus('idle');
         } catch (error) { console.error(error); alert("Error generating worksheet."); } 
@@ -1052,6 +1058,10 @@ const WorksheetBuilder: React.FC<{
                 </div>
                 <div className="flex-1 overflow-y-auto sidebar-scrollbar p-6 space-y-6 pb-20">
                     <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Worksheet Title</label>
+                            <input type="text" value={config.title || ''} onChange={(e) => setConfig({...config, title: e.target.value})} placeholder="e.g. The Solar System" className="w-full p-2 rounded border border-slate-200 text-sm focus:ring-1 focus:ring-teal-400 outline-none" />
+                        </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Topic</label>
                             <input type="text" value={config.topic} onChange={(e) => setConfig({...config, topic: e.target.value})} placeholder="e.g. Space" className="w-full p-2 rounded border border-slate-200 text-sm focus:ring-1 focus:ring-teal-400 outline-none" />
@@ -1333,6 +1343,8 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
     const { user } = useAuth();
     const [worksheets, setWorksheets] = useState<GeneratedWorksheet[]>([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [sortBy, setSortBy] = useState('newest');
 
     const loadWorksheets = async () => {
         setLoading(true);
@@ -1353,37 +1365,93 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
         }
     };
 
-    if (loading) return <div className="text-center py-20 text-slate-500">Loading library...</div>;
-
-    if (worksheets.length === 0) return (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 border-dashed">
-            <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText size={32} className="text-slate-300" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-700 mb-2">No worksheets found</h3>
-            <p className="text-slate-400 max-w-sm mx-auto mb-6">Create your first worksheet to see it here.</p>
-        </div>
-    );
+    const filteredWorksheets = worksheets.filter(ws => {
+        if (search) {
+            const term = search.toLowerCase();
+            const matchesTitle = ws.title.toLowerCase().includes(term);
+            const matchesTopic = ws.config?.topic?.toLowerCase().includes(term);
+            if (!matchesTitle && !matchesTopic) return false;
+        }
+        return true;
+    }).sort((a, b) => {
+        if (sortBy === 'newest') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        if (sortBy === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        if (sortBy === 'az') return a.title.localeCompare(b.title);
+        if (sortBy === 'za') return b.title.localeCompare(a.title);
+        return 0;
+    });
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in pb-12">
-            {worksheets.map(ws => (
-                <div key={ws.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all p-5 cursor-pointer group relative" onClick={() => onLoad(ws)}>
-                    <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                            <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded border border-teal-100 uppercase tracking-wide">{ws.type}</span>
-                            {ws.config?.isPublic && <span className="bg-green-50 text-green-600 text-xs font-bold px-2 py-1 rounded border border-green-100 flex items-center"><Globe size={10} className="mr-1" /> Public</span>}
-                        </div>
-                        <button onClick={(e) => handleDelete(e, ws.id!)} className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={16} /></button>
-                    </div>
-                    <h3 className="font-display font-bold text-lg text-slate-800 mb-1 truncate" title={ws.title}>{ws.title}</h3>
-                    <p className="text-sm text-slate-500 mb-4 truncate">{ws.config?.topic || 'General Topic'}</p>
-                    <div className="pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-400 font-medium">
-                        <span>{new Date(ws.createdAt || Date.now()).toLocaleDateString()}</span>
-                        {ws.config?.gradeLevel && <span>{ws.config.gradeLevel}</span>}
-                    </div>
+        <div className="animate-fade-in pb-12">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold text-slate-800">My Saved Worksheets</h2>
+            </div>
+
+            {/* Control Bar */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-grow w-full md:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <input 
+                        type="text" 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search my worksheets..." 
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none text-sm"
+                    />
                 </div>
-            ))}
+
+                <div className="relative min-w-[160px] w-full md:w-auto">
+                    <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <select 
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="az">A-Z (Title)</option>
+                        <option value="za">Z-A (Title)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="mb-4 text-sm text-slate-500 font-bold">
+                Showing {filteredWorksheets.length} worksheet{filteredWorksheets.length !== 1 ? 's' : ''}
+            </div>
+
+            {loading ? (
+                <div className="text-center py-20 text-slate-500">Loading library...</div>
+            ) : filteredWorksheets.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 border-dashed">
+                    <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <FileText size={32} className="text-slate-300" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-700 mb-2">No worksheets found</h3>
+                    <p className="text-slate-400 max-w-sm mx-auto mb-6">
+                        {worksheets.length === 0 ? "Create your first worksheet to see it here." : "Try changing your search terms."}
+                    </p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredWorksheets.map(ws => (
+                        <div key={ws.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all p-5 cursor-pointer group relative" onClick={() => onLoad(ws)}>
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-teal-50 text-teal-700 text-xs font-bold px-2 py-1 rounded border border-teal-100 uppercase tracking-wide">{ws.type}</span>
+                                    {ws.config?.isPublic && <span className="bg-green-50 text-green-600 text-xs font-bold px-2 py-1 rounded border border-green-100 flex items-center"><Globe size={10} className="mr-1" /> Public</span>}
+                                </div>
+                                <button onClick={(e) => handleDelete(e, ws.id!)} className="text-slate-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-full transition-colors"><Trash2 size={16} /></button>
+                            </div>
+                            <h3 className="font-display font-bold text-lg text-slate-800 mb-1 truncate" title={ws.title}>{ws.title}</h3>
+                            <p className="text-sm text-slate-500 mb-4 truncate">{ws.config?.topic || 'General Topic'}</p>
+                            <div className="pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-400 font-medium">
+                                <span>{new Date(ws.createdAt || Date.now()).toLocaleDateString()}</span>
+                                {ws.config?.gradeLevel && <span>{ws.config.gradeLevel}</span>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -1456,6 +1524,7 @@ export const Worksheets: React.FC = () => {
     const location = useLocation();
     const [activeTab, setActiveTab] = useState<'create' | 'library' | 'community'>('create');
     const [config, setConfig] = useState<WorksheetConfig>({
+        title: '',
         topic: '',
         gradeLevel: '',
         activities: [],

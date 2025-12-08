@@ -131,6 +131,11 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     const { user } = useAuth();
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
+    
+    // Filters
+    const [search, setSearch] = useState('');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('newest');
     const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
 
     const loadGames = async () => {
@@ -152,35 +157,97 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
         }
     };
 
-    // Client-side Filtering
+    // Client-side Filtering & Sorting
     const filteredGames = games.filter(g => {
-        if (sourceFilter === 'all') return true;
-        if (sourceFilter === 'ai') return g.config.isAI;
-        if (sourceFilter === 'manual') return !g.config.isAI;
+        // Search
+        if (search) {
+            const term = search.toLowerCase();
+            const matchesTitle = g.title.toLowerCase().includes(term);
+            const matchesTopic = g.config.topic?.toLowerCase().includes(term);
+            if (!matchesTitle && !matchesTopic) return false;
+        }
+
+        // Type
+        if (typeFilter !== 'all' && g.config.type !== typeFilter) return false;
+
+        // Source
+        if (sourceFilter === 'ai' && !g.config.isAI) return false;
+        if (sourceFilter === 'manual' && g.config.isAI) return false;
+
         return true;
+    }).sort((a, b) => {
+        if (sortBy === 'newest') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        if (sortBy === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        if (sortBy === 'az') return a.title.localeCompare(b.title);
+        if (sortBy === 'za') return b.title.localeCompare(a.title);
+        return 0;
     });
 
     return (
         <div className="animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800">My Saved Games</h2>
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <select 
-                            value={sourceFilter}
-                            onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
-                            className="pl-9 pr-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm bg-white font-medium"
-                        >
-                            <option value="all">All Sources</option>
-                            <option value="ai">AI Generated</option>
-                            <option value="manual">Manual</option>
-                        </select>
-                    </div>
-                    <div className="text-sm text-slate-500 font-bold bg-slate-100 px-3 py-2 rounded-lg border border-slate-200">
-                        {filteredGames.length} Game{filteredGames.length !== 1 ? 's' : ''}
-                    </div>
+            </div>
+
+            {/* Control Bar */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-grow w-full md:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    <input 
+                        type="text" 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search my games..." 
+                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
+                    />
                 </div>
+
+                <div className="relative min-w-[160px] w-full md:w-auto">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <select 
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="all">All Types</option>
+                        {Object.values(GameType).map(t => (
+                            <option key={t} value={t}>{t}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="relative min-w-[160px] w-full md:w-auto">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        {sourceFilter === 'ai' ? <Sparkles size={18} /> : <PenTool size={18} />}
+                    </div>
+                    <select 
+                        value={sourceFilter}
+                        onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="all">All Sources</option>
+                        <option value="ai">AI Generated</option>
+                        <option value="manual">Handcrafted</option>
+                    </select>
+                </div>
+
+                <div className="relative min-w-[160px] w-full md:w-auto">
+                    <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <select 
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="az">A-Z (Title)</option>
+                        <option value="za">Z-A (Title)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="mb-4 text-sm text-slate-500 font-bold">
+                Showing {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
             </div>
 
             {loading ? (
