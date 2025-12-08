@@ -370,7 +370,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         
                                         {uploadedFiles.length < 3 && (
                                             <label className="flex items-center justify-center p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-brand-blue hover:bg-sky-50 cursor-pointer transition-colors text-slate-500 font-bold text-sm">
-                                                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                                                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
                                                 <Plus size={16} className="mr-2" /> Add Document
                                             </label>
                                         )}

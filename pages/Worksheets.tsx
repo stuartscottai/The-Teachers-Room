@@ -1090,7 +1090,7 @@ const WorksheetBuilder: React.FC<{
                             
                             {uploadedFiles.length < 3 && (
                                 <label className="flex items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded hover:border-teal-500 hover:bg-white cursor-pointer transition-colors text-slate-500 font-bold text-[10px]">
-                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                                    <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
                                     <Plus size={12} className="mr-1" /> Add Document
                                 </label>
                             )}
