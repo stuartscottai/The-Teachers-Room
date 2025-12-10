@@ -150,8 +150,3 @@ export interface User {
   avatar?: string;
 }
 
-export interface DevSettings {
-  useExternalApi: boolean;
-  externalEndpoint: string;
-  apiSecret?: string;
-}

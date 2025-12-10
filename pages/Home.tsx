@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity } from 'lucide-react';
+import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
 import { getGlobalStats } from '../utils/gameUtils';
 
@@ -123,11 +123,11 @@ export const Home: React.FC = () => {
           color: 'bg-purple-500' 
       },
       { 
-          title: 'Snakes and Ladders', 
-          plays: '8.1k', 
-          image: '/assets/games/snakes.png', 
-          icon: <Dice5 size={40} />, 
-          color: 'bg-orange-500' 
+          title: 'Pub Quiz', 
+          plays: '7.6k', 
+          image: '/assets/games/pubquiz.png', 
+          icon: <Beer size={40} />, 
+          color: 'bg-slate-700' 
       }
   ];
 

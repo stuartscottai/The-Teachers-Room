@@ -1,8 +1,32 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameType, DevSettings } from "../types";
+import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameType } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const DEFAULT_EXTERNAL_API = typeof window !== 'undefined' ? `${window.location.origin}/api/generate` : '/api/generate';
+const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL || DEFAULT_EXTERNAL_API;
+
+const tryExternalApi = async <T>(body: Record<string, any>): Promise<T | null> => {
+  if (!externalApiUrl) return null;
+  try {
+      const response = await fetch(externalApiUrl, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+          throw new Error(`External API Error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.json();
+  } catch (error) {
+      console.error("External API request failed", error);
+      return null;
+  }
+};
 
 // Helper to initialize client safely
 const getClient = () => {
@@ -11,16 +35,6 @@ const getClient = () => {
     throw new Error("API Key is missing. If you are using the External API, check your Profile settings.");
   }
   return new GoogleGenAI({ apiKey });
-};
-
-// Helper to get Dev Settings
-const getDevSettings = (): DevSettings => {
-    try {
-        const settings = localStorage.getItem('ttr_dev_settings');
-        return settings ? JSON.parse(settings) : { useExternalApi: false, externalEndpoint: '' };
-    } catch (e) {
-        return { useExternalApi: false, externalEndpoint: '' };
-    }
 };
 
 // Helper to clean JSON string from Markdown code blocks
@@ -49,51 +63,8 @@ const generateUUID = () => {
 };
 
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {
-  const settings = getDevSettings();
-
-  // --- EXTERNAL API PATH ---
-  if (settings.useExternalApi) {
-      if (!settings.externalEndpoint) {
-          throw new Error("External API mode is enabled, but no Endpoint URL is configured in Profile.");
-      }
-
-      console.log("Routing to External API:", settings.externalEndpoint);
-      try {
-          const response = await fetch(settings.externalEndpoint, {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  ...(settings.apiSecret ? { 'Authorization': `Bearer ${settings.apiSecret}` } : {})
-              },
-              body: JSON.stringify({
-                  action: 'game',
-                  config: config
-              })
-          });
-
-          if (!response.ok) {
-              const errText = await response.text();
-              let errMsg = `External API Error: ${response.status} ${response.statusText}`;
-              try {
-                  const jsonErr = JSON.parse(errText);
-                  if (jsonErr.error) errMsg = `Server Error: ${jsonErr.error}`;
-              } catch(e) { /* ignore */ }
-              
-              console.error(errMsg);
-              throw new Error(errMsg);
-          }
-
-          const data = await response.json();
-          // Ensure ID exists
-          if (!data.id) data.id = generateUUID();
-          if (!data.createdAt) data.createdAt = new Date().toISOString();
-          
-          return data as GeneratedGame;
-      } catch (error) {
-          console.error("External API Failed", error);
-          throw error;
-      }
-  }
+  const external = await tryExternalApi<GeneratedGame>({ action: 'game', config });
+  if (external) return external;
 
   // --- INTERNAL GOOGLE SDK PATH ---
   const ai = getClient();
@@ -387,39 +358,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 };
 
 export const generateWorksheetContent = async (config: WorksheetConfig): Promise<GeneratedWorksheet> => {
-  const settings = getDevSettings();
-
-  // --- EXTERNAL API PATH ---
-  if (settings.useExternalApi) {
-      if (!settings.externalEndpoint) throw new Error("External API enabled but no Endpoint URL provided.");
-      
-      try {
-          const response = await fetch(settings.externalEndpoint, {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  ...(settings.apiSecret ? { 'Authorization': `Bearer ${settings.apiSecret}` } : {})
-              },
-              body: JSON.stringify({
-                  action: 'worksheet',
-                  config: config
-              })
-          });
-
-          if (!response.ok) {
-              const errText = await response.text();
-              throw new Error(`External API Error: ${response.status} ${errText}`);
-          }
-
-          const data = await response.json();
-          if (!data.id) data.id = generateUUID();
-          
-          return data as GeneratedWorksheet;
-      } catch (error) {
-          console.error("External API Failed", error);
-          throw error;
-      }
-  }
+  const external = await tryExternalApi<GeneratedWorksheet>({ action: 'worksheet', config });
+  if (external) return external;
 
   const ai = getClient();
   
@@ -550,37 +490,12 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
 };
 
 export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<{message: string, suggestion?: GameConfig}> => {
-    const settings = getDevSettings();
-
-    // --- EXTERNAL API PATH ---
-    if (settings.useExternalApi) {
-        if (!settings.externalEndpoint) throw new Error("External API enabled but no URL.");
-        
-        try {
-            const response = await fetch(settings.externalEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(settings.apiSecret ? { 'Authorization': `Bearer ${settings.apiSecret}` } : {})
-                },
-                body: JSON.stringify({
-                    action: 'chat_wizard',
-                    message,
-                    history
-                })
-            });
-
-            if (!response.ok) {
-                const err = await response.text();
-                throw new Error(`API Error: ${err}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Chat Wizard External Error", error);
-            return { message: "I'm having trouble reaching the server. Please try again later." };
-        }
-    }
+    const external = await tryExternalApi<{message: string, suggestion?: GameConfig}>({
+        action: 'chat_wizard',
+        message,
+        history
+    });
+    if (external) return external;
 
     // --- INTERNAL LOCAL PATH ---
     const ai = getClient();

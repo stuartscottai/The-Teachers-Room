@@ -9,6 +9,7 @@ import { Pricing, Info, Contact, Legal } from './pages/InfoPages';
 import { Blog } from './pages/Blog';
 import { BlogPostPage } from './pages/BlogPost';
 import { Profile } from './pages/Profile';
+import { TestBench } from './pages/TestBench';
 import { AuthProvider } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 
@@ -30,6 +31,7 @@ const App: React.FC = () => {
               <Route path="/terms" element={<Legal type="terms" />} />
               <Route path="/privacy" element={<Legal type="privacy" />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/test" element={<TestBench />} />
             </Routes>
           </Layout>
         </Router>

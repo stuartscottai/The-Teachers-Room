@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Terminal, Server, Key, Info, Zap, Database, RefreshCw } from 'lucide-react';
-import { DevSettings } from '../types';
+import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Database, RefreshCw } from 'lucide-react';
 import { syncPublicGameState } from '../utils/gameUtils';
 
 export const Profile: React.FC = () => {
@@ -13,34 +12,11 @@ export const Profile: React.FC = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
-    const [devMessage, setDevMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
     const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
 
-    // Dev Settings State
-    const [devSettings, setDevSettings] = useState<DevSettings>({
-        useExternalApi: false,
-        externalEndpoint: '',
-        apiSecret: ''
-    });
-
     useEffect(() => {
         if (user) setFullName(user.name);
-        // Load Dev Settings
-        try {
-            const saved = localStorage.getItem('ttr_dev_settings');
-            if (saved) {
-                setDevSettings(JSON.parse(saved));
-            } else {
-                // Auto-suggest Vercel URL if on Vercel and no settings saved
-                if (window.location.hostname.includes('vercel.app')) {
-                    setDevSettings(prev => ({
-                        ...prev,
-                        externalEndpoint: `https://${window.location.hostname}/api/generate`
-                    }));
-                }
-            }
-        } catch(e) {}
     }, [user]);
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -69,17 +45,6 @@ export const Profile: React.FC = () => {
              setMessage({ type: 'error', text: error.message || "Failed to update profile" });
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleSaveDevSettings = (e: React.MouseEvent) => {
-        e.preventDefault();
-        try {
-            localStorage.setItem('ttr_dev_settings', JSON.stringify(devSettings));
-            setDevMessage({ type: 'success', text: "Dev settings saved to browser!" });
-            setTimeout(() => setDevMessage(null), 3000);
-        } catch (e) {
-            setDevMessage({ type: 'error', text: "Failed to save settings." });
         }
     };
 
@@ -264,98 +229,6 @@ export const Profile: React.FC = () => {
                     </div>
                 </div>
 
-                {/* DEVELOPER SETTINGS SECTION (Separate Card) */}
-                <div className="bg-slate-800 rounded-2xl shadow-lg border border-slate-700 overflow-hidden text-slate-200">
-                    <div className="px-8 py-6 border-b border-slate-700 flex justify-between items-center">
-                        <div>
-                            <h2 className="text-xl font-bold text-white flex items-center">
-                                <Terminal size={20} className="mr-2 text-brand-yellow" /> Developer / API Settings
-                            </h2>
-                            <p className="text-slate-400 text-sm">Configure how the app connects to AI services.</p>
-                        </div>
-                    </div>
-                    
-                    <div className="p-8 space-y-6">
-                        {devMessage && (
-                            <div className={`p-3 rounded-lg text-sm font-bold flex items-center ${devMessage.type === 'success' ? 'bg-green-900/50 text-green-300 border border-green-800' : 'bg-red-900/50 text-red-300 border border-red-800'}`}>
-                                {devMessage.text}
-                            </div>
-                        )}
-
-                        <div className="flex items-center justify-between bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                            <span className="text-sm font-bold text-slate-300">Connection Mode</span>
-                            <div className="flex items-center bg-slate-700 rounded-full p-1">
-                                <button 
-                                    type="button"
-                                    onClick={() => setDevSettings({...devSettings, useExternalApi: false})}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${!devSettings.useExternalApi ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    Internal SDK (Dev)
-                                </button>
-                                <button 
-                                    type="button"
-                                    onClick={() => setDevSettings({...devSettings, useExternalApi: true})}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${devSettings.useExternalApi ? 'bg-brand-yellow text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                                >
-                                    External API (Prod)
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-800/50 flex items-start gap-3">
-                            <Info className="text-blue-400 mt-0.5 shrink-0" size={16} />
-                            <div className="text-xs text-blue-200 leading-relaxed">
-                                {devSettings.useExternalApi ? (
-                                    <p>Requests are sent to the <strong>External Endpoint</strong> below. This protects your API Key by keeping it on the server (Vercel). Recommended for production.</p>
-                                ) : (
-                                    <p>Requests use the <strong>Browser SDK</strong> with your local environment key. Best for local development (StackBlitz/AI Studio).</p>
-                                )}
-                            </div>
-                        </div>
-                        
-                        <div className={`space-y-6 transition-all duration-300 ${devSettings.useExternalApi ? 'opacity-100' : 'opacity-50 pointer-events-none grayscale'}`}>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">External Endpoint URL</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Server className="h-5 w-5 text-slate-500" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={devSettings.externalEndpoint}
-                                        onChange={(e) => setDevSettings({...devSettings, externalEndpoint: e.target.value})}
-                                        placeholder="https://your-app.vercel.app/api/generate"
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-600 rounded-lg bg-slate-900 text-white placeholder-slate-600 sm:text-sm outline-none font-mono focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">API Secret / Token (Optional)</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Key className="h-5 w-5 text-slate-500" />
-                                    </div>
-                                    <input
-                                        type="password"
-                                        value={devSettings.apiSecret || ''}
-                                        onChange={(e) => setDevSettings({...devSettings, apiSecret: e.target.value})}
-                                        placeholder="sk-..."
-                                        className="block w-full pl-10 pr-3 py-3 border border-slate-600 rounded-lg bg-slate-900 text-white placeholder-slate-600 sm:text-sm outline-none font-mono focus:border-brand-yellow focus:ring-1 focus:ring-brand-yellow"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-slate-700 flex justify-end">
-                             <button
-                                onClick={handleSaveDevSettings}
-                                className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-bold rounded-xl shadow-md text-slate-900 bg-brand-yellow hover:bg-yellow-300 focus:outline-none transition-colors"
-                            >
-                                <Zap className="mr-2 h-4 w-4" /> Save Configuration
-                            </button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     );

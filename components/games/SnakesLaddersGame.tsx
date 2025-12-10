@@ -604,16 +604,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const currentPos = positions[currentTeamId];
         const target = Math.min(99, currentPos + diceValue);
         
-        if (target === 99) return { text: "Winning Move!", color: "text-brand-yellow" };
-        if (snakes.some(s => s.start === target)) return { text: "Target: Snake Hazard!", color: "text-red-500 animate-pulse" };
-        if (ladders.some(l => l.start === target)) return { text: "Target: Ladder Boost!", color: "text-green-500 animate-bounce" };
-        if (bonusTiles.includes(target)) return { text: "Target: BONUS TILE!", color: "text-purple-500 animate-pulse" };
-        return { text: `Target: Square ${target + 1}`, color: "text-slate-200" };
+        if (target === 99) return { text: "Winning Move!", color: "text-brand-yellow drop-shadow-lg", size: "text-2xl md:text-3xl" };
+        if (snakes.some(s => s.start === target)) return { text: "Target: Snake Hazard!", color: "text-red-500 animate-pulse drop-shadow-md", size: "text-xl md:text-2xl" };
+        if (ladders.some(l => l.start === target)) return { text: "Target: Ladder Boost!", color: "text-green-500 animate-bounce drop-shadow-md", size: "text-xl md:text-2xl" };
+        if (bonusTiles.includes(target)) return { text: "BONUS TILE!", color: "text-purple-200 drop-shadow-[0_8px_15px_rgba(109,40,217,0.6)] animate-pulse uppercase tracking-[0.35em]", size: "text-3xl md:text-5xl" };
+        return { text: `Target: Square ${target + 1}`, color: "text-slate-200", size: "text-lg md:text-xl" };
     };
+
+    const targetStatus = getTargetStatus();
+    const isBonusStatus = (statusMessage || '').toLowerCase().includes('bonus');
 
     if (phase === 'gameover') {
         return (
-            <div className="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center animate-fade-in">
+            <div className="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center animate-fade-in overflow-hidden px-6 text-center">
                 <Trophy size={100} className="text-brand-yellow mb-6 animate-bounce" />
                 <h1 className="text-white text-6xl font-black mb-4">WINNER!</h1>
                 <h2 className="text-brand-blue text-4xl font-display font-bold bg-white px-8 py-4 rounded-full mb-8 shadow-xl">
@@ -857,7 +860,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         {phase === 'ladder-snake' && (
                             <div className="text-center animate-fade-in">
                                 <AlertTriangle size={64} className="text-orange-500 mx-auto mb-4 animate-pulse" />
-                                <h3 className="text-xl font-bold text-slate-800">{statusMessage}</h3>
+                                <h3 className={`font-bold ${isBonusStatus ? 'text-5xl md:text-6xl text-brand-yellow drop-shadow-xl uppercase tracking-[0.3em]' : 'text-xl text-slate-800'}`}>
+                                    {statusMessage}
+                                </h3>
                             </div>
                         )}
 
@@ -896,7 +901,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         <div className="font-bold text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
                                         <div className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold border border-white/30">You rolled a {diceValue}</div>
                                     </div>
-                                    <div className={`font-bold text-xl ${getTargetStatus().color}`}>{getTargetStatus().text}</div>
+                                    <div className={`font-bold ${targetStatus.size} ${targetStatus.color}`}>
+                                        {targetStatus.text}
+                                    </div>
                                 </div>
                                 <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-8 bg-white">
                                     <div className={`font-display font-bold text-slate-800 leading-tight text-center ${getFontSizeClass(currentQuestion.question)}`}>
