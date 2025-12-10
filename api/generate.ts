@@ -16,8 +16,9 @@ const cleanJson = (text: string): string => {
 
 export default async function handler(req: any, res: any) {
   // 1. Handle CORS manually for Vercel Node Functions
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Allow requests from any Vercel preview URL or production domain
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
