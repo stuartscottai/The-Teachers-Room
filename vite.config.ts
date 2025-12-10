@@ -12,21 +12,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    rollupOptions: {
-      external: [
-        'react',
-        'react-dom',
-        'react-dom/client',
-        'react-router-dom',
-        'lucide-react',
-        '@google/genai',
-        '@supabase/supabase-js',
-        'three',
-        'three-stdlib',
-        '@react-three/fiber',
-        '@react-three/drei',
-        'maath'
-      ]
-    }
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
   },
 });
