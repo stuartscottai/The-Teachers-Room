@@ -3,7 +3,8 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameType } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-const DEFAULT_EXTERNAL_API = typeof window !== 'undefined' ? `${window.location.origin}/api/generate` : '/api/generate';
+// Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
+const DEFAULT_EXTERNAL_API = '/api/generate';
 const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL || DEFAULT_EXTERNAL_API;
 
 const tryExternalApi = async <T>(body: Record<string, any>): Promise<T | null> => {
