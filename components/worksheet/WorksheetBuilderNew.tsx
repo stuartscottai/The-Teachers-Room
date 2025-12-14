@@ -14,6 +14,7 @@ import { Printer, Download, Save, ZoomIn, ZoomOut, Check, ChevronUp, ChevronDown
 import { useAuth } from '../../contexts/AuthContext';
 import { saveWorksheetToLibrary } from '../../utils/gameUtils';
 import { MultiPageEditor } from './MultiPageEditor';
+import { normalizeHtmlForTiptap } from '../../utils/normalizeHtmlForTiptap';
 
 interface WorksheetEditorProps {
   generatedWs: GeneratedWorksheet | null;
@@ -51,12 +52,14 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingDOCX, setIsGeneratingDOCX] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastEditorHtmlRef = useRef<string | null>(null);
 
   // Initialize TipTap editor
   const editor = useTipTapEditor(
     generatedWs?.content || '',
     (html) => {
       if (generatedWs) {
+        lastEditorHtmlRef.current = html;
         setGeneratedWs({ ...generatedWs, content: html });
       }
     }
@@ -64,10 +67,17 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
 
   // Update editor content when worksheet changes
   useEffect(() => {
-    if (editor && generatedWs?.content && editor.getHTML() !== generatedWs.content) {
-      editor.commands.setContent(generatedWs.content);
+    if (!editor || !generatedWs) return;
+
+    if (generatedWs.content && generatedWs.content === lastEditorHtmlRef.current) {
+      return;
     }
-  }, [generatedWs?.content, editor]);
+
+    const normalized = normalizeHtmlForTiptap(generatedWs.content);
+    if (normalized && editor.getHTML() !== normalized) {
+      editor.commands.setContent(normalized);
+    }
+  }, [generatedWs?.content, generatedWs?.id, editor]);
 
   const handleSave = async () => {
     if (!generatedWs || !user) return;
@@ -157,6 +167,9 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   };
 
   const handleImageUpload = () => {
+    const selection = editor?.state.selection;
+    const insertRange = selection ? { from: selection.from, to: selection.to } : null;
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -166,7 +179,11 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
         const reader = new FileReader();
         reader.onload = (ev) => {
           const base64 = ev.target?.result as string;
-          editor.chain().focus().setImage({ src: base64 }).run();
+          const chain = editor.chain().focus();
+          if (insertRange) {
+            chain.setTextSelection(insertRange);
+          }
+          chain.setImage({ src: base64 }).run();
         };
         reader.readAsDataURL(file);
       }
@@ -186,92 +203,91 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex flex-col">
       <style>{TIPTAP_EDITOR_CSS}</style>
 
-      {/* Action Bar - Sticky */}
-      <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2">
-          <h3 className="font-bold text-slate-800">{generatedWs.title}</h3>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Zoom Controls */}
-          <div className="hidden md:flex items-center gap-2 border-r border-slate-200 pr-3">
-            <button
-              onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-              className="p-2 hover:bg-slate-100 rounded transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut size={18} />
-            </button>
-            <span className="text-sm font-medium text-slate-600 w-12 text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-              className="p-2 hover:bg-slate-100 rounded transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn size={18} />
-            </button>
+      <div className="sticky top-16 z-30 bg-white border-b border-slate-200 shadow-sm">
+        {/* Action Bar */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-slate-800">{generatedWs.title}</h3>
           </div>
 
-          {/* Export Buttons */}
-          <button
-            onClick={handleExportDOCX}
-            disabled={isGeneratingDOCX}
-            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            <Download size={16} />
-            <span className="hidden sm:inline">
-              {isGeneratingDOCX ? 'Generating...' : 'DOCX'}
-            </span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Zoom Controls */}
+            <div className="hidden md:flex items-center gap-2 border-r border-slate-200 pr-3">
+              <button
+                onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                className="p-2 hover:bg-slate-100 rounded transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <span className="text-sm font-medium text-slate-600 w-12 text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                className="p-2 hover:bg-slate-100 rounded transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn size={18} />
+              </button>
+            </div>
 
-          <div className="relative">
+            {/* Export Buttons */}
             <button
-              onClick={() => handleExportPDF(false)}
-              disabled={isGeneratingPDF}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              onClick={handleExportDOCX}
+              disabled={isGeneratingDOCX}
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
             >
-              <Printer size={16} />
+              <Download size={16} />
               <span className="hidden sm:inline">
-                {isGeneratingPDF ? `${Math.round(pdfProgress)}%` : 'PDF'}
+                {isGeneratingDOCX ? 'Generating...' : 'DOCX'}
               </span>
             </button>
+
+            <div className="relative">
+              <button
+                onClick={() => handleExportPDF(false)}
+                disabled={isGeneratingPDF}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <Printer size={16} />
+                <span className="hidden sm:inline">
+                  {isGeneratingPDF ? `${Math.round(pdfProgress)}%` : 'PDF'}
+                </span>
+              </button>
+            </div>
+
+            {user && (
+              <button
+                onClick={handleSave}
+                disabled={saveStatus === 'saving'}
+                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {saveStatus === 'saved' ? (
+                  <>
+                    <Check size={16} />
+                    <span className="hidden sm:inline">Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span className="hidden sm:inline">
+                      {saveStatus === 'saving' ? 'Saving...' : 'Save'}
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
-
-          {user && (
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              {saveStatus === 'saved' ? (
-                <>
-                  <Check size={16} />
-                  <span className="hidden sm:inline">Saved</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span className="hidden sm:inline">
-                    {saveStatus === 'saving' ? 'Saving...' : 'Save'}
-                  </span>
-                </>
-              )}
-            </button>
-          )}
         </div>
-      </div>
 
-      {/* Desktop Toolbar - Sticky */}
-      <div className="hidden md:block sticky top-[61px] z-20 px-4 py-2 bg-slate-50 border-b border-slate-200">
-        <EditorToolbar
-          editor={editor}
-          onImageUpload={handleImageUpload}
-        />
+        {/* Desktop Toolbar */}
+        <div className="hidden md:block px-4 py-2 bg-slate-50 border-t border-slate-200">
+          <EditorToolbar editor={editor} onImageUpload={handleImageUpload} />
+        </div>
       </div>
 
       {/* Mobile Toolbar (FAB) */}
@@ -282,7 +298,7 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
       {/* Editor Container */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-auto bg-slate-100 p-4"
+        className="bg-slate-100 p-4"
         id="preview-wrapper"
       >
         <MultiPageEditor

@@ -17,6 +17,7 @@ declare module '@tiptap/core' {
 
 export const IndentExtension = Extension.create<IndentOptions>({
   name: 'indent',
+  priority: 1000,
 
   addOptions() {
     return {
@@ -86,13 +87,20 @@ export const IndentExtension = Extension.create<IndentOptions>({
   },
 
   addKeyboardShortcuts() {
+    const isInTable = () =>
+      this.editor.isActive('table') ||
+      this.editor.isActive('tableCell') ||
+      this.editor.isActive('tableHeader');
+
     return {
       Tab: () => {
+        if (isInTable()) return false;
         // Insert 4 non-breaking spaces at cursor position
         const tabSpaces = '\u00A0\u00A0\u00A0\u00A0';
         return this.editor.commands.insertContent(tabSpaces);
       },
       'Shift-Tab': () => {
+        if (isInTable()) return false;
         // Shift-Tab removes spaces before cursor
         const { state } = this.editor;
         const { selection } = state;

@@ -40,6 +40,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [showFontSizePicker, setShowFontSizePicker] = useState(false);
   const [showLineSpacingPicker, setShowLineSpacingPicker] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState('12pt');
+  const [, forceRerender] = useState(0);
+  const [selectionStyle, setSelectionStyle] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+  });
 
   const colorPickerRef = React.useRef<HTMLDivElement>(null);
   const fontSizePickerRef = React.useRef<HTMLDivElement>(null);
@@ -49,17 +55,72 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   React.useEffect(() => {
     if (!editor) return;
 
-    const updateFontSize = () => {
-      const attrs = editor.getAttributes('textStyle');
-      setCurrentFontSize(attrs.fontSize || '12pt');
+    let rafId: number | null = null;
+
+    const scheduleRerender = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        forceRerender((n) => n + 1);
+      });
     };
 
-    editor.on('selectionUpdate', updateFontSize);
-    editor.on('transaction', updateFontSize);
+    const getComputedStyleAtSelection = () => {
+      const { from } = editor.state.selection;
+      const { node } = editor.view.domAtPos(from);
+      const element =
+        node instanceof Element ? node : (node as any)?.parentElement instanceof Element ? (node as any).parentElement : null;
+      if (!element) return null;
+      return window.getComputedStyle(element as Element);
+    };
+
+    const updateToolbarState = () => {
+      const attrs = editor.getAttributes('textStyle');
+
+      const computed = getComputedStyleAtSelection();
+      const computedFontSizePx = computed ? Number.parseFloat(computed.fontSize || '') : NaN;
+      const computedFontSizePt = Number.isFinite(computedFontSizePx)
+        ? Math.round(((computedFontSizePx * 72) / 96) * 10) / 10
+        : NaN;
+
+      const computedBold = computed
+        ? (() => {
+            const weight = computed.fontWeight?.toLowerCase?.() ?? '';
+            if (weight === 'bold' || weight === 'bolder') return true;
+            const numeric = Number.parseInt(weight, 10);
+            return Number.isFinite(numeric) && numeric >= 600;
+          })()
+        : false;
+
+      const computedItalic = computed ? computed.fontStyle === 'italic' || computed.fontStyle === 'oblique' : false;
+
+      const computedUnderline = computed
+        ? (computed.textDecorationLine || computed.textDecoration || '').toLowerCase().includes('underline')
+        : false;
+
+      setCurrentFontSize(
+        attrs.fontSize ||
+          (Number.isFinite(computedFontSizePt) ? `${computedFontSizePt}pt` : '12pt')
+      );
+
+      setSelectionStyle({
+        bold: editor.isActive('bold') || computedBold,
+        italic: editor.isActive('italic') || computedItalic,
+        underline: editor.isActive('underline') || computedUnderline,
+      });
+      scheduleRerender();
+    };
+
+    editor.on('selectionUpdate', updateToolbarState);
+    editor.on('transaction', updateToolbarState);
+    updateToolbarState();
 
     return () => {
-      editor.off('selectionUpdate', updateFontSize);
-      editor.off('transaction', updateFontSize);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      editor.off('selectionUpdate', updateToolbarState);
+      editor.off('transaction', updateToolbarState);
     };
   }, [editor]);
 
@@ -95,7 +156,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     title?: string;
   }> = ({ onClick, active, disabled, children, title }) => (
     <button
+      type="button"
       onClick={onClick}
+      onMouseDown={(e) => e.preventDefault()}
       disabled={disabled}
       title={title}
       className={`p-2 rounded hover:bg-gray-100 transition-colors ${
@@ -132,21 +195,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       <div className="flex items-center gap-1 border-r border-gray-300 pr-2">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive('bold')}
+          active={selectionStyle.bold}
           title="Bold (Ctrl+B)"
         >
           <Bold size={18} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive('italic')}
+          active={selectionStyle.italic}
           title="Italic (Ctrl+I)"
         >
           <Italic size={18} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          active={editor.isActive('underline')}
+          active={selectionStyle.underline}
           title="Underline (Ctrl+U)"
         >
           <Underline size={18} />
@@ -222,7 +285,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       {/* Inline Font Size */}
       <div className="relative border-r border-gray-300 pr-2" ref={fontSizePickerRef}>
         <button
+          type="button"
           onClick={() => setShowFontSizePicker(!showFontSizePicker)}
+          onMouseDown={(e) => e.preventDefault()}
           title="Text Font Size"
           className="px-3 py-2 rounded hover:bg-gray-100 transition-colors text-gray-700 font-medium text-sm flex items-center gap-1"
         >
@@ -236,7 +301,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               return (
                 <button
                   key={size}
+                  type="button"
                   className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${isActive ? 'bg-blue-50 text-blue-700' : ''}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     editor.chain().focus().setFontSize(size).run();
                     setShowFontSizePicker(false);
@@ -258,7 +325,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <Palette size={18} />
         </ToolbarButton>
-        {showColorPicker && (
+            {showColorPicker && (
           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 p-4 w-64">
             {/* Theme Colors */}
             <div className="mb-3">
@@ -278,8 +345,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 ].map((color, idx) => (
                   <button
                     key={`theme-${idx}`}
+                    type="button"
                     className="w-5 h-5 rounded border border-gray-300 hover:border-gray-500 transition-colors"
                     style={{ backgroundColor: color }}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       editor.chain().focus().setColor(color).run();
                       setShowColorPicker(false);
@@ -299,8 +368,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 ].map((color, idx) => (
                   <button
                     key={`standard-${idx}`}
+                    type="button"
                     className="w-5 h-5 rounded border border-gray-300 hover:border-gray-500 transition-colors"
                     style={{ backgroundColor: color }}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       editor.chain().focus().setColor(color).run();
                       setShowColorPicker(false);
@@ -313,7 +384,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
             {/* Automatic/Reset button */}
             <button
+              type="button"
               className="w-full mt-3 px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().unsetColor().run();
                 setShowColorPicker(false);
@@ -336,7 +409,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         {showLineSpacingPicker && (
           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 min-w-[120px]">
             <button
+              type="button"
               className="w-full px-4 py-2 text-left hover:bg-gray-100"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().setLineSpacing('1').run();
                 setShowLineSpacingPicker(false);
@@ -345,7 +420,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               Single
             </button>
             <button
+              type="button"
               className="w-full px-4 py-2 text-left hover:bg-gray-100"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().setLineSpacing('1.15').run();
                 setShowLineSpacingPicker(false);
@@ -354,7 +431,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               1.15
             </button>
             <button
+              type="button"
               className="w-full px-4 py-2 text-left hover:bg-gray-100"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().setLineSpacing('1.5').run();
                 setShowLineSpacingPicker(false);
@@ -363,7 +442,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               1.5
             </button>
             <button
+              type="button"
               className="w-full px-4 py-2 text-left hover:bg-gray-100"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 editor.chain().focus().setLineSpacing('2').run();
                 setShowLineSpacingPicker(false);

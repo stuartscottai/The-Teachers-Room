@@ -31,7 +31,7 @@ export const MultiPageEditor: React.FC<MultiPageEditorProps> = ({
   if (!editor) return null;
 
   return (
-    <div style={{ backgroundColor: '#e5e7eb', padding: '40px 0', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: '#e5e7eb', padding: '40px 0' }}>
       <style>{`
         /* Page container wrapper with gray background for margins */
         .worksheet-page-wrapper {

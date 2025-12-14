@@ -1147,7 +1147,7 @@ const WorksheetBuilder: React.FC<{
     };
 
     return (
-        <div className="flex min-h-[200vh] bg-slate-50 relative">
+        <div className="flex bg-slate-50 relative items-stretch">
             {/* Sidebar */}
             <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl">
                 <style>{SIDEBAR_CSS}</style>

@@ -27,6 +27,32 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({
   onImageUpload,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [, forceRerender] = useState(0);
+
+  React.useEffect(() => {
+    if (!editor) return;
+
+    let rafId: number | null = null;
+
+    const scheduleRerender = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        forceRerender((n) => n + 1);
+      });
+    };
+
+    editor.on('selectionUpdate', scheduleRerender);
+    editor.on('transaction', scheduleRerender);
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      editor.off('selectionUpdate', scheduleRerender);
+      editor.off('transaction', scheduleRerender);
+    };
+  }, [editor]);
 
   if (!editor) {
     return null;
