@@ -5,12 +5,21 @@ import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameTyp
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
 const DEFAULT_EXTERNAL_API = '/api/generate';
-const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL || DEFAULT_EXTERNAL_API;
+const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL;
 
 const tryExternalApi = async <T>(body: Record<string, any>): Promise<T | null> => {
-  if (!externalApiUrl) return null;
+  // If VITE_GEMINI_API_KEY exists, skip external API and use direct client
+  if (apiKey) {
+    console.log('Using direct Gemini API with client-side key');
+    return null;
+  }
+
+  // Only use external API if explicitly set or no API key available
+  const apiUrl = externalApiUrl || DEFAULT_EXTERNAL_API;
+
   try {
-      const response = await fetch(externalApiUrl, {
+      console.log('Attempting external API call to:', apiUrl);
+      const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
@@ -130,16 +139,19 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   if (isJeopardy) {
     const rows = config.jeopardyRows || 5;
     const categories = config.jeopardyCategoryNames || ["Category 1", "Category 2", "Category 3", "Category 4", "Category 5"];
-    const qTypeInstruction = config.questionType === 'ai-decide' 
-        ? "Mix of question types suitable for the category (some open, some multiple choice, etc)" 
+    const qTypeInstruction = config.questionType === 'ai-decide'
+        ? "Mix of question types suitable for the category (some open, some multiple choice, etc)"
         : config.questionType;
+    const mcInstruction = config.questionType === 'multiple-choice'
+        ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+        : '';
 
     prompt = `
       Create a Jeopardy game with the title "${gameTitle}".
       The game must have exactly ${categories.length} categories.
       The category names are: ${JSON.stringify(categories)}.
       For EACH category, create exactly ${rows} questions with increasing difficulty (e.g. 100, 200, 300, 400, 500).
-      Question Style: ${qTypeInstruction}.
+      Question Style: ${qTypeInstruction}.${mcInstruction}
       Strict Mode: ${config.strictMode ? "Answers must be phrased as questions (What is...)" : "Standard answers"}.
       Custom Instructions: ${config.customInstructions || "None"}.
     `;
@@ -168,13 +180,16 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     const questionsPerRound = config.pubQuizQuestionsPerRound || 5;
     const roundNames = config.pubQuizRoundNames || ["General Knowledge", "Music", "Science"];
     const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats" : config.questionType;
+    const mcInstruction = config.questionType === 'multiple-choice'
+        ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+        : '';
 
     prompt = `
       Create a Pub Quiz game titled "${gameTitle}".
       The game must have exactly ${roundCount} rounds.
       The round names are: ${JSON.stringify(roundNames)}.
       For EACH round, create exactly ${questionsPerRound} questions.
-      Question Style: ${qTypeInstruction}.
+      Question Style: ${qTypeInstruction}.${mcInstruction}
       Custom Instructions: ${config.customInstructions || "None"}.
     `;
 
@@ -224,9 +239,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
   } else if (isDarts) {
       const qTypeInstruction = config.questionType === 'ai-decide' ? "Mixed formats" : config.questionType;
+      const mcInstruction = config.questionType === 'multiple-choice'
+          ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+          : '';
       // Add reserve buffer (+10) to ensure rounds can complete if repeats are needed
       const requestedCount = (config.questionCount || 15) + 10;
-      
+
       prompt = `
       Create a Darts game titled "${gameTitle}" about "${config.topic}".
       Generate a large pool of ${requestedCount} unique questions.
@@ -234,8 +252,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       - 33% labeled 'easy' (Simple facts/vocab)
       - 33% labeled 'medium' (Application/sentences)
       - 33% labeled 'hard' (Complex/Analysis)
-      
-      Question Style: ${qTypeInstruction}.
+
+      Question Style: ${qTypeInstruction}.${mcInstruction}
       Custom Instructions: ${config.customInstructions || "None"}.
       `;
 
@@ -276,7 +294,10 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   } else {
     // Standard Game
     const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
-    
+    const mcInstruction = config.questionType === 'multiple-choice'
+        ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+        : '';
+
     // Points Logic
     let pointsInstruction = "Assign 100 points to every question.";
     if (config.pointsMode === 'ai-random') {
@@ -286,12 +307,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     prompt = `
       Create a ${config.type} game titled "${gameTitle}" about "${config.topic}".
       Number of questions: ${config.questionCount}.
-      Question Type: ${qTypeInstruction}.
+      Question Type: ${qTypeInstruction}.${mcInstruction}
       Points Strategy: ${pointsInstruction}
       Includes Bonus Questions: false.
       Custom Instructions: ${config.customInstructions || "None"}.
     `;
-    
+
     if (isTimeBomb) {
         prompt += `
         STYLE: Generate questions that are short, snappy, and suitable for rapid-fire answers.
@@ -358,6 +379,20 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   }
 };
 
+// Helper to parse answer key from worksheet content
+const parseAnswerKey = (content: string): { mainContent: string; answerKey: string | null } => {
+  const match = content.match(/<div class="ws-answer-key"[^>]*>([\s\S]*?)<\/div>/);
+
+  if (match) {
+    return {
+      mainContent: content.replace(match[0], '').trim(),
+      answerKey: match[1].trim()
+    };
+  }
+
+  return { mainContent: content, answerKey: null };
+};
+
 export const generateWorksheetContent = async (config: WorksheetConfig): Promise<GeneratedWorksheet> => {
   const external = await tryExternalApi<GeneratedWorksheet>({ action: 'worksheet', config });
   if (external) return external;
@@ -396,6 +431,12 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   - Follow the EXACT ORDER of activities provided in the prompt.
   - The ANSWER KEY is strictly on a separate page (enforced by CSS).
   - Do not include <html>, <head>, or <body> tags, just the inner content.
+
+  ANSWER LINE FORMATTING:
+  - For open-ended questions or writing activities requiring student responses, create FULL-WIDTH answer lines.
+  - Use: <p style="border-bottom: 1px solid #666; min-height: 2em; margin: 0.5rem 0;">&nbsp;</p>
+  - NEVER use short underscores (____) that only span part of the line.
+  - Each answer line should extend across the entire text width for a professional appearance.
   `;
 
   // Construct specific activity instructions based on config.activities
@@ -409,7 +450,7 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
         details += ` Format: Sentence with gap ________ (ROOT).`;
     }
     if (act.type === 'open-ended') {
-        details += ` Format: Question followed by 3-4 underlines or empty lines for students to write answers.`;
+        details += ` Format: Question followed by 3-4 FULL-WIDTH answer lines. Each answer line must span the entire page width using a paragraph with bottom border: <p style="border-bottom: 1px solid #666; min-height: 2em; margin: 0.5rem 0;">&nbsp;</p>. DO NOT use short underscores that only fill half the line.`;
     }
     
     if (act.contextType === 'text') {
@@ -423,16 +464,44 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     return details;
   }).join('\n');
 
-  const displayType = config.activities.length > 1 
-    ? "Mixed Activities" 
+  const displayType = config.activities.length > 1
+    ? "Mixed Activities"
     : (config.activities[0]?.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Custom Worksheet");
+
+  // Add difficulty level instruction
+  const difficultyInstruction = config.difficultyLevel
+    ? `
+      DIFFICULTY LEVEL: ${config.difficultyLevel.toUpperCase()}
+
+      - Easy: Simple vocabulary, straightforward questions, grade-appropriate language, basic concepts
+      - Medium: Moderate complexity, requires critical thinking, appropriate challenge level
+      - Hard: Advanced vocabulary, complex reasoning, challenging concepts, higher-order thinking
+      - Mixed: Vary difficulty across activities (start easy, gradually increase to hard)
+
+      Adjust language complexity, question depth, vocabulary level, and cognitive demands accordingly.
+    `
+    : '';
+
+  // Add answer key instruction
+  const answerKeyInstruction = config.generateAnswerKey
+    ? `
+      ANSWER KEY REQUIRED:
+      At the end of the worksheet content, include a complete answer key.
+      Wrap it in: <div class="ws-answer-key" style="margin-top: 2rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b;">
+      <h3>Answer Key</h3>
+      [Provide detailed answers here, organized by activity]
+      </div>
+    `
+    : '';
 
   let prompt = `
     Create a "${displayType}" worksheet.
     Topic: ${config.topic}.
     Grade Level: ${config.gradeLevel}.
+    ${difficultyInstruction}
+    ${answerKeyInstruction}
     Additional Instructions: ${config.customInstructions || "None"}.
-    
+
     Included Activities (Create them in this specific order):
     ${activityPrompts}
   `;
@@ -475,11 +544,17 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
 
     const text = response.text;
     if (!text) throw new Error("No response from AI");
-    
+
     // Clean and parse
     const result = JSON.parse(cleanJson(text)) as GeneratedWorksheet;
+
+    // Parse answer key from content if present
+    const { mainContent, answerKey } = parseAnswerKey(result.content);
+
     return {
         ...result,
+        content: mainContent,
+        answerKey: answerKey,
         id: generateUUID(),
         createdAt: new Date().toISOString(),
         config: config

@@ -277,9 +277,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
+    <div className="flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
       <Navbar />
-      <main className="flex-grow bg-white relative z-0">
+      <main className="bg-white relative z-0">
         {children}
       </main>
       <Footer />

@@ -21,6 +21,7 @@ export interface GameConfig {
   title?: string; // User defined title
   questionCount: number; // Used for list-based games
   questionType: 'multiple-choice' | 'gap-fill' | 'open' | 'mixed' | 'ai-decide';
+  mcOptionCount?: 2 | 3 | 4; // Number of options for multiple choice questions
   pointsMode?: 'fixed' | 'ai-random' | 'manual'; // New points configuration
   topic: string; // Still used for non-Jeopardy games
   isAI: boolean;
@@ -122,6 +123,8 @@ export interface WorksheetConfig {
   activities: ActivityConfig[];
   isPublic?: boolean; // Visibility Flag
   files?: UploadedFile[]; // Source material
+  difficultyLevel?: 'easy' | 'medium' | 'hard' | 'mixed'; // Difficulty control
+  generateAnswerKey?: boolean; // Answer key generation toggle
 }
 
 export interface GeneratedWorksheet {
@@ -131,6 +134,7 @@ export interface GeneratedWorksheet {
   title: string;
   authorName?: string;
   content: string; // HTML or structured text representation
+  answerKey?: string | null; // Answer key content (HTML)
   type: string; // Helper for display (e.g. "Mixed", "Wordsearch")
 }
 

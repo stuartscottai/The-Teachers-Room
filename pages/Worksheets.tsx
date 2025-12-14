@@ -1,14 +1,115 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCommunityWorksheets, processFile } from '../utils/gameUtils';
+import { useTipTapEditor } from '../components/worksheet/TipTapEditor';
+import { EditorContent } from '@tiptap/react';
+import { EditorToolbar } from '../components/worksheet/EditorToolbar';
+import { MobileToolbar } from '../components/worksheet/MobileToolbar';
+import { generatePDF, generateDOCX, downloadFile, PDFMetadata } from '../utils/worksheetPDF';
+import { WorksheetEditorSection } from '../components/worksheet/WorksheetBuilderNew';
 
-// --- STANDARD WORKSHEET STYLESHEET ---
-const WORKSHEET_CSS = `
+// --- TIPTAP EDITOR STYLESHEET ---
+const TIPTAP_EDITOR_CSS = `
+  /* TipTap Editor Styles */
+  .ProseMirror {
+    outline: none;
+    min-height: 200px;
+  }
+
+  .ProseMirror p {
+    margin: 0.5rem 0;
+  }
+
+  .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
+    margin: 1rem 0 0.5rem 0;
+    font-weight: 600;
+  }
+
+  .ProseMirror ul, .ProseMirror ol {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .ProseMirror li {
+    margin-bottom: 0.25rem;
+  }
+
+  .worksheet-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+  }
+
+  .worksheet-table td,
+  .worksheet-table th {
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem;
+    text-align: left;
+    min-width: 50px;
+  }
+
+  .worksheet-table th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+  }
+
+  .worksheet-image {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+    margin: 1rem 0;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+
+  .worksheet-image:hover {
+    border-color: #3b82f6;
+  }
+
+  .worksheet-image.ProseMirror-selectednode {
+    border-color: #3b82f6;
+    outline: none;
+  }
+
+  /* Make images resizable */
+  .ProseMirror img.worksheet-image {
+    resize: both;
+    overflow: hidden;
+  }
+
+  .page-break-indicator {
+    height: 40px;
+    margin: 20px 0;
+    background: repeating-linear-gradient(
+      45deg, #fff7ed, #fff7ed 10px,
+      #ffedd5 10px, #ffedd5 20px
+    );
+    border: 2px dashed #f97316;
+    display: flex;
+    align-items: center;
+    justify-center;
+    color: #f97316;
+    font-weight: bold;
+    user-select: none;
+  }
+
+  @media print {
+    .page-break-indicator {
+      height: 0 !important;
+      border: none !important;
+      page-break-after: always !important;
+    }
+  }
+`;
+
+// --- STANDARD WORKSHEET STYLESHEET (Original for existing features) ---
+const LEGACY_WORKSHEET_CSS = `
   @page { 
     size: A4; 
     margin: 0mm; 
@@ -950,7 +1051,7 @@ const WorksheetBuilder: React.FC<{
         const htmlContent = `
             <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${generatedWs.title}</title>
             <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
-            <style>${WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; column-fill: balance; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
+            <style>${LEGACY_WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; column-fill: balance; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
             <body><div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">
                 ${logoHTML}
                 <div class="ws-content">
@@ -1046,17 +1147,17 @@ const WorksheetBuilder: React.FC<{
     };
 
     return (
-        <div className="flex h-full bg-slate-50 overflow-hidden relative">
+        <div className="flex min-h-[200vh] bg-slate-50 relative">
             {/* Sidebar */}
-            <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col h-full z-20 shadow-xl">
+            <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl">
                 <style>{SIDEBAR_CSS}</style>
-                <div className="p-6 border-b border-slate-100 flex-shrink-0">
+                <div className="p-6 border-b border-slate-100">
                     <h1 className="font-display text-xl font-bold text-slate-800 flex items-center mb-1">
                         <LayoutTemplate className="mr-2 text-brand-accent" size={20} /> Worksheet Config
                     </h1>
                     <p className="text-xs text-slate-500">Configure parameters for AI generation</p>
                 </div>
-                <div className="flex-1 overflow-y-auto sidebar-scrollbar p-6 space-y-6 pb-20">
+                <div className="p-6 space-y-6">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Worksheet Title</label>
@@ -1075,6 +1176,38 @@ const WorksheetBuilder: React.FC<{
                                 <button onClick={() => setConfig({...config, layout: 'single'})} className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'single' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}><AlignJustify size={14} className="mr-1" /> Single</button>
                                 <button onClick={() => setConfig({...config, layout: 'columns'})} className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'columns' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}><Columns size={14} className="mr-1" /> Two Cols</button>
                             </div>
+                        </div>
+
+                        {/* Difficulty Level */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Difficulty Level</label>
+                            <select
+                                value={config.difficultyLevel || 'medium'}
+                                onChange={(e) => setConfig({...config, difficultyLevel: e.target.value as 'easy' | 'medium' | 'hard' | 'mixed'})}
+                                className="w-full p-2 rounded border border-slate-200 bg-white text-sm focus:ring-1 focus:ring-teal-400 outline-none"
+                            >
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                                <option value="mixed">Mixed (Progressive)</option>
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">Adjusts vocabulary complexity and question difficulty</p>
+                        </div>
+
+                        {/* Answer Key Toggle */}
+                        <div>
+                            <label className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={config.generateAnswerKey || false}
+                                    onChange={(e) => setConfig({...config, generateAnswerKey: e.target.checked})}
+                                    className="mt-1"
+                                />
+                                <div>
+                                    <span className="block text-xs font-bold text-slate-700">Generate Answer Key</span>
+                                    <p className="text-xs text-slate-500 mt-1">Includes complete answers at the end of the worksheet</p>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
@@ -1170,161 +1303,25 @@ const WorksheetBuilder: React.FC<{
                 </div>
             </div>
 
-            {/* Preview Area - Container flex-col ensures scrolling happens HERE not on body */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-100/50">
+            {/* Preview Area - New TipTap Editor */}
+            <div className="flex-1 flex flex-col relative bg-slate-100/50">
                 {generatedWs ? (
-                    <div className="flex flex-col h-full">
-                        <style>{WORKSHEET_CSS}</style>
-                        <div className="flex flex-wrap gap-4 justify-between items-center p-4 border-b border-slate-200 bg-white z-10 shadow-sm flex-shrink-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                
-                                {/* Rich Text Controls (Always Visible) */}
-                                <div className="flex items-center gap-1 bg-white rounded-lg border border-indigo-200 p-1 mx-2 shadow-sm animate-fade-in">
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('bold')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.bold ? 'bg-indigo-100 text-indigo-700 font-bold' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Bold"
-                                    >
-                                        <Bold size={16} />
-                                    </button>
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('italic')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.italic ? 'bg-indigo-100 text-indigo-700 italic' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Italic"
-                                    >
-                                        <Italic size={16} />
-                                    </button>
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('underline')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.underline ? 'bg-indigo-100 text-indigo-700 underline' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Underline"
-                                    >
-                                        <Underline size={16} />
-                                    </button>
-                                    
-                                    <div className="w-px h-4 bg-slate-200 mx-1"></div>
-                                    
-                                    {/* Alignment */}
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('justifyLeft')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.justifyLeft ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Align Left"
-                                    >
-                                        <AlignLeft size={16} />
-                                    </button>
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('justifyCenter')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.justifyCenter ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Align Center"
-                                    >
-                                        <AlignCenter size={16} />
-                                    </button>
-                                    <button 
-                                        onMouseDown={preventLoss} 
-                                        onClick={() => formatSelection('justifyRight')} 
-                                        className={`p-1.5 rounded transition-colors ${activeFormats.justifyRight ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-indigo-50 text-slate-600'}`} 
-                                        title="Align Right"
-                                    >
-                                        <AlignRight size={16} />
-                                    </button>
-
-                                    <div className="w-px h-4 bg-slate-200 mx-1"></div>
-
-                                    {/* Font Family Selection */}
-                                    <div className="flex bg-slate-100 rounded overflow-hidden mr-1">
-                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Quicksand')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600" title="Standard">Sans</button>
-                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Times New Roman')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600 font-serif" title="Serif">Serif</button>
-                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Fredoka')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600" title="Fun" style={{fontFamily: 'Fredoka'}}>Fun</button>
-                                        <button onMouseDown={preventLoss} onClick={() => formatSelection('fontName', 'Courier New')} className="px-2 py-1 text-[10px] font-bold hover:bg-indigo-100 text-slate-600 font-mono" title="Code">Mono</button>
-                                    </div>
-
-                                    {/* Color Picker */}
-                                    <div className="relative flex items-center justify-center w-6 h-6 rounded overflow-hidden cursor-pointer hover:ring-2 ring-indigo-200 ml-1" title="Text Color">
-                                        <Palette size={14} className="absolute pointer-events-none text-slate-500" />
-                                        <input 
-                                            type="color" 
-                                            onMouseDown={handleComplexInputStart}
-                                            onChange={(e) => formatSelection('foreColor', e.target.value)} 
-                                            className="w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="w-px h-4 bg-slate-200 mx-1"></div>
-
-                                    <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '1')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-xs font-bold" title="Small Text">A-</button>
-                                    <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '3')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-sm font-bold" title="Normal Text">A</button>
-                                    <button onMouseDown={preventLoss} onClick={() => formatSelection('fontSize', '5')} className="p-1.5 hover:bg-indigo-50 text-slate-600 rounded text-lg font-bold" title="Large Text">A+</button>
-                                </div>
-
-                                {/* LOGO UPLOAD BUTTON */}
-                                <div className="relative flex items-center">
-                                    <label className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer" title="Upload Logo" onMouseDown={preventLoss}>
-                                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                                        <ImageIcon size={16} className="mr-2" /> Logo
-                                    </label>
-                                    {logoUrl && (
-                                        <button onMouseDown={preventLoss} onClick={() => setLogoUrl(null)} className="ml-1 p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" title="Remove Logo">
-                                            <Trash2 size={16} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-1 bg-slate-50 rounded-lg border border-slate-200 p-1 mx-2">
-                                    <button onMouseDown={preventLoss} onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Undo size={16} /></button>
-                                    <button onMouseDown={preventLoss} onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed text-slate-700"><Redo size={16} /></button>
-                                </div>
-                                <button onMouseDown={preventLoss} onClick={insertPageBreak} className="flex items-center px-3 py-2 rounded-lg text-sm font-bold transition-colors bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100" title="Insert Page Break"><Scissors size={16} className="mr-2 transform rotate-90" /> Break</button>
-                                <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
-                                    <button onMouseDown={preventLoss} onClick={() => setFontSize(Math.max(8, fontSize - 0.5))} className="p-1 hover:bg-slate-200 rounded"><Minus size={14} /></button>
-                                    <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{fontSize.toFixed(1)}pt</span>
-                                    <button onMouseDown={preventLoss} onClick={() => setFontSize(Math.min(24, fontSize + 0.5))} className="p-1 hover:bg-slate-200 rounded"><Plus size={14} /></button>
-                                </div>
-                                <div className="flex items-center bg-slate-50 rounded-lg border border-slate-200 px-2 py-1">
-                                    <button onMouseDown={preventLoss} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomOut size={14} /></button>
-                                    <span className="mx-2 text-xs font-bold min-w-[40px] text-center">{Math.round(zoom * 100)}%</span>
-                                    <button onMouseDown={preventLoss} onClick={() => setZoom(Math.min(1.5, zoom + 0.1))} className="p-1 hover:bg-slate-200 rounded"><ZoomIn size={14} /></button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div onClick={handleVisibilityToggle} onMouseDown={preventLoss} className={`flex items-center bg-slate-100 rounded-lg p-1 cursor-pointer select-none border border-slate-200 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                    <div className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>Private</div>
-                                    <div className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>Public</div>
-                                </div>
-                                <button onMouseDown={preventLoss} onClick={handleSave} disabled={saveStatus === 'saving' || saveStatus === 'saved'} className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors border text-sm ${saveStatus === 'saved' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-500 hover:text-teal-600'}`}>
-                                    {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-500 border-t-transparent mr-2"></div>}
-                                    {saveStatus === 'saved' && <Check size={16} className="mr-2"/>}
-                                    {saveStatus === 'idle' && <Save size={16} className="mr-2" />}
-                                    {saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}
-                                </button>
-                                <button onMouseDown={preventLoss} onClick={handlePrint} className="flex items-center px-4 py-2 bg-brand-yellow hover:bg-yellow-300 rounded-lg text-slate-900 font-bold transition-colors shadow-sm text-sm"><Printer size={16} className="mr-2" /> Print</button>
-                            </div>
-                        </div>
-                        <div id="preview-wrapper" className="flex-1 overflow-y-auto overflow-x-auto p-8 flex justify-center bg-slate-100">
-                            <div className="relative shadow-xl h-fit">
-                                <PageGuides contentHeight={contentHeight} zoom={zoom} />
-                                <EditablePreview 
-                                    ref={contentRef} 
-                                    htmlContent={generatedWs.content} 
-                                    fontSize={fontSize} 
-                                    zoom={zoom} 
-                                    layoutMode={config.layout || 'single'} 
-                                    onHeightChange={handleHeightChange} 
-                                    onInput={handleContentInput} 
-                                    onClick={handlePreviewClick}
-                                    onInteract={() => { checkFormats(); saveSelection(); }}
-                                    logoUrl={logoUrl}
-                                    logoPos={logoPos}
-                                    logoWidth={logoWidth}
-                                    onLogoDrag={handleLogoMouseDown}
-                                    onLogoResize={setLogoWidth}
-                                />
-                            </div>
-                        </div>
+                    <div className="flex flex-col">
+                        <style>{TIPTAP_EDITOR_CSS}</style>
+                        <WorksheetEditorSection
+                            generatedWs={generatedWs}
+                            setGeneratedWs={setGeneratedWs}
+                            config={config}
+                            fontSize={fontSize}
+                            setFontSize={setFontSize}
+                            zoom={zoom}
+                            setZoom={setZoom}
+                            logoUrl={logoUrl}
+                            logoPos={logoPos}
+                            logoWidth={logoWidth}
+                            onLogoDrag={handleLogoMouseDown}
+                            isPublic={isPublic}
+                        />
                     </div>
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-400 border-l border-slate-200 bg-slate-50/50">
@@ -1553,7 +1550,7 @@ export const Worksheets: React.FC = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-4rem)] bg-slate-50 flex flex-col font-sans overflow-hidden">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             {/* Header - EXACT MATCH of Games.tsx GameHub structure */}
             <div className="max-w-7xl mx-auto px-4 py-8 w-full shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -1589,20 +1586,20 @@ export const Worksheets: React.FC = () => {
                 </div>
             </div>
 
-            {/* Content Area - Filling remaining space */}
-            <div className="flex-1 flex flex-col min-h-0 max-w-7xl mx-auto w-full px-4 pb-8 overflow-hidden">
+            {/* Content Area - Naturally expanding */}
+            <div className="flex flex-col max-w-7xl mx-auto w-full px-4 pb-8">
                 {activeTab === 'create' ? (
-                    <div className="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col relative h-full"> 
-                        <WorksheetBuilder 
-                            config={config} 
-                            setConfig={setConfig} 
-                            generatedWs={generatedWs} 
+                    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col relative">
+                        <WorksheetBuilder
+                            config={config}
+                            setConfig={setConfig}
+                            generatedWs={generatedWs}
                             setGeneratedWs={setGeneratedWs}
-                            onLoad={() => {}} 
+                            onLoad={() => {}}
                         />
                     </div>
                 ) : (
-                    <div className="h-full overflow-y-auto">
+                    <div>
                         {activeTab === 'library' && <WorksheetLibrary onLoad={handleLoad} />}
                         {activeTab === 'community' && <CommunityWorksheets onLoad={handleLoad} />}
                     </div>

@@ -91,6 +91,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             title: '',
             questionCount: defaultCount,
             questionType: type === GameType.MILLIONAIRE ? 'multiple-choice' : (type === GameType.TIME_BOMB ? 'open' : 'mixed'),
+            mcOptionCount: 4, // Default to 4 options for multiple choice
             pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
@@ -397,9 +398,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>
-                                        <input 
-                                            type="number" 
-                                            min={20} 
+                                        <input
+                                            type="number"
+                                            min={20}
                                             max={100}
                                             value={config.questionCount}
                                             onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
@@ -407,6 +408,41 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         />
                                         <p className="text-xs text-slate-500 mt-1">More questions are better for Time Bomb to avoid repeats.</p>
                                     </div>
+
+                                    {mode === 'ai' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <select
+                                                    value={config.questionType}
+                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="ai-decide">AI Decide (Mixed)</option>
+                                                    <option value="open">Open Ended</option>
+                                                    <option value="gap-fill">Gap Fill</option>
+                                                    <option value="multiple-choice">Multiple Choice</option>
+                                                    <option value="mixed">Mixed Format</option>
+                                                </select>
+                                                <p className="text-xs text-slate-500 mt-1">Time Bomb works best with quick-answer formats.</p>
+                                            </div>
+
+                                            {config.questionType === 'multiple-choice' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                    <select
+                                                        value={config.mcOptionCount || 4}
+                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
+                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                    >
+                                                        <option value="2">2 Options</option>
+                                                        <option value="3">3 Options</option>
+                                                        <option value="4">4 Options</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             ) : type === GameType.SURVEY_SHOWDOWN ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
@@ -456,8 +492,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     key={num}
                                                     onClick={() => setConfig({...config, questionCount: num})}
                                                     className={`py-3 rounded-lg font-bold text-sm transition-all border-2
-                                                        ${config.questionCount === num 
-                                                            ? 'bg-brand-blue text-white border-brand-blue shadow-md' 
+                                                        ${config.questionCount === num
+                                                            ? 'bg-brand-blue text-white border-brand-blue shadow-md'
                                                             : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
                                                 >
                                                     {num}
@@ -465,6 +501,40 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             ))}
                                         </div>
                                     </div>
+
+                                    {mode === 'ai' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <select
+                                                    value={config.questionType}
+                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="ai-decide">AI Decide (Mixed)</option>
+                                                    <option value="multiple-choice">Multiple Choice</option>
+                                                    <option value="gap-fill">Gap Fill</option>
+                                                    <option value="open">Open Ended</option>
+                                                    <option value="mixed">Mixed Format</option>
+                                                </select>
+                                            </div>
+
+                                            {config.questionType === 'multiple-choice' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                    <select
+                                                        value={config.mcOptionCount || 4}
+                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
+                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                    >
+                                                        <option value="2">2 Options</option>
+                                                        <option value="3">3 Options</option>
+                                                        <option value="4">4 Options</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             ) : type === GameType.JEOPARDY ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
@@ -495,7 +565,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <label className="block text-sm font-bold text-slate-700 mb-3">Category Names <span className="text-red-500">*</span></label>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {config.jeopardyCategoryNames?.map((name, idx) => (
-                                                <input 
+                                                <input
                                                     key={idx}
                                                     type="text"
                                                     value={name}
@@ -510,6 +580,40 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             ))}
                                         </div>
                                     </div>
+
+                                    {mode === 'ai' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <select
+                                                    value={config.questionType}
+                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="ai-decide">AI Decide (Mixed)</option>
+                                                    <option value="multiple-choice">Multiple Choice</option>
+                                                    <option value="gap-fill">Gap Fill</option>
+                                                    <option value="open">Open Ended</option>
+                                                    <option value="mixed">Mixed Format</option>
+                                                </select>
+                                            </div>
+
+                                            {config.questionType === 'multiple-choice' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                    <select
+                                                        value={config.mcOptionCount || 4}
+                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
+                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                    >
+                                                        <option value="2">2 Options</option>
+                                                        <option value="3">3 Options</option>
+                                                        <option value="4">4 Options</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             ) : type === GameType.PUB_QUIZ ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
@@ -540,7 +644,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <label className="block text-sm font-bold text-slate-700 mb-3">Round Titles <span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-1 gap-3">
                                         {config.pubQuizRoundNames?.map((name, idx) => (
-                                            <input 
+                                            <input
                                                 key={idx}
                                                 type="text"
                                                 value={name}
@@ -555,21 +659,89 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         ))}
                                     </div>
                                 </div>
+
+                                {mode === 'ai' && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                            <select
+                                                value={config.questionType}
+                                                onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                            >
+                                                <option value="ai-decide">AI Decide (Mixed)</option>
+                                                <option value="multiple-choice">Multiple Choice</option>
+                                                <option value="gap-fill">Gap Fill</option>
+                                                <option value="open">Open Ended</option>
+                                                <option value="mixed">Mixed Format</option>
+                                            </select>
+                                        </div>
+
+                                        {config.questionType === 'multiple-choice' && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                <select
+                                                    value={config.mcOptionCount || 4}
+                                                    onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="2">2 Options</option>
+                                                    <option value="3">3 Options</option>
+                                                    <option value="4">4 Options</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                             ) : (
-                                // STANDARD GAME CONFIG (Fallback)
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                // STANDARD GAME CONFIG (Fallback - Snakes & Ladders, Darts)
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>
-                                        <input 
-                                            type="number" 
-                                            min={5} 
+                                        <input
+                                            type="number"
+                                            min={5}
                                             max={50}
                                             value={config.questionCount}
                                             onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         />
                                     </div>
+
+                                    {mode === 'ai' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <select
+                                                    value={config.questionType}
+                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="ai-decide">AI Decide (Mixed)</option>
+                                                    <option value="multiple-choice">Multiple Choice</option>
+                                                    <option value="gap-fill">Gap Fill</option>
+                                                    <option value="open">Open Ended</option>
+                                                    <option value="mixed">Mixed Format</option>
+                                                </select>
+                                            </div>
+
+                                            {config.questionType === 'multiple-choice' && (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                    <select
+                                                        value={config.mcOptionCount || 4}
+                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
+                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                    >
+                                                        <option value="2">2 Options</option>
+                                                        <option value="3">3 Options</option>
+                                                        <option value="4">4 Options</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             )}
 
