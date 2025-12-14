@@ -125,6 +125,7 @@ export interface WorksheetConfig {
   files?: UploadedFile[]; // Source material
   difficultyLevel?: 'easy' | 'medium' | 'hard' | 'mixed'; // Difficulty control
   generateAnswerKey?: boolean; // Answer key generation toggle
+  includeHeader?: boolean; // Include Name/Date header fields
 }
 
 export interface GeneratedWorksheet {

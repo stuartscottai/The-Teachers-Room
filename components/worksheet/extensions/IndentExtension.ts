@@ -87,8 +87,39 @@ export const IndentExtension = Extension.create<IndentOptions>({
 
   addKeyboardShortcuts() {
     return {
-      Tab: () => this.editor.commands.indent(),
-      'Shift-Tab': () => this.editor.commands.outdent(),
+      Tab: () => {
+        // Insert 4 non-breaking spaces at cursor position
+        const tabSpaces = '\u00A0\u00A0\u00A0\u00A0';
+        return this.editor.commands.insertContent(tabSpaces);
+      },
+      'Shift-Tab': () => {
+        // Shift-Tab removes spaces before cursor
+        const { state } = this.editor;
+        const { selection } = state;
+        const { $from } = selection;
+
+        // Get text before cursor in current node
+        const textBefore = $from.parent.textBetween(0, $from.parentOffset);
+
+        // Check if there are non-breaking spaces immediately before cursor
+        const nbspMatch = textBefore.match(/(\u00A0+)$/);
+        const nbspCount = nbspMatch?.[1]?.length || 0;
+
+        if (nbspCount > 0) {
+          // Delete up to 4 non-breaking spaces before cursor
+          const deleteCount = Math.min(nbspCount, 4);
+          const from = $from.pos - deleteCount;
+          const to = $from.pos;
+
+          this.editor.chain()
+            .deleteRange({ from, to })
+            .run();
+
+          return true;
+        }
+
+        return false;
+      },
     };
   },
 });

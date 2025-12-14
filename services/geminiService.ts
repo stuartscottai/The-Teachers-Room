@@ -401,31 +401,36 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
   
   const systemInstruction = `You are an expert teacher creating professional worksheets for printing.
   Generate the 'content' as a complete, well-structured HTML string.
-  
+
   If the user provides source files (images/PDFs), analyze them thoroughly and base the worksheet content/questions specifically on that material.
-  
+
   STRICT STYLING RULES (Do NOT use inline CSS. Use these specific class names):
-  1. Header: Wrap the top block in <div class="ws-header">...</div>. 
-     - Use justify-content-between to separate Name and Date.
+  1. Header (OPTIONAL - only include if specified in prompt):
+     - Wrap in <div class="ws-header">...</div>
+     - Use justify-content-between to separate Name and Date
      - Inside, put Name on the left: <div class="ws-field">Name: ____________</div>
      - Inside, put Date on the right: <div class="ws-field">Date: ____________</div>
-     - CRITICAL: Do NOT add an underline (<u> tag or CSS style) to the words "Name" and "Date" themselves. The dotted lines provided are sufficient.
-     - Do NOT include a Score field unless explicitly requested.
-  2. Title: Use <h1 class="ws-title">Title Here</h1>.
+     - CRITICAL: Do NOT add an underline (<u> tag or CSS style) to the words "Name" and "Date" themselves
+     - Do NOT include a Score field unless explicitly requested
+  2. Title: Use <h2 style="font-size: 14pt; font-weight: bold; text-decoration: underline; margin: 1rem 0 1.5rem 0;">EXACT_TITLE_FROM_PROMPT</h2>
+     - CRITICAL: Use the EXACT title provided in the prompt. Do NOT modify, rephrase, or invent a new title.
+     - The title will be explicitly provided as "Use this exact title: [title]"
   3. Instructions (Main): Use <p class="ws-instructions">...</p> ONLY for the main worksheet intro/description (Centered).
   4. Sections: Wrap distinct activities in <div class="ws-section">.
      - Start with <h3 class="ws-section-title">Section Title</h3>.
      - Follow immediately with <p>Activity specific instructions...</p>. Do NOT use the 'ws-instructions' class here; use a standard paragraph (Left Aligned).
   5. Tables: For grids or matching, use <table class="ws-table">.
-  6. Answer Key: Wrap the ENTIRE answer key section in <div class="ws-answer-key">. Inside, use <h3>Answer Key</h3> and then lists.
-  
-  LAYOUT NOTE: 
-  The user has selected layout mode: ${config.layout || 'single'}. 
+  6. Answer Key (ONLY if explicitly requested):
+     - Wrap the ENTIRE answer key section in <div class="ws-answer-key">
+     - Inside, use <h3>Answer Key</h3> and then lists
+
+  LAYOUT NOTE:
+  The user has selected layout mode: ${config.layout || 'single'}.
   - If 'columns', avoid wide tables that might break in a narrow column.
   - The CSS handles the actual columns, just provide standard semantic HTML.
-  
+
   PRIORITY OVERRIDE:
-  If the user's "Additional Instructions" (provided below) specify custom header details (e.g., "Add a class period field", "No header", "Put Title on left"), YOU MUST FOLLOW THE USER'S INSTRUCTIONS instead of the default header rules above.
+  If the user's "Additional Instructions" (provided below) specify custom formatting, YOU MUST FOLLOW THE USER'S INSTRUCTIONS.
 
   CONTENT LAYOUT RULES:
   - Follow the EXACT ORDER of activities provided in the prompt.
@@ -482,6 +487,20 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     `
     : '';
 
+  // Add header instruction
+  const headerInstruction = config.includeHeader
+    ? `
+      HEADER REQUIRED:
+      Include a header at the top with Name and Date fields.
+      Wrap in <div class="ws-header">...</div>
+      - Left side: <div class="ws-field">Name: ____________</div>
+      - Right side: <div class="ws-field">Date: ____________</div>
+    `
+    : `
+      NO HEADER:
+      Do NOT include Name/Date fields. Start directly with the title.
+    `;
+
   // Add answer key instruction
   const answerKeyInstruction = config.generateAnswerKey
     ? `
@@ -492,13 +511,23 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
       [Provide detailed answers here, organized by activity]
       </div>
     `
-    : '';
+    : `
+      NO ANSWER KEY:
+      Do NOT include an answer key section.
+    `;
+
+  // Use exact title from config
+  const exactTitle = config.title || displayType;
 
   let prompt = `
     Create a "${displayType}" worksheet.
+
+    Use this exact title: ${exactTitle}
+
     Topic: ${config.topic}.
     Grade Level: ${config.gradeLevel}.
     ${difficultyInstruction}
+    ${headerInstruction}
     ${answerKeyInstruction}
     Additional Instructions: ${config.customInstructions || "None"}.
 

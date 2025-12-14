@@ -1209,6 +1209,22 @@ const WorksheetBuilder: React.FC<{
                                 </div>
                             </label>
                         </div>
+
+                        {/* Header Toggle */}
+                        <div>
+                            <label className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={config.includeHeader || false}
+                                    onChange={(e) => setConfig({...config, includeHeader: e.target.checked})}
+                                    className="mt-1"
+                                />
+                                <div>
+                                    <span className="block text-xs font-bold text-slate-700">Include Name & Date Header</span>
+                                    <p className="text-xs text-slate-500 mt-1">Adds Name and Date fields at the top of the worksheet</p>
+                                </div>
+                            </label>
+                        </div>
                     </div>
 
                     {/* FILE UPLOAD SECTION */}

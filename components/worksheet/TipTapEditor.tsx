@@ -5,14 +5,15 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
-import { Image } from '@tiptap/extension-image';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
+import { Underline } from '@tiptap/extension-underline';
 import { LineSpacing } from './extensions/LineSpacingExtension';
 import { IndentExtension } from './extensions/IndentExtension';
 import { PageBreak } from './extensions/PageBreakNode';
 import { FontSize } from './extensions/FontSizeExtension';
+import { ResizableImage } from './extensions/ResizableImageExtension';
 
 export interface TipTapEditorProps {
   content?: string;
@@ -39,6 +40,7 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
       TextStyle,
       Color,
       FontSize,
+      Underline,
       Table.configure({
         resizable: true,
         HTMLAttributes: {
@@ -48,12 +50,11 @@ export const TipTapEditor: React.FC<TipTapEditorProps> = ({
       TableRow,
       TableCell,
       TableHeader,
-      Image.configure({
-        inline: true,
+      ResizableImage.configure({
+        inline: false,
         allowBase64: true,
         HTMLAttributes: {
           class: 'worksheet-image',
-          style: 'max-width: 100%; height: auto; cursor: pointer;',
         },
       }),
       TextAlign.configure({
@@ -107,6 +108,7 @@ export const useTipTapEditor = (
       TextStyle,
       Color,
       FontSize,
+      Underline,
       Table.configure({
         resizable: true,
         HTMLAttributes: {
@@ -116,12 +118,11 @@ export const useTipTapEditor = (
       TableRow,
       TableCell,
       TableHeader,
-      Image.configure({
-        inline: true,
+      ResizableImage.configure({
+        inline: false,
         allowBase64: true,
         HTMLAttributes: {
           class: 'worksheet-image',
-          style: 'max-width: 100%; height: auto; cursor: pointer;',
         },
       }),
       TextAlign.configure({

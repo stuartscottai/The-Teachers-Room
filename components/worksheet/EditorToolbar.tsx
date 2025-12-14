@@ -39,6 +39,49 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontSizePicker, setShowFontSizePicker] = useState(false);
   const [showLineSpacingPicker, setShowLineSpacingPicker] = useState(false);
+  const [currentFontSize, setCurrentFontSize] = useState('12pt');
+
+  const colorPickerRef = React.useRef<HTMLDivElement>(null);
+  const fontSizePickerRef = React.useRef<HTMLDivElement>(null);
+  const lineSpacingPickerRef = React.useRef<HTMLDivElement>(null);
+
+  // Update font size when selection changes
+  React.useEffect(() => {
+    if (!editor) return;
+
+    const updateFontSize = () => {
+      const attrs = editor.getAttributes('textStyle');
+      setCurrentFontSize(attrs.fontSize || '12pt');
+    };
+
+    editor.on('selectionUpdate', updateFontSize);
+    editor.on('transaction', updateFontSize);
+
+    return () => {
+      editor.off('selectionUpdate', updateFontSize);
+      editor.off('transaction', updateFontSize);
+    };
+  }, [editor]);
+
+  // Click outside handlers
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+      }
+      if (fontSizePickerRef.current && !fontSizePickerRef.current.contains(event.target as Node)) {
+        setShowFontSizePicker(false);
+      }
+      if (lineSpacingPickerRef.current && !lineSpacingPickerRef.current.contains(event.target as Node)) {
+        setShowLineSpacingPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   if (!editor) {
     return null;
@@ -102,9 +145,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Italic size={18} />
         </ToolbarButton>
         <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive('strike')}
-          title="Strikethrough"
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={editor.isActive('underline')}
+          title="Underline (Ctrl+U)"
         >
           <Underline size={18} />
         </ToolbarButton>
@@ -160,52 +203,55 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         </ToolbarButton>
       </div>
 
-      {/* Indentation */}
+      {/* Indentation - Paragraph Level */}
       <div className="flex items-center gap-1 border-r border-gray-300 pr-2">
         <ToolbarButton
           onClick={() => editor.chain().focus().outdent().run()}
-          title="Decrease Indent (Shift+Tab)"
+          title="Decrease Paragraph Indent"
         >
           <Outdent size={18} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().indent().run()}
-          title="Increase Indent (Tab)"
+          title="Increase Paragraph Indent"
         >
           <Indent size={18} />
         </ToolbarButton>
       </div>
 
       {/* Inline Font Size */}
-      <div className="relative border-r border-gray-300 pr-2">
+      <div className="relative border-r border-gray-300 pr-2" ref={fontSizePickerRef}>
         <button
           onClick={() => setShowFontSizePicker(!showFontSizePicker)}
           title="Text Font Size"
           className="px-3 py-2 rounded hover:bg-gray-100 transition-colors text-gray-700 font-medium text-sm flex items-center gap-1"
         >
           <Type size={16} />
-          <span className="text-xs">Size</span>
+          <span className="text-xs">{currentFontSize}</span>
         </button>
         {showFontSizePicker && (
           <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 min-w-[100px]">
-            {['8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt', '32pt'].map((size) => (
-              <button
-                key={size}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100"
-                onClick={() => {
-                  editor.chain().focus().setFontSize(size).run();
-                  setShowFontSizePicker(false);
-                }}
-              >
-                {size}
-              </button>
-            ))}
+            {['8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt', '32pt'].map((size) => {
+              const isActive = currentFontSize === size;
+              return (
+                <button
+                  key={size}
+                  className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${isActive ? 'bg-blue-50 text-blue-700' : ''}`}
+                  onClick={() => {
+                    editor.chain().focus().setFontSize(size).run();
+                    setShowFontSizePicker(false);
+                  }}
+                >
+                  {size}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* Text Color */}
-      <div className="relative border-r border-gray-300 pr-2">
+      <div className="relative border-r border-gray-300 pr-2" ref={colorPickerRef}>
         <ToolbarButton
           onClick={() => setShowColorPicker(!showColorPicker)}
           title="Text Color"
@@ -213,27 +259,74 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <Palette size={18} />
         </ToolbarButton>
         {showColorPicker && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 p-3">
-            <div className="grid grid-cols-5 gap-2">
-              {['#000000', '#DC2626', '#EA580C', '#D97706', '#65A30D', '#059669', '#0891B2', '#2563EB', '#7C3AED', '#C026D3'].map((color) => (
-                <button
-                  key={color}
-                  className="w-8 h-8 rounded border-2 border-gray-300 hover:border-gray-500 transition-colors"
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    editor.chain().focus().setColor(color).run();
-                    setShowColorPicker(false);
-                  }}
-                  title={color}
-                />
-              ))}
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-10 p-4 w-64">
+            {/* Theme Colors */}
+            <div className="mb-3">
+              <h4 className="text-xs font-semibold text-gray-700 mb-2">Theme Colors</h4>
+              <div className="grid grid-cols-10 gap-1">
+                {[
+                  // Row 1: Main theme colors
+                  '#FFFFFF', '#000000', '#E7E5E4', '#44403C', '#1C4ED8', '#0891B2', '#EA580C', '#16A34A', '#0EA5E9', '#A855F7',
+                  // Row 2: 80% tint
+                  '#F5F5F4', '#292524', '#D6D3D1', '#57534E', '#3B82F6', '#06B6D4', '#F97316', '#22C55E', '#38BDF8', '#C084FC',
+                  // Row 3: 60% tint
+                  '#E7E5E4', '#44403C', '#A8A29E', '#78716C', '#60A5FA', '#22D3EE', '#FB923C', '#4ADE80', '#7DD3FC', '#D8B4FE',
+                  // Row 4: 40% tint
+                  '#D6D3D1', '#57534E', '#78716C', '#A8A29E', '#93C5FD', '#67E8F9', '#FDBA74', '#86EFAC', '#BAE6FD', '#E9D5FF',
+                  // Row 5: Lighter tints
+                  '#A8A29E', '#78716C', '#57534E', '#D6D3D1', '#DBEAFE', '#CFFAFE', '#FED7AA', '#BBF7D0', '#E0F2FE', '#F3E8FF',
+                ].map((color, idx) => (
+                  <button
+                    key={`theme-${idx}`}
+                    className="w-5 h-5 rounded border border-gray-300 hover:border-gray-500 transition-colors"
+                    style={{ backgroundColor: color }}
+                    onClick={() => {
+                      editor.chain().focus().setColor(color).run();
+                      setShowColorPicker(false);
+                    }}
+                    title={color}
+                  />
+                ))}
+              </div>
             </div>
+
+            {/* Standard Colors */}
+            <div>
+              <h4 className="text-xs font-semibold text-gray-700 mb-2">Standard Colors</h4>
+              <div className="grid grid-cols-10 gap-1">
+                {[
+                  '#C00000', '#FF0000', '#FFC000', '#FFFF00', '#92D050', '#00B050', '#00B0F0', '#0070C0', '#002060', '#7030A0',
+                ].map((color, idx) => (
+                  <button
+                    key={`standard-${idx}`}
+                    className="w-5 h-5 rounded border border-gray-300 hover:border-gray-500 transition-colors"
+                    style={{ backgroundColor: color }}
+                    onClick={() => {
+                      editor.chain().focus().setColor(color).run();
+                      setShowColorPicker(false);
+                    }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Automatic/Reset button */}
+            <button
+              className="w-full mt-3 px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              onClick={() => {
+                editor.chain().focus().unsetColor().run();
+                setShowColorPicker(false);
+              }}
+            >
+              Automatic (Black)
+            </button>
           </div>
         )}
       </div>
 
       {/* Line Spacing */}
-      <div className="relative border-r border-gray-300 pr-2">
+      <div className="relative border-r border-gray-300 pr-2" ref={lineSpacingPickerRef}>
         <ToolbarButton
           onClick={() => setShowLineSpacingPicker(!showLineSpacingPicker)}
           title="Line Spacing"
