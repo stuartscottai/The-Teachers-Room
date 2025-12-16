@@ -1,17 +1,50 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { NodeSelection } from '@tiptap/pm/state';
 import React, { useState, useRef, useEffect } from 'react';
 
 // React component for the image node view
-const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
+const ResizableImageComponent = ({ node, updateAttributes, selected, editor, getPos }: any) => {
   const [isResizing, setIsResizing] = useState(false);
-  const [isSelected, setIsSelected] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [hoverHandle, setHoverHandle] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const startPos = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0 });
+  const startPos = useRef({ x: 0, y: 0, width: 0, height: 0, posX: 0, posY: 0, scale: 1 });
+
+  const toCssSize = (value: any) => {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) return `${value}px`;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (/^\d+(\.\d+)?$/.test(trimmed)) return `${trimmed}px`;
+      return trimmed;
+    }
+    return undefined;
+  };
+
+  const getScale = () => {
+    const img = imageRef.current;
+    if (!img) return 1;
+    const rect = img.getBoundingClientRect();
+    const ow = img.offsetWidth || 0;
+    if (!ow) return 1;
+    const scale = rect.width / ow;
+    return Number.isFinite(scale) && scale > 0 ? scale : 1;
+  };
+
+  const selectNode = () => {
+    try {
+      const pos = typeof getPos === 'function' ? getPos() : getPos;
+      if (typeof pos === 'number') {
+        editor?.commands?.focus?.();
+        editor?.commands?.setNodeSelection?.(pos);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent, handle: string) => {
     e.preventDefault();
@@ -28,13 +61,18 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
       y: e.clientY,
       width: img.offsetWidth,
       height: img.offsetHeight,
+      posX: node.attrs.posX || 0,
+      posY: node.attrs.posY || 0,
+      scale: getScale(),
     };
+
+    selectNode();
   };
 
   const handleImageClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsSelected(true);
+    selectNode();
   };
 
   const handleImageDragStart = (e: React.MouseEvent) => {
@@ -47,48 +85,37 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
     e.stopPropagation();
 
     setIsDragging(true);
-    setIsSelected(true);
+    selectNode();
+
+    const img = imageRef.current;
+    const width = img ? img.offsetWidth : parseInt(node.attrs.width || '0');
+    const height = img ? img.offsetHeight : parseInt(node.attrs.height || '0');
 
     startPos.current = {
       x: e.clientX,
       y: e.clientY,
-      width: node.attrs.width || 0,
-      height: node.attrs.height || 0,
+      width,
+      height,
       posX: node.attrs.posX || 0,
       posY: node.attrs.posY || 0,
+      scale: getScale(),
     };
   };
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsSelected(false);
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isSelected && (e.key === 'Delete' || e.key === 'Backspace')) {
-        e.preventDefault();
-        // The node will be deleted by TipTap's built-in behavior
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSelected]);
+    // keep local interaction states consistent if selection changes elsewhere
+    if (!selected && !isResizing && !isDragging) {
+      setResizeHandle(null);
+    }
+  }, [selected, isResizing, isDragging]);
 
   // Handle dragging to reposition
   useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - startPos.current.x;
-      const deltaY = e.clientY - startPos.current.y;
+      const deltaX = (e.clientX - startPos.current.x) / (startPos.current.scale || 1);
+      const deltaY = (e.clientY - startPos.current.y) / (startPos.current.scale || 1);
 
       updateAttributes({
         posX: startPos.current.posX + deltaX,
@@ -116,27 +143,29 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!imageRef.current || !resizeHandle) return;
 
-      const deltaX = e.clientX - startPos.current.x;
-      const deltaY = e.clientY - startPos.current.y;
+      const deltaX = (e.clientX - startPos.current.x) / (startPos.current.scale || 1);
+      const deltaY = (e.clientY - startPos.current.y) / (startPos.current.scale || 1);
 
       let newWidth = startPos.current.width;
       let newHeight = startPos.current.height;
+      let newPosX = startPos.current.posX;
+      let newPosY = startPos.current.posY;
 
       // Calculate new dimensions based on which handle is being dragged
       if (resizeHandle === 'se' || resizeHandle === 'nw' || resizeHandle === 'ne' || resizeHandle === 'sw') {
         // Corner resize - maintain aspect ratio
-        const aspectRatio = startPos.current.width / startPos.current.height;
+        const safeStartHeight = startPos.current.height || 1;
+        const aspectRatio = startPos.current.width / safeStartHeight;
 
-        if (resizeHandle === 'se') {
-          newWidth = startPos.current.width + deltaX;
-        } else if (resizeHandle === 'nw') {
-          newWidth = startPos.current.width - deltaX;
-        } else if (resizeHandle === 'ne') {
-          newWidth = startPos.current.width + deltaX;
-        } else if (resizeHandle === 'sw') {
-          newWidth = startPos.current.width - deltaX;
-        }
+        const east = resizeHandle === 'se' || resizeHandle === 'ne';
+        const south = resizeHandle === 'se' || resizeHandle === 'sw';
+        const widthFromX = startPos.current.width + (east ? deltaX : -deltaX);
+        const heightFromY = safeStartHeight + (south ? deltaY : -deltaY);
+        const widthFromY = heightFromY * aspectRatio;
 
+        newWidth = Math.abs(widthFromX - startPos.current.width) > Math.abs(widthFromY - startPos.current.width)
+          ? widthFromX
+          : widthFromY;
         newHeight = newWidth / aspectRatio;
       } else if (resizeHandle === 'e' || resizeHandle === 'w') {
         // Horizontal edge resize
@@ -154,10 +183,26 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
       newWidth = Math.max(50, newWidth);
       newHeight = Math.max(50, newHeight);
 
+      // For positioned images, keep the opposite corner fixed when resizing from west/north handles
+      const isPositioned = (startPos.current.posX || 0) !== 0 || (startPos.current.posY || 0) !== 0;
+      if (isPositioned) {
+        const west = resizeHandle === 'w' || resizeHandle === 'nw' || resizeHandle === 'sw';
+        const north = resizeHandle === 'n' || resizeHandle === 'nw' || resizeHandle === 'ne';
+
+        if (west) {
+          newPosX = startPos.current.posX + (startPos.current.width - newWidth);
+        }
+        if (north) {
+          newPosY = startPos.current.posY + (startPos.current.height - newHeight);
+        }
+      }
+
       // Update the attributes
       updateAttributes({
         width: Math.round(newWidth),
         height: Math.round(newHeight),
+        posX: Math.round(newPosX),
+        posY: Math.round(newPosY),
       });
     };
 
@@ -179,7 +224,7 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
   const height = node.attrs.height;
   const posX = node.attrs.posX || 0;
   const posY = node.attrs.posY || 0;
-  const showHandles = isSelected || isResizing || isDragging;
+  const showHandles = selected || isResizing || isDragging;
 
   // Check if image has been positioned (non-zero posX or posY)
   const isPositioned = posX !== 0 || posY !== 0;
@@ -201,7 +246,11 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
   const wrapperStyle: React.CSSProperties = {
     lineHeight: 0,
     display: 'inline-block',
-    maxWidth: '100%',
+    maxWidth: isPositioned ? 'none' : '100%',
+    outline: showHandles ? '2px solid rgba(59, 130, 246, 0.9)' : '2px solid transparent',
+    outlineOffset: showHandles ? '2px' : '0px',
+    padding: 0,
+    margin: 0,
   };
 
   if (isPositioned) {
@@ -223,22 +272,81 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
         ref={imageRef}
         src={node.attrs.src}
         alt={node.attrs.alt || ''}
+        crossOrigin={typeof node.attrs.src === 'string' && node.attrs.src.startsWith('http') ? 'anonymous' : undefined}
         onClick={handleImageClick}
         onMouseDown={handleImageDragStart}
         draggable={false}
         style={{
-          width: width ? `${width}px` : 'auto',
-          height: height ? `${height}px` : 'auto',
+          width: toCssSize(width) || 'auto',
+          height: toCssSize(height) || 'auto',
+          maxWidth: 'none',
+          maxHeight: 'none',
           display: 'block',
-          cursor: isDragging ? 'grabbing' : (isSelected ? 'grab' : 'pointer'),
-          border: showHandles ? '2px solid #3b82f6' : '2px solid transparent',
+          margin: 0,
+          padding: 0,
+          cursor: isDragging ? 'grabbing' : (selected ? 'grab' : 'pointer'),
+          border: '2px solid transparent',
           userSelect: 'none',
+          objectFit: 'fill',
         }}
       />
 
       {/* Resize handles - only show when selected and hide in print */}
       {showHandles && (
-        <div className="image-resize-handles" style={{ display: 'block' }}>
+        <div
+          className="image-resize-handles"
+          style={{
+            display: 'block',
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+          }}
+        >
+          <button
+            type="button"
+            aria-label="Remove image"
+            title="Remove image"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              selectNode();
+              try {
+                editor?.chain?.().focus().deleteSelection().run();
+              } catch {
+                // ignore
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: '-10px',
+              right: '-10px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              color: '#ffffff',
+              WebkitTextFillColor: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              fontWeight: 700,
+              lineHeight: 1,
+              border: '2px solid white',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              zIndex: 70,
+              cursor: 'pointer',
+              pointerEvents: 'auto',
+              padding: 0,
+            }}
+          >
+            ×
+          </button>
+
           {/* Corner handles */}
           <div
             className="resize-handle"
@@ -254,8 +362,10 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('nw'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -272,8 +382,10 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('ne'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -290,8 +402,10 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('se'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -308,8 +422,10 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('sw'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
 
@@ -324,13 +440,15 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               left: '50%',
               top: '-6px',
               transform: 'translateX(-50%)',
-              width: '40px',
+              width: '12px',
               height: '12px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
-              borderRadius: '6px',
+              borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('n'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -343,13 +461,15 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               left: '50%',
               bottom: '-6px',
               transform: 'translateX(-50%)',
-              width: '40px',
+              width: '12px',
               height: '12px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
-              borderRadius: '6px',
+              borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('s'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -363,12 +483,14 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               top: '50%',
               transform: 'translateY(-50%)',
               width: '12px',
-              height: '40px',
+              height: '12px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
-              borderRadius: '6px',
+              borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('e'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
           <div
@@ -382,12 +504,14 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
               top: '50%',
               transform: 'translateY(-50%)',
               width: '12px',
-              height: '40px',
+              height: '12px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
-              borderRadius: '6px',
+              borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               cursor: getCursor('w'),
               zIndex: 10,
+              pointerEvents: 'auto',
             }}
           />
         </div>
@@ -399,8 +523,8 @@ const ResizableImageComponent = ({ node, updateAttributes, selected }: any) => {
           .image-resize-handles {
             display: none !important;
           }
-          .resizable-image-wrapper img {
-            border: none !important;
+          .resizable-image-wrapper {
+            outline: none !important;
           }
         }
       `}</style>
@@ -436,6 +560,18 @@ export const ResizableImage = Node.create({
       src: {
         default: null,
       },
+      storagePath: {
+        default: null,
+        parseHTML: element => {
+          return element.getAttribute('data-storage-path') || null;
+        },
+        renderHTML: attributes => {
+          if (!attributes.storagePath) {
+            return {};
+          }
+          return { 'data-storage-path': attributes.storagePath };
+        },
+      },
       alt: {
         default: null,
       },
@@ -444,6 +580,16 @@ export const ResizableImage = Node.create({
       },
       width: {
         default: null,
+        parseHTML: element => {
+          const raw = element.getAttribute('width') || element.style.width || null;
+          if (!raw) return null;
+          const trimmed = raw.trim();
+          const px = trimmed.match(/^(\d+(\.\d+)?)px$/i);
+          if (px) return parseFloat(px[1]);
+          const num = trimmed.match(/^(\d+(\.\d+)?)$/);
+          if (num) return parseFloat(num[1]);
+          return trimmed;
+        },
         renderHTML: attributes => {
           if (!attributes.width) {
             return {};
@@ -455,6 +601,16 @@ export const ResizableImage = Node.create({
       },
       height: {
         default: null,
+        parseHTML: element => {
+          const raw = element.getAttribute('height') || element.style.height || null;
+          if (!raw) return null;
+          const trimmed = raw.trim();
+          const px = trimmed.match(/^(\d+(\.\d+)?)px$/i);
+          if (px) return parseFloat(px[1]);
+          const num = trimmed.match(/^(\d+(\.\d+)?)$/);
+          if (num) return parseFloat(num[1]);
+          return trimmed;
+        },
         renderHTML: attributes => {
           if (!attributes.height) {
             return {};
@@ -507,9 +663,46 @@ export const ResizableImage = Node.create({
     return ReactNodeViewRenderer(ResizableImageComponent);
   },
 
+  addKeyboardShortcuts() {
+    const selectImageBeforeCursor = (editor: any) => {
+      const { state, view } = editor;
+      const { selection } = state;
+      if (!selection.empty) return false;
+      if (selection instanceof NodeSelection) return false;
+
+      const { $from } = selection;
+      const nodeBefore = $from.nodeBefore;
+      if (!nodeBefore || nodeBefore.type.name !== this.name) return false;
+
+      const pos = $from.pos - nodeBefore.nodeSize;
+      view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
+      return true;
+    };
+
+    const selectImageAfterCursor = (editor: any) => {
+      const { state, view } = editor;
+      const { selection } = state;
+      if (!selection.empty) return false;
+      if (selection instanceof NodeSelection) return false;
+
+      const { $from } = selection;
+      const nodeAfter = $from.nodeAfter;
+      if (!nodeAfter || nodeAfter.type.name !== this.name) return false;
+
+      const pos = $from.pos;
+      view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
+      return true;
+    };
+
+    return {
+      Backspace: ({ editor }) => selectImageBeforeCursor(editor),
+      Delete: ({ editor }) => selectImageAfterCursor(editor),
+    };
+  },
+
   addCommands() {
     return {
-      setImage: (options: { src: string; alt?: string; title?: string; width?: number; height?: number; posX?: number; posY?: number }) => ({ commands }) => {
+      setImage: (options: { src: string; storagePath?: string; alt?: string; title?: string; width?: number; height?: number; posX?: number; posY?: number }) => ({ commands }) => {
         return commands.insertContent({
           type: this.name,
           attrs: options,

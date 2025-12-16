@@ -22,6 +22,7 @@ export const A4_PDF_OPTIONS = {
     useCORS: true,
     letterRendering: true,
     logging: false,
+    backgroundColor: '#ffffff',
     width: 794, // 210mm at 96 DPI = 794px
     windowWidth: 794,
   },
@@ -318,11 +319,12 @@ export const generatePDF = async (
   console.log('Font size:', meta.fontSize);
 
   const fontSize = meta.fontSize || 11;
+  const isDomSource = typeof source !== 'string';
 
   let elementToRender: HTMLElement;
 
   // If source is already a DOM element (the preview), use it directly
-  if (typeof source !== 'string') {
+  if (isDomSource) {
     console.log('Using direct DOM element (100% WYSIWYG)');
     elementToRender = source.cloneNode(true) as HTMLElement;
   } else {
@@ -352,6 +354,7 @@ export const generatePDF = async (
   wrapper.style.left = '-99999px';
   wrapper.style.top = '0';
   wrapper.style.visibility = 'hidden';
+  wrapper.style.background = 'white';
 
   // Add CSS
   const styleElement = document.createElement('style');
@@ -359,7 +362,7 @@ export const generatePDF = async (
   wrapper.appendChild(styleElement);
 
   // Add logo if present
-  if (meta.logoUrl) {
+  if (!isDomSource && meta.logoUrl) {
     const logoImg = document.createElement('img');
     logoImg.src = meta.logoUrl;
     logoImg.style.position = 'absolute';
@@ -384,6 +387,72 @@ export const generatePDF = async (
 
     // Wait for fonts and images to load
     await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Trim a trailing "blank page" caused by tiny overflow beyond a page boundary.
+    // This prevents an extra empty page (sometimes rendered black by some PDF viewers).
+    try {
+      const probe = document.createElement('div');
+      probe.style.height = '297mm';
+      probe.style.width = '1px';
+      probe.style.position = 'absolute';
+      probe.style.left = '0';
+      probe.style.top = '0';
+      wrapper.appendChild(probe);
+      const pageHeightPx = probe.getBoundingClientRect().height || 1122.5;
+      probe.remove();
+
+      const worksheetPage = elementToRender.querySelector('.worksheet-page-content') as HTMLElement | null;
+      if (worksheetPage && pageHeightPx > 0) {
+        const baseRect = worksheetPage.getBoundingClientRect();
+        const excluded = new Set([
+          'STYLE',
+          'SCRIPT',
+        ]);
+
+        let maxBottom = 0;
+        const elements = Array.from(worksheetPage.querySelectorAll('*')) as HTMLElement[];
+        for (const el of elements) {
+          if (excluded.has(el.tagName)) continue;
+          if (
+            el.classList.contains('worksheet-margin-overlays') ||
+            el.classList.contains('worksheet-page-dividers') ||
+            el.classList.contains('image-resize-handles') ||
+            el.classList.contains('resize-handle') ||
+            el.classList.contains('ws-logo-resize-handle') ||
+            el.classList.contains('ws-logo-delete')
+          ) {
+            continue;
+          }
+
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden') continue;
+
+          const hasMeaningfulText = (el.textContent || '').trim().length > 0;
+          const isMedia = el.tagName === 'IMG' || el.tagName === 'TABLE' || el.tagName === 'HR';
+          if (!hasMeaningfulText && !isMedia) continue;
+
+          const rect = el.getBoundingClientRect();
+          if (rect.width < 1 || rect.height < 1) continue;
+          maxBottom = Math.max(maxBottom, rect.bottom - baseRect.top);
+        }
+
+        // If we couldn't find anything meaningful, keep 1 page.
+        const safetyPx = 8;
+        const pagesNeeded = Math.max(1, Math.ceil((maxBottom + safetyPx) / pageHeightPx));
+        const targetHeight = Math.round(pagesNeeded * pageHeightPx);
+
+        // Only trim if there's tiny overflow beyond the final boundary (prevents cutting real content).
+        const currentHeight = worksheetPage.scrollHeight;
+        const overflow = currentHeight - targetHeight;
+        if (overflow > 0 && overflow < 24) {
+          worksheetPage.style.height = `${targetHeight}px`;
+          worksheetPage.style.overflow = 'hidden';
+          worksheetPage.style.backgroundColor = 'white';
+        }
+      }
+    } catch (e) {
+      console.warn('PDF trim skipped:', e);
+    }
 
     onProgress?.(30);
 

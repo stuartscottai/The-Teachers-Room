@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCommunityWorksheets, processFile } from '../utils/gameUtils';
+import { optimizeImageForUpload } from '../utils/imageOptimize';
+import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
 import { useTipTapEditor } from '../components/worksheet/TipTapEditor';
 import { EditorContent } from '@tiptap/react';
 import { EditorToolbar } from '../components/worksheet/EditorToolbar';
@@ -475,7 +477,7 @@ const GRADE_CATEGORIES = {
 // --- COMPONENT: GRADE SELECTOR ---
 const GradeSelector: React.FC<{ value: string, onChange: (val: string) => void }> = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [expandedCategory, setExpandedCategory] = useState<string | null>('Grades');
+    const [expandedCategory, setExpandedCategory] = useState<string | null>('CEFR Levels');
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -716,13 +718,14 @@ const WorksheetBuilder: React.FC<{
     setConfig: React.Dispatch<React.SetStateAction<WorksheetConfig>>,
     generatedWs: GeneratedWorksheet | null,
     setGeneratedWs: React.Dispatch<React.SetStateAction<GeneratedWorksheet | null>>,
-    onLoad: () => void
-}> = ({ config, setConfig, generatedWs, setGeneratedWs }) => {
+    onLoad: () => void,
+    onDirtyChange?: (dirty: boolean) => void
+}> = ({ config, setConfig, generatedWs, setGeneratedWs, onDirtyChange }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [fontSize, setFontSize] = useState(11);
-    const [zoom, setZoom] = useState(0.75);
+    const [zoom, setZoom] = useState(1);
     const contentRef = useRef<HTMLDivElement>(null);
     const [contentHeight, setContentHeight] = useState(0);
     const [showAddMenu, setShowAddMenu] = useState(false);
@@ -732,6 +735,7 @@ const WorksheetBuilder: React.FC<{
     const [historyTimeout, setHistoryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
     const [isPublic, setIsPublic] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     
     // Active Formats State for Toolbar
     const [activeFormats, setActiveFormats] = useState({
@@ -747,8 +751,126 @@ const WorksheetBuilder: React.FC<{
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [logoPos, setLogoPos] = useState({ x: 20, y: 20 });
     const [logoWidth, setLogoWidth] = useState(150);
+    const [logoHeight, setLogoHeight] = useState(90);
+    const [logoStoragePath, setLogoStoragePath] = useState<string | null>(null);
+    const [logoSelected, setLogoSelected] = useState(false);
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
     const logoDragOffset = useRef({ x: 0, y: 0 });
+    const [isResizingLogo, setIsResizingLogo] = useState(false);
+    const lastLoadedLogoKeyRef = useRef<string>('');
+    const pendingLogoUploadRef = useRef<{
+        objectUrl?: string;
+        blob: Blob;
+        contentType: string;
+        extension: string;
+        width: number;
+        height: number;
+    } | null>(null);
+    const logoResizeStartRef = useRef<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        posX: number;
+        posY: number;
+        handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw';
+    } | null>(null);
+
+    const getWorksheetPageRect = () => {
+        const el = document.querySelector('.worksheet-page-content') as HTMLElement | null;
+        return el?.getBoundingClientRect() ?? null;
+    };
+
+    const placeLogoTopRight = (opts?: { width?: number; height?: number }) => {
+        const DEFAULT_WIDTH = opts?.width ?? 180;
+        const DEFAULT_HEIGHT = opts?.height;
+        const PADDING_MM = 20;
+        const DEFAULT_MARGIN_PX = (PADDING_MM / 25.4) * 96; // 20mm @ 96dpi
+        const rect = getWorksheetPageRect();
+
+        const pageWidth = rect ? rect.width / zoom : 794; // fallback A4 width at ~96dpi
+        const pageHeight = rect ? rect.height / zoom : 1122; // fallback A4 height at ~96dpi
+
+        setLogoWidth(DEFAULT_WIDTH);
+        setLogoHeight((prev) => {
+            if (typeof DEFAULT_HEIGHT === 'number' && Number.isFinite(DEFAULT_HEIGHT)) {
+                return Math.max(30, DEFAULT_HEIGHT);
+            }
+            const ratio = logoWidth > 0 ? (logoHeight / logoWidth) : 0.6;
+            const next = DEFAULT_WIDTH * (Number.isFinite(ratio) && ratio > 0 ? ratio : 0.6);
+            return Math.max(30, next);
+        });
+        setLogoPos({
+            // Ensure logo sits inside the 20mm padding area (not in the top/right margins)
+            x: Math.max(DEFAULT_MARGIN_PX, pageWidth - DEFAULT_WIDTH - DEFAULT_MARGIN_PX),
+            y: DEFAULT_MARGIN_PX,
+        });
+    };
+
+    const handleRemoveLogo = useCallback(() => {
+        const pending = pendingLogoUploadRef.current;
+        if (pending?.objectUrl) {
+            try { URL.revokeObjectURL(pending.objectUrl); } catch { /* ignore */ }
+        }
+        pendingLogoUploadRef.current = null;
+        setLogoUrl(null);
+        setLogoStoragePath(null);
+        setLogoSelected(false);
+    }, []);
+
+    useEffect(() => {
+        const pending = pendingLogoUploadRef.current;
+        const worksheetId = generatedWs?.id;
+        const shouldUpload = Boolean(user) && (config.storeWorksheetAssets ?? true);
+        if (!pending || !worksheetId || !shouldUpload || !user) return;
+
+        const upload = async () => {
+            try {
+                const uploaded = await uploadWorksheetAsset({
+                    userId: user.id,
+                    blob: pending.blob,
+                    contentType: pending.contentType,
+                    extension: pending.extension,
+                    kind: 'logo',
+                    worksheetId,
+                });
+
+                if (pending.objectUrl) {
+                    try { URL.revokeObjectURL(pending.objectUrl); } catch { /* ignore */ }
+                }
+
+                pendingLogoUploadRef.current = null;
+                setLogoUrl(uploaded.signedUrl);
+                setLogoStoragePath(uploaded.path);
+            } catch (e) {
+                console.warn('Deferred logo upload failed:', e);
+            }
+        };
+
+        void upload();
+    }, [generatedWs?.id, user, config.storeWorksheetAssets]);
+
+    useEffect(() => {
+        if (!logoSelected) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Delete') return;
+
+            const target = e.target as HTMLElement | null;
+            const active = document.activeElement as HTMLElement | null;
+            const tag = target?.tagName?.toUpperCase?.() ?? '';
+            const isForm = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+            const isEditable = Boolean((target as any)?.isContentEditable);
+            const isInEditor = Boolean(active?.closest?.('.ProseMirror'));
+            if (isForm || isEditable || isInEditor) return;
+
+            e.preventDefault();
+            handleRemoveLogo();
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [logoSelected, handleRemoveLogo]);
 
     // Selection Persistence Ref
     const selectionRange = useRef<Range | null>(null);
@@ -770,64 +892,145 @@ const WorksheetBuilder: React.FC<{
         }
     }, [generatedWs]);
 
-    // Zoom Calculation - Maximizes initial view
     useEffect(() => {
-        const calculateZoom = () => {
-            if (generatedWs) {
-                const container = document.getElementById('preview-wrapper');
-                if (container) {
-                    const availableWidth = container.clientWidth - 40; // Smaller margin for max width
-                    const a4Width = 794; // A4 width at 96 DPI
-                    // If container is smaller than A4, fit width. If larger, cap at 1.0 or fit width up to max.
-                    const fitZoom = availableWidth / a4Width;
-                    // Ensure it's big enough to read but fits width
-                    const newZoom = Math.min(1.2, fitZoom); 
-                    setZoom(parseFloat(newZoom.toFixed(2)));
+        const logo = generatedWs?.config?.logo || null;
+        const key = logo ? JSON.stringify(logo) : 'none';
+        if (key === lastLoadedLogoKeyRef.current) return;
+        lastLoadedLogoKeyRef.current = key;
+
+        if (!logo) {
+            setLogoUrl(null);
+            setLogoStoragePath(null);
+            setLogoPos({ x: 20, y: 20 });
+            setLogoWidth(150);
+            setLogoHeight(90);
+            setLogoSelected(false);
+            return;
+        }
+
+        const apply = async () => {
+            let nextUrl = logo.url || null;
+            if (logo.storagePath && user) {
+                try {
+                    nextUrl = await createSignedUrlForWorksheetAsset(logo.storagePath);
+                } catch {
+                    nextUrl = logo.url || null;
                 }
             }
+
+            setLogoUrl(nextUrl);
+            setLogoStoragePath(logo.storagePath || null);
+            setLogoPos(logo.pos || { x: 20, y: 20 });
+            setLogoWidth(logo.width || 150);
+            setLogoHeight(logo.height || 90);
+            setLogoSelected(false);
         };
-        // Run immediately and on resize
-        const timer = setTimeout(calculateZoom, 50);
-        window.addEventListener('resize', calculateZoom);
-        return () => {
-            window.removeEventListener('resize', calculateZoom);
-            clearTimeout(timer);
-        }
-    }, [generatedWs]);
+
+        void apply();
+    }, [generatedWs?.config?.logo, user]);
 
     // Logo Dragging Logic
     const handleLogoMouseDown = (e: React.MouseEvent) => {
-        if (!logoUrl || (e.target as HTMLElement).classList.contains('ws-resize-handle')) return;
+        if (!logoUrl || (e.target as HTMLElement).classList.contains('ws-logo-resize-handle')) return;
         e.preventDefault();
         e.stopPropagation();
+        setLogoSelected(true);
         setIsDraggingLogo(true);
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         logoDragOffset.current = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: (e.clientX - rect.left) / zoom,
+            y: (e.clientY - rect.top) / zoom
         };
     };
 
     const handleWindowMouseMove = useCallback((e: MouseEvent) => {
-        if (isDraggingLogo && contentRef.current) {
-            const containerRect = contentRef.current.getBoundingClientRect();
-            // Calculate relative position accounting for Zoom
-            const rawX = e.clientX - containerRect.left - logoDragOffset.current.x;
-            const rawY = e.clientY - containerRect.top - logoDragOffset.current.y;
-            
+        if (isDraggingLogo) {
+            const rect = getWorksheetPageRect();
+            if (!rect) return;
+
+            const rawX = (e.clientX - rect.left) / zoom - logoDragOffset.current.x;
+            const rawY = (e.clientY - rect.top) / zoom - logoDragOffset.current.y;
+
             setLogoPos({
-                x: rawX / zoom,
-                y: rawY / zoom
+                x: rawX,
+                y: rawY
             });
         }
-    }, [isDraggingLogo, zoom]);
+
+        if (isResizingLogo && logoResizeStartRef.current) {
+            const deltaX = (e.clientX - logoResizeStartRef.current.x) / zoom;
+            const deltaY = (e.clientY - logoResizeStartRef.current.y) / zoom;
+            const startWidth = logoResizeStartRef.current.width;
+            const startHeight = logoResizeStartRef.current.height || 1;
+            const startPosX = logoResizeStartRef.current.posX;
+            const startPosY = logoResizeStartRef.current.posY;
+            const handle = logoResizeStartRef.current.handle;
+            const east = handle === 'e' || handle === 'ne' || handle === 'se';
+            const west = handle === 'w' || handle === 'nw' || handle === 'sw';
+            const north = handle === 'n' || handle === 'nw' || handle === 'ne';
+            const south = handle === 's' || handle === 'sw' || handle === 'se';
+
+            let newWidth = startWidth;
+            let newHeight = startHeight;
+            let newPosX = startPosX;
+            let newPosY = startPosY;
+
+            const minSize = 30;
+            const isCorner = handle === 'nw' || handle === 'ne' || handle === 'sw' || handle === 'se';
+
+            // Corner handles: maintain original aspect ratio.
+            if (isCorner) {
+                const aspectRatio = startWidth / startHeight;
+                const widthFromX = startWidth + (east ? deltaX : -deltaX);
+                const heightFromY = startHeight + (south ? deltaY : -deltaY);
+                const widthFromY = heightFromY * aspectRatio;
+
+                newWidth = Math.abs(widthFromX - startWidth) > Math.abs(widthFromY - startWidth)
+                    ? widthFromX
+                    : widthFromY;
+                newWidth = Math.max(minSize, newWidth);
+                newHeight = Math.max(minSize, newWidth / aspectRatio);
+            } else {
+                // Edge handles: allow squashing (resize one dimension only).
+                if (east) {
+                    newWidth = startWidth + deltaX;
+                } else if (west) {
+                    newWidth = startWidth - deltaX;
+                }
+
+                if (south) {
+                    newHeight = startHeight + deltaY;
+                } else if (north) {
+                    newHeight = startHeight - deltaY;
+                }
+
+                newWidth = Math.max(minSize, newWidth);
+                newHeight = Math.max(minSize, newHeight);
+            }
+
+            if (west) {
+                const applied = startWidth - newWidth;
+                newPosX = startPosX + applied;
+            }
+            if (north) {
+                const applied = startHeight - newHeight;
+                newPosY = startPosY + applied;
+            }
+
+            setLogoWidth(newWidth);
+            setLogoHeight(newHeight);
+            setLogoPos({ x: newPosX, y: newPosY });
+        }
+    }, [isDraggingLogo, isResizingLogo, zoom]);
 
     const handleWindowMouseUp = useCallback(() => {
         setIsDraggingLogo(false);
+        setIsResizingLogo(false);
+        logoResizeStartRef.current = null;
     }, []);
 
     useEffect(() => {
-        if (isDraggingLogo) {
+        if (isDraggingLogo || isResizingLogo) {
             window.addEventListener('mousemove', handleWindowMouseMove);
             window.addEventListener('mouseup', handleWindowMouseUp);
         } else {
@@ -838,20 +1041,109 @@ const WorksheetBuilder: React.FC<{
             window.removeEventListener('mousemove', handleWindowMouseMove);
             window.removeEventListener('mouseup', handleWindowMouseUp);
         };
-    }, [isDraggingLogo, handleWindowMouseMove, handleWindowMouseUp]);
+    }, [isDraggingLogo, isResizingLogo, handleWindowMouseMove, handleWindowMouseUp]);
 
     // Handle Logo Upload
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                setLogoUrl(ev.target?.result as string);
-                setLogoPos({ x: 20, y: 20 }); // Reset pos
-            };
-            reader.readAsDataURL(file);
+            (async () => {
+                try {
+                    // If enabled + logged in, optimize and upload to Supabase Storage (smallest files).
+                    const shouldUpload = Boolean(user) && (config.storeWorksheetAssets ?? true);
+                    if (shouldUpload && user) {
+                        const optimized = await optimizeImageForUpload(file, { maxDimension: 900, quality: 0.82, preferAlpha: true });
+
+                        // If we don't yet have a worksheet id (before generation), defer upload until we do.
+                        if (!generatedWs?.id) {
+                            const objectUrl = URL.createObjectURL(optimized.blob);
+                            pendingLogoUploadRef.current = {
+                                objectUrl,
+                                blob: optimized.blob,
+                                contentType: optimized.contentType,
+                                extension: optimized.extension,
+                                width: optimized.width,
+                                height: optimized.height,
+                            };
+
+                            setLogoUrl(objectUrl);
+                            setLogoStoragePath(null);
+                            setLogoSelected(true);
+
+                            const width = 180;
+                            const height = Math.max(30, width * (optimized.height / optimized.width));
+                            setTimeout(() => placeLogoTopRight({ width, height }), 0);
+                            return;
+                        }
+
+                        const uploaded = await uploadWorksheetAsset({
+                            userId: user.id,
+                            blob: optimized.blob,
+                            contentType: optimized.contentType,
+                            extension: optimized.extension,
+                            kind: 'logo',
+                            worksheetId: generatedWs?.id,
+                        });
+
+                        setLogoUrl(uploaded.signedUrl);
+                        setLogoStoragePath(uploaded.path);
+                        setLogoSelected(true);
+
+                        const width = 180;
+                        const height = Math.max(30, width * (optimized.height / optimized.width));
+                        setTimeout(() => placeLogoTopRight({ width, height }), 0);
+                        return;
+                    }
+
+                    // Fallback: store inline base64 (works offline/guest but is larger)
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        setLogoUrl(dataUrl);
+                        setLogoStoragePath(null);
+                        setLogoSelected(true);
+
+                        const img = new Image();
+                        img.onload = () => {
+                            const naturalW = img.naturalWidth || 1;
+                            const naturalH = img.naturalHeight || 1;
+                            const width = 180;
+                            const height = Math.max(30, width * (naturalH / naturalW));
+                            setTimeout(() => placeLogoTopRight({ width, height }), 0);
+                        };
+                        img.onerror = () => {
+                            setTimeout(() => placeLogoTopRight({ width: 180, height: 90 }), 0);
+                        };
+                        img.src = dataUrl;
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error('Logo upload failed:', err);
+                    alert('Failed to upload logo. Please try again.');
+                }
+            })();
         }
         e.target.value = '';
+    };
+
+    const handleLogoResizeMouseDown = (e: React.MouseEvent, handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw') => {
+        e.stopPropagation();
+        e.preventDefault();
+        setLogoSelected(true);
+        const container = (e.currentTarget as HTMLElement).parentElement as HTMLElement | null;
+        const rect = container?.getBoundingClientRect();
+        const startWidth = rect ? rect.width / zoom : logoWidth;
+        const startHeight = rect ? rect.height / zoom : logoHeight;
+        logoResizeStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            width: startWidth,
+            height: startHeight,
+            posX: logoPos.x,
+            posY: logoPos.y,
+            handle,
+        };
+        setIsResizingLogo(true);
     };
 
     // Add Menu Click Outside
@@ -997,6 +1289,11 @@ const WorksheetBuilder: React.FC<{
 
     // Generate & Save
     const handleGenerate = async () => {
+        if (generatedWs?.content?.trim()) {
+            const ok = window.confirm("Generating a new worksheet will replace the current worksheet. Any unsaved changes will be lost. Continue?");
+            if (!ok) return;
+        }
+
         if (!config.topic && uploadedFiles.length === 0) { 
             alert("Please enter a topic or upload a source file!"); 
             return; 
@@ -1045,7 +1342,7 @@ const WorksheetBuilder: React.FC<{
         
         let logoHTML = '';
         if (logoUrl) {
-            logoHTML = `<img src="${logoUrl}" class="ws-logo" style="position: absolute; left: ${logoPos.x}px; top: ${logoPos.y}px; width: ${logoWidth}px;" />`;
+            logoHTML = `<img src="${logoUrl}" class="ws-logo" style="position: absolute; left: ${logoPos.x}px; top: ${logoPos.y}px; width: ${logoWidth}px; height: ${logoHeight}px;" />`;
         }
 
         const htmlContent = `
@@ -1149,14 +1446,26 @@ const WorksheetBuilder: React.FC<{
     return (
         <div className="flex bg-slate-50 relative items-stretch">
             {/* Sidebar */}
-            <div className="w-96 flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl">
+            <div className={`${isSidebarCollapsed ? 'w-14' : 'w-96'} flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl transition-[width] duration-200`}>
                 <style>{SIDEBAR_CSS}</style>
-                <div className="p-6 border-b border-slate-100">
-                    <h1 className="font-display text-xl font-bold text-slate-800 flex items-center mb-1">
-                        <LayoutTemplate className="mr-2 text-brand-accent" size={20} /> Worksheet Config
-                    </h1>
-                    <p className="text-xs text-slate-500">Configure parameters for AI generation</p>
+                <div className="p-4 border-b border-slate-100 flex items-start justify-between gap-2">
+                    <div className={isSidebarCollapsed ? 'hidden' : ''}>
+                        <h1 className="font-display text-xl font-bold text-slate-800 flex items-center mb-1">
+                            <LayoutTemplate className="mr-2 text-brand-accent" size={20} /> Worksheet Config
+                        </h1>
+                        <p className="text-xs text-slate-500">Configure parameters for AI generation</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsSidebarCollapsed(v => !v)}
+                        title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        className="p-2 rounded hover:bg-slate-100 text-slate-600"
+                    >
+                        {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                    </button>
                 </div>
+                {!isSidebarCollapsed && (
                 <div className="p-6 space-y-6">
                     <div className="space-y-4">
                         <div>
@@ -1227,6 +1536,60 @@ const WorksheetBuilder: React.FC<{
                         </div>
                     </div>
 
+                    {/* LOGO SECTION */}
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center">
+                            <ImageIcon size={14} className="mr-1 text-teal-600" /> Logo (Optional)
+                        </label>
+                        <p className="text-[10px] text-slate-500 mb-2">Defaults to top-right at a fixed size.</p>
+
+                        {user && (
+                            <label className="flex items-center gap-2 text-[10px] text-slate-600 mb-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={config.storeWorksheetAssets ?? true}
+                                    onChange={(e) => setConfig(prev => ({ ...prev, storeWorksheetAssets: e.target.checked }))}
+                                />
+                                Optimize & store images online (smaller files)
+                            </label>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                            <label className="flex-1 cursor-pointer">
+                                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                                <div className="flex items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded hover:border-teal-500 hover:bg-white cursor-pointer transition-colors text-slate-500 font-bold text-[10px]">
+                                    <ImagePlus size={12} className="mr-1" /> {logoUrl ? 'Replace Logo' : 'Add Logo'}
+                                </div>
+                            </label>
+                            {logoUrl && (
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveLogo}
+                                    className="p-2 rounded border border-slate-200 bg-white hover:bg-red-50 hover:border-red-200 transition-colors text-red-600"
+                                    title="Remove logo"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        {logoUrl && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <img src={logoUrl} alt="Logo preview" className="w-10 h-10 object-contain border border-slate-200 rounded bg-white" />
+                                <div className="text-[10px] text-slate-500 leading-snug">
+                                    Drag to move. Use the handles to resize (or click and press Delete).
+                                    <button
+                                        type="button"
+                                        className="ml-2 text-teal-600 font-bold hover:underline"
+                                        onClick={() => placeLogoTopRight({ width: 180 })}
+                                    >
+                                        Reset position
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* FILE UPLOAD SECTION */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center">
@@ -1256,13 +1619,43 @@ const WorksheetBuilder: React.FC<{
                         </div>
                     </div>
 
-                    <div>
-                        <div className="flex justify-between items-end mb-2">
-                            <label className="block text-xs font-bold text-slate-700">Activities</label>
+                    {/* ACTIVITIES SECTION */}
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-bold text-slate-700 flex items-center">
+                                <LayoutTemplate size={14} className="mr-1 text-teal-600" /> Activities
+                            </label>
                             <span className="text-[10px] text-slate-400">{config.activities.length} items</span>
                         </div>
-                        <div className="space-y-2 mb-3">
-                            {config.activities.length === 0 && <div className="text-center p-4 border-2 border-dashed border-slate-200 rounded-lg bg-slate-50"><p className="text-slate-400 text-xs">Add activities below</p></div>}
+                        <p className="text-[10px] text-slate-500 mb-2">Add one or more activity blocks (drag to reorder).</p>
+
+                        <div className="relative" ref={addMenuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddMenu(!showAddMenu)}
+                                className={`w-full flex items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded hover:border-teal-500 hover:bg-white cursor-pointer transition-colors text-slate-500 font-bold text-[10px] ${showAddMenu ? 'border-teal-500 text-teal-600 bg-white' : ''}`}
+                            >
+                                <Plus size={12} className="mr-1" /> Add Activity
+                                <ChevronDown size={12} className={`ml-1 transition-transform ${showAddMenu ? 'rotate-180' : ''}`} />
+                            </button>
+                            {showAddMenu && (
+                                <div className="absolute top-full left-0 w-full pt-2 z-20">
+                                    <div className="bg-white border border-slate-200 shadow-xl rounded-lg p-2 max-h-[250px] overflow-y-auto">
+                                        {availableActivities.map(a => (
+                                            <button
+                                                key={a.type}
+                                                onClick={() => addActivity(a.type)}
+                                                className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-teal-50 hover:text-teal-700 rounded transition-colors"
+                                            >
+                                                {a.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="space-y-2 mt-3">
                             {config.activities.map((act, index) => {
                                 const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
                                 const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform', 'open-ended'].includes(act.type);
@@ -1289,26 +1682,14 @@ const WorksheetBuilder: React.FC<{
                                         {supportsContext && (
                                             <div className="mt-1 pt-1 border-t border-teal-100 pl-4">
                                                 <div className="flex bg-white rounded border border-slate-200 overflow-hidden">
-                                                    <button className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'sentences')}>Sentences</button>
-                                                    <button className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'text')}>Story</button>
+                                                    <button type="button" className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'sentences')}>Sentences</button>
+                                                    <button type="button" className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'text')}>Story</button>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 );
                             })}
-                        </div>
-                        <div className="relative" ref={addMenuRef}>
-                            <button onClick={() => setShowAddMenu(!showAddMenu)} className={`w-full py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded font-bold text-xs hover:border-teal-500 hover:text-teal-600 transition-colors flex items-center justify-center ${showAddMenu ? 'border-teal-500 text-teal-600' : ''}`}><Plus size={14} className="mr-1" /> Add Activity <ChevronDown size={12} className={`ml-1 transition-transform ${showAddMenu ? 'rotate-180' : ''}`} /></button>
-                            {showAddMenu && (
-                                <div className="absolute top-full left-0 w-full pt-2 z-20">
-                                    <div className="bg-white border border-slate-200 shadow-xl rounded-lg p-2 max-h-[250px] overflow-y-auto">
-                                        {availableActivities.map(a => (
-                                            <button key={a.type} onClick={() => addActivity(a.type)} className="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-teal-50 hover:text-teal-700 rounded transition-colors">{a.label}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                     <div>
@@ -1317,10 +1698,11 @@ const WorksheetBuilder: React.FC<{
                     </div>
                     <button onClick={handleGenerate} disabled={loading} className={`w-full py-3 rounded-xl font-bold shadow-md transition-all flex items-center justify-center text-white text-sm ${loading ? 'bg-slate-300 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 hover:shadow-lg'}`}>{loading ? 'Creating...' : <><Sparkles size={16} className="mr-2" /> Generate</>}</button>
                 </div>
+                )}
             </div>
 
             {/* Preview Area - New TipTap Editor */}
-            <div className="flex-1 flex flex-col relative bg-slate-100/50">
+            <div className="flex-1 flex flex-col relative bg-slate-100/50 min-w-0">
                 {generatedWs ? (
                     <div className="flex flex-col">
                         <style>{TIPTAP_EDITOR_CSS}</style>
@@ -1333,10 +1715,18 @@ const WorksheetBuilder: React.FC<{
                             zoom={zoom}
                             setZoom={setZoom}
                             logoUrl={logoUrl}
+                            logoStoragePath={logoStoragePath}
                             logoPos={logoPos}
                             logoWidth={logoWidth}
+                            logoHeight={logoHeight}
                             onLogoDrag={handleLogoMouseDown}
+                            onLogoResize={handleLogoResizeMouseDown}
+                            logoSelected={logoSelected}
+                            onLogoSelect={setLogoSelected}
+                            onLogoRemove={handleRemoveLogo}
                             isPublic={isPublic}
+                            onTogglePublic={handleVisibilityToggle}
+                            onDirtyChange={onDirtyChange}
                         />
                     </div>
                 ) : (
@@ -1533,18 +1923,46 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
 };
 
 // --- MAIN PAGE COMPONENT ---
+const INITIAL_WORKSHEET_CONFIG: WorksheetConfig = {
+    title: '',
+    topic: '',
+    gradeLevel: '',
+    activities: [],
+    layout: 'single',
+    isPublic: true,
+    storeWorksheetAssets: true,
+    logo: null,
+};
+
 export const Worksheets: React.FC = () => {
     const location = useLocation();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<'create' | 'library' | 'community'>('create');
-    const [config, setConfig] = useState<WorksheetConfig>({
-        title: '',
-        topic: '',
-        gradeLevel: '',
-        activities: [],
-        layout: 'single',
-        isPublic: true
-    });
+    const [config, setConfig] = useState<WorksheetConfig>(INITIAL_WORKSHEET_CONFIG);
     const [generatedWs, setGeneratedWs] = useState<GeneratedWorksheet | null>(null);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+    const resetCreateState = useCallback(() => {
+        setGeneratedWs(null);
+        setConfig(INITIAL_WORKSHEET_CONFIG);
+        setHasUnsavedChanges(false);
+    }, []);
+
+    const confirmLoseUnsaved = useCallback(() => {
+        if (!hasUnsavedChanges) return true;
+        return window.confirm("You have unsaved work. If you leave, your changes will be lost. Continue?");
+    }, [hasUnsavedChanges]);
+
+    const handleTabChange = useCallback((nextTab: 'create' | 'library' | 'community') => {
+        if (activeTab === nextTab) return;
+
+        if (activeTab === 'create' && nextTab !== 'create') {
+            if (!confirmLoseUnsaved()) return;
+            resetCreateState();
+        }
+
+        setActiveTab(nextTab);
+    }, [activeTab, confirmLoseUnsaved, resetCreateState]);
 
     useEffect(() => {
         if (location.state && location.state.tab) {
@@ -1552,16 +1970,99 @@ export const Worksheets: React.FC = () => {
         }
     }, [location]);
 
-    const handleLoad = (ws: GeneratedWorksheet) => {
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => {
+            if (activeTab === 'create' && hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [activeTab, hasUnsavedChanges]);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (activeTab !== 'create' || !hasUnsavedChanges) return;
+
+            const target = e.target as HTMLElement | null;
+            const anchor = target?.closest?.('a[href]') as HTMLAnchorElement | null;
+            if (!anchor) return;
+            if (anchor.target === '_blank' || e.defaultPrevented) return;
+
+            const href = anchor.getAttribute('href') || '';
+            if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+            const url = new URL(anchor.href, window.location.href);
+            const isSamePage =
+                url.origin === window.location.origin &&
+                url.pathname === window.location.pathname &&
+                url.search === window.location.search &&
+                url.hash === window.location.hash;
+
+            if (isSamePage) return;
+
+            const ok = confirmLoseUnsaved();
+            if (!ok) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
+            resetCreateState();
+        };
+
+        document.addEventListener('click', handler, true);
+        return () => document.removeEventListener('click', handler, true);
+    }, [activeTab, hasUnsavedChanges, confirmLoseUnsaved, resetCreateState]);
+
+    const handleLoad = async (ws: GeneratedWorksheet) => {
+        const generateUUID = () => {
+            if (typeof crypto !== 'undefined' && (crypto as any).randomUUID) {
+                return (crypto as any).randomUUID();
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : ((r & 0x3) | 0x8);
+                return v.toString(16);
+            });
+        };
+
         // Strip ID if loading from community to treat as template
         const isCommunity = activeTab === 'community';
+
+        const nextIsPublic = isCommunity ? false : (ws.config?.isPublic ?? true);
+
+        let nextContent = ws.content;
+        if (user && typeof ws.content === 'string' && ws.content.includes('data-storage-path')) {
+            nextContent = await resolveWorksheetHtmlAssetUrls(ws.content);
+        }
+
+        const nextLogo = ws.config?.logo;
+        let resolvedLogoUrl = nextLogo?.url;
+        if (nextLogo?.storagePath && user) {
+            try {
+                resolvedLogoUrl = await createSignedUrlForWorksheetAsset(nextLogo.storagePath);
+            } catch {
+                // fall back to stored url
+            }
+        }
         
         setGeneratedWs({
             ...ws,
-            id: isCommunity ? undefined : ws.id, // Keep ID if personal, new ID if community (will be generated on save)
-            config: { ...ws.config, isPublic: false } // Reset public status for copy
+            content: nextContent,
+            id: isCommunity ? generateUUID() : ws.id, // New ID for community copy so it saves as a new entry (and assets can be tied to it)
+            config: {
+                ...ws.config,
+                isPublic: nextIsPublic,
+                logo: nextLogo
+                    ? { ...nextLogo, url: resolvedLogoUrl || nextLogo.url }
+                    : nextLogo,
+            } // Keep visibility for personal; force private when copying from community
         });
-        setConfig(ws.config || { topic: '', gradeLevel: '', activities: [] });
+        setConfig(ws.config || INITIAL_WORKSHEET_CONFIG);
+
+        setHasUnsavedChanges(false);
         setActiveTab('create');
     };
 
@@ -1578,21 +2079,21 @@ export const Worksheets: React.FC = () => {
                     {/* Tabs */}
                     <div className="bg-white p-1.5 rounded-full flex shadow-md border border-slate-100 gap-1">
                         <button 
-                            onClick={() => setActiveTab('create')}
+                            onClick={() => handleTabChange('create')}
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
                                 ${activeTab === 'create' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
                             <Sparkles size={16} /> Create New
                         </button>
                         <button 
-                            onClick={() => setActiveTab('community')}
+                            onClick={() => handleTabChange('community')}
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
                                 ${activeTab === 'community' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
                             <Globe size={16} /> Community
                         </button>
                         <button 
-                            onClick={() => setActiveTab('library')}
+                            onClick={() => handleTabChange('library')}
                             className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
                                 ${activeTab === 'library' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                         >
@@ -1612,6 +2113,7 @@ export const Worksheets: React.FC = () => {
                             generatedWs={generatedWs}
                             setGeneratedWs={setGeneratedWs}
                             onLoad={() => {}}
+                            onDirtyChange={setHasUnsavedChanges}
                         />
                     </div>
                 ) : (

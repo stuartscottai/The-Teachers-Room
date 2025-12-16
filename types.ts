@@ -126,6 +126,14 @@ export interface WorksheetConfig {
   difficultyLevel?: 'easy' | 'medium' | 'hard' | 'mixed'; // Difficulty control
   generateAnswerKey?: boolean; // Answer key generation toggle
   includeHeader?: boolean; // Include Name/Date header fields
+  storeWorksheetAssets?: boolean; // When true, upload images/logos to Supabase Storage
+  logo?: {
+    url: string;
+    storagePath?: string;
+    pos: { x: number; y: number };
+    width: number;
+    height: number;
+  } | null;
 }
 
 export interface GeneratedWorksheet {
@@ -154,4 +162,3 @@ export interface User {
   email: string;
   avatar?: string;
 }
-

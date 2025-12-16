@@ -20,9 +20,9 @@ import {
   Minus,
   Undo,
   Redo,
-  Maximize2,
-  Minimize2,
   WrapText,
+  ScanText,
+  ChevronDown,
 } from 'lucide-react';
 
 export interface EditorToolbarProps {
@@ -39,6 +39,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showFontSizePicker, setShowFontSizePicker] = useState(false);
   const [showLineSpacingPicker, setShowLineSpacingPicker] = useState(false);
+  const [showOrderedListMenu, setShowOrderedListMenu] = useState(false);
+  const [showTableMenu, setShowTableMenu] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState('12pt');
   const [, forceRerender] = useState(0);
   const [selectionStyle, setSelectionStyle] = useState({
@@ -50,6 +52,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const colorPickerRef = React.useRef<HTMLDivElement>(null);
   const fontSizePickerRef = React.useRef<HTMLDivElement>(null);
   const lineSpacingPickerRef = React.useRef<HTMLDivElement>(null);
+  const orderedListMenuRef = React.useRef<HTMLDivElement>(null);
+  const tableMenuRef = React.useRef<HTMLDivElement>(null);
 
   // Update font size when selection changes
   React.useEffect(() => {
@@ -136,6 +140,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       if (lineSpacingPickerRef.current && !lineSpacingPickerRef.current.contains(event.target as Node)) {
         setShowLineSpacingPicker(false);
       }
+      if (orderedListMenuRef.current && !orderedListMenuRef.current.contains(event.target as Node)) {
+        setShowOrderedListMenu(false);
+      }
+      if (tableMenuRef.current && !tableMenuRef.current.contains(event.target as Node)) {
+        setShowTableMenu(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -148,6 +158,47 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     return null;
   }
 
+  const getContinueNumberStart = () => {
+    const { state } = editor;
+    const { $from } = state.selection;
+
+    let currentListPos: number | null = null;
+    for (let depth = $from.depth; depth > 0; depth--) {
+      const node = $from.node(depth);
+      if (node.type.name === 'orderedList') {
+        currentListPos = $from.before(depth);
+        break;
+      }
+    }
+
+    if (currentListPos === null) return null;
+
+    let previousList: { start: number; count: number } | null = null;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name !== 'orderedList') return;
+      if (pos >= currentListPos!) return;
+
+      const startAttr =
+        (node.attrs as any)?.start ?? (node.attrs as any)?.order ?? 1;
+      const start = Number(startAttr) || 1;
+      const count = node.childCount;
+      previousList = { start, count };
+    });
+
+    if (!previousList) return null;
+    return previousList.start + previousList.count;
+  };
+
+  const applyContinueNumbering = () => {
+    const start = getContinueNumberStart();
+    if (!start) return;
+    editor.chain().focus().updateAttributes('orderedList', { start }).run();
+  };
+
+  const restartNumbering = () => {
+    editor.chain().focus().updateAttributes('orderedList', { start: 1 }).run();
+  };
+
   const ToolbarButton: React.FC<{
     onClick: () => void;
     active?: boolean;
@@ -158,7 +209,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     <button
       type="button"
       onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       disabled={disabled}
       title={title}
       className={`p-2 rounded hover:bg-gray-100 transition-colors ${
@@ -188,6 +242,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           title="Redo (Ctrl+Y)"
         >
           <Redo size={18} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().selectAll().run()}
+          title="Select All (Ctrl+A)"
+        >
+          <ScanText size={18} />
         </ToolbarButton>
       </div>
 
@@ -257,13 +317,78 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <List size={18} />
         </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive('orderedList')}
-          title="Numbered List"
-        >
-          <ListOrdered size={18} />
-        </ToolbarButton>
+        <div className="relative" ref={orderedListMenuRef}>
+          <div className="flex items-center">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              active={editor.isActive('orderedList')}
+              title="Numbered List"
+            >
+              <ListOrdered size={18} />
+            </ToolbarButton>
+            <button
+              type="button"
+              title="Numbered list options"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={() => setShowOrderedListMenu((v) => !v)}
+              className="p-2 rounded hover:bg-gray-100 transition-colors text-gray-700"
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
+
+          {showOrderedListMenu && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 min-w-[210px] overflow-hidden">
+              <button
+                type="button"
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={() => {
+                  editor.chain().focus().toggleOrderedList().run();
+                  setShowOrderedListMenu(false);
+                }}
+              >
+                Toggle numbered list
+              </button>
+              <button
+                type="button"
+                disabled={!editor.isActive('orderedList') || !getContinueNumberStart()}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm disabled:opacity-50 disabled:hover:bg-white"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={() => {
+                  applyContinueNumbering();
+                  setShowOrderedListMenu(false);
+                }}
+              >
+                Continue numbering from previous
+              </button>
+              <button
+                type="button"
+                disabled={!editor.isActive('orderedList')}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm disabled:opacity-50 disabled:hover:bg-white"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={() => {
+                  restartNumbering();
+                  setShowOrderedListMenu(false);
+                }}
+              >
+                Restart numbering at 1
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Indentation - Paragraph Level */}
@@ -457,14 +582,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       </div>
 
       {/* Table */}
-      <div className="flex items-center gap-1 border-r border-gray-300 pr-2">
+      <div className="flex items-center gap-1 border-r border-gray-300 pr-2" ref={tableMenuRef}>
         <ToolbarButton
           onClick={() => {
             const rows = prompt('How many rows?', '3');
             const cols = prompt('How many columns?', '3');
             if (rows && cols) {
-              const numRows = parseInt(rows);
-              const numCols = parseInt(cols);
+              const numRows = parseInt(rows, 10);
+              const numCols = parseInt(cols, 10);
               if (numRows > 0 && numCols > 0) {
                 editor
                   .chain()
@@ -478,6 +603,86 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         >
           <Table size={18} />
         </ToolbarButton>
+        <button
+          type="button"
+          title="Table options"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={() => setShowTableMenu((v) => !v)}
+          className="p-2 rounded hover:bg-gray-100 transition-colors text-gray-700"
+        >
+          <ChevronDown size={16} />
+        </button>
+
+        {showTableMenu && (
+          <div className="absolute mt-10 bg-white border border-gray-200 rounded shadow-lg z-30 min-w-[240px] overflow-hidden">
+            <div className="px-3 py-2 text-[11px] font-bold text-gray-500 border-b border-gray-100">
+              Table
+            </div>
+
+            <button
+              type="button"
+              className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={() => {
+                const rows = prompt('How many rows?', '3');
+                const cols = prompt('How many columns?', '3');
+                if (rows && cols) {
+                  const numRows = parseInt(rows, 10);
+                  const numCols = parseInt(cols, 10);
+                  if (numRows > 0 && numCols > 0) {
+                    editor
+                      .chain()
+                      .focus()
+                      .insertTable({ rows: numRows, cols: numCols, withHeaderRow: true })
+                      .run();
+                  }
+                }
+                setShowTableMenu(false);
+              }}
+            >
+              Insert table…
+            </button>
+
+            <div className="border-t border-gray-100" />
+
+            {[
+              { label: 'Add row above', run: () => editor.chain().focus().addRowBefore().run(), can: () => editor.can().addRowBefore() },
+              { label: 'Add row below', run: () => editor.chain().focus().addRowAfter().run(), can: () => editor.can().addRowAfter() },
+              { label: 'Delete row', run: () => editor.chain().focus().deleteRow().run(), can: () => editor.can().deleteRow() },
+              { label: 'Add column left', run: () => editor.chain().focus().addColumnBefore().run(), can: () => editor.can().addColumnBefore() },
+              { label: 'Add column right', run: () => editor.chain().focus().addColumnAfter().run(), can: () => editor.can().addColumnAfter() },
+              { label: 'Delete column', run: () => editor.chain().focus().deleteColumn().run(), can: () => editor.can().deleteColumn() },
+              { label: 'Toggle header row', run: () => editor.chain().focus().toggleHeaderRow().run(), can: () => editor.can().toggleHeaderRow() },
+              { label: 'Toggle header column', run: () => editor.chain().focus().toggleHeaderColumn().run(), can: () => editor.can().toggleHeaderColumn() },
+              { label: 'Merge cells', run: () => editor.chain().focus().mergeCells().run(), can: () => editor.can().mergeCells() },
+              { label: 'Split cell', run: () => editor.chain().focus().splitCell().run(), can: () => editor.can().splitCell() },
+              { label: 'Delete table', run: () => editor.chain().focus().deleteTable().run(), can: () => editor.can().deleteTable() },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                disabled={!editor.isActive('table') || !item.can()}
+                className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm disabled:opacity-50 disabled:hover:bg-white"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={() => {
+                  item.run();
+                  setShowTableMenu(false);
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Image */}
@@ -486,34 +691,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           <ToolbarButton onClick={onImageUpload} title="Insert Image">
             <ImageIcon size={18} />
           </ToolbarButton>
-          {editor.isActive('image') && (
-            <>
-              <ToolbarButton
-                onClick={() => {
-                  const currentAttrs = editor.getAttributes('image');
-                  const currentWidth = parseInt(currentAttrs.width || '400');
-                  editor.chain().focus().updateAttributes('image', {
-                    width: `${Math.min(currentWidth + 50, 800)}px`
-                  }).run();
-                }}
-                title="Increase Image Size"
-              >
-                <Maximize2 size={18} />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => {
-                  const currentAttrs = editor.getAttributes('image');
-                  const currentWidth = parseInt(currentAttrs.width || '400');
-                  editor.chain().focus().updateAttributes('image', {
-                    width: `${Math.max(currentWidth - 50, 100)}px`
-                  }).run();
-                }}
-                title="Decrease Image Size"
-              >
-                <Minimize2 size={18} />
-              </ToolbarButton>
-            </>
-          )}
         </div>
       )}
 

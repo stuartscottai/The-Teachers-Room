@@ -98,6 +98,12 @@ export const useTipTapEditor = (
   content: string = '',
   onUpdate?: (html: string) => void
 ) => {
+  const onUpdateRef = React.useRef(onUpdate);
+
+  React.useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
   return useEditor({
     extensions: [
       StarterKit.configure({
@@ -147,9 +153,7 @@ export const useTipTapEditor = (
       },
     },
     onUpdate: ({ editor }) => {
-      if (onUpdate) {
-        onUpdate(editor.getHTML());
-      }
+      onUpdateRef.current?.(editor.getHTML());
     },
   });
 };

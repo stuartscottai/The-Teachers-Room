@@ -412,13 +412,13 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
      - Inside, put Date on the right: <div class="ws-field">Date: ____________</div>
      - CRITICAL: Do NOT add an underline (<u> tag or CSS style) to the words "Name" and "Date" themselves
      - Do NOT include a Score field unless explicitly requested
-  2. Title: Use <h2 style="font-size: 14pt; font-weight: bold; text-decoration: underline; margin: 1rem 0 1.5rem 0;">EXACT_TITLE_FROM_PROMPT</h2>
+  2. Title: Use <h2 style="font-size: 14pt; font-weight: bold; text-decoration: underline; margin: 1rem 0 2.5rem 0;">EXACT_TITLE_FROM_PROMPT</h2>
      - CRITICAL: Use the EXACT title provided in the prompt. Do NOT modify, rephrase, or invent a new title.
      - The title will be explicitly provided as "Use this exact title: [title]"
-  3. Instructions (Main): Use <p class="ws-instructions">...</p> ONLY for the main worksheet intro/description (Centered).
+  3. Instructions (Main): Use <p class="ws-instructions"><em>...</em></p> ONLY for the main worksheet intro/description (Centered, italics by default).
   4. Sections: Wrap distinct activities in <div class="ws-section">.
      - Start with <h3 class="ws-section-title">Section Title</h3>.
-     - Follow immediately with <p>Activity specific instructions...</p>. Do NOT use the 'ws-instructions' class here; use a standard paragraph (Left Aligned).
+     - Follow immediately with <p><em>Activity specific instructions...</em></p> (italics by default). Do NOT use the 'ws-instructions' class here; use a standard paragraph (Left Aligned).
   5. Tables: For grids or matching, use <table class="ws-table">.
   6. Answer Key (ONLY if explicitly requested):
      - Wrap the ENTIRE answer key section in <div class="ws-answer-key">

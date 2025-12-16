@@ -1,6 +1,7 @@
 
 import { GeneratedGame, GeneratedWorksheet, UploadedFile } from "../types";
 import { supabase } from "../services/supabase";
+import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
 
 // --- ASSET HELPERS ---
 export const resolvePath = (path: string) => {
@@ -702,6 +703,13 @@ export const deleteSavedWorksheet = async (id: string, userId?: string) => {
 
     try {
         await supabase.from('saved_worksheets').delete().match({ id, user_id: userId });
+        if (isUUID(id)) {
+            try {
+                await deleteWorksheetAssetFolder({ userId, worksheetId: id });
+            } catch (e) {
+                console.warn("Worksheet asset cleanup failed:", e);
+            }
+        }
     } catch (e) {
         console.error("Supabase Delete Error:", e);
     }

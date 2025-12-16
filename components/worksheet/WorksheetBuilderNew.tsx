@@ -4,17 +4,20 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { WorksheetConfig, GeneratedWorksheet, UploadedFile } from '../../types';
 import { useTipTapEditor } from './TipTapEditor';
 import { EditorContent } from '@tiptap/react';
 import { EditorToolbar } from './EditorToolbar';
 import { MobileToolbar } from './MobileToolbar';
 import { generatePDF, generateDOCX, downloadFile, PDFMetadata } from '../../utils/worksheetPDF';
-import { Printer, Download, Save, ZoomIn, ZoomOut, Check, ChevronUp, ChevronDown, X, AlertTriangle, FileText } from 'lucide-react';
+import { Printer, Download, Save, ZoomIn, ZoomOut, Check, ChevronUp, ChevronDown, X, AlertTriangle, FileText, Globe, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveWorksheetToLibrary } from '../../utils/gameUtils';
 import { MultiPageEditor } from './MultiPageEditor';
 import { normalizeHtmlForTiptap } from '../../utils/normalizeHtmlForTiptap';
+import { optimizeImageForUpload } from '../../utils/imageOptimize';
+import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, createSignedUrlsForWorksheetAssets, stripSignedUrlsButKeepStoragePaths } from '../../utils/worksheetAssetStorage';
 
 interface WorksheetEditorProps {
   generatedWs: GeneratedWorksheet | null;
@@ -25,10 +28,18 @@ interface WorksheetEditorProps {
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   logoUrl: string | null;
+  logoStoragePath?: string | null;
   logoPos: { x: number; y: number };
   logoWidth: number;
+  logoHeight: number;
   onLogoDrag: (e: React.MouseEvent) => void;
+  onLogoResize: (e: React.MouseEvent, handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw') => void;
+  logoSelected: boolean;
+  onLogoSelect: (selected: boolean) => void;
+  onLogoRemove: () => void;
   isPublic: boolean;
+  onTogglePublic?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
@@ -40,10 +51,18 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   zoom,
   setZoom,
   logoUrl,
+  logoStoragePath,
   logoPos,
   logoWidth,
+  logoHeight,
   onLogoDrag,
+  onLogoResize,
+  logoSelected,
+  onLogoSelect,
+  onLogoRemove,
   isPublic,
+  onTogglePublic,
+  onDirtyChange,
 }) => {
   const { user } = useAuth();
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -53,14 +72,28 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   const [isGeneratingDOCX, setIsGeneratingDOCX] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastEditorHtmlRef = useRef<string | null>(null);
+  const isPreviewZoomActive = zoom > 1.001;
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const zoomTargetRef = useRef<HTMLDivElement>(null);
+  const fixedHScrollRef = useRef<HTMLDivElement>(null);
+  const fixedHScrollInnerRef = useRef<HTMLDivElement>(null);
+  const isSyncingScrollRef = useRef<'preview' | 'fixed' | null>(null);
+  const [showFixedHScroll, setShowFixedHScroll] = useState(false);
+  const [fixedHScrollRect, setFixedHScrollRect] = useState<{ left: number; width: number } | null>(null);
+  const lastSavedHtmlRef = useRef<string>('');
+  const dirtyRef = useRef(false);
 
   // Initialize TipTap editor
   const editor = useTipTapEditor(
     generatedWs?.content || '',
     (html) => {
-      if (generatedWs) {
-        lastEditorHtmlRef.current = html;
-        setGeneratedWs({ ...generatedWs, content: html });
+      lastEditorHtmlRef.current = html;
+      setGeneratedWs((prev) => (prev ? { ...prev, content: html } : prev));
+
+      const nextDirty = html !== lastSavedHtmlRef.current;
+      if (dirtyRef.current !== nextDirty) {
+        dirtyRef.current = nextDirty;
+        onDirtyChange?.(nextDirty);
       }
     }
   );
@@ -77,20 +110,143 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
     if (normalized && editor.getHTML() !== normalized) {
       editor.commands.setContent(normalized);
     }
+
+    lastSavedHtmlRef.current = normalized || editor.getHTML() || '';
+    if (dirtyRef.current) {
+      dirtyRef.current = false;
+      onDirtyChange?.(false);
+    }
   }, [generatedWs?.content, generatedWs?.id, editor]);
+
+  const updateHorizontalScrollbar = useCallback(() => {
+    const preview = previewScrollRef.current;
+
+    const shouldShow = zoom > 1.001;
+    setShowFixedHScroll(shouldShow);
+    if (!shouldShow) return;
+
+    const zoomTarget = zoomTargetRef.current;
+    const fixed = fixedHScrollRef.current;
+    const inner = fixedHScrollInnerRef.current;
+    if (!preview || !zoomTarget || !fixed || !inner) return;
+
+    const zoomTargetWidth = zoomTarget ? zoomTarget.getBoundingClientRect().width : 0;
+    const baseWidth = preview.clientWidth || 0;
+    const expectedZoomedWidth = Math.ceil(baseWidth * Math.max(zoom, 1));
+    const scrollWidth = Math.max(preview.scrollWidth, Math.ceil(zoomTargetWidth), expectedZoomedWidth);
+    inner.style.width = `${scrollWidth}px`;
+
+    if (isSyncingScrollRef.current !== 'preview') {
+      fixed.scrollLeft = preview.scrollLeft;
+    }
+
+    const previewRect = preview.getBoundingClientRect();
+    if (previewRect.width > 0) {
+      setFixedHScrollRect({
+        left: Math.max(0, previewRect.left),
+        width: Math.max(0, Math.min(previewRect.width, window.innerWidth)),
+      });
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    updateHorizontalScrollbar();
+
+    const preview = previewScrollRef.current;
+    if (!preview) return;
+
+    const onResize = () => updateHorizontalScrollbar();
+    window.addEventListener('resize', onResize);
+
+    const ro = new ResizeObserver(() => {
+      window.requestAnimationFrame(updateHorizontalScrollbar);
+    });
+    ro.observe(preview);
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro.disconnect();
+    };
+  }, [updateHorizontalScrollbar, zoom, fontSize, generatedWs?.content, logoUrl, logoPos.x, logoPos.y, logoWidth, logoHeight]);
+
+  useEffect(() => {
+    updateHorizontalScrollbar();
+  }, [showFixedHScroll, updateHorizontalScrollbar]);
+
+  useEffect(() => {
+    if (!showFixedHScroll) return;
+
+    let rafId: number | null = null;
+    const tick = () => {
+      const preview = previewScrollRef.current;
+      if (preview) {
+        const rect = preview.getBoundingClientRect();
+        if (rect.width > 0) {
+          setFixedHScrollRect({
+            left: Math.max(0, rect.left),
+            width: Math.max(0, Math.min(rect.width, window.innerWidth)),
+          });
+        }
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+    };
+  }, [showFixedHScroll]);
 
   const handleSave = async () => {
     if (!generatedWs || !user) return;
 
     setSaveStatus('saving');
     try {
-      await saveWorksheetToLibrary({
-        ...generatedWs,
-        content: editor?.getHTML() || generatedWs.content,
-        config: { ...config, isPublic },
-      });
+      const rawHtml = editor?.getHTML() || generatedWs.content;
+      const shouldStrip =
+        Boolean(user) &&
+        (config.storeWorksheetAssets ?? true) &&
+        typeof rawHtml === 'string' &&
+        rawHtml.includes('data-storage-path');
+      const safeHtml = shouldStrip ? stripSignedUrlsButKeepStoragePaths(rawHtml) : rawHtml;
+
+      const configWithLogo = {
+        ...config,
+        isPublic,
+        logo: (logoUrl || logoStoragePath)
+          ? {
+              // Store only the storage path for persisted assets (signed URLs expire).
+              url: logoStoragePath ? '' : (logoUrl as string),
+              storagePath: logoStoragePath || undefined,
+              pos: logoPos,
+              width: logoWidth,
+              height: logoHeight,
+            }
+          : null,
+      };
+
+      const ok = await saveWorksheetToLibrary(
+        {
+          ...generatedWs,
+          content: safeHtml,
+          config: configWithLogo,
+        },
+        user.id,
+        (user as any)?.user_metadata?.full_name || (user as any)?.user_metadata?.name || user.email || 'Teacher'
+      );
+
+      if (!ok) {
+        throw new Error('Save failed');
+      }
+
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
+
+      lastSavedHtmlRef.current = editor?.getHTML() || lastSavedHtmlRef.current;
+      if (dirtyRef.current) {
+        dirtyRef.current = false;
+        onDirtyChange?.(false);
+      }
     } catch (error) {
       console.error('Failed to save:', error);
       setSaveStatus('idle');
@@ -115,6 +271,86 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
         throw new Error('Could not find worksheet preview element');
       }
 
+      const exportWrapper = document.createElement('div');
+      exportWrapper.style.width = '210mm';
+      exportWrapper.style.background = 'white';
+      exportWrapper.style.boxSizing = 'border-box';
+      const clonedWorksheet = worksheetElement.cloneNode(true) as HTMLElement;
+
+      // Refresh signed URLs on cloned content so export works even if URLs expired.
+      try {
+        const imgs = Array.from(clonedWorksheet.querySelectorAll('img[data-storage-path]')) as HTMLImageElement[];
+        const paths = Array.from(
+          new Set(
+            imgs
+              .map((img) => img.getAttribute('data-storage-path') || '')
+              .map((p) => p.trim())
+              .filter(Boolean)
+          )
+        );
+        if (paths.length) {
+          const signed = await createSignedUrlsForWorksheetAssets(paths);
+          for (const img of imgs) {
+            const p = (img.getAttribute('data-storage-path') || '').trim();
+            const url = p ? signed.get(p) : null;
+            if (url) img.setAttribute('src', url);
+          }
+        }
+
+        if (logoStoragePath) {
+          const signedLogo = await createSignedUrlForWorksheetAsset(logoStoragePath);
+          const logoImg = clonedWorksheet.querySelector('.ws-logo-container img') as HTMLImageElement | null;
+          if (logoImg && signedLogo) {
+            logoImg.setAttribute('src', signedLogo);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to refresh signed URLs for PDF export:', e);
+      }
+
+      // If the document ends with a forced page-break node, html2pdf will often
+      // emit an extra blank trailing page. Strip trailing breaks for export.
+      const trailingBreaks = Array.from(clonedWorksheet.querySelectorAll('.page-break-indicator'));
+      for (let i = trailingBreaks.length - 1; i >= 0; i--) {
+        const el = trailingBreaks[i] as HTMLElement;
+        if (!el.parentElement) continue;
+        const parent = el.parentElement;
+        if (parent.lastElementChild === el) {
+          el.remove();
+        } else {
+          break;
+        }
+      }
+
+      exportWrapper.appendChild(clonedWorksheet);
+
+      if (includeAnswerKey && generatedWs?.answerKey) {
+        const answerPage = document.createElement('div');
+        answerPage.className = 'worksheet-page-content';
+        answerPage.style.width = '210mm';
+        answerPage.style.minHeight = '297mm';
+        answerPage.style.padding = '20mm';
+        answerPage.style.boxSizing = 'border-box';
+        (answerPage.style as any).breakBefore = 'page';
+        (answerPage.style as any).pageBreakBefore = 'always';
+
+        const answerKeyWrapper = document.createElement('div');
+        answerKeyWrapper.className = 'ws-answer-key';
+
+        const titleEl = document.createElement('h2');
+        titleEl.className = 'ws-answer-title';
+        titleEl.textContent = `${generatedWs.title} - Answer Sheet`;
+
+        const answerBody = document.createElement('div');
+        answerBody.innerHTML = generatedWs.answerKey;
+
+        answerKeyWrapper.appendChild(titleEl);
+        answerKeyWrapper.appendChild(answerBody);
+        answerPage.appendChild(answerKeyWrapper);
+
+        exportWrapper.appendChild(answerPage);
+      }
+
       console.log('=== Export PDF Handler (Direct DOM) ===');
       console.log('Capturing actual preview element');
       console.log('Element dimensions:', worksheetElement.clientWidth, 'x', worksheetElement.scrollHeight);
@@ -122,14 +358,15 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
       const metadata: PDFMetadata = {
         headerContent: '',
         footerContent: '',
-        logoUrl: logoUrl,
+        // Logo is already present in the exported DOM (if enabled)
+        logoUrl: null,
         logoPos: logoPos,
-        logoSize: { width: logoWidth, height: logoWidth },
+        logoSize: { width: logoWidth, height: logoHeight },
         fontSize: fontSize,
       };
 
       // Pass the ACTUAL DOM element for 100% WYSIWYG
-      const blob = await generatePDF(worksheetElement as HTMLElement, metadata, setPdfProgress);
+      const blob = await generatePDF(exportWrapper as HTMLElement, metadata, setPdfProgress);
       downloadFile(blob, `${generatedWs?.title || 'worksheet'}.pdf`);
     } catch (error) {
       console.error('PDF generation failed:', error);
@@ -176,18 +413,67 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file && editor) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const base64 = ev.target?.result as string;
-          const chain = editor.chain().focus();
-          if (insertRange) {
-            chain.setTextSelection(insertRange);
+        const defaultWidth = 240;
+        let posX = 80;
+        let posY = 80;
+        try {
+          const coords = editor.view.coordsAtPos(insertRange?.from ?? editor.state.selection.from);
+          const contentEl = document.querySelector('.worksheet-editor-content') as HTMLElement | null;
+          if (contentEl) {
+            const rect = contentEl.getBoundingClientRect();
+            posX = (coords.left - rect.left) / zoom - defaultWidth / 2;
+            posY = (coords.top - rect.top) / zoom;
           }
-          chain.setImage({ src: base64 }).run();
-        };
-        reader.readAsDataURL(file);
+        } catch {
+          // ignore
+        }
+
+        let roundedX = Math.round(posX);
+        let roundedY = Math.round(posY);
+        if (roundedX === 0 && roundedY === 0) roundedX = 1;
+
+        const shouldUpload = Boolean(user) && (config.storeWorksheetAssets ?? true);
+        if (shouldUpload && user) {
+          try {
+            const optimized = await optimizeImageForUpload(file, { maxDimension: 1600, quality: 0.82, preferAlpha: true });
+            const uploaded = await uploadWorksheetAsset({
+              userId: user.id,
+              blob: optimized.blob,
+              contentType: optimized.contentType,
+              extension: optimized.extension,
+              kind: 'image',
+              worksheetId: generatedWs?.id,
+            });
+
+            const chain = editor.chain().focus();
+            if (insertRange) chain.setTextSelection(insertRange);
+            chain.setImage({ src: uploaded.signedUrl, storagePath: uploaded.path, width: defaultWidth, posX: roundedX, posY: roundedY }).run();
+          } catch (err) {
+            console.error('Image upload failed, falling back to inline base64:', err);
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const base64 = ev.target?.result as string;
+              const chain = editor.chain().focus();
+              if (insertRange) chain.setTextSelection(insertRange);
+              chain.setImage({ src: base64, width: defaultWidth, posX: roundedX, posY: roundedY }).run();
+            };
+            reader.readAsDataURL(file);
+          }
+        } else {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const base64 = ev.target?.result as string;
+            const chain = editor.chain().focus();
+            if (insertRange) chain.setTextSelection(insertRange);
+            chain.setImage({ src: base64, width: defaultWidth, posX: roundedX, posY: roundedY }).run();
+          };
+          reader.readAsDataURL(file);
+        }
       }
+      input.remove();
     };
+
+    document.body.appendChild(input);
     input.click();
   };
 
@@ -203,8 +489,38 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <style>{TIPTAP_EDITOR_CSS}</style>
+
+      <style>{`
+        .ws-fixed-hscroll::-webkit-scrollbar {
+          height: 10px;
+        }
+        .ws-fixed-hscroll::-webkit-scrollbar-track {
+          background: rgba(148, 163, 184, 0.15);
+          border-radius: 9999px;
+        }
+        .ws-fixed-hscroll::-webkit-scrollbar-thumb {
+          background: rgba(100, 116, 139, 0.35);
+          border-radius: 9999px;
+        }
+        .ws-fixed-hscroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 116, 139, 0.55);
+        }
+        .ws-hide-x-scrollbar {
+          scrollbar-width: none;
+        }
+        .ws-hide-x-scrollbar::-webkit-scrollbar {
+          height: 0px;
+        }
+
+        .ws-answer-title {
+          font-size: 14pt;
+          font-weight: 700;
+          text-decoration: underline;
+          margin: 0 0 1.5rem 0;
+        }
+      `}</style>
 
       <div className="sticky top-16 z-30 bg-white border-b border-slate-200 shadow-sm">
         {/* Action Bar */}
@@ -217,7 +533,7 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
             {/* Zoom Controls */}
             <div className="hidden md:flex items-center gap-2 border-r border-slate-200 pr-3">
               <button
-                onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
+                onClick={() => setZoom((z) => Number(Math.max(0.5, z - 0.1).toFixed(2)))}
                 className="p-2 hover:bg-slate-100 rounded transition-colors"
                 title="Zoom Out"
               >
@@ -227,7 +543,7 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
                 {Math.round(zoom * 100)}%
               </span>
               <button
-                onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                onClick={() => setZoom((z) => Number(Math.min(1.5, z + 0.1).toFixed(2)))}
                 className="p-2 hover:bg-slate-100 rounded transition-colors"
                 title="Zoom In"
               >
@@ -249,7 +565,7 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
 
             <div className="relative">
               <button
-                onClick={() => handleExportPDF(false)}
+                onClick={() => handleExportPDF(showAnswerKey)}
                 disabled={isGeneratingPDF}
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
@@ -261,25 +577,41 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
             </div>
 
             {user && (
-              <button
-                onClick={handleSave}
-                disabled={saveStatus === 'saving'}
-                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {saveStatus === 'saved' ? (
-                  <>
-                    <Check size={16} />
-                    <span className="hidden sm:inline">Saved</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    <span className="hidden sm:inline">
-                      {saveStatus === 'saving' ? 'Saving...' : 'Save'}
-                    </span>
-                  </>
-                )}
-              </button>
+              <>
+                {/* VISIBILITY TOGGLE (match Games UI) */}
+                <div
+                  className={`flex items-center bg-slate-200 rounded-full p-1 cursor-pointer select-none`}
+                  onClick={onTogglePublic}
+                  title={isPublic ? 'Public (visible in Community when saved)' : 'Private (only in My Library)'}
+                >
+                  <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
+                    <Lock size={12} className="mr-1" /> Private
+                  </div>
+                  <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
+                    <Globe size={12} className="mr-1" /> Public
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSave}
+                  disabled={saveStatus === 'saving'}
+                  className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {saveStatus === 'saved' ? (
+                    <>
+                      <Check size={16} />
+                      <span className="hidden sm:inline">Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span className="hidden sm:inline">
+                        {saveStatus === 'saving' ? 'Saving...' : 'Save'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -298,21 +630,65 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
       {/* Editor Container */}
       <div
         ref={containerRef}
-        className="bg-slate-100 p-4"
+        className="bg-slate-100 p-4 min-w-0"
         id="preview-wrapper"
       >
-        <MultiPageEditor
-          editor={editor}
-          fontSize={fontSize}
-          zoom={zoom}
-          logoUrl={logoUrl}
-          logoPos={logoPos}
-          logoWidth={logoWidth}
-          onLogoDrag={onLogoDrag}
-        />
+        <div
+          ref={previewScrollRef}
+          onMouseDownCapture={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            if (target.closest('.ws-logo-container')) return;
+            if (logoSelected) onLogoSelect(false);
+          }}
+          onScroll={() => {
+            const preview = previewScrollRef.current;
+            const fixed = fixedHScrollRef.current;
+            if (!preview || !fixed) return;
+            if (isSyncingScrollRef.current === 'fixed') return;
 
-        {/* Answer Key Section */}
-        {generatedWs.answerKey && (
+            isSyncingScrollRef.current = 'preview';
+            fixed.scrollLeft = preview.scrollLeft;
+            window.requestAnimationFrame(() => {
+              if (isSyncingScrollRef.current === 'preview') isSyncingScrollRef.current = null;
+            });
+          }}
+          className={`mx-auto w-full max-w-[210mm] min-w-0 overflow-y-visible ${
+            isPreviewZoomActive ? 'overflow-x-auto overscroll-x-contain' : ''
+          } ${showFixedHScroll ? 'ws-hide-x-scrollbar' : ''}`}
+        >
+          <div ref={zoomTargetRef} className="w-fit mx-auto" style={{ zoom } as any}>
+            <MultiPageEditor
+              editor={editor}
+              fontSize={fontSize}
+              logoUrl={logoUrl}
+              logoPos={logoPos}
+              logoWidth={logoWidth}
+              logoHeight={logoHeight}
+              onLogoDrag={onLogoDrag}
+              onLogoResize={onLogoResize}
+              logoSelected={logoSelected}
+              onLogoSelect={onLogoSelect}
+              onLogoRemove={onLogoRemove}
+            />
+
+            {showAnswerKey && generatedWs.answerKey && (
+              <div className="mt-6 mx-auto" style={{ width: '210mm' }}>
+                <div className="bg-white shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+                  <div className="p-[20mm] min-h-[297mm]">
+                    <div className="ws-answer-key">
+                      <h2 className="ws-answer-title">{generatedWs.title} - Answer Sheet</h2>
+                      <div dangerouslySetInnerHTML={{ __html: generatedWs.answerKey }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+      {/* Answer Key Section */}
+      {generatedWs.answerKey && (
           <div className="max-w-[210mm] mx-auto mt-6">
             <button
               onClick={() => setShowAnswerKey(!showAnswerKey)}
@@ -326,26 +702,47 @@ export const WorksheetEditorSection: React.FC<WorksheetEditorProps> = ({
             </button>
 
             {showAnswerKey && (
-              <div
-                className="mt-3 p-6 bg-yellow-50 rounded-lg border-l-4 border-yellow-400"
-                dangerouslySetInnerHTML={{ __html: generatedWs.answerKey }}
-              />
+              <div className="mt-2 text-xs text-amber-700">
+                Answer key is shown as an extra page in the preview and will be included in the PDF export while it’s open.
+              </div>
             )}
 
-            {/* Export with Answer Key Button */}
-            {showAnswerKey && (
-              <button
-                onClick={() => handleExportPDF(true)}
-                disabled={isGeneratingPDF}
-                className="mt-3 w-full px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Printer size={16} />
-                Export PDF with Answer Key
-              </button>
-            )}
           </div>
         )}
       </div>
+
+      {showFixedHScroll &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed bottom-2 z-[9999] pointer-events-none"
+            style={
+              fixedHScrollRect
+                ? { left: `${fixedHScrollRect.left}px`, width: `${fixedHScrollRect.width}px` }
+                : { left: '50%', transform: 'translateX(-50%)', width: 'min(96vw,210mm)' }
+            }
+          >
+            <div
+              ref={fixedHScrollRef}
+              className="ws-fixed-hscroll pointer-events-auto h-4 overflow-x-auto overflow-y-hidden bg-white/70 backdrop-blur border border-slate-200 rounded-full shadow-sm"
+              onScroll={() => {
+                const preview = previewScrollRef.current;
+                const fixed = fixedHScrollRef.current;
+                if (!preview || !fixed) return;
+                if (isSyncingScrollRef.current === 'preview') return;
+
+                isSyncingScrollRef.current = 'fixed';
+                preview.scrollLeft = fixed.scrollLeft;
+                window.requestAnimationFrame(() => {
+                  if (isSyncingScrollRef.current === 'fixed') isSyncingScrollRef.current = null;
+                });
+              }}
+            >
+              <div ref={fixedHScrollInnerRef} style={{ height: 1 }} />
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -408,7 +805,21 @@ const TIPTAP_EDITOR_CSS = `
     page-break-inside: avoid;
   }
 
+  .ProseMirror .ws-instructions {
+    font-style: italic;
+    text-align: center;
+    color: #475569;
+    margin: 0 0 1.5rem 0;
+  }
+
   .worksheet-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    page-break-inside: avoid;
+  }
+
+  .ws-table, .ProseMirror table, table {
     border-collapse: collapse;
     width: 100%;
     margin: 1rem 0;
@@ -424,7 +835,28 @@ const TIPTAP_EDITOR_CSS = `
     page-break-inside: avoid;
   }
 
+  .ws-table td,
+  .ws-table th,
+  .ProseMirror table td,
+  .ProseMirror table th,
+  table td,
+  table th {
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem;
+    text-align: left;
+    min-width: 50px;
+    page-break-inside: avoid;
+    vertical-align: top;
+  }
+
   .worksheet-table th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+  }
+
+  .ws-table th,
+  .ProseMirror table th,
+  table th {
     background-color: #f1f5f9;
     font-weight: 600;
   }
@@ -435,6 +867,41 @@ const TIPTAP_EDITOR_CSS = `
     display: block;
     margin: 1rem 0;
     page-break-inside: avoid;
+  }
+
+  /* TipTap table resizing visuals */
+  .ProseMirror .tableWrapper {
+    overflow-x: auto;
+  }
+
+  .ProseMirror table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .ProseMirror .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: -2px;
+    width: 4px;
+    background-color: rgba(59, 130, 246, 0.65);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .ProseMirror.resize-cursor {
+    cursor: col-resize;
+  }
+
+  .ProseMirror table:hover .column-resize-handle {
+    opacity: 1;
+  }
+
+  @media print {
+    .ProseMirror .column-resize-handle {
+      display: none !important;
+    }
   }
 
   .page-break-indicator {

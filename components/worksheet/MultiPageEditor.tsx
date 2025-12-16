@@ -4,11 +4,15 @@ import { Editor, EditorContent } from '@tiptap/react';
 interface MultiPageEditorProps {
   editor: Editor | null;
   fontSize: number;
-  zoom: number;
   logoUrl: string | null;
   logoPos: { x: number; y: number };
   logoWidth: number;
+  logoHeight: number;
   onLogoDrag: (e: React.MouseEvent) => void;
+  onLogoResize: (e: React.MouseEvent, handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw') => void;
+  logoSelected?: boolean;
+  onLogoSelect?: (selected: boolean) => void;
+  onLogoRemove?: () => void;
 }
 
 const PAGE_HEIGHT_MM = 297; // A4 height in mm
@@ -20,11 +24,15 @@ const PAGE_GAP_MM = 10; // Gap between pages in mm (like Word)
 export const MultiPageEditor: React.FC<MultiPageEditorProps> = ({
   editor,
   fontSize,
-  zoom,
   logoUrl,
   logoPos,
   logoWidth,
+  logoHeight,
   onLogoDrag,
+  onLogoResize,
+  logoSelected = false,
+  onLogoSelect,
+  onLogoRemove,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +93,89 @@ export const MultiPageEditor: React.FC<MultiPageEditorProps> = ({
           z-index: 10;
           padding: ${PADDING_MM}mm;
           min-height: 297mm;
+          box-sizing: border-box;
+        }
+
+        /* Logo overlay */
+        .ws-logo-container {
+          position: absolute;
+          z-index: 50;
+          cursor: grab;
+          user-select: none;
+          display: inline-block;
+        }
+        .ws-logo-container:hover,
+        .ws-logo-container:active,
+        .ws-logo-container.ws-logo-selected {
+          outline: 2px solid rgba(59, 130, 246, 0.9);
+          outline-offset: 2px;
+        }
+        .ws-logo-container:active {
+          cursor: grabbing;
+        }
+        .ws-logo {
+          width: 100%;
+          height: 100%;
+          display: block;
+          pointer-events: none;
+          object-fit: fill;
+        }
+        .ws-resize-handle,
+        .ws-logo-resize-handle {
+          width: 12px;
+          height: 12px;
+          background: #3b82f6;
+          position: absolute;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          z-index: 60;
+          display: none;
+        }
+        .ws-logo-container:hover .ws-logo-resize-handle,
+        .ws-logo-container:active .ws-logo-resize-handle,
+        .ws-logo-container.ws-logo-selected .ws-logo-resize-handle {
+          display: block;
+        }
+        .ws-logo-resize-handle[data-handle="se"] { bottom: -6px; right: -6px; cursor: se-resize; }
+        .ws-logo-resize-handle[data-handle="sw"] { bottom: -6px; left: -6px; cursor: sw-resize; }
+        .ws-logo-resize-handle[data-handle="ne"] { top: -6px; right: -6px; cursor: ne-resize; }
+        .ws-logo-resize-handle[data-handle="nw"] { top: -6px; left: -6px; cursor: nw-resize; }
+        .ws-logo-resize-handle[data-handle="n"] { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .ws-logo-resize-handle[data-handle="s"] { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .ws-logo-resize-handle[data-handle="e"] { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
+        .ws-logo-resize-handle[data-handle="w"] { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
+        .ws-logo-delete {
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #ef4444;
+          color: white;
+          display: none;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          line-height: 1;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          z-index: 70;
+          cursor: pointer;
+          pointer-events: auto;
+        }
+        .ws-logo-container.ws-logo-selected .ws-logo-delete {
+          display: flex;
+        }
+        @media print {
+          .ws-resize-handle,
+          .ws-logo-resize-handle {
+            display: none !important;
+          }
+          .ws-logo-delete {
+            display: none !important;
+          }
         }
 
         /* Print-aware page break rules */
@@ -92,6 +183,8 @@ export const MultiPageEditor: React.FC<MultiPageEditorProps> = ({
         .worksheet-editor-content ul,
         .worksheet-editor-content ol,
         .worksheet-editor-content .worksheet-table,
+        .worksheet-editor-content .ws-table,
+        .worksheet-editor-content table,
         .worksheet-editor-content .worksheet-image {
           page-break-inside: avoid;
           break-inside: avoid;
@@ -125,68 +218,96 @@ export const MultiPageEditor: React.FC<MultiPageEditorProps> = ({
         }
       `}</style>
 
-      <div
-        style={{
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top center',
-          transition: 'transform 0.2s ease',
-        }}
-      >
-        <div className="mx-auto" style={{ maxWidth: '210mm' }}>
-          <div
-            className="worksheet-page-wrapper"
-            style={{
-              width: '210mm',
-              position: 'relative',
-            }}
-          >
-            {/* Visual margin overlays */}
-            <div className="worksheet-margin-overlays" />
+      <div className="mx-auto" style={{ maxWidth: '210mm' }}>
+        <div
+          className="worksheet-page-wrapper"
+          style={{
+            width: '210mm',
+            position: 'relative',
+          }}
+        >
+          {/* Visual margin overlays */}
+          <div className="worksheet-margin-overlays" />
 
-            {/* Page break divider lines */}
-            <div className="worksheet-page-dividers" />
+          {/* Page break divider lines */}
+          <div className="worksheet-page-dividers" />
 
-            {/* Content area with padding */}
-            <div className="worksheet-page-content">
-              {/* Logo Overlay */}
-              {logoUrl && (
-                <div
-                  className="ws-logo-container"
-                  style={{
-                    position: 'absolute',
-                    left: `${logoPos.x}px`,
-                    top: `${logoPos.y}px`,
-                    width: `${logoWidth}px`,
-                    cursor: 'grab',
-                    zIndex: 50,
-                  }}
-                  onMouseDown={onLogoDrag}
-                >
-                  <img
-                    src={logoUrl}
-                    alt="Logo"
-                    className="ws-logo"
-                    style={{ width: '100%', height: 'auto', pointerEvents: 'none' }}
-                  />
-                </div>
-              )}
-
-              {/* Editor Content */}
+          {/* Content area with padding */}
+          <div className="worksheet-page-content">
+            {/* Logo Overlay */}
+            {logoUrl && (
               <div
-                ref={contentRef}
-                className="worksheet-editor-content"
+                className={`ws-logo-container ${logoSelected ? 'ws-logo-selected' : ''}`}
                 style={{
-                  fontSize: `${fontSize}pt`,
-                  fontFamily: 'Quicksand, sans-serif',
-                  lineHeight: '1.5',
-                  width: '100%',
-                  maxWidth: '100%',
-                  position: 'relative',
-                  zIndex: 1,
+                  position: 'absolute',
+                  left: `${logoPos.x}px`,
+                  top: `${logoPos.y}px`,
+                  width: `${logoWidth}px`,
+                  height: `${logoHeight}px`,
+                  cursor: 'grab',
+                  zIndex: 50,
+                }}
+                onMouseDown={(e) => {
+                  onLogoSelect?.(true);
+                  onLogoDrag(e);
                 }}
               >
-                <EditorContent editor={editor} />
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="ws-logo"
+                  crossOrigin={logoUrl?.startsWith('http') ? 'anonymous' : undefined}
+                  style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
+                />
+                {onLogoRemove && (
+                  <button
+                    type="button"
+                    className="ws-logo-delete"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onLogoRemove();
+                      onLogoSelect?.(false);
+                    }}
+                    aria-label="Remove logo"
+                    title="Remove logo"
+                  >
+                    ×
+                  </button>
+                )}
+                {(['nw', 'ne', 'sw', 'se', 'w', 'e', 'n', 's'] as const).map((handle) => (
+                  <div
+                    key={handle}
+                    className="ws-logo-resize-handle"
+                    data-handle={handle}
+                    onMouseDown={(e) => {
+                      onLogoSelect?.(true);
+                      onLogoResize(e, handle);
+                    }}
+                  />
+                ))}
               </div>
+            )}
+
+            {/* Editor Content */}
+            <div
+              ref={contentRef}
+              className="worksheet-editor-content"
+              style={{
+                fontSize: `${fontSize}pt`,
+                fontFamily: 'Quicksand, sans-serif',
+                lineHeight: '1.5',
+                width: '100%',
+                maxWidth: '100%',
+                position: 'relative',
+                zIndex: 1,
+              } as any}
+            >
+              <EditorContent editor={editor} />
             </div>
           </div>
         </div>
