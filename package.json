@@ -25,9 +25,9 @@
     "@tiptap/react": "^3.13.0",
     "@tiptap/starter-kit": "^3.13.0",
     "@vitejs/plugin-react": "^5.1.1",
-    "docx": "^9.5.1",
+    "dompurify": "^3.2.7",
     "framer-motion": "^12.23.26",
-    "html2pdf.js": "^0.12.1",
+    "interactjs": "^1.10.27",
     "lucide-react": "0.300.0",
     "maath": "0.10.8",
     "path": "^0.12.7",
@@ -39,7 +39,6 @@
     "vite": "^7.2.4"
   },
   "devDependencies": {
-    "@types/html2pdf.js": "^0.10.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

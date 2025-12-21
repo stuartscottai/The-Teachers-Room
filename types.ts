@@ -102,7 +102,16 @@ export interface GeneratedGame {
   pubQuizRounds?: JeopardyCategory[]; // Reusing structure: Category = Round
 }
 
-export type ActivityType = 'wordsearch' | 'matching' | 'gap-fill' | 'sentence-transform' | 'multiple-choice' | 'word-formation' | 'open-ended';
+export type ActivityType =
+  | 'wordsearch'
+  | 'matching'
+  | 'gap-fill'
+  | 'sentence-transform'
+  | 'multiple-choice'
+  | 'word-formation'
+  | 'open-ended'
+  | 'table'
+  | 'custom';
 
 export interface ActivityConfig {
   id: string; // Unique ID for React keys and D&D
@@ -111,7 +120,10 @@ export interface ActivityConfig {
   contextType?: 'sentences' | 'text'; // Moved here for per-activity control
   options?: {
     mcCount?: 2 | 3 | 4; // For multiple choice options
+    rows?: number; // For wordsearch/table
+    cols?: number; // For wordsearch/table
   };
+  customInstructions?: string;
 }
 
 export interface WorksheetConfig {
@@ -145,6 +157,22 @@ export interface GeneratedWorksheet {
   content: string; // HTML or structured text representation
   answerKey?: string | null; // Answer key content (HTML)
   type: string; // Helper for display (e.g. "Mixed", "Wordsearch")
+}
+
+export interface WorksheetAiParts {
+  title: string;
+  storyHtml?: string;
+  mcq?: Array<{ q: string; options: string[] }>;
+  wordSearch?: Array<{ grid: string[][]; words: string[] }>;
+  matching?: Array<{ left: string; right: string }>;
+  sentenceTransform?: Array<{ prompt: string; answer?: string }>;
+  custom?: Array<{ text: string }>;
+  table?: { headers: string[]; rows: string[][] };
+  gapFill?: Array<{ sentence: string; answer: string }>;
+  wordFormation?: Array<{ base: string; sentence: string; answer: string }>;
+  openEnded?: Array<{ question: string; sampleAnswer?: string }>;
+  answerKeyHtml?: string;
+  image?: { url: string } | null;
 }
 
 export interface BlogPost {

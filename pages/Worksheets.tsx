@@ -8,12 +8,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCommunityWorksheets, processFile } from '../utils/gameUtils';
 import { optimizeImageForUpload } from '../utils/imageOptimize';
 import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
-import { useTipTapEditor } from '../components/worksheet/TipTapEditor';
-import { EditorContent } from '@tiptap/react';
-import { EditorToolbar } from '../components/worksheet/EditorToolbar';
-import { MobileToolbar } from '../components/worksheet/MobileToolbar';
-import { generatePDF, generateDOCX, downloadFile, PDFMetadata } from '../utils/worksheetPDF';
-import { WorksheetEditorSection } from '../components/worksheet/WorksheetBuilderNew';
+import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
+import { blocksFromAi, imageToHtml, sanitizeHtml } from '../components/worksheet/designer/designerHelpers';
+import { WorksheetAiResultV1, WorksheetDesignerDocV1, WorksheetDesignerSettings, createEmptyDoc, tryParseDesignerDoc, WorksheetBlock, WorksheetDesignerPage, WorksheetPlacedElement, createId } from '../components/worksheet/designer/designerTypes';
 
 // --- TIPTAP EDITOR STYLESHEET ---
 const TIPTAP_EDITOR_CSS = `
@@ -736,6 +733,14 @@ const WorksheetBuilder: React.FC<{
     const [isPublic, setIsPublic] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    // --- NEW DESIGNER STATE ---
+    const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
+    const [blocks, setBlocks] = useState<WorksheetBlock[]>([]);
+    const [elements, setElements] = useState<WorksheetPlacedElement[]>([]);
+    const [designerSettings, setDesignerSettings] = useState<WorksheetDesignerSettings>(() => createEmptyDoc().settings || {});
+    const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
+    const lastLoadedWorksheetKeyRef = useRef<string>('');
     
     // Active Formats State for Toolbar
     const [activeFormats, setActiveFormats] = useState({
@@ -754,6 +759,7 @@ const WorksheetBuilder: React.FC<{
     const [logoHeight, setLogoHeight] = useState(90);
     const [logoStoragePath, setLogoStoragePath] = useState<string | null>(null);
     const [logoSelected, setLogoSelected] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement | null>(null);
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
     const logoDragOffset = useRef({ x: 0, y: 0 });
     const [isResizingLogo, setIsResizingLogo] = useState(false);
@@ -775,6 +781,68 @@ const WorksheetBuilder: React.FC<{
         posY: number;
         handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw';
     } | null>(null);
+
+    useEffect(() => {
+        const key = generatedWs?.id || generatedWs?.createdAt || generatedWs?.title || '';
+        if (!generatedWs || !key) return;
+        if (lastLoadedWorksheetKeyRef.current === key) return;
+        lastLoadedWorksheetKeyRef.current = key;
+
+        const doc = typeof generatedWs.content === 'string' ? tryParseDesignerDoc(generatedWs.content) : null;
+        if (doc) {
+            setPages(doc.pages?.length ? doc.pages : createEmptyDoc().pages);
+            setBlocks(Array.isArray(doc.blocks) ? doc.blocks : []);
+            setElements(Array.isArray(doc.elements) ? doc.elements : []);
+            setDesignerSettings(doc.settings || createEmptyDoc().settings || {});
+            setSelectedElementId(null);
+            onDirtyChange?.(false);
+            return;
+        }
+
+        // Legacy HTML fallback: load as a single Story block + placed element
+        const sanitizedLegacy = sanitizeHtml(String(generatedWs.content || ''));
+        const seed = createEmptyDoc();
+        const legacyBlock: WorksheetBlock = {
+            id: seed.pages[0]?.id ? `${seed.pages[0].id}-legacy` : 'legacy',
+            type: 'story',
+            title: 'Legacy HTML',
+            payload: { html: sanitizedLegacy },
+            previewHtml: sanitizedLegacy,
+        };
+
+        setPages(seed.pages);
+        setBlocks([legacyBlock]);
+        setElements([{
+            id: `${legacyBlock.id}-el`,
+            pageId: seed.pages[0].id,
+            type: 'story',
+            x: 0,
+            y: 0,
+            w: 620,
+            h: 860,
+            html: sanitizedLegacy,
+            styles: {
+                fontFamily: 'Quicksand, sans-serif',
+                fontSize: '14px',
+                fontWeight: '400',
+                fontStyle: 'normal',
+                textDecoration: 'none',
+                textAlign: 'left',
+                lineHeight: '1.35',
+                color: '#0f172a',
+                backgroundColor: '#ffffff',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: '#e2e8f0',
+                borderRadius: '10px',
+                padding: '12px',
+                boxShadow: 'none',
+            },
+        }]);
+        setSelectedElementId(`${legacyBlock.id}-el`);
+        setDesignerSettings(seed.settings || {});
+        onDirtyChange?.(false);
+    }, [generatedWs, onDirtyChange]);
 
     const getWorksheetPageRect = () => {
         const el = document.querySelector('.worksheet-page-content') as HTMLElement | null;
@@ -816,7 +884,27 @@ const WorksheetBuilder: React.FC<{
         setLogoUrl(null);
         setLogoStoragePath(null);
         setLogoSelected(false);
+        setBlocks((prev) => prev.filter((b) => b?.payload?.kind !== 'logo'));
     }, []);
+
+    useEffect(() => {
+        if (!logoUrl) return;
+
+        setBlocks((prev) => {
+            const without = prev.filter((b) => b?.payload?.kind !== 'logo');
+            return [
+                {
+                    id: `logo-${createId()}`,
+                    type: 'image',
+                    title: 'Logo',
+                    payload: { url: logoUrl, kind: 'logo' },
+                    previewHtml: imageToHtml(logoUrl),
+                } as WorksheetBlock,
+                ...without,
+            ];
+        });
+        onDirtyChange?.(true);
+    }, [logoUrl, onDirtyChange]);
 
     useEffect(() => {
         const pending = pendingLogoUploadRef.current;
@@ -883,6 +971,8 @@ const WorksheetBuilder: React.FC<{
         { type: 'sentence-transform', label: 'Sentence Transform' },
         { type: 'word-formation', label: 'Word Formation' },
         { type: 'open-ended', label: 'Open Ended' },
+        { type: 'table', label: 'Table' },
+        { type: 'custom', label: 'Custom' },
     ];
 
     // Sync visibility state from loaded config
@@ -1126,6 +1216,59 @@ const WorksheetBuilder: React.FC<{
         e.target.value = '';
     };
 
+    const handleAddImageClick = () => {
+        imageInputRef.current?.click();
+    };
+
+    const addImageBlock = useCallback((url: string, storagePath?: string) => {
+        setBlocks((prev) => [
+            {
+                id: `image-${createId()}`,
+                type: 'image',
+                title: 'Image',
+                payload: { url, storagePath },
+                previewHtml: imageToHtml(url, storagePath),
+            } as WorksheetBlock,
+            ...prev,
+        ]);
+        onDirtyChange?.(true);
+    }, [onDirtyChange, setBlocks]);
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            (async () => {
+                try {
+                    const shouldUpload = Boolean(user) && (config.storeWorksheetAssets ?? true);
+                    if (shouldUpload && user) {
+                        const optimized = await optimizeImageForUpload(file, { maxDimension: 1400, quality: 0.85, preferAlpha: true });
+                        const uploaded = await uploadWorksheetAsset({
+                            userId: user.id,
+                            blob: optimized.blob,
+                            contentType: optimized.contentType,
+                            extension: optimized.extension,
+                            kind: 'image',
+                            worksheetId: generatedWs?.id,
+                        });
+                        addImageBlock(uploaded.signedUrl, uploaded.path);
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        addImageBlock(dataUrl);
+                    };
+                    reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error('Image upload failed:', err);
+                    alert('Failed to add image. Please try again.');
+                }
+            })();
+        }
+        e.target.value = '';
+    };
+
     const handleLogoResizeMouseDown = (e: React.MouseEvent, handle: 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw') => {
         e.stopPropagation();
         e.preventDefault();
@@ -1239,14 +1382,26 @@ const WorksheetBuilder: React.FC<{
 
     // Activity Management
     const addActivity = (type: ActivityType) => {
-        const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform', 'open-ended'].includes(type);
+        const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice'].includes(type);
+        const defaultCount =
+            type === 'wordsearch' ? 10 : type === 'matching' ? 8 : type === 'table' ? 4 : type === 'custom' ? 1 : 5;
+        const defaultOptions =
+            type === 'multiple-choice'
+                ? { mcCount: 4 as const }
+                : type === 'wordsearch'
+                    ? { rows: 10, cols: 10 }
+                    : type === 'table'
+                        ? { rows: 4, cols: 3 }
+                        : undefined;
         setConfig(prev => ({
             ...prev,
             activities: [...prev.activities, { 
                 id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 type, 
-                count: 5,
-                contextType: supportsContext ? 'sentences' : undefined 
+                count: defaultCount,
+                contextType: supportsContext ? 'sentences' : undefined,
+                options: defaultOptions,
+                customInstructions: ''
             }]
         }));
         setShowAddMenu(false);
@@ -1265,8 +1420,24 @@ const WorksheetBuilder: React.FC<{
          setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, contextType } : a) }));
     };
 
+    const updateActivityInstructions = (id: string, customInstructions: string) => {
+        setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, customInstructions } : a) }));
+    };
+
     const updateMcOptions = (id: string, optionCount: 2 | 3 | 4) => {
-        setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, options: { mcCount: optionCount } } : a) }));
+        setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, options: { ...(a.options || {}), mcCount: optionCount } } : a) }));
+    };
+
+    const updateActivityGrid = (id: string, patch: { rows?: number; cols?: number }) => {
+        setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.map(a => {
+                if (a.id !== id) return a;
+                const nextOptions = { ...(a.options || {}), ...patch };
+                const nextCount = a.type === 'table' && typeof patch.rows === 'number' ? patch.rows : a.count;
+                return { ...a, options: nextOptions, count: nextCount };
+            })
+        }));
     };
 
     // Drag & Drop
@@ -1290,73 +1461,93 @@ const WorksheetBuilder: React.FC<{
     // Generate & Save
     const handleGenerate = async () => {
         if (generatedWs?.content?.trim()) {
-            const ok = window.confirm("Generating a new worksheet will replace the current worksheet. Any unsaved changes will be lost. Continue?");
+            const ok = window.confirm("Generating new blocks will replace the current blocks/pages. Any unsaved changes will be lost. Continue?");
             if (!ok) return;
         }
 
-        if (!config.topic && uploadedFiles.length === 0) { 
-            alert("Please enter a topic or upload a source file!"); 
-            return; 
+        if (!config.topic && uploadedFiles.length === 0) {
+            alert("Please enter a topic or upload a source file!");
+            return;
         }
-        if (config.activities.length === 0 && !window.confirm("Generate blank worksheet?")) return;
-        
+
         setLoading(true);
         try {
             const finalConfig = { ...config, files: uploadedFiles };
-            const data = await generateWorksheetContent(finalConfig);
-            
-            // Override title if user provided one
-            if (finalConfig.title) {
-                data.title = finalConfig.title;
-            }
-            
-            setGeneratedWs(data);
+            const ai = (await generateWorksheetContent(finalConfig)) as WorksheetAiResultV1;
+
+            if (finalConfig.title) ai.title = finalConfig.title;
+
+            const nextBlocks = blocksFromAi(ai, finalConfig);
+            const seed = createEmptyDoc();
+            const nextDoc = {
+                kind: 'worksheet-designer',
+                version: 1,
+                settings: seed.settings,
+                pages: seed.pages,
+                blocks: nextBlocks,
+                elements: [],
+            } satisfies WorksheetDesignerDocV1;
+
+            setPages(nextDoc.pages);
+            setBlocks(nextDoc.blocks);
+            setElements(nextDoc.elements);
+            setDesignerSettings(nextDoc.settings || {});
+            setSelectedElementId(null);
+
+            setGeneratedWs({
+                id: generatedWs?.id || createId(),
+                createdAt: new Date().toISOString(),
+                title: ai.title || finalConfig.title || 'Worksheet',
+                content: JSON.stringify(nextDoc),
+                answerKey: ai.answerKeyHtml || null,
+                type: 'Designer',
+                config: finalConfig,
+            });
             setSaveStatus('idle');
-        } catch (error) { console.error(error); alert("Error generating worksheet."); } 
-        finally { setLoading(false); }
+            onDirtyChange?.(true);
+        } catch (error) {
+            console.error(error);
+            alert("Error generating worksheet.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const getCurrentContent = () => {
-        const contentDiv = contentRef.current?.querySelector('.ws-content');
-        return contentDiv ? contentDiv.innerHTML : (generatedWs?.content || '');
+    const getCurrentDocString = () => {
+        const doc: WorksheetDesignerDocV1 = {
+            kind: 'worksheet-designer',
+            version: 1,
+            settings: designerSettings,
+            pages,
+            blocks,
+            elements,
+        };
+        return JSON.stringify(doc);
     };
 
     const handleSave = () => {
         if (!user) { alert("Please log in to save."); return; }
         if (!generatedWs) return;
-        const finalWs = { ...generatedWs, content: getCurrentContent(), config: { ...config, isPublic, files: uploadedFiles } };
+        const finalWs = {
+            ...generatedWs,
+            title: config.title || generatedWs.title,
+            content: getCurrentDocString(),
+            type: 'Designer',
+            config: { ...config, isPublic, files: uploadedFiles },
+        };
         setSaveStatus('saving');
         saveWorksheetToLibrary(finalWs, user.id, user.name).then(success => {
             if (success) {
                 setSaveStatus('saved');
                 setGeneratedWs(finalWs);
                 setTimeout(() => setSaveStatus('idle'), 2000);
+                onDirtyChange?.(false);
             } else { alert("Failed to save."); setSaveStatus('idle'); }
         });
     };
 
     const handlePrint = () => {
-        if (!generatedWs) return;
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) { alert("Pop-up blocked!"); return; }
-        
-        let logoHTML = '';
-        if (logoUrl) {
-            logoHTML = `<img src="${logoUrl}" class="ws-logo" style="position: absolute; left: ${logoPos.x}px; top: ${logoPos.y}px; width: ${logoWidth}px; height: ${logoHeight}px;" />`;
-        }
-
-        const htmlContent = `
-            <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${generatedWs.title}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
-            <style>${LEGACY_WORKSHEET_CSS} .ws-container { font-size: ${fontSize}pt; } ${config.layout === 'columns' ? '.ws-container { column-count: 2; column-gap: 10mm; column-fill: balance; } .ws-header, .ws-title, .ws-instructions, .ws-answer-key { column-span: all; }' : ''} body { padding: 0; margin: 0; }</style></head>
-            <body><div class="ws-container ${config.layout === 'columns' ? 'two-column' : ''}">
-                ${logoHTML}
-                <div class="ws-content">
-                ${getCurrentContent()}
-                </div>
-            </div>
-            <script>document.fonts.ready.then(() => { setTimeout(() => { window.print(); }, 500); });</script></body></html>`;
-        printWindow.document.open(); printWindow.document.write(htmlContent); printWindow.document.close();
+        window.print();
     };
 
     const insertPageBreak = () => {
@@ -1446,7 +1637,7 @@ const WorksheetBuilder: React.FC<{
     return (
         <div className="flex bg-slate-50 relative items-stretch">
             {/* Sidebar */}
-            <div className={`${isSidebarCollapsed ? 'w-14' : 'w-96'} flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl transition-[width] duration-200`}>
+            <div className={`no-print ${isSidebarCollapsed ? 'w-14' : 'w-96'} flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl transition-[width] duration-200`}>
                 <style>{SIDEBAR_CSS}</style>
                 <div className="p-4 border-b border-slate-100 flex items-start justify-between gap-2">
                     <div className={isSidebarCollapsed ? 'hidden' : ''}>
@@ -1658,7 +1849,22 @@ const WorksheetBuilder: React.FC<{
                         <div className="space-y-2 mt-3">
                             {config.activities.map((act, index) => {
                                 const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
-                                const supportsContext = ['gap-fill', 'multiple-choice', 'word-formation', 'sentence-transform', 'open-ended'].includes(act.type);
+                                const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice'].includes(act.type);
+                                const isMcq = act.type === 'multiple-choice';
+                                const showCount = !['table', 'custom'].includes(act.type);
+                                const countLabel =
+                                    act.type === 'wordsearch'
+                                        ? 'Words'
+                                        : act.type === 'matching'
+                                            ? 'Pairs'
+                                            : 'Qty';
+                                const showGrid = ['wordsearch', 'table'].includes(act.type);
+                                const gridDefaults = act.type === 'wordsearch'
+                                    ? { rows: 10, cols: 10 }
+                                    : { rows: 4, cols: 3 };
+                                const gridRows = act.options?.rows ?? gridDefaults.rows;
+                                const gridCols = act.options?.cols ?? gridDefaults.cols;
+                                const mcCount = Math.min(4, Math.max(2, Math.round(act.options?.mcCount ?? 4)));
                                 return (
                                     <div key={act.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index)} className="border border-teal-200 bg-teal-50/30 rounded p-2 relative group cursor-move hover:shadow-sm transition-all active:cursor-grabbing">
                                         <div className="flex items-center justify-between mb-1">
@@ -1668,25 +1874,61 @@ const WorksheetBuilder: React.FC<{
                                             <button onClick={(e) => removeActivity(act.id, e)} className="text-slate-300 hover:text-red-500 p-0.5 rounded hover:bg-red-50 transition-colors"><X size={14} /></button>
                                         </div>
                                         <div className="pl-4 flex flex-wrap gap-2">
-                                            <div className="flex-1 min-w-[60px]">
-                                                <label className="text-[9px] text-slate-500 font-bold uppercase block">Qty</label>
-                                                <input type="number" min={1} max={20} value={act.count} onChange={(e) => updateActivityCount(act.id, parseInt(e.target.value))} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
-                                            </div>
+                                            {showCount && (
+                                                <div className="flex-1 min-w-[60px]">
+                                                    <label className="text-[9px] text-slate-500 font-bold uppercase block">{countLabel}</label>
+                                                    <input type="number" min={1} max={50} value={act.count} onChange={(e) => updateActivityCount(act.id, parseInt(e.target.value))} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                </div>
+                                            )}
                                             {act.type === 'multiple-choice' && (
                                                 <div className="flex-1 min-w-[60px]">
                                                     <label className="text-[9px] text-slate-500 font-bold uppercase block">Opts</label>
-                                                    <select value={act.options?.mcCount || 3} onChange={(e) => updateMcOptions(act.id, parseInt(e.target.value) as any)} className="w-full p-1 text-xs border border-slate-300 rounded outline-none"><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select>
+                                                    <select value={mcCount} onChange={(e) => updateMcOptions(act.id, parseInt(e.target.value, 10) as any)} className="w-full p-1 text-xs border border-slate-300 rounded outline-none"><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option></select>
                                                 </div>
+                                            )}
+                                            {showGrid && (
+                                                <>
+                                                    <div className="flex-1 min-w-[60px]">
+                                                        <label className="text-[9px] text-slate-500 font-bold uppercase block">Rows</label>
+                                                        <input type="number" min={2} max={30} value={gridRows} onChange={(e) => updateActivityGrid(act.id, { rows: parseInt(e.target.value) })} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[60px]">
+                                                        <label className="text-[9px] text-slate-500 font-bold uppercase block">Cols</label>
+                                                        <input type="number" min={2} max={30} value={gridCols} onChange={(e) => updateActivityGrid(act.id, { cols: parseInt(e.target.value) })} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
                                         {supportsContext && (
                                             <div className="mt-1 pt-1 border-t border-teal-100 pl-4">
                                                 <div className="flex bg-white rounded border border-slate-200 overflow-hidden">
-                                                    <button type="button" className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'sentences')}>Sentences</button>
-                                                    <button type="button" className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`} onClick={() => updateActivityContext(act.id, 'text')}>Story</button>
+                                                    <button
+                                                        type="button"
+                                                        className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`}
+                                                        onClick={() => updateActivityContext(act.id, 'sentences')}
+                                                    >
+                                                        {isMcq ? 'Questions Only' : 'Sentences'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`}
+                                                        onClick={() => updateActivityContext(act.id, 'text')}
+                                                    >
+                                                        Story
+                                                    </button>
                                                 </div>
                                             </div>
                                         )}
+                                        <div className="mt-1 pl-4 w-full">
+                                            <label className="text-[9px] text-slate-500 font-bold uppercase block">Notes</label>
+                                            <textarea
+                                                value={act.customInstructions || ''}
+                                                onChange={(e) => updateActivityInstructions(act.id, e.target.value)}
+                                                placeholder="Specific instructions for this activity..."
+                                                className="w-full p-1.5 text-[11px] border border-slate-300 rounded outline-none resize-none"
+                                                rows={2}
+                                            />
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -1701,41 +1943,33 @@ const WorksheetBuilder: React.FC<{
                 )}
             </div>
 
-            {/* Preview Area - New TipTap Editor */}
-            <div className="flex-1 flex flex-col relative bg-slate-100/50 min-w-0">
-                {generatedWs ? (
-                    <div className="flex flex-col">
-                        <style>{TIPTAP_EDITOR_CSS}</style>
-                        <WorksheetEditorSection
-                            generatedWs={generatedWs}
-                            setGeneratedWs={setGeneratedWs}
-                            config={config}
-                            fontSize={fontSize}
-                            setFontSize={setFontSize}
-                            zoom={zoom}
-                            setZoom={setZoom}
-                            logoUrl={logoUrl}
-                            logoStoragePath={logoStoragePath}
-                            logoPos={logoPos}
-                            logoWidth={logoWidth}
-                            logoHeight={logoHeight}
-                            onLogoDrag={handleLogoMouseDown}
-                            onLogoResize={handleLogoResizeMouseDown}
-                            logoSelected={logoSelected}
-                            onLogoSelect={setLogoSelected}
-                            onLogoRemove={handleRemoveLogo}
-                            isPublic={isPublic}
-                            onTogglePublic={handleVisibilityToggle}
-                            onDirtyChange={onDirtyChange}
-                        />
-                    </div>
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 border-l border-slate-200 bg-slate-50/50">
-                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm"><LayoutTemplate size={40} className="text-slate-300" /></div>
-                        <p className="font-bold text-lg">Your worksheet canvas is empty</p>
-                        <p className="text-sm">Configure and generate to preview.</p>
-                    </div>
-                )}
+            {/* Canvas + Blocks Tray + Properties */}
+            <div className="flex-1 flex min-w-0 border-l border-slate-200">
+                <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                />
+                <WorksheetDesigner
+                    pages={pages}
+                    setPages={setPages}
+                    blocks={blocks}
+                    setBlocks={setBlocks}
+                    elements={elements}
+                    setElements={setElements}
+                    settings={designerSettings}
+                    setSettings={setDesignerSettings}
+                    selectedElementId={selectedElementId}
+                    setSelectedElementId={setSelectedElementId}
+                    onDirty={onDirtyChange}
+                    onSave={handleSave}
+                    saveStatus={saveStatus}
+                    onAddImage={handleAddImageClick}
+                    isPublic={isPublic}
+                    onTogglePublic={handleVisibilityToggle}
+                />
             </div>
         </div>
     );
@@ -2017,25 +2251,53 @@ export const Worksheets: React.FC = () => {
     }, [activeTab, hasUnsavedChanges, confirmLoseUnsaved, resetCreateState]);
 
     const handleLoad = async (ws: GeneratedWorksheet) => {
-        const generateUUID = () => {
-            if (typeof crypto !== 'undefined' && (crypto as any).randomUUID) {
-                return (crypto as any).randomUUID();
-            }
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-                const r = (Math.random() * 16) | 0;
-                const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-                return v.toString(16);
-            });
-        };
-
         // Strip ID if loading from community to treat as template
         const isCommunity = activeTab === 'community';
 
         const nextIsPublic = isCommunity ? false : (ws.config?.isPublic ?? true);
 
         let nextContent = ws.content;
-        if (user && typeof ws.content === 'string' && ws.content.includes('data-storage-path')) {
-            nextContent = await resolveWorksheetHtmlAssetUrls(ws.content);
+        if (user && typeof ws.content === 'string') {
+            const doc = tryParseDesignerDoc(ws.content);
+            if (doc) {
+                const nextElements = await Promise.all(
+                    (doc.elements || []).map(async (el) => {
+                        if (typeof el?.html === 'string' && el.html.includes('data-storage-path')) {
+                            return { ...el, html: await resolveWorksheetHtmlAssetUrls(el.html) };
+                        }
+                        return el;
+                    })
+                );
+
+                const nextBlocks = await Promise.all(
+                    (doc.blocks || []).map(async (b) => {
+                        if (b?.type === 'image' && b?.payload?.storagePath && user) {
+                            try {
+                                const signedUrl = await createSignedUrlForWorksheetAsset(b.payload.storagePath);
+                                return {
+                                    ...b,
+                                    payload: { ...b.payload, url: signedUrl },
+                                    previewHtml: imageToHtml(signedUrl, b.payload.storagePath),
+                                };
+                            } catch {
+                                // fall back to stored url
+                            }
+                        }
+                        if (typeof b?.previewHtml === 'string' && b.previewHtml.includes('data-storage-path')) {
+                            return { ...b, previewHtml: await resolveWorksheetHtmlAssetUrls(b.previewHtml) };
+                        }
+                        const payloadHtml = typeof b?.payload?.html === 'string' ? b.payload.html : null;
+                        if (payloadHtml && payloadHtml.includes('data-storage-path')) {
+                            return { ...b, payload: { ...b.payload, html: await resolveWorksheetHtmlAssetUrls(payloadHtml) } };
+                        }
+                        return b;
+                    })
+                );
+
+                nextContent = JSON.stringify({ ...doc, elements: nextElements, blocks: nextBlocks });
+            } else if (ws.content.includes('data-storage-path')) {
+                nextContent = await resolveWorksheetHtmlAssetUrls(ws.content);
+            }
         }
 
         const nextLogo = ws.config?.logo;
@@ -2051,7 +2313,7 @@ export const Worksheets: React.FC = () => {
         setGeneratedWs({
             ...ws,
             content: nextContent,
-            id: isCommunity ? generateUUID() : ws.id, // New ID for community copy so it saves as a new entry (and assets can be tied to it)
+            id: isCommunity ? createId() : ws.id, // New ID for community copy so it saves as a new entry (and assets can be tied to it)
             config: {
                 ...ws.config,
                 isPublic: nextIsPublic,
@@ -2069,7 +2331,7 @@ export const Worksheets: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             {/* Header - EXACT MATCH of Games.tsx GameHub structure */}
-            <div className="max-w-7xl mx-auto px-4 py-8 w-full shrink-0">
+            <div className="no-print max-w-7xl mx-auto px-4 py-8 w-full shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                     <div className="text-center md:text-left">
                         <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">Worksheet Builder</h1>
@@ -2104,9 +2366,13 @@ export const Worksheets: React.FC = () => {
             </div>
 
             {/* Content Area - Naturally expanding */}
-            <div className="flex flex-col max-w-7xl mx-auto w-full px-4 pb-8">
+            <div
+                className={`flex flex-col w-full pb-8 ${
+                    activeTab === 'create' ? 'px-0' : 'max-w-7xl mx-auto px-4'
+                }`}
+            >
                 {activeTab === 'create' ? (
-                    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 flex flex-col relative">
+                    <div className="bg-white shadow-xl border border-slate-200 flex flex-col relative w-full">
                         <WorksheetBuilder
                             config={config}
                             setConfig={setConfig}

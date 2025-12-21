@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameConfig, GeneratedGame, WorksheetConfig, GeneratedWorksheet, GameType } from "../types";
+import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
@@ -379,161 +379,280 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   }
 };
 
-// Helper to parse answer key from worksheet content
-const parseAnswerKey = (content: string): { mainContent: string; answerKey: string | null } => {
-  const match = content.match(/<div class="ws-answer-key"[^>]*>([\s\S]*?)<\/div>/);
-
-  if (match) {
-    return {
-      mainContent: content.replace(match[0], '').trim(),
-      answerKey: match[1].trim()
-    };
-  }
-
-  return { mainContent: content, answerKey: null };
-};
-
-export const generateWorksheetContent = async (config: WorksheetConfig): Promise<GeneratedWorksheet> => {
-  const external = await tryExternalApi<GeneratedWorksheet>({ action: 'worksheet', config });
+export const generateWorksheetContent = async (config: WorksheetConfig): Promise<WorksheetAiParts> => {
+  const external = await tryExternalApi<WorksheetAiParts>({ action: 'worksheet', config });
   if (external) return external;
 
   const ai = getClient();
   
-  const systemInstruction = `You are an expert teacher creating professional worksheets for printing.
-  Generate the 'content' as a complete, well-structured HTML string.
+  const systemInstruction = `You are an expert teacher generating worksheet PARTS for a drag-and-drop worksheet designer.
 
-  If the user provides source files (images/PDFs), analyze them thoroughly and base the worksheet content/questions specifically on that material.
+Return ONLY valid JSON that matches the provided schema (no markdown).
 
-  STRICT STYLING RULES (Do NOT use inline CSS. Use these specific class names):
-  1. Header (OPTIONAL - only include if specified in prompt):
-     - Wrap in <div class="ws-header">...</div>
-     - Use justify-content-between to separate Name and Date
-     - Inside, put Name on the left: <div class="ws-field">Name: ____________</div>
-     - Inside, put Date on the right: <div class="ws-field">Date: ____________</div>
-     - CRITICAL: Do NOT add an underline (<u> tag or CSS style) to the words "Name" and "Date" themselves
-     - Do NOT include a Score field unless explicitly requested
-  2. Title: Use <h2 style="font-size: 14pt; font-weight: bold; text-decoration: underline; margin: 1rem 0 2.5rem 0;">EXACT_TITLE_FROM_PROMPT</h2>
-     - CRITICAL: Use the EXACT title provided in the prompt. Do NOT modify, rephrase, or invent a new title.
-     - The title will be explicitly provided as "Use this exact title: [title]"
-  3. Instructions (Main): Use <p class="ws-instructions"><em>...</em></p> ONLY for the main worksheet intro/description (Centered, italics by default).
-  4. Sections: Wrap distinct activities in <div class="ws-section">.
-     - Start with <h3 class="ws-section-title">Section Title</h3>.
-     - Follow immediately with <p><em>Activity specific instructions...</em></p> (italics by default). Do NOT use the 'ws-instructions' class here; use a standard paragraph (Left Aligned).
-  5. Tables: For grids or matching, use <table class="ws-table">.
-  6. Answer Key (ONLY if explicitly requested):
-     - Wrap the ENTIRE answer key section in <div class="ws-answer-key">
-     - Inside, use <h3>Answer Key</h3> and then lists
+RULES:
+1. Only include fields for the requested blocks. Omit all other fields.
+2. storyHtml must be safe, simple HTML (use <p>, <strong>, <em>, <u>, <ul>, <ol>, <li>, <br>, <h3>).
+3. No <html>, <head>, <body>, <script>, <style>, or inline CSS styles.
+4. All non-HTML text fields must be plain text only (no HTML tags or entities).
+5. mcq must contain clear questions and answer options appropriate for the grade level.
+6. wordSearch items use { grid, words } where grid is rows x cols of single letters and words lists the target words.
+7. matching items use { left, right } pairs.
+8. gapFill items use { sentence, answer } where sentence includes a "_____" blank.
+9. sentenceTransform items use { prompt, answer? }.
+10. wordFormation items use { base, sentence, answer } where sentence includes a "_____" blank.
+11. openEnded items use { question, sampleAnswer? }.
+12. custom items use { text }.
+13. answerKeyHtml (if requested) must be safe, simple HTML (use <div>, <h3>, <p>, <ol>, <ul>, <li>, <strong>, <em>, <br>).
+14. table should match the requested activity types and fit on an A4 page when possible.
+`;
 
-  LAYOUT NOTE:
-  The user has selected layout mode: ${config.layout || 'single'}.
-  - If 'columns', avoid wide tables that might break in a narrow column.
-  - The CSS handles the actual columns, just provide standard semantic HTML.
+  const activities = config.activities || [];
+  const mcqActivities = activities.filter((a) => a.type === 'multiple-choice');
+  const wordSearchActivities = activities.filter((a) => a.type === 'wordsearch');
+  const matchingActivities = activities.filter((a) => a.type === 'matching');
+  const gapFillActivities = activities.filter((a) => a.type === 'gap-fill');
+  const sentenceTransformActivities = activities.filter((a) => a.type === 'sentence-transform');
+  const wordFormationActivities = activities.filter((a) => a.type === 'word-formation');
+  const openEndedActivities = activities.filter((a) => a.type === 'open-ended');
+  const customActivities = activities.filter((a) => a.type === 'custom');
+  const tableActivities = activities.filter((a) => a.type === 'table');
+  const wantsStory = activities.some(
+    (a) => ['gap-fill', 'word-formation', 'multiple-choice'].includes(a.type) && a.contextType === 'text'
+  );
+  const wantsMcq = mcqActivities.length > 0;
+  const wantsWordSearch = wordSearchActivities.length > 0;
+  const wantsMatching = matchingActivities.length > 0;
+  const wantsGapFill = gapFillActivities.length > 0;
+  const wantsSentenceTransform = sentenceTransformActivities.length > 0;
+  const wantsWordFormation = wordFormationActivities.length > 0;
+  const wantsOpenEnded = openEndedActivities.length > 0;
+  const wantsCustom = customActivities.length > 0;
+  const wantsTable = tableActivities.length > 0;
+  const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.length > 0;
 
-  PRIORITY OVERRIDE:
-  If the user's "Additional Instructions" (provided below) specify custom formatting, YOU MUST FOLLOW THE USER'S INSTRUCTIONS.
+  const mcqCount = mcqActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const wordSearchCount = wordSearchActivities.length;
+  const matchingCount = matchingActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const gapFillCount = gapFillActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const sentenceTransformCount = sentenceTransformActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const wordFormationCount = wordFormationActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const openEndedCount = openEndedActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const customCount = customActivities.length;
+  const formatActivityNotes = (note?: string) => {
+    const trimmed = (note || '').trim();
+    return trimmed ? ` notes: ${trimmed}` : '';
+  };
+  const clampMcCount = (value?: number) => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed)) return 4;
+    return Math.min(4, Math.max(2, Math.round(parsed)));
+  };
 
-  CONTENT LAYOUT RULES:
-  - Follow the EXACT ORDER of activities provided in the prompt.
-  - The ANSWER KEY is strictly on a separate page (enforced by CSS).
-  - Do not include <html>, <head>, or <body> tags, just the inner content.
+  const getGridSpec = (activity: any, fallback: { rows: number; cols: number }) => {
+    const rows = Math.max(2, Math.floor(activity?.options?.rows ?? fallback.rows));
+    const cols = Math.max(2, Math.floor(activity?.options?.cols ?? fallback.cols));
+    return { rows, cols };
+  };
 
-  ANSWER LINE FORMATTING:
-  - For open-ended questions or writing activities requiring student responses, create FULL-WIDTH answer lines.
-  - Use: <p style="border-bottom: 1px solid #666; min-height: 2em; margin: 0.5rem 0;">&nbsp;</p>
-  - NEVER use short underscores (____) that only span part of the line.
-  - Each answer line should extend across the entire text width for a professional appearance.
-  `;
+  const tableActivitySummary = tableActivities
+    .map((a) => {
+      const spec = getGridSpec(a, { rows: 4, cols: 3 });
+      return `${a.type} (${spec.rows}x${spec.cols})${formatActivityNotes(a.customInstructions)}`;
+    })
+    .join('; ');
 
-  // Construct specific activity instructions based on config.activities
-  const activityPrompts = config.activities.map((act, index) => {
-    let details = `Activity ${index + 1} (ORDER ${index + 1}): ${act.type} - ${act.count} items.`;
-    
-    if (act.type === 'multiple-choice' && act.options?.mcCount) {
-        details += ` Provide exactly ${act.options.mcCount} options per question.`;
+  const orderedActivities = activities.filter((a) =>
+    [
+      'multiple-choice',
+      'wordsearch',
+      'matching',
+      'gap-fill',
+      'sentence-transform',
+      'word-formation',
+      'open-ended',
+      'custom',
+      'table',
+    ].includes(a.type)
+  );
+
+  const activityOrder = orderedActivities
+    .map((a, idx) => {
+      const activityCount = a.type === 'custom' ? 1 : a.count || 0;
+      let contextNote = '';
+      if (['gap-fill', 'word-formation'].includes(a.type)) {
+        const context = a.contextType === 'text' ? 'story' : 'sentences';
+        contextNote = `, context: ${context}`;
+      } else if (a.type === 'multiple-choice' && a.contextType === 'text') {
+        contextNote = ', context: story';
+      }
+      const optionsNote = a.type === 'multiple-choice' ? `, options: ${clampMcCount(a.options?.mcCount)}` : '';
+      const gridNote =
+        a.type === 'wordsearch' || a.type === 'table'
+          ? (() => {
+              const spec = getGridSpec(a, a.type === 'wordsearch' ? { rows: 10, cols: 10 } : { rows: 4, cols: 3 });
+              return `, size: ${spec.rows}x${spec.cols}`;
+            })()
+          : '';
+      return `${idx + 1}. ${a.type} (${activityCount}${contextNote}${optionsNote}${gridNote})${formatActivityNotes(
+        a.customInstructions
+      )}`;
+    })
+    .join('\n');
+
+  const exactTitle = config.title || `Worksheet: ${config.topic || 'Untitled'}`;
+
+  const requestedBlocks: string[] = [];
+  if (wantsStory) {
+    requestedBlocks.push(
+      '- storyHtml: a short reading passage or lesson text suitable for the grade level (2-6 short paragraphs).'
+    );
+  }
+  if (wantsMcq) {
+    requestedBlocks.push(
+      `- mcq: ${mcqCount} multiple-choice questions based on the story/topic. Keep question groups in the same order as listed below.`
+    );
+    if (mcqActivities.length > 0) {
+      requestedBlocks.push(
+        '  MCQ groups (count + options per question):\n' +
+          mcqActivities
+            .map(
+              (a) =>
+                `  - ${a.count || 0} questions with ${clampMcCount(a.options?.mcCount)} options${formatActivityNotes(
+                  a.customInstructions
+                )}`
+            )
+            .join('\n')
+      );
     }
-    if (act.type === 'word-formation') {
-        details += ` Format: Sentence with gap ________ (ROOT).`;
+  }
+  if (wantsWordSearch) {
+    requestedBlocks.push(
+      `- wordSearch: ${wordSearchCount} wordsearch puzzle(s). Provide one puzzle per wordsearch activity in the same order.`
+    );
+    requestedBlocks.push(
+      '  Wordsearch specs (rows x cols, word count, notes):\n' +
+        wordSearchActivities
+          .map((a) => {
+            const spec = getGridSpec(a, { rows: 10, cols: 10 });
+            return `  - ${spec.rows}x${spec.cols}, ${a.count || 0} words${formatActivityNotes(a.customInstructions)}`;
+          })
+          .join('\n')
+    );
+    requestedBlocks.push('  If notes include a word list, use it. Otherwise, generate words to match the requested count.');
+  }
+  if (wantsMatching) {
+    requestedBlocks.push(
+      `- matching: ${matchingCount} matching pairs. Keep items grouped and in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Matching groups (count + notes):\n' +
+        matchingActivities
+          .map((a) => `  - ${a.count || 0} pairs${formatActivityNotes(a.customInstructions)}`)
+          .join('\n')
+    );
+    requestedBlocks.push('  Matching is rendered as a 3-column table (left item, blank middle, right item). Provide left/right pairs only.');
+  }
+  if (wantsGapFill) {
+    requestedBlocks.push(
+      `- gapFill: ${gapFillCount} gap-fill items. Keep items grouped and in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Gap Fill groups (count + context):\n' +
+        gapFillActivities
+          .map((a) => {
+            const context = a.contextType === 'text' ? 'story' : 'sentences';
+            return `  - ${a.count || 0} items (${context})${formatActivityNotes(a.customInstructions)}`;
+          })
+          .join('\n')
+    );
+  }
+  if (wantsSentenceTransform) {
+    requestedBlocks.push(
+      `- sentenceTransform: ${sentenceTransformCount} sentence transformation prompts. Keep items grouped and in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Sentence Transform groups (count + notes):\n' +
+        sentenceTransformActivities
+          .map((a) => `  - ${a.count || 0} prompts${formatActivityNotes(a.customInstructions)}`)
+          .join('\n')
+    );
+  }
+  if (wantsWordFormation) {
+    requestedBlocks.push(
+      `- wordFormation: ${wordFormationCount} word-formation items. Keep items grouped and in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Word Formation groups (count + context):\n' +
+        wordFormationActivities
+          .map((a) => {
+            const context = a.contextType === 'text' ? 'story' : 'sentences';
+            return `  - ${a.count || 0} items (${context})${formatActivityNotes(a.customInstructions)}`;
+          })
+          .join('\n')
+    );
+  }
+  if (wantsOpenEnded) {
+    requestedBlocks.push(
+      `- openEnded: ${openEndedCount} open-ended questions. Keep items grouped and in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Open Ended groups (count + notes):\n' +
+        openEndedActivities
+          .map((a) => {
+            return `  - ${a.count || 0} questions${formatActivityNotes(a.customInstructions)}`;
+          })
+          .join('\n')
+    );
+  }
+  if (wantsCustom) {
+    requestedBlocks.push(
+      `- custom: ${customCount} custom text outputs. Provide one text output per custom activity in the same order.`
+    );
+    requestedBlocks.push(
+      '  Custom groups (notes only):\n' +
+        customActivities
+          .map((a) => {
+            const notes = (a.customInstructions || '').trim();
+            return notes ? `  - notes: ${notes}` : '  - notes: none';
+          })
+          .join('\n')
+    );
+  }
+  if (wantsTable) {
+    const activityLine = tableActivitySummary
+      ? `- table: Create a table with the specified size(s): ${tableActivitySummary}. Use the first size if multiple are listed.`
+      : '- table: Create a table with the requested rows/columns.';
+    requestedBlocks.push(activityLine);
+    if (tableActivities[0]) {
+      const spec = getGridSpec(tableActivities[0], { rows: 4, cols: 3 });
+      requestedBlocks.push(`  Use exactly ${spec.rows} body rows and ${spec.cols} columns (headers length must equal columns).`);
     }
-    if (act.type === 'open-ended') {
-        details += ` Format: Question followed by 3-4 FULL-WIDTH answer lines. Each answer line must span the entire page width using a paragraph with bottom border: <p style="border-bottom: 1px solid #666; min-height: 2em; margin: 0.5rem 0;">&nbsp;</p>. DO NOT use short underscores that only fill half the line.`;
-    }
-    
-    if (act.contextType === 'text') {
-        details += ` FORMAT CONTEXT: Present these questions embedded within a single coherent story, narrative, or text passage.`;
-    } else if (act.contextType === 'sentences') {
-        details += ` FORMAT CONTEXT: Present these as separate, unrelated, numbered sentences.`;
-    } else {
-        details += ` Format: Standard layout for ${act.type}.`;
-    }
-
-    return details;
-  }).join('\n');
-
-  const displayType = config.activities.length > 1
-    ? "Mixed Activities"
-    : (config.activities[0]?.type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Custom Worksheet");
-
-  // Add difficulty level instruction
-  const difficultyInstruction = config.difficultyLevel
-    ? `
-      DIFFICULTY LEVEL: ${config.difficultyLevel.toUpperCase()}
-
-      - Easy: Simple vocabulary, straightforward questions, grade-appropriate language, basic concepts
-      - Medium: Moderate complexity, requires critical thinking, appropriate challenge level
-      - Hard: Advanced vocabulary, complex reasoning, challenging concepts, higher-order thinking
-      - Mixed: Vary difficulty across activities (start easy, gradually increase to hard)
-
-      Adjust language complexity, question depth, vocabulary level, and cognitive demands accordingly.
-    `
-    : '';
-
-  // Add header instruction
-  const headerInstruction = config.includeHeader
-    ? `
-      HEADER REQUIRED:
-      Include a header at the top with Name and Date fields.
-      Wrap in <div class="ws-header">...</div>
-      - Left side: <div class="ws-field">Name: ____________</div>
-      - Right side: <div class="ws-field">Date: ____________</div>
-    `
-    : `
-      NO HEADER:
-      Do NOT include Name/Date fields. Start directly with the title.
-    `;
-
-  // Add answer key instruction
-  const answerKeyInstruction = config.generateAnswerKey
-    ? `
-      ANSWER KEY REQUIRED:
-      At the end of the worksheet content, include a complete answer key.
-      Wrap it in: <div class="ws-answer-key" style="margin-top: 2rem; padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b;">
-      <h3>Answer Key</h3>
-      [Provide detailed answers here, organized by activity]
-      </div>
-    `
-    : `
-      NO ANSWER KEY:
-      Do NOT include an answer key section.
-    `;
-
-  // Use exact title from config
-  const exactTitle = config.title || displayType;
+  }
+  if (wantsAnswerKey) {
+    requestedBlocks.push(
+      '- answerKeyHtml: A complete answer key for all requested activities (include answers for MCQ, wordsearch, matching, gap-fill, sentence-transform, word-formation, and sample answers for open-ended/custom).'
+    );
+  }
+  if (requestedBlocks.length === 0) {
+    requestedBlocks.push('- No activity blocks requested. Return only the title.');
+  }
 
   let prompt = `
-    Create a "${displayType}" worksheet.
+Use this exact title: ${exactTitle}
 
-    Use this exact title: ${exactTitle}
+Topic: ${config.topic || 'N/A'}
+Grade Level: ${config.gradeLevel || 'N/A'}
+Difficulty: ${config.difficultyLevel || 'medium'}
+Additional Instructions: ${config.customInstructions || 'None'}
 
-    Topic: ${config.topic}.
-    Grade Level: ${config.gradeLevel}.
-    ${difficultyInstruction}
-    ${headerInstruction}
-    ${answerKeyInstruction}
-    Additional Instructions: ${config.customInstructions || "None"}.
+${activityOrder ? `Activities (in order):\n${activityOrder}\n` : ''}
+Requested Blocks:
+${requestedBlocks.join('\n')}
 
-    Included Activities (Create them in this specific order):
-    ${activityPrompts}
-  `;
+Only include fields for the requested blocks. Do not include extra fields.
+
+If source files are attached, base requested content on those documents instead of inventing unrelated facts.
+`;
 
   try {
     // Construct payload with potential file attachments
@@ -563,10 +682,158 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
           type: Type.OBJECT,
           properties: {
             title: { type: Type.STRING },
-            content: { type: Type.STRING },
-            type: { type: Type.STRING }
+            ...(wantsStory ? { storyHtml: { type: Type.STRING } } : {}),
+            ...(wantsMcq
+              ? {
+                  mcq: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        q: { type: Type.STRING },
+                        options: { type: Type.ARRAY, items: { type: Type.STRING } }
+                      },
+                      required: ["q", "options"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsWordSearch
+              ? {
+                  wordSearch: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        grid: {
+                          type: Type.ARRAY,
+                          items: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        },
+                        words: { type: Type.ARRAY, items: { type: Type.STRING } }
+                      },
+                      required: ["grid", "words"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsMatching
+              ? {
+                  matching: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        left: { type: Type.STRING },
+                        right: { type: Type.STRING }
+                      },
+                      required: ["left", "right"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsGapFill
+              ? {
+                  gapFill: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        sentence: { type: Type.STRING },
+                        answer: { type: Type.STRING }
+                      },
+                      required: ["sentence", "answer"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsSentenceTransform
+              ? {
+                  sentenceTransform: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        prompt: { type: Type.STRING },
+                        answer: { type: Type.STRING }
+                      },
+                      required: ["prompt"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsWordFormation
+              ? {
+                  wordFormation: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        base: { type: Type.STRING },
+                        sentence: { type: Type.STRING },
+                        answer: { type: Type.STRING }
+                      },
+                      required: ["base", "sentence", "answer"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsOpenEnded
+              ? {
+                  openEnded: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        question: { type: Type.STRING },
+                        sampleAnswer: { type: Type.STRING }
+                      },
+                      required: ["question"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsCustom
+              ? {
+                  custom: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        text: { type: Type.STRING }
+                      },
+                      required: ["text"]
+                    }
+                  }
+                }
+              : {}),
+            ...(wantsTable
+              ? {
+                  table: {
+                    type: Type.OBJECT,
+                    properties: {
+                      headers: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      rows: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.STRING } } }
+                    },
+                    required: ["headers", "rows"]
+                  }
+                }
+              : {}),
+            ...(wantsAnswerKey ? { answerKeyHtml: { type: Type.STRING } } : {})
           },
-          required: ["title", "content", "type"]
+          required: [
+            "title",
+            ...(wantsStory ? ["storyHtml"] : []),
+            ...(wantsMcq ? ["mcq"] : []),
+            ...(wantsWordSearch ? ["wordSearch"] : []),
+            ...(wantsMatching ? ["matching"] : []),
+            ...(wantsGapFill ? ["gapFill"] : []),
+            ...(wantsSentenceTransform ? ["sentenceTransform"] : []),
+            ...(wantsWordFormation ? ["wordFormation"] : []),
+            ...(wantsOpenEnded ? ["openEnded"] : []),
+            ...(wantsCustom ? ["custom"] : []),
+            ...(wantsTable ? ["table"] : []),
+            ...(wantsAnswerKey ? ["answerKeyHtml"] : [])
+          ]
         }
       }
     });
@@ -575,19 +842,8 @@ export const generateWorksheetContent = async (config: WorksheetConfig): Promise
     if (!text) throw new Error("No response from AI");
 
     // Clean and parse
-    const result = JSON.parse(cleanJson(text)) as GeneratedWorksheet;
-
-    // Parse answer key from content if present
-    const { mainContent, answerKey } = parseAnswerKey(result.content);
-
-    return {
-        ...result,
-        content: mainContent,
-        answerKey: answerKey,
-        id: generateUUID(),
-        createdAt: new Date().toISOString(),
-        config: config
-    };
+    const result = JSON.parse(cleanJson(text)) as WorksheetAiParts;
+    return result;
   } catch (error) {
     console.error("Error generating worksheet:", error);
     throw error;
