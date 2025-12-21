@@ -57,15 +57,16 @@ const isMatch = (input: string, target: string): boolean => {
 };
 
 export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
-    const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || ["Team 1", "Team 2"]);
-    const [scores, setScores] = useState<number[]>([0, 0]);
+    const initialTeamNames = options.teamNames && options.teamNames.length > 0 ? options.teamNames : ["Team 1", "Team 2"];
+    const [teamNames, setTeamNames] = useState<string[]>(initialTeamNames);
+    const [scores, setScores] = useState<number[]>(() => new Array(initialTeamNames.length).fill(0));
     const [activeTeamIndex, setActiveTeamIndex] = useState(0); 
     
     const [currentRound, setCurrentRound] = useState(0);
     const [revealedAnswers, setRevealedAnswers] = useState<boolean[]>([]);
     
     // Strikes are now per team
-    const [teamStrikes, setTeamStrikes] = useState<number[]>([0, 0]);
+    const [teamStrikes, setTeamStrikes] = useState<number[]>(() => new Array(initialTeamNames.length).fill(0));
     
     const [input, setInput] = useState("");
     const [showStrikeOverlay, setShowStrikeOverlay] = useState(false);
@@ -77,8 +78,35 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     
     const [phase, setPhase] = useState<'play' | 'gameover'>('play');
     
-    // Host Mode allows clicking to reveal (secret feature)
+    // Host Mode allows clicking to preview (secret feature)
     const [hostMode, setHostMode] = useState(false);
+    const [hostPreview, setHostPreview] = useState<boolean[]>(() => new Array(8).fill(false));
+
+    const toggleHostMode = () => {
+        setHostMode(prev => {
+            if (prev) {
+                setHostPreview(new Array(8).fill(false));
+            }
+            return !prev;
+        });
+    };
+
+    const teamCount = teamNames.length;
+    const activeTeamName = teamNames[activeTeamIndex] || `Team ${activeTeamIndex + 1}`;
+    const activeRingClass = activeTeamIndex % 2 === 0 ? 'focus:ring-brand-blue' : 'focus:ring-brand-yellow';
+
+    const normalizeArray = (values: number[], length: number, fillValue: number) => {
+        const next = values.slice(0, length);
+        while (next.length < length) next.push(fillValue);
+        return next;
+    };
+
+    useEffect(() => {
+        if (teamCount === 0) return;
+        setScores(prev => normalizeArray(prev, teamCount, 0));
+        setTeamStrikes(prev => normalizeArray(prev, teamCount, 0));
+        setActiveTeamIndex(prev => Math.min(prev, teamCount - 1));
+    }, [teamCount]);
 
     // Editing State
     const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
@@ -108,11 +136,13 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     // Reset round state when round changes
     useEffect(() => {
         setRevealedAnswers(new Array(8).fill(false));
-        setTeamStrikes([0, 0]);
+        setTeamStrikes(new Array(teamCount).fill(0));
+        setHostPreview(new Array(8).fill(false));
         setInput("");
-        setActiveTeamIndex(0); // Reset to team 1? Or rotate? Let's reset for simplicity.
+        const startingIndex = teamCount > 0 ? currentRound % teamCount : 0;
+        setActiveTeamIndex(startingIndex);
         if(inputRef.current) inputRef.current.focus();
-    }, [currentRound]);
+    }, [currentRound, teamCount]);
 
     // SCROLL LOCK EFFECT
     useEffect(() => {
@@ -167,11 +197,13 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         }
     };
 
-    const toggleAnswer = (index: number) => {
-        // HOST ONLY: Toggle answer visibility without scoring
-        const newRevealed = [...revealedAnswers];
-        newRevealed[index] = !newRevealed[index];
-        setRevealedAnswers(newRevealed);
+    const toggleHostPreview = (index: number) => {
+        if (revealedAnswers[index]) return;
+        setHostPreview(prev => {
+            const next = [...prev];
+            next[index] = !next[index];
+            return next;
+        });
     };
 
     const revealAnswer = (index: number) => {
@@ -205,24 +237,15 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     };
 
     const nextTurn = () => {
-        // 2 Teams Logic: Toggle 0 -> 1.
-        // If the NEXT team has 3 strikes, they are skipped.
-        // If BOTH teams have 3 strikes, the round is effectively over (handled by render logic), no turn switch needed.
-        
-        const nextIndex = (activeTeamIndex + 1) % 2;
-        
-        if (teamStrikes[nextIndex] >= 3) {
-            // Next team is out. Check if current team is also out.
-            if (teamStrikes[activeTeamIndex] >= 3) {
-                // Both out. No change.
-            } else {
-                // Keep turn with current team (since opponent is out)
-                setActiveTeamIndex(activeTeamIndex);
+        if (teamCount <= 1) return;
+        for (let step = 1; step <= teamCount; step++) {
+            const candidate = (activeTeamIndex + step) % teamCount;
+            if ((teamStrikes[candidate] ?? 0) < 3) {
+                setActiveTeamIndex(candidate);
+                return;
             }
-        } else {
-            // Next team is still in. Switch.
-            setActiveTeamIndex(nextIndex);
         }
+        setActiveTeamIndex(activeTeamIndex);
     };
 
     const nextRound = () => {
@@ -246,9 +269,9 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
     const openEditTeam = (index: number) => {
         setEditingTeamIndex(index);
-        setEditName(teamNames[index]);
-        setEditScore(scores[index]);
-        setEditStrikes(teamStrikes[index]);
+        setEditName(teamNames[index] || `Team ${index + 1}`);
+        setEditScore(scores[index] ?? 0);
+        setEditStrikes(teamStrikes[index] ?? 0);
     };
 
     const saveTeamEdit = () => {
@@ -279,8 +302,17 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
     // --- GAME OVER SCREEN ---
     if (phase === 'gameover') {
-        const winnerIndex = scores[0] > scores[1] ? 0 : (scores[1] > scores[0] ? 1 : -1);
-        const winnerName = winnerIndex !== -1 ? teamNames[winnerIndex] : "It's a Tie!";
+        const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
+        const winnerIndices = scores.reduce<number[]>((acc, score, idx) => {
+            if (score === maxScore) acc.push(idx);
+            return acc;
+        }, []);
+        const winnerTitle = winnerIndices.length === 1 ? "Winning Team" : "Top Teams";
+        const winnerName = winnerIndices.length === 1
+            ? teamNames[winnerIndices[0]]
+            : winnerIndices.length > 1
+                ? winnerIndices.map(i => teamNames[i]).join(' & ')
+                : "No teams";
         
         return (
             <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 z-[300] flex flex-col items-center justify-center animate-fade-in text-white overflow-hidden">
@@ -315,19 +347,23 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 <h1 className="text-6xl font-black mb-4 tracking-widest uppercase text-shadow-lg">GAME OVER</h1>
                 
                 <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 mb-12 text-center shadow-2xl">
-                    <h2 className="text-2xl font-bold text-indigo-200 mb-2 uppercase tracking-wider">Winning Team</h2>
+                    <h2 className="text-2xl font-bold text-indigo-200 mb-2 uppercase tracking-wider">{winnerTitle}</h2>
                     <div className="text-5xl font-display font-black text-white drop-shadow-md mb-6">{winnerName}</div>
                     
-                    <div className="flex gap-8 justify-center">
-                        <div className="text-center">
-                            <p className="text-sm font-bold text-slate-400 uppercase">{teamNames[0]}</p>
-                            <p className="text-3xl font-mono font-bold text-brand-yellow">{scores[0]}</p>
-                        </div>
-                        <div className="w-px bg-white/20"></div>
-                        <div className="text-center">
-                            <p className="text-sm font-bold text-slate-400 uppercase">{teamNames[1]}</p>
-                            <p className="text-3xl font-mono font-bold text-brand-yellow">{scores[1]}</p>
-                        </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {teamNames.map((name, idx) => (
+                            <div
+                                key={`${name}-${idx}`}
+                                className={`text-center p-4 rounded-2xl border ${
+                                    winnerIndices.includes(idx)
+                                        ? 'border-brand-yellow bg-white/10'
+                                        : 'border-white/10 bg-white/5'
+                                }`}
+                            >
+                                <p className="text-xs font-bold text-slate-400 uppercase">{name}</p>
+                                <p className="text-3xl font-mono font-bold text-brand-yellow">{scores[idx] ?? 0}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -357,61 +393,43 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 </div>
 
                 {/* TEAMS CENTER STAGE */}
-                <div className="flex items-center gap-4 md:gap-16 flex-1 justify-center">
-                    {/* Team 1 */}
-                    <button 
-                        onClick={() => openEditTeam(0)}
-                        className={`flex flex-col items-center transition-all px-6 py-4 rounded-xl border-4 relative min-w-[140px] cursor-pointer group hover:scale-105
-                        ${activeTeamIndex === 0 
-                            ? 'border-brand-yellow bg-slate-700 scale-110 shadow-[0_0_25px_rgba(250,204,21,0.2)] z-10' 
-                            : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
-                    >
-                        <div className="absolute -top-3 -right-3 bg-slate-100 text-slate-900 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                            <Edit2 size={12} />
-                        </div>
-                        <span className={`text-sm font-bold uppercase tracking-wider mb-2 ${activeTeamIndex === 0 ? 'text-brand-yellow' : 'text-slate-400'}`}>
-                            {teamNames[0]}
-                        </span>
-                        <div className="text-4xl font-black text-white font-mono leading-none mb-2">{scores[0]}</div>
-                        <div className="flex gap-1.5">
-                            {[0, 1, 2].map(i => (
-                                <div key={i} className={`w-3 h-3 rounded-full ${teamStrikes[0] > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
-                            ))}
-                        </div>
-                    </button>
-
-                    {/* VS */}
-                    <div className="text-slate-600 font-black text-2xl italic opacity-50">VS</div>
-
-                    {/* Team 2 */}
-                    <button 
-                        onClick={() => openEditTeam(1)}
-                        className={`flex flex-col items-center transition-all px-6 py-4 rounded-xl border-4 relative min-w-[140px] cursor-pointer group hover:scale-105
-                        ${activeTeamIndex === 1 
-                            ? 'border-brand-yellow bg-slate-700 scale-110 shadow-[0_0_25px_rgba(250,204,21,0.2)] z-10' 
-                            : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
-                    >
-                        <div className="absolute -top-3 -right-3 bg-slate-100 text-slate-900 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                            <Edit2 size={12} />
-                        </div>
-                        <span className={`text-sm font-bold uppercase tracking-wider mb-2 ${activeTeamIndex === 1 ? 'text-brand-yellow' : 'text-slate-400'}`}>
-                            {teamNames[1]}
-                        </span>
-                        <div className="text-4xl font-black text-white font-mono leading-none mb-2">{scores[1]}</div>
-                        <div className="flex gap-1.5">
-                            {[0, 1, 2].map(i => (
-                                <div key={i} className={`w-3 h-3 rounded-full ${teamStrikes[1] > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
-                            ))}
-                        </div>
-                    </button>
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 flex-1 justify-center px-2">
+                    {teamNames.map((name, idx) => {
+                        const isActive = activeTeamIndex === idx;
+                        const strikeCount = teamStrikes[idx] ?? 0;
+                        const teamScore = scores[idx] ?? 0;
+                        return (
+                            <button 
+                                key={`${name}-${idx}`}
+                                onClick={() => openEditTeam(idx)}
+                                className={`flex flex-col items-center transition-all px-4 py-3 rounded-xl border-4 relative min-w-[120px] cursor-pointer group hover:scale-105
+                                ${isActive 
+                                    ? 'border-brand-yellow bg-slate-700 scale-110 shadow-[0_0_25px_rgba(250,204,21,0.2)] z-10' 
+                                    : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
+                            >
+                                <div className="absolute -top-3 -right-3 bg-slate-100 text-slate-900 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <Edit2 size={12} />
+                                </div>
+                                <span className={`text-sm font-bold uppercase tracking-wider mb-2 ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
+                                    {name}
+                                </span>
+                                <div className="text-4xl font-black text-white font-mono leading-none mb-2">{teamScore}</div>
+                                <div className="flex gap-1.5">
+                                    {[0, 1, 2].map(i => (
+                                        <div key={i} className={`w-3 h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
+                                    ))}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="flex gap-2 flex-col items-end">
                     <div className="flex gap-2">
                         <button 
-                            onClick={() => setHostMode(!hostMode)} 
+                            onClick={toggleHostMode} 
                             className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                            title="Host Mode (Click to Reveal)"
+                            title="Host Mode (Click to Preview)"
                         >
                             <Shield size={20} />
                         </button>
@@ -430,7 +448,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 
                 {/* QUESTION DISPLAY */}
                 <div className="bg-blue-600 text-white px-8 py-3 rounded-2xl border-b-8 border-blue-800 shadow-2xl mb-4 text-center max-w-4xl w-full shrink-0 z-10">
-                    <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide truncate">
+                    <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-normal break-words">
                         {currentQ.question}
                     </h2>
                 </div>
@@ -438,18 +456,20 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 {/* THE BOARD (Grid - 2 Columns for High -> Low flow) */}
                 <div className="flex-1 w-full max-w-5xl min-h-0 relative">
                     <div className="absolute inset-0 grid grid-cols-2 grid-rows-4 gap-3 md:gap-4 pb-2">
-                        {answers.map((ans, i) => (
-                            <div 
-                                key={i} 
-                                className="w-full h-full [perspective:1000px] relative cursor-pointer group"
-                                onClick={() => { if (hostMode) toggleAnswer(i); }}
-                            >
-                                {/* Host Indicator */}
-                                {hostMode && (
-                                    <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${revealedAnswers[i] ? 'bg-green-500' : 'bg-red-500'} border border-white`} title="Click to Toggle" />
-                                )}
+                        {answers.map((ans, i) => {
+                            const isCardRevealed = revealedAnswers[i] || (hostMode && hostPreview[i]);
+                            return (
+                                <div 
+                                    key={i} 
+                                    className="w-full h-full [perspective:1000px] relative cursor-pointer group"
+                                    onClick={() => { if (hostMode) toggleHostPreview(i); }}
+                                >
+                                    {/* Host Indicator */}
+                                    {hostMode && (
+                                        <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${isCardRevealed ? 'bg-green-500' : 'bg-red-500'} border border-white`} title="Click to Toggle" />
+                                    )}
 
-                                <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${revealedAnswers[i] ? '[transform:rotateX(180deg)]' : ''}`}>
+                                    <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
                                     
                                     {/* FRONT (Number) */}
                                     <div className="absolute inset-0 [backface-visibility:hidden] bg-gradient-to-b from-blue-800 to-blue-950 border-2 border-blue-500 rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-center">
@@ -472,9 +492,10 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                             <span className="w-full text-center text-slate-400 font-bold">---</span>
                                         )}
                                     </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -489,7 +510,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             <form onSubmit={handleInputSubmit} className={`flex-1 relative ${shakeInput ? 'animate-shake' : ''}`}>
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <span className="text-slate-500 font-bold uppercase text-xs tracking-wider hidden md:block">
-                                        {teamNames[activeTeamIndex]} Guess:
+                                        {activeTeamName} Guess:
                                     </span>
                                 </div>
                                 <input 
@@ -498,7 +519,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="TYPE ANSWER..."
-                                    className={`w-full p-4 pl-4 md:pl-32 pr-16 rounded-full bg-slate-100 text-slate-900 text-xl md:text-2xl font-bold uppercase tracking-wider focus:ring-4 outline-none transition-all placeholder:text-slate-400 shadow-inner border-4 ${activeTeamIndex === 0 ? 'focus:ring-brand-blue border-slate-300' : 'focus:ring-brand-yellow border-slate-300'}`}
+                                    className={`w-full p-4 pl-4 md:pl-32 pr-16 rounded-full bg-slate-100 text-slate-900 text-xl md:text-2xl font-bold uppercase tracking-wider focus:ring-4 outline-none transition-all placeholder:text-slate-400 shadow-inner border-4 ${activeRingClass} border-slate-300`}
                                     autoFocus
                                 />
                                 <button 
@@ -555,7 +576,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-4 border-slate-200">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-800">Edit {teamNames[editingTeamIndex]}</h3>
+                            <h3 className="text-xl font-bold text-slate-800">Edit {teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}</h3>
                             <button onClick={() => setEditingTeamIndex(null)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                         </div>
                         

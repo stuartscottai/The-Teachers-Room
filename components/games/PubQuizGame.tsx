@@ -89,14 +89,26 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
 
     // Font Sizer Helper
-    const getFontSizeClass = (text: string) => {
+    const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (len < 20) return 'text-6xl md:text-8xl';
-        if (len < 60) return 'text-5xl md:text-7xl';
-        if (len < 100) return 'text-4xl md:text-6xl';
-        if (len < 180) return 'text-3xl md:text-5xl';
-        if (len < 300) return 'text-2xl md:text-4xl';
-        return 'text-xl md:text-3xl';
+        if (len < 30) return 'text-6xl md:text-7xl';
+        if (len < 60) return 'text-5xl md:text-6xl';
+        if (len < 110) return 'text-4xl md:text-5xl';
+        if (len < 180) return 'text-3xl md:text-4xl';
+        if (len < 260) return 'text-2xl md:text-3xl';
+        if (len < 360) return 'text-xl md:text-2xl';
+        return 'text-lg md:text-xl';
+    };
+
+    const getAnswerFontSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 30) return 'text-6xl md:text-7xl';
+        if (len < 70) return 'text-5xl md:text-6xl';
+        if (len < 130) return 'text-4xl md:text-5xl';
+        if (len < 200) return 'text-3xl md:text-4xl';
+        if (len < 300) return 'text-2xl md:text-3xl';
+        if (len < 420) return 'text-xl md:text-2xl';
+        return 'text-lg md:text-xl';
     };
 
     const getOptionFontSizeClass = (text: string) => {
@@ -332,11 +344,17 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         );
     }
 
-    const activeQ = currentRoundIndex !== null && currentQuestionIndex !== null ? rounds[currentRoundIndex]?.questions[currentQuestionIndex] : null;
-    const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const mainContentAlign = phase === 'home' ? 'justify-start pt-16 md:pt-20' : 'justify-center pt-6';
+    const mainContentOverflow = phase === 'home' ? 'overflow-visible' : 'overflow-hidden';
+    const containerOverflowClass = phase === 'home' ? 'overflow-visible' : 'overflow-hidden';
+    const containerHeightClass = isFullscreen
+        ? 'h-screen'
+        : phase === 'home'
+            ? 'min-h-[calc(100vh-4rem)]'
+            : 'h-[calc(100vh-4rem)]';
 
     return (
-        <div ref={containerRef} className={`min-h-screen bg-slate-800 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative transition-colors duration-500`}>
+        <div ref={containerRef} className={`bg-slate-800 flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
             <div className="bg-white p-4 shrink-0 z-[250] shadow-md flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
@@ -383,12 +401,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
-            <div className="flex-grow flex flex-col items-center justify-center p-4 relative z-10 overflow-y-auto">
+            <div className={`flex-1 flex flex-col items-center ${mainContentAlign} pb-16 px-4 relative z-10 ${mainContentOverflow} min-h-0`}>
                 
                 {/* HOME PHASE: Round Selection */}
                 {phase === 'home' && (
-                    <div className="w-full max-w-6xl animate-fade-in pb-20">
-                        <div className="text-center mb-12">
+                    <div className="w-full max-w-6xl animate-fade-in pb-24">
+                        <div className="text-center mb-10">
                             <h2 className="text-5xl font-display font-black text-white mb-2 drop-shadow-md">Select a Round</h2>
                             <p className="text-white/60 font-bold text-lg">Choose the next category to play.</p>
                         </div>
@@ -596,8 +614,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px]">
-                    <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(100vh-180px)] [perspective:1000px]">
+                <div className="absolute inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px] overflow-hidden">
+                    <div className="w-full max-w-6xl aspect-[16/9] max-h-full [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}
@@ -611,8 +629,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                                 {/* Body */}
                                 <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden z-0">
-                                    <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
-                                        <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full ${getFontSizeClass(currentQuestion.question)}`}>
+                                    <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                        <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}>
                                             {currentQuestion.question}
                                         </div>
                                     </div>
@@ -623,7 +641,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                 const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                 const uniformSize = getOptionFontSizeClass(longestText);
                                                 return currentQuestion.options!.map((opt, i) => (
-                                                    <div key={i} className={`p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-center shadow-sm flex items-center justify-center min-h-[80px] ${uniformSize}`}>
+                                                    <div key={i} className={`p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-center shadow-sm flex items-center justify-center min-h-[80px] whitespace-normal break-words hyphens-none ${uniformSize}`}>
                                                         {opt}
                                                     </div>
                                                 ));
@@ -676,8 +694,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
 
                                 <div className="flex-grow flex flex-col items-center justify-center p-8 bg-white text-center overflow-hidden w-full relative z-0">
-                                    <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
-                                        <div className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap ${getFontSizeClass(currentQuestion.answer)}`}>
+                                    <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                        <div className={`font-display font-bold text-slate-800 leading-snug whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}>
                                             {currentQuestion.answer}
                                         </div>
                                     </div>

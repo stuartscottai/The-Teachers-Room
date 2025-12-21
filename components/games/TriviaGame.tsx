@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Trophy, Sparkles, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Trophy, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 
 interface TriviaGameProps {
     game: GeneratedGame;
@@ -124,6 +124,15 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                 document.exitFullscreen().catch(err => console.log(err));
             }
         };
+    }, []);
+
+    // Sync fullscreen state if user exits via ESC or browser UI
+    useEffect(() => {
+        const handleFsChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
     }, []);
 
     // Initialize Game Logic (Divisibility & Bonuses)
@@ -394,15 +403,41 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         }
     }, [answeredIndices, gameQuestions, isGameOver, isMuted, options.soundConfig]);
 
-    // Helper for dynamic font size - Optimized for larger text
-    const getFontSizeClass = (text: string) => {
+    // Helper for dynamic font size to avoid scrollbars on cards
+    const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (len < 20) return 'text-6xl md:text-8xl';
-        if (len < 60) return 'text-5xl md:text-7xl';
-        if (len < 100) return 'text-4xl md:text-6xl';
-        if (len < 180) return 'text-3xl md:text-5xl';
-        if (len < 300) return 'text-2xl md:text-4xl';
-        return 'text-xl md:text-3xl';
+        if (len < 30) return 'text-6xl md:text-7xl';
+        if (len < 60) return 'text-5xl md:text-6xl';
+        if (len < 110) return 'text-4xl md:text-5xl';
+        if (len < 180) return 'text-3xl md:text-4xl';
+        if (len < 260) return 'text-2xl md:text-3xl';
+        if (len < 360) return 'text-xl md:text-2xl';
+        return 'text-lg md:text-xl';
+    };
+
+    const getAnswerFontSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 30) return 'text-6xl md:text-7xl';
+        if (len < 70) return 'text-5xl md:text-6xl';
+        if (len < 130) return 'text-4xl md:text-5xl';
+        if (len < 200) return 'text-3xl md:text-4xl';
+        if (len < 300) return 'text-2xl md:text-3xl';
+        if (len < 420) return 'text-xl md:text-2xl';
+        return 'text-lg md:text-xl';
+    };
+
+    const getBonusEffectSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 14) return 'text-7xl md:text-8xl';
+        if (len < 22) return 'text-6xl md:text-7xl';
+        return 'text-5xl md:text-6xl';
+    };
+
+    const getBonusDetailSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 60) return 'text-3xl md:text-4xl';
+        if (len < 120) return 'text-2xl md:text-3xl';
+        return 'text-xl md:text-2xl';
     };
 
     // Helper for option font size - Conservative to prevent overflow
@@ -468,8 +503,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                     ))}
                 </div>
                 
-                <div className="relative z-10 w-full max-w-6xl px-4 flex flex-col items-center justify-start md:justify-center h-full overflow-y-auto pt-24 pb-12">
-                    <h1 className="font-display text-5xl md:text-7xl font-black mb-8 text-slate-800 drop-shadow-xl animate-bounce tracking-widest uppercase text-center break-words w-full px-4" style={{ textShadow: '4px 4px 0px #fff' }}>
+                <div className="relative z-10 w-full max-w-6xl px-4 flex flex-col items-center justify-start md:justify-center h-full overflow-hidden pt-36 md:pt-32 pb-12">
+                    <h1 className="font-display text-5xl md:text-7xl font-black mb-8 text-slate-800 drop-shadow-xl animate-fade-in tracking-widest uppercase text-center break-words w-full px-4" style={{ textShadow: '4px 4px 0px #fff' }}>
                         {isTie ? "It's a Tie!" : "Winner!"}
                     </h1>
 
@@ -545,9 +580,53 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
+    const isNegativeBonus = activeQ?.bonusType === 'bust';
+    const bonusEffectText =
+        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
+        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
+        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
+    const bonusDetailText =
+        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
+        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
+        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
 
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+            <style>
+                {`
+                @keyframes bonus-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(0.97); }
+                }
+                @keyframes bonus-shimmer {
+                    0% { background-position: 0% 50%; }
+                    100% { background-position: 200% 50%; }
+                }
+                .bonus-pulse {
+                    animation: bonus-pulse 2.2s ease-in-out infinite;
+                    will-change: transform;
+                }
+                .bonus-glow {
+                    box-shadow: 0 0 30px rgba(250, 204, 21, 0.45), inset 0 0 20px rgba(255, 255, 255, 0.2);
+                }
+                .bonus-sparkle {
+                    background-image:
+                        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0%, transparent 55%),
+                        radial-gradient(circle at 80% 30%, rgba(255,255,255,0.18) 0%, transparent 60%),
+                        radial-gradient(circle at 50% 80%, rgba(255,255,255,0.12) 0%, transparent 55%);
+                }
+                .bonus-shine {
+                    background-image:
+                        linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 35%, transparent 60%),
+                        linear-gradient(330deg, rgba(255,255,255,0.18) 0%, transparent 55%);
+                }
+                .bonus-shimmer {
+                    background-size: 200% 100%;
+                    animation: bonus-shimmer 2.6s linear infinite;
+                }
+                `}
+            </style>
             
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
             <div className="bg-white p-4 shrink-0 z-[250] shadow-sm flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
@@ -690,29 +769,27 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px]">
+                <div className="absolute inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px] overflow-hidden">
                     
-                    <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(100vh-180px)] [perspective:1000px]">
+                    <div className="w-full max-w-6xl aspect-[16/9] max-h-full [perspective:1000px]">
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                         >
                             {/* FRONT (QUESTION) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
-                                ${isBonus ? 'bg-purple-600' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 
                                 {isBonus ? (
-                                    <div className="p-12 text-center border-b-8 border-purple-800 flex flex-col items-center justify-center h-full">
-                                        <div className="animate-bounce">
-                                            <Sparkles size={100} className="text-yellow-300 mb-6 mx-auto" />
-                                            <h3 className="text-white font-display font-bold text-5xl">BONUS TILE!</h3>
+                                    <div
+                                        className="relative p-8 md:p-12 text-center flex flex-col items-center justify-center h-full cursor-pointer"
+                                        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+                                        title="Reveal bonus"
+                                    >
+                                        <div className="absolute inset-0 bonus-sparkle bonus-shine opacity-60 pointer-events-none"></div>
+                                        <div className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
+                                            BONUS
                                         </div>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                                            className="mt-8 px-10 py-5 bg-white text-purple-900 rounded-full font-bold text-2xl hover:bg-purple-100 hover:scale-105 transition-transform cursor-pointer relative z-50"
-                                        >
-                                            Reveal Fate
-                                        </button>
                                     </div>
                                 ) : (
                                     <>
@@ -726,8 +803,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         {/* CONTENT BODY (White) - Scrollable */}
                                         <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden z-0">
                                             {/* Scrollable Content Container */}
-                                            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
-                                                 <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full ${getFontSizeClass(activeQ.question)}`}>
+                                            <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                                 <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words ${getQuestionFontSizeClass(activeQ.question)}`}>
                                                     {activeQ.question}
                                                 </div>
                                             </div>
@@ -792,24 +869,21 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
                             {/* BACK (ANSWER) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
-                                ${isBonus ? 'bg-purple-100' : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                ${isBonus ? (isPositiveBonus ? 'bg-gradient-to-br from-yellow-100 via-amber-200 to-yellow-300 border-4 border-yellow-300/80 bonus-glow bonus-shimmer' : 'bg-gradient-to-br from-red-200 via-rose-200 to-red-300 border-4 border-red-300') : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 
                                 {isBonus ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center p-8 text-center bg-white">
-                                        <h3 className="text-purple-600 uppercase tracking-widest font-bold mb-4">EFFECT</h3>
-                                        <p className="text-5xl font-display font-bold text-slate-800 leading-tight mb-8">
-                                            {activeQ.bonusType === 'double' && "DOUBLE POINTS!"}
-                                            {activeQ.bonusType === 'bust' && "OH NO! BUSTED!"}
-                                            {activeQ.bonusType === 'steal' && "POINT STEAL!"}
-                                        </p>
-                                        <p className="text-2xl text-slate-600 mb-8 max-w-lg">
-                                            {activeQ.bonusType === 'double' && `You get 2x points (+${(activeQ.points || 100) * 2}) automatically!`}
-                                            {activeQ.bonusType === 'bust' && `You lose the value of this tile (-${activeQ.points || 100}).`}
-                                            {activeQ.bonusType === 'steal' && "Steal this tile's value from the current leader!"}
-                                        </p>
+                                    <div className="flex-grow flex flex-col items-center justify-center p-8 md:p-12 text-center overflow-hidden">
+                                        <div className="w-full flex flex-col items-center justify-center gap-6">
+                                            <div className={`font-display font-black leading-tight break-words ${isNegativeBonus ? 'text-red-900' : 'text-slate-800'} ${getBonusEffectSizeClass(bonusEffectText)}`}>
+                                                {bonusEffectText}
+                                            </div>
+                                            <div className={`font-semibold leading-tight break-words max-w-5xl ${isNegativeBonus ? 'text-red-800' : 'text-slate-700'} ${getBonusDetailSizeClass(bonusDetailText)}`}>
+                                                {bonusDetailText}
+                                            </div>
+                                        </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleBonusAction(); }}
-                                            className="px-12 py-4 bg-purple-600 text-white rounded-xl font-bold text-xl hover:bg-purple-700 transition-colors shadow-lg cursor-pointer relative z-50"
+                                            className={`mt-6 px-10 py-4 ${isNegativeBonus ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-xl font-bold text-xl transition-colors shadow-lg cursor-pointer relative z-50`}
                                         >
                                             Apply Effect
                                         </button>
@@ -832,7 +906,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
                                         {/* CONTENT (White) */}
                                         <div className="flex-grow flex flex-col items-center justify-center p-12 bg-white text-center overflow-hidden w-full relative z-0">
-                                            <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
+                                            <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
                                                     <div className="animate-bounce mb-8">
@@ -850,7 +924,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                     </div>
                                                 ) : null}
 
-                                                <div className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap ${getFontSizeClass(activeQ.answer)}`}>
+                                                <div className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words ${getAnswerFontSizeClass(activeQ.answer)}`}>
                                                     {activeQ.answer}
                                                 </div>
                                             </div>

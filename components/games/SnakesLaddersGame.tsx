@@ -636,6 +636,40 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     return (
         <div ref={containerRef} className={`bg-stone-100 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative`}>
+            <style>
+                {`
+                @keyframes bonus-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(0.97); }
+                }
+                @keyframes bonus-shimmer {
+                    0% { background-position: 0% 50%; }
+                    100% { background-position: 200% 50%; }
+                }
+                .bonus-pulse {
+                    animation: bonus-pulse 2.2s ease-in-out infinite;
+                    will-change: transform;
+                }
+                .bonus-glow {
+                    box-shadow: 0 0 24px rgba(109, 40, 217, 0.45), inset 0 0 12px rgba(255, 255, 255, 0.2);
+                }
+                .bonus-sparkle {
+                    background-image:
+                        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25) 0%, transparent 55%),
+                        radial-gradient(circle at 80% 30%, rgba(255,255,255,0.18) 0%, transparent 60%),
+                        radial-gradient(circle at 50% 80%, rgba(255,255,255,0.12) 0%, transparent 55%);
+                }
+                .bonus-shine {
+                    background-image:
+                        linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 35%, transparent 60%),
+                        linear-gradient(330deg, rgba(255,255,255,0.18) 0%, transparent 55%);
+                }
+                .bonus-shimmer {
+                    background-size: 200% 100%;
+                    animation: bonus-shimmer 2.6s linear infinite;
+                }
+                `}
+            </style>
             {/* HEADER */}
             <div className="bg-white p-4 shrink-0 z-[50] shadow-sm flex justify-between items-center gap-4 border-b border-slate-200 h-[140px]">
                 <div className="flex items-center gap-2">
@@ -708,8 +742,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                                     {boardNumber === 100 && <Trophy className="text-brand-yellow w-8 h-8 drop-shadow-md z-10" />}
                                     {isBonus && (
-                                        <div className="absolute inset-0 flex items-center justify-center z-0 opacity-80">
-                                            <Star size="75%" className="text-yellow-400 drop-shadow-md fill-current animate-pulse" />
+                                        <div className="absolute inset-0 flex items-center justify-center z-0">
+                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border border-yellow-300/80 bonus-glow bonus-pulse bonus-sparkle bonus-shine rounded-[2px]" />
+                                            <Star size="75%" className="text-yellow-200 drop-shadow-[0_4px_10px_rgba(250,204,21,0.6)] fill-current relative z-10" />
                                         </div>
                                     )}
                                     {boardNumber === 1 && <div className="text-stone-400 text-[10px] uppercase font-bold absolute bottom-1 z-10">Start</div>}

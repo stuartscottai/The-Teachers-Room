@@ -248,6 +248,9 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         base += isFullscreen ? "p-6 md:p-8 text-3xl md:text-5xl" : "p-4 md:p-6 text-xl md:text-3xl";
         
         if (gameState === 'reveal' || gameState === 'result') {
+            if (gameState === 'reveal' && correctOption === null && index === selectedOption) {
+                return base + " bg-indigo-800 border-yellow-400 text-white shadow-[0_0_15px_rgba(234,179,8,0.4)] z-10 scale-105";
+            }
             if (index === correctOption) return base + " bg-green-600 border-green-400 text-white animate-pulse shadow-[0_0_30px_rgba(34,197,94,0.8)] z-20 scale-105";
             if (index === selectedOption && index !== correctOption) return base + " bg-red-600 border-red-400 text-white";
         }
