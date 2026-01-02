@@ -246,13 +246,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </span>
                                 </h1>
                                 
-                                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+                                <div className="w-full md:w-auto items-center flex flex-row flex-nowrap justify-center gap-2 sm:justify-start sm:gap-3">
                                     {/* VISIBILITY TOGGLE */}
-                                    <div className={`flex items-center bg-slate-200 rounded-full p-1 cursor-pointer select-none ${!user ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleVisibilityToggle}>
-                                        <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
+                                    <div className={`flex items-center bg-slate-200 rounded-full cursor-pointer select-none p-0.5 sm:p-1 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleVisibilityToggle}>
+                                        <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
                                             <Lock size={12} className="mr-1" /> Private
                                         </div>
-                                        <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
+                                        <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
                                             <Globe size={12} className="mr-1" /> Public
                                         </div>
                                     </div>
@@ -260,7 +260,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <button 
                                         onClick={handleSave} 
                                         disabled={saveStatus === 'saving'}
-                                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer min-w-[140px]
+                                        className={`font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-[92px] sm:px-6 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[140px]
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
                                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'}`}
@@ -273,7 +273,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </button>
                                     <button 
                                         onClick={handlePlay} 
-                                        className="flex-1 md:flex-none px-8 py-3 bg-brand-yellow text-slate-900 font-bold rounded-xl shadow-md hover:bg-yellow-300 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
+                                        className="bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer flex-none sm:flex-1 md:flex-none px-4 py-2 rounded-lg text-xs sm:px-8 sm:py-3 sm:rounded-xl sm:text-base"
                                     >
                                         <Play size={18} className="mr-2" /> Play
                                     </button>

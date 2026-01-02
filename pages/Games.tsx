@@ -622,24 +622,24 @@ const GameHub: React.FC<{
                 </div>
                 
                 {/* PROMINENT TABS */}
-                <div className="bg-white p-1.5 rounded-full flex shadow-md border border-slate-100 gap-1">
+                <div className="bg-white p-1.5 rounded-2xl md:rounded-full flex flex-wrap md:flex-nowrap shadow-md border border-slate-100 gap-1 w-full md:w-auto justify-center">
                     <button 
                         onClick={() => setActiveTab('create')}
-                        className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
                             ${activeTab === 'create' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                     >
                         <Sparkles size={16} /> Create New
                     </button>
                     <button 
                         onClick={() => setActiveTab('community')}
-                        className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
                             ${activeTab === 'community' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                     >
                         <Globe size={16} /> Community
                     </button>
                     <button 
                         onClick={() => setActiveTab('library')}
-                        className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2
+                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
                             ${activeTab === 'library' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
                     >
                         <Library size={16} /> My Library
