@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -1982,6 +1982,9 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('newest');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const pageSizeOptions = [10, 20, 30, 40, 50];
 
     const loadWorksheets = async () => {
         setLoading(true);
@@ -1993,6 +1996,10 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
     useEffect(() => {
         loadWorksheets();
     }, [user]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, sortBy, itemsPerPage]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -2017,6 +2024,17 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
         if (sortBy === 'za') return b.title.localeCompare(a.title);
         return 0;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredWorksheets.length / itemsPerPage));
+    const pageStart = (currentPage - 1) * itemsPerPage;
+    const pageEnd = Math.min(pageStart + itemsPerPage, filteredWorksheets.length);
+    const pagedWorksheets = filteredWorksheets.slice(pageStart, pageEnd);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     return (
         <div className="animate-fade-in pb-12">
@@ -2050,11 +2068,35 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
                         <option value="za">Z-A (Title)</option>
                     </select>
                 </div>
+
             </div>
 
-            <div className="mb-4 text-sm text-slate-500 font-bold">
-                Showing {filteredWorksheets.length} worksheet{filteredWorksheets.length !== 1 ? 's' : ''}
+            <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
+                Showing {filteredWorksheets.length === 0 ? 0 : pageStart + 1}-{pageEnd} of {filteredWorksheets.length} worksheet{filteredWorksheets.length !== 1 ? 's' : ''}
             </div>
+            {filteredWorksheets.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-600">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {loading ? (
                 <div className="text-center py-20 text-slate-500">Loading library...</div>
@@ -2069,8 +2111,9 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
                     </p>
                 </div>
             ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredWorksheets.map(ws => (
+                    {pagedWorksheets.map(ws => (
                         <div key={ws.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all p-5 cursor-pointer group relative" onClick={() => onLoad(ws)}>
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-2">
@@ -2088,6 +2131,40 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
                         </div>
                     ))}
                 </div>
+                {filteredWorksheets.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 py-6">
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-bold text-slate-600">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                    <div className="relative min-w-[120px] ml-auto">
+                        <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <select 
+                            value={itemsPerPage}
+                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
+                        >
+                            {pageSizeOptions.map((size) => (
+                                <option key={size} value={size}>{size} per page</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                )}
+                </>
             )}
         </div>
     );
@@ -2098,40 +2175,99 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
     const [worksheets, setWorksheets] = useState<GeneratedWorksheet[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [error, setError] = useState<string | null>(null);
+    const pageSizeOptions = [10, 20, 30, 40, 50];
 
     const fetchWorksheets = async () => {
         setLoading(true);
-        const { data } = await getCommunityWorksheets(1, 30, search);
+        setError(null);
+        const { data, count, error: fetchError } = await getCommunityWorksheets(currentPage, itemsPerPage, search);
+        if (fetchError) {
+            setError(fetchError);
+            setLoading(false);
+            return;
+        }
         setWorksheets(data);
+        setTotalCount(count);
         setLoading(false);
     };
 
     useEffect(() => {
+        setCurrentPage(1);
+    }, [search, itemsPerPage]);
+
+    useEffect(() => {
         const timer = setTimeout(fetchWorksheets, 500);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    const pageStart = (currentPage - 1) * itemsPerPage + 1;
+    const pageEnd = Math.min(currentPage * itemsPerPage, totalCount);
 
     return (
         <div className="animate-fade-in pb-12">
-            <div className="mb-8 relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                    type="text" 
-                    value={search} 
-                    onChange={(e) => setSearch(e.target.value)} 
-                    placeholder="Search community worksheets..." 
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-teal-400 shadow-sm" 
-                />
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-grow w-full md:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                        type="text" 
+                        value={search} 
+                        onChange={(e) => setSearch(e.target.value)} 
+                        placeholder="Search community worksheets..." 
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-teal-400 shadow-sm" 
+                    />
+                </div>
             </div>
+
+            {!loading && !error && totalCount > 0 && (
+                <>
+                <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
+                    Showing {pageStart}-{pageEnd} of {totalCount} worksheets
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-600">
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+                </>
+            )}
 
             {loading ? (
                 <div className="text-center py-20 text-slate-500">Loading community...</div>
+            ) : error ? (
+                <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100">
+                    <AlertTriangle size={32} className="text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-bold text-red-700 mb-2">Connection Error</h3>
+                    <p className="text-red-600 max-w-sm mx-auto mb-6">{error}</p>
+                    <button onClick={fetchWorksheets} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors">Try Again</button>
+                </div>
             ) : worksheets.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 border-dashed">
                     <Globe size={40} className="text-slate-300 mx-auto mb-4" />
                     <p className="text-slate-500 font-medium">No worksheets found matching your search.</p>
                 </div>
             ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {worksheets.map(ws => (
                         <div key={ws.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg transition-all p-5 cursor-pointer group" onClick={() => onLoad(ws)}>
@@ -2151,6 +2287,40 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                         </div>
                     ))}
                 </div>
+                {totalCount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 py-6">
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-bold text-slate-600">
+                        Page {currentPage} of {totalPages || 1}
+                    </span>
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                    <div className="relative min-w-[120px] ml-auto">
+                        <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <select 
+                            value={itemsPerPage}
+                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
+                        >
+                            {pageSizeOptions.map((size) => (
+                                <option key={size} value={size}>{size} per page</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                )}
+                </>
             )}
         </div>
     );

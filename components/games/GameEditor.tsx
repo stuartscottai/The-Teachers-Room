@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GeneratedGame } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 import { saveGameToLibrary } from '../../utils/gameUtils';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -19,6 +19,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [showCopyToast, setShowCopyToast] = useState(false);
+    const tabsScrollRef = useRef<HTMLDivElement>(null);
+    const [currentPage, setCurrentPage] = useState(1);
     
     const { user } = useAuth();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
@@ -93,6 +95,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setTimeout(() => setShowCopyToast(false), 2000);
     };
 
+    const handleTabsScroll = (direction: 'left' | 'right') => {
+        const el = tabsScrollRef.current;
+        if (!el) return;
+        const amount = Math.round(el.clientWidth * 0.6);
+        el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    };
+
     const addQuestion = () => {
         handleChange(prev => ({
             ...prev,
@@ -109,6 +118,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 }
             ]
         }));
+        setCurrentPage(Math.ceil((displayQuestions.length + 1) / QUESTIONS_PER_PAGE));
     };
 
     const removeQuestion = (index: number) => {
@@ -210,9 +220,20 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     // For Darts, we hide the reserve questions in the editor view (but keep them in data)
     // The main questions are indices 0 to config.questionCount - 1
+    const baseQuestions = editedGame.questions ?? [];
     const displayQuestions = (editedGame.config.type === GameType.DARTS) 
-        ? editedGame.questions.slice(0, editedGame.config.questionCount) 
-        : editedGame.questions;
+        ? baseQuestions.slice(0, editedGame.config.questionCount) 
+        : baseQuestions;
+    const QUESTIONS_PER_PAGE = 10;
+    const totalPages = Math.max(1, Math.ceil(displayQuestions.length / QUESTIONS_PER_PAGE));
+    const pageStart = (currentPage - 1) * QUESTIONS_PER_PAGE;
+    const pagedQuestions = displayQuestions.slice(pageStart, pageStart + QUESTIONS_PER_PAGE);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     return (
         <div className="fixed inset-0 top-16 bg-slate-50 z-50 overflow-hidden flex flex-col">
@@ -292,12 +313,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         {isGrouped && groups ? (
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                                 {/* Tabs */}
-                                <div className="flex overflow-x-auto bg-slate-100 border-b border-slate-200 no-scrollbar">
+                            <div className="relative">
+                                <div ref={tabsScrollRef} className="flex overflow-x-auto bg-slate-100 border-b border-slate-200 no-scrollbar">
                                     {groups.map((cat, idx) => (
                                         <button 
                                             key={idx}
                                             onClick={() => setActiveTab(idx)}
-                                            className={`px-6 py-4 font-bold text-sm whitespace-nowrap transition-colors min-w-[120px] cursor-pointer
+                                            className={`px-4 py-3 sm:px-6 sm:py-4 font-bold text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center sm:text-left leading-tight break-words transition-colors min-w-[110px] sm:min-w-[120px] max-w-[140px] sm:max-w-none border-r border-slate-200 sm:border-r-0 cursor-pointer last:border-r-0
                                                 ${activeTab === idx 
                                                     ? 'bg-white text-sky-600 border-t-2 border-t-sky-600 shadow-sm relative z-10' 
                                                     : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
@@ -306,6 +328,23 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         </button>
                                     ))}
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleTabsScroll('left')}
+                                    className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
+                                    aria-label="Scroll tabs left"
+                                >
+                                    <ChevronLeft size={16} className="mx-auto" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleTabsScroll('right')}
+                                    className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
+                                    aria-label="Scroll tabs right"
+                                >
+                                    <ChevronRight size={16} className="mx-auto" />
+                                </button>
+                            </div>
 
                                 <div className="p-6">
                                     <div className="mb-8">
@@ -445,11 +484,40 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         ) : (
                             // STANDARD EDITOR (Trivia, Snakes, Darts, Millionaire, Survey)
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden p-6">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+                                    <p className="text-xs text-slate-500 font-medium">
+                                        Showing {displayQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + QUESTIONS_PER_PAGE, displayQuestions.length)} of {displayQuestions.length} questions
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                        >
+                                            <ChevronLeft size={14} className="mr-1" /> Prev
+                                        </button>
+                                        <span className="text-xs font-bold text-slate-600">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                        >
+                                            Next <ChevronRight size={14} className="ml-1" />
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-6">
-                                    {displayQuestions.map((q, index) => (
-                                        <div key={index} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
+                                    {pagedQuestions.map((q, index) => {
+                                        const questionIndex = pageStart + index;
+                                        return (
+                                        <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
                                             <button 
-                                                onClick={() => removeQuestion(index)}
+                                                onClick={() => removeQuestion(questionIndex)}
                                                 className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
                                                 title="Delete Question"
                                             >
@@ -458,13 +526,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             <div className="flex items-center justify-between mb-4 pr-10">
                                                 <div className="flex items-center gap-2">
                                                     <span className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                                                        {index + 1}
+                                                        {questionIndex + 1}
                                                     </span>
                                                     
                                                     {/* Millionaire Label */}
                                                     {isMillionaire && (
                                                         <span className="bg-brand-yellow text-slate-900 px-3 py-1 rounded-full text-xs font-bold uppercase ml-2">
-                                                            Level {index + 1}
+                                                            Level {questionIndex + 1}
                                                         </span>
                                                     )}
 
@@ -477,7 +545,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 value={q.points}
                                                                 onChange={(e) => handleChange(prev => {
                                                                     const newQuestions = [...prev.questions];
-                                                                    newQuestions[index].points = parseInt(e.target.value) || 0;
+                                                                    newQuestions[questionIndex].points = parseInt(e.target.value) || 0;
                                                                     return {...prev, questions: newQuestions};
                                                                 })}
                                                                 className="w-12 p-0.5 text-xs border-none text-center focus:ring-0 outline-none font-bold"
@@ -491,7 +559,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         <div className="flex items-center ml-2">
                                                             <select 
                                                                 value={q.difficulty || 'easy'}
-                                                                onChange={(e) => updateQuestionDifficulty(index, e.target.value)}
+                                                                onChange={(e) => updateQuestionDifficulty(questionIndex, e.target.value)}
                                                                 className={`text-xs font-bold uppercase py-1 px-2 rounded border border-slate-200 outline-none
                                                                     ${q.difficulty === 'hard' ? 'text-red-600 bg-red-50' : 
                                                                       q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-50' : 
@@ -513,13 +581,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
                                                         <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
                                                             <button 
-                                                                onClick={() => updateQuestionType(index, 'open')}
+                                                                onClick={() => updateQuestionType(questionIndex, 'open')}
                                                                 className={`px-3 py-1 text-xs font-bold transition-colors ${!q.options || q.options.length === 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                                                             >
                                                                 Open
                                                             </button>
                                                             <button 
-                                                                onClick={() => updateQuestionType(index, 'multiple-choice')}
+                                                                onClick={() => updateQuestionType(questionIndex, 'multiple-choice')}
                                                                 className={`px-3 py-1 text-xs font-bold transition-colors ${q.options && q.options.length > 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                                                             >
                                                                 Multi-Choice
@@ -534,7 +602,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 {[2, 3, 4].map(num => (
                                                                     <button 
                                                                         key={num}
-                                                                        onClick={() => updateQuestionOptionCount(index, num)}
+                                                                        onClick={() => updateQuestionOptionCount(questionIndex, num)}
                                                                         className={`px-3 py-1 text-xs font-bold transition-colors ${q.options!.length === num ? 'bg-brand-yellow text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}
                                                                     >
                                                                         {num}
@@ -553,7 +621,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         value={q.question}
                                                         onChange={(e) => handleChange(prev => {
                                                             const newQuestions = [...prev.questions];
-                                                            newQuestions[index].question = e.target.value;
+                                                            newQuestions[questionIndex].question = e.target.value;
                                                             return {...prev, questions: newQuestions};
                                                         })}
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-sky-200 outline-none"
@@ -563,14 +631,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 {!isSurvey && (
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Answer {isMillionaire && <span className="text-red-500">(Must match option text)</span>}</label>
-                                                        <textarea 
-                                                            value={q.answer}
-                                                            onChange={(e) => handleChange(prev => {
-                                                                const newQuestions = [...prev.questions];
-                                                                newQuestions[index].answer = e.target.value;
-                                                                return {...prev, questions: newQuestions};
-                                                            })}
-                                                            className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
+                                                    <textarea 
+                                                        value={q.answer}
+                                                        onChange={(e) => handleChange(prev => {
+                                                            const newQuestions = [...prev.questions];
+                                                            newQuestions[questionIndex].answer = e.target.value;
+                                                            return {...prev, questions: newQuestions};
+                                                        })}
+                                                        className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
                                                             placeholder="Type answer here..."
                                                         />
                                                     </div>
@@ -580,24 +648,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 {isSurvey && (
                                                     <div className="col-span-1 md:col-span-2 bg-white rounded border border-slate-200 p-4">
                                                         <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">Top 8 Survey Answers</label>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                                             {(q.surveyAnswers || Array(8).fill({text:"", score:0})).map((ans, aIdx) => (
-                                                                <div key={aIdx} className="flex gap-2">
-                                                                    <div className="w-8 flex items-center justify-center font-bold text-slate-400">#{aIdx+1}</div>
-                                                                    <input 
-                                                                        type="text" 
+                                                                <div key={aIdx} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-start sm:items-center">
+                                                                    <div className="w-7 sm:w-8 flex items-center justify-center font-bold text-slate-400">#{aIdx+1}</div>
+                                                                    <textarea 
                                                                         value={ans.text} 
                                                                         placeholder="Answer"
+                                                                        rows={2}
                                                                         onChange={(e) => handleChange(prev => {
                                                                             const newQuestions = [...prev.questions];
-                                                                            const newAnswers = [...(newQuestions[index].surveyAnswers || [])];
+                                                                            const newAnswers = [...(newQuestions[questionIndex].surveyAnswers || [])];
                                                                             // Ensure array size
                                                                             while(newAnswers.length <= aIdx) newAnswers.push({text:"", score:0});
                                                                             newAnswers[aIdx] = { ...newAnswers[aIdx], text: e.target.value };
-                                                                            newQuestions[index].surveyAnswers = newAnswers;
+                                                                            newQuestions[questionIndex].surveyAnswers = newAnswers;
                                                                             return {...prev, questions: newQuestions};
                                                                         })}
-                                                                        className="flex-1 p-2 text-sm border border-slate-300 rounded"
+                                                                        className="w-full min-w-0 p-2 text-sm border border-slate-300 rounded leading-snug resize-none"
                                                                     />
                                                                     <input 
                                                                         type="number" 
@@ -605,13 +673,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                         placeholder="Pts"
                                                                         onChange={(e) => handleChange(prev => {
                                                                             const newQuestions = [...prev.questions];
-                                                                            const newAnswers = [...(newQuestions[index].surveyAnswers || [])];
+                                                                            const newAnswers = [...(newQuestions[questionIndex].surveyAnswers || [])];
                                                                             while(newAnswers.length <= aIdx) newAnswers.push({text:"", score:0});
                                                                             newAnswers[aIdx] = { ...newAnswers[aIdx], score: parseInt(e.target.value) || 0 };
-                                                                            newQuestions[index].surveyAnswers = newAnswers;
+                                                                            newQuestions[questionIndex].surveyAnswers = newAnswers;
                                                                             return {...prev, questions: newQuestions};
                                                                         })}
-                                                                        className="w-16 p-2 text-sm border border-slate-300 rounded text-center"
+                                                                        className="w-16 sm:w-16 p-2 text-sm border border-slate-300 rounded text-center"
                                                                     />
                                                                 </div>
                                                             ))}
@@ -633,9 +701,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                     value={opt}
                                                                     onChange={(e) => handleChange(prev => {
                                                                         const newQuestions = [...prev.questions];
-                                                                        const newOptions = [...(newQuestions[index].options || [])];
+                                                                        const newOptions = [...(newQuestions[questionIndex].options || [])];
                                                                         newOptions[optIdx] = e.target.value;
-                                                                        newQuestions[index].options = newOptions;
+                                                                        newQuestions[questionIndex].options = newOptions;
                                                                         return {...prev, questions: newQuestions};
                                                                     })}
                                                                     className="w-full pl-10 p-2 rounded border border-slate-300 text-sm outline-none focus:border-brand-blue"
@@ -647,7 +715,29 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 </div>
                                             )}
                                         </div>
-                                    ))}
+                                    )})}
+                                </div>
+
+                                <div className="flex items-center justify-center gap-2 mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                    >
+                                        <ChevronLeft size={14} className="mr-1" /> Prev
+                                    </button>
+                                    <span className="text-xs font-bold text-slate-600">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                    >
+                                        Next <ChevronRight size={14} className="ml-1" />
+                                    </button>
                                 </div>
                                 
                                 <button 

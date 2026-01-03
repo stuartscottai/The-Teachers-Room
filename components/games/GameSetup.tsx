@@ -390,8 +390,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
 
       {/* SOUND LAB MODAL */}
       {showSoundLab && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-fade-in relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:inset-0 z-[100] flex items-start sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full h-full max-h-full sm:h-auto sm:max-h-[90vh] p-6 animate-fade-in relative overflow-y-auto">
                 <button 
                     onClick={() => setShowSoundLab(false)}
                     className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1"

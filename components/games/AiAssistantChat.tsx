@@ -29,6 +29,14 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const [isGenerating, setIsGenerating] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, []);
+
     // Auto-scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
@@ -88,8 +96,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-            <div className="bg-white w-full max-w-lg h-[600px] max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative animate-slide-up border border-white/20">
+        <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:inset-0 z-[200] flex items-start sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-lg h-full max-h-full sm:h-[600px] sm:max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative animate-slide-up border border-white/20">
                 {/* Header */}
                 <div className="bg-brand-blue p-4 flex justify-between items-center text-white shrink-0">
                     <div className="flex items-center gap-3">

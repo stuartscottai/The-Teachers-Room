@@ -137,6 +137,9 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     const [typeFilter, setTypeFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const pageSizeOptions = [10, 20, 30, 40, 50];
 
     const loadGames = async () => {
         setLoading(true);
@@ -148,6 +151,10 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     useEffect(() => {
         loadGames();
     }, [user]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -182,6 +189,17 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
         if (sortBy === 'za') return b.title.localeCompare(a.title);
         return 0;
     });
+
+    const totalPages = Math.max(1, Math.ceil(filteredGames.length / itemsPerPage));
+    const pageStart = (currentPage - 1) * itemsPerPage;
+    const pageEnd = Math.min(pageStart + itemsPerPage, filteredGames.length);
+    const pagedGames = filteredGames.slice(pageStart, pageEnd);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     return (
         <div className="animate-fade-in">
@@ -244,11 +262,35 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <option value="za">Z-A (Title)</option>
                     </select>
                 </div>
+
             </div>
 
-            <div className="mb-4 text-sm text-slate-500 font-bold">
-                Showing {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
+            <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
+                Showing {filteredGames.length === 0 ? 0 : pageStart + 1}-{pageEnd} of {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
             </div>
+            {filteredGames.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-600">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {loading ? (
                 <div className="text-center py-20">
@@ -266,8 +308,9 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                     </p>
                 </div>
             ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredGames.map(game => (
+                    {pagedGames.map(game => (
                         <div key={game.id} className="bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-5 flex flex-col group relative cursor-pointer" onClick={() => onLoadGame(game)}>
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex items-center gap-2 max-w-[70%]">
@@ -320,6 +363,40 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         </div>
                     ))}
                 </div>
+                {filteredGames.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 py-6">
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <span className="text-sm font-bold text-slate-600">
+                        Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
+                    <div className="relative min-w-[120px] ml-auto">
+                        <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                            className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
+                        >
+                            {pageSizeOptions.map((size) => (
+                                <option key={size} value={size}>{size} per page</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                )}
+                </>
             )}
         </div>
     );
@@ -336,14 +413,15 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const limit = 30;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const pageSizeOptions = [10, 20, 30, 40, 50];
     
     const fetchGames = async () => {
         setLoading(true);
         setError(null);
         
         // Strictly fetch PUBLIC games from Database
-        const { data, count, error: fetchError } = await getCommunityGames(currentPage, limit, search, typeFilter, sortBy, sourceFilter);
+        const { data, count, error: fetchError } = await getCommunityGames(currentPage, itemsPerPage, search, typeFilter, sortBy, sourceFilter);
         
         if (fetchError) {
             setError(fetchError);
@@ -358,16 +436,18 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, typeFilter, sortBy, sourceFilter]);
+    }, [search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGames();
         }, 500); 
         return () => clearTimeout(timer);
-    }, [currentPage, search, typeFilter, sortBy, sourceFilter]);
+    }, [currentPage, search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
 
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
+    const pageStart = (currentPage - 1) * itemsPerPage + 1;
+    const pageEnd = Math.min(currentPage * itemsPerPage, totalCount);
 
     return (
         <div className="animate-fade-in">
@@ -427,6 +507,7 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                     </select>
                 </div>
 
+
                 <button 
                     onClick={fetchGames}
                     className="p-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200"
@@ -435,6 +516,35 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                     <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
                 </button>
             </div>
+
+            {!loading && !error && totalCount > 0 && (
+                <>
+                <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
+                    Showing {pageStart}-{pageEnd} of {totalCount} games
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <span className="text-sm font-bold text-slate-600">
+                            Page {currentPage} of {totalPages || 1}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+                </>
+            )}
 
             {loading ? (
                 <div className="text-center py-20">
@@ -513,13 +623,14 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                         ))}
                     </div>
 
-                    <div className="flex justify-center items-center gap-4 py-4">
+                    {totalCount > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 py-4">
                         <button 
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                            <ChevronLeft size={20} />
+                            <ChevronLeft size={18} />
                         </button>
                         <span className="text-sm font-bold text-slate-600">
                             Page {currentPage} of {totalPages || 1}
@@ -529,9 +640,22 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                             disabled={currentPage === totalPages || totalPages === 0}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                            <ChevronRight size={20} />
+                            <ChevronRight size={18} />
                         </button>
+                        <div className="relative min-w-[120px] ml-auto">
+                            <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
+                            >
+                                {pageSizeOptions.map((size) => (
+                                    <option key={size} value={size}>{size} per page</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
+                    )}
                 </>
             )}
         </div>
