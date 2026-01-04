@@ -73,6 +73,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [shakeInput, setShakeInput] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     
@@ -150,6 +151,14 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         document.body.style.overflow = shouldLock ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
     }, [phase, editingTeamIndex]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
 
     // Enhanced matching logic checking both main text and alternates
     const checkMatch = (userInput: string, answer: SurveyAnswer): boolean => {
@@ -258,6 +267,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     };
 
     const toggleFullscreen = () => {
+        if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
             containerRef.current?.requestFullscreen();
             setIsFullscreen(true);
@@ -314,6 +324,78 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 ? winnerIndices.map(i => teamNames[i]).join(' & ')
                 : "No teams";
         
+        if (isMobileViewport) {
+            const rankedTeams = scores
+                .map((score, index) => ({ name: teamNames[index], score, id: index }))
+                .sort((a, b) => b.score - a.score);
+
+            return (
+                <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 z-[300] flex flex-col items-center justify-center animate-fade-in text-white overflow-hidden">
+                    <style>
+                        {`
+                        @keyframes confetti-fall {
+                            0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
+                            100% { transform: translateY(110vh) translateX(20px) rotate3d(1, 1, 1, 360deg); opacity: 0; }
+                        }
+                        .confetti-piece {
+                            position: absolute;
+                            animation: confetti-fall 4s linear infinite;
+                            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+                        }
+                        `}
+                    </style>
+                    <div className="absolute inset-0 pointer-events-none">
+                        {Array.from({length: 100}).map((_, i) => (
+                            <div key={i} className="confetti-piece" style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * -20}%`,
+                                backgroundColor: ['#FACC15', '#0EA5E9', '#EC4899', '#FFF'][Math.floor(Math.random() * 4)],
+                                width: `${Math.random() * 10 + 5}px`,
+                                height: `${Math.random() * 15 + 5}px`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                animationDuration: `${Math.random() * 2 + 3}s`
+                            }} />
+                        ))}
+                    </div>
+
+                    <div className="relative z-10 w-full h-full overflow-y-auto px-4 pt-24 pb-10 text-center">
+                        <div className="min-h-[75vh] flex flex-col items-center justify-center">
+                            <Trophy size={72} className="text-brand-yellow mb-4 animate-bounce drop-shadow-xl" />
+                            <h1 className="text-4xl font-black mb-2 tracking-widest uppercase text-shadow-lg">Game Over</h1>
+                            <div className="text-sm font-bold text-indigo-200 uppercase tracking-wider mb-2">{winnerTitle}</div>
+                            <div className="text-2xl font-display font-black text-white drop-shadow-md mb-4">{winnerName}</div>
+
+                            <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-center shadow-2xl">
+                                <div className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-1">Top Score</div>
+                                <div className="text-3xl font-mono font-black text-brand-yellow">{maxScore}</div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button onClick={onReplay} className="px-6 py-3 bg-brand-yellow text-slate-900 rounded-full font-bold text-base shadow-lg">
+                                    Play Again
+                                </button>
+                                <button onClick={onFinish} className="px-6 py-3 bg-slate-800 text-white rounded-full font-bold text-base shadow-lg border border-slate-600">
+                                    Exit to Library
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 pt-6 border-t border-white/10">
+                            <h2 className="text-xs uppercase tracking-widest text-indigo-200 text-center mb-4">Full Standings</h2>
+                            <div className="space-y-3">
+                                {rankedTeams.map((team, idx) => (
+                                    <div key={team.id} className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                        <div className="font-bold text-white">#{idx + 1} {team.name}</div>
+                                        <div className="font-mono font-bold text-white">{team.score}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 z-[300] flex flex-col items-center justify-center animate-fade-in text-white overflow-hidden">
                 <style>
@@ -384,62 +466,83 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER / SCOREBOARD (Increased Height to match Trivia) */}
-            <div className="bg-slate-800/90 backdrop-blur-md p-4 shrink-0 border-b border-slate-700 flex justify-between items-center shadow-lg z-20 min-h-[140px]">
-                <div className="flex flex-col items-start gap-2">
-                    <button onClick={onBack} className="bg-slate-700 hover:bg-slate-600 p-2 rounded-lg transition-colors flex items-center text-sm font-bold text-slate-300">
-                        <ArrowLeft size={16} className="mr-1" /> Quit
-                    </button>
-                    <h1 className="font-display font-bold text-xl hidden md:block opacity-80 max-w-[200px] truncate">{game.title}</h1>
-                </div>
-
-                {/* TEAMS CENTER STAGE */}
-                <div className="flex flex-wrap items-center gap-3 md:gap-4 flex-1 justify-center px-2">
-                    {teamNames.map((name, idx) => {
-                        const isActive = activeTeamIndex === idx;
-                        const strikeCount = teamStrikes[idx] ?? 0;
-                        const teamScore = scores[idx] ?? 0;
-                        return (
-                            <button 
-                                key={`${name}-${idx}`}
-                                onClick={() => openEditTeam(idx)}
-                                className={`flex flex-col items-center transition-all px-4 py-3 rounded-xl border-4 relative min-w-[120px] cursor-pointer group hover:scale-105
-                                ${isActive 
-                                    ? 'border-brand-yellow bg-slate-700 scale-110 shadow-[0_0_25px_rgba(250,204,21,0.2)] z-10' 
-                                    : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
-                            >
-                                <div className="absolute -top-3 -right-3 bg-slate-100 text-slate-900 p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                    <Edit2 size={12} />
-                                </div>
-                                <span className={`text-sm font-bold uppercase tracking-wider mb-2 ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
-                                    {name}
-                                </span>
-                                <div className="text-4xl font-black text-white font-mono leading-none mb-2">{teamScore}</div>
-                                <div className="flex gap-1.5">
-                                    {[0, 1, 2].map(i => (
-                                        <div key={i} className={`w-3 h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
-                                    ))}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <div className="flex gap-2 flex-col items-end">
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={toggleHostMode} 
-                            className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                            title="Host Mode (Click to Preview)"
-                        >
-                            <Shield size={20} />
+            <div className="bg-slate-800/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[56px] sm:min-h-[140px]">
+                <div className="flex w-full items-center gap-2 sm:gap-4">
+                    <div className="flex flex-col items-start gap-1 min-w-[52px]">
+                        <button onClick={onBack} className="hidden sm:flex bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
+                            <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
-                        <button onClick={() => setIsMuted(!isMuted)} className="p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
-                            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                        <button
+                            onClick={onBack}
+                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+                            title="Quit"
+                        >
+                            <X size={18} />
+                        </button>
+                        <div className="sm:hidden flex flex-col gap-1">
+                            <button 
+                                onClick={toggleHostMode} 
+                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                title="Host Mode (Click to Preview)"
+                            >
+                                <Shield size={18} />
+                            </button>
+                            <button onClick={() => setIsMuted(!isMuted)} className="w-9 h-9 flex items-center justify-center bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
+                                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                            </button>
+                        </div>
+                        <h1 className="font-display font-bold text-xl hidden md:block opacity-80 max-w-[200px] truncate">{game.title}</h1>
+                    </div>
+
+                    {/* TEAMS CENTER STAGE */}
+                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center">
+                        {teamNames.map((name, idx) => {
+                            const isActive = activeTeamIndex === idx;
+                            const strikeCount = teamStrikes[idx] ?? 0;
+                            const teamScore = scores[idx] ?? 0;
+                            return (
+                                <button 
+                                    key={`${name}-${idx}`}
+                                    onClick={() => openEditTeam(idx)}
+                                    className={`flex flex-col items-center transition-all px-2 py-1 sm:px-4 sm:py-3 rounded-xl border-4 relative min-w-[100px] sm:min-w-[120px] cursor-pointer group
+                                    ${isActive 
+                                        ? 'border-brand-yellow bg-slate-700 ring-2 sm:ring-4 ring-yellow-300/30 sm:scale-110 z-10' 
+                                        : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
+                                >
+                                    <div className="absolute -top-2 -right-2 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                        <Edit2 size={12} />
+                                    </div>
+                                    <span className={`text-[10px] sm:text-sm font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
+                                        {name}
+                                    </span>
+                                    <div className="text-xl sm:text-4xl font-black text-white font-mono leading-none mb-1">{teamScore}</div>
+                                    <div className="flex gap-1">
+                                        {[0, 1, 2].map(i => (
+                                            <div key={i} className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
+                                        ))}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="hidden sm:flex gap-2 flex-col items-end">
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={toggleHostMode} 
+                                className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                                title="Host Mode (Click to Preview)"
+                            >
+                                <Shield size={20} />
+                            </button>
+                            <button onClick={() => setIsMuted(!isMuted)} className="p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
+                                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                            </button>
+                        </div>
+                        <button onClick={toggleFullscreen} className="p-2 text-xs font-bold text-slate-500 hover:text-white flex items-center">
+                            {isFullscreen ? <><Minimize2 size={14} className="mr-1"/> Exit Full</> : <><Maximize2 size={14} className="mr-1"/> Fullscreen</>}
                         </button>
                     </div>
-                    <button onClick={toggleFullscreen} className="p-2 text-xs font-bold text-slate-500 hover:text-white flex items-center">
-                        {isFullscreen ? <><Minimize2 size={14} className="mr-1"/> Exit Full</> : <><Maximize2 size={14} className="mr-1"/> Fullscreen</>}
-                    </button>
                 </div>
             </div>
 
@@ -506,8 +609,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     
                     {/* INPUT AREA */}
                     {!roundOver ? (
-                        <div className="flex-1 w-full relative flex gap-4">
-                            <form onSubmit={handleInputSubmit} className={`flex-1 relative ${shakeInput ? 'animate-shake' : ''}`}>
+                        <div className="flex-1 w-full relative flex gap-2 sm:gap-4 items-center">
+                            <form onSubmit={handleInputSubmit} className={`flex-1 min-w-0 relative ${shakeInput ? 'animate-shake' : ''}`}>
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <span className="text-slate-500 font-bold uppercase text-xs tracking-wider hidden md:block">
                                         {activeTeamName} Guess:
@@ -533,30 +636,35 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             {/* MANUAL STRIKE */}
                             <button 
                                 onClick={triggerStrike}
-                                className="px-6 py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center shrink-0"
+                                className="w-12 h-12 sm:w-auto sm:h-auto sm:px-6 sm:py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center shrink-0"
                             >
-                                <X size={20} className="mr-2" /> Strike
+                                <X size={20} />
+                                <span className="hidden sm:inline ml-2">Strike</span>
                             </button>
                         </div>
                     ) : (
-                        <div className="flex-1 flex gap-4 justify-center items-center">
-                            <h3 className="text-xl font-bold text-white uppercase tracking-wider mr-4">Round Over!</h3>
-                            
-                            {!allRevealed && (
-                                <button
-                                    onClick={() => setRevealedAnswers(new Array(8).fill(true))}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold shadow-lg transition-transform hover:scale-105"
-                                >
-                                    Reveal All
-                                </button>
-                            )}
+                        <div className="flex-1 flex flex-col gap-3 w-full">
+                            <h3 className="text-base sm:text-xl font-bold text-white uppercase tracking-wider text-center">Round Over!</h3>
 
-                            <button 
-                                onClick={nextRound}
-                                className="px-10 py-3 bg-brand-yellow text-slate-900 rounded-full font-bold text-lg uppercase tracking-wider shadow-lg hover:scale-105 transition-transform animate-pulse"
-                            >
-                                {isLastRound ? "Finish Game" : "Start Next Round"}
-                            </button>
+                            <div className="flex items-center justify-between gap-3 w-full">
+                                {!allRevealed ? (
+                                    <button
+                                        onClick={() => setRevealedAnswers(new Array(8).fill(true))}
+                                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg sm:rounded-full text-sm sm:text-base font-bold shadow-md transition-transform hover:scale-105"
+                                    >
+                                        Reveal All
+                                    </button>
+                                ) : (
+                                    <div />
+                                )}
+
+                                <button 
+                                    onClick={nextRound}
+                                    className="px-5 py-2 sm:px-10 sm:py-3 bg-brand-yellow text-slate-900 rounded-lg sm:rounded-full text-sm sm:text-lg font-bold uppercase tracking-wider shadow-md hover:scale-105 transition-transform animate-pulse"
+                                >
+                                    {isLastRound ? "Finish Game" : "Start Next Round"}
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -574,34 +682,34 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             {/* EDIT TEAM MODAL */}
             {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-4 border-slate-200">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-800">Edit {teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}</h3>
-                            <button onClick={() => setEditingTeamIndex(null)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl border-4 border-slate-200">
+                        <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-800">Edit {teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}</h3>
+                            <button onClick={() => setEditingTeamIndex(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                         </div>
                         
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Team Name</label>
                                 <input 
                                     type="text" 
                                     value={editName}
                                     onChange={(e) => setEditName(e.target.value)}
-                                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-lg text-slate-800"
+                                    className="w-full p-2.5 sm:p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg text-slate-800"
                                 />
                             </div>
                             
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Score Adjustment</label>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => setEditScore(s => s - 10)} className="p-3 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600"><Minus size={16} /></button>
+                                <div className="flex items-center gap-2 justify-center">
+                                    <button onClick={() => setEditScore(s => s - 10)} className="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 text-sm font-bold">-10</button>
                                     <input 
                                         type="number" 
                                         value={editScore}
                                         onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                        className="flex-1 p-3 border border-slate-300 rounded-lg text-center font-mono font-bold text-xl text-slate-800"
+                                        className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-300 rounded-lg text-center font-mono font-bold text-lg sm:text-xl text-slate-800"
                                     />
-                                    <button onClick={() => setEditScore(s => s + 10)} className="p-3 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600"><Plus size={16} /></button>
+                                    <button onClick={() => setEditScore(s => s + 10)} className="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 text-sm font-bold">+10</button>
                                 </div>
                             </div>
 
@@ -612,7 +720,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                         <button 
                                             key={count}
                                             onClick={() => setEditStrikes(count)}
-                                            className={`flex-1 py-3 rounded-lg font-bold transition-all border-2 
+                                            className={`flex-1 py-2 sm:py-3 rounded-lg font-bold transition-all border-2 text-sm sm:text-base
                                                 ${editStrikes === count 
                                                     ? 'bg-red-500 border-red-600 text-white shadow-md scale-105' 
                                                     : 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200'}`}
@@ -625,7 +733,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             </div>
                         </div>
 
-                        <div className="flex gap-3 mt-8">
+                        <div className="flex gap-3 mt-6 sm:mt-8">
                             <button 
                                 onClick={() => setEditingTeamIndex(null)}
                                 className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors"

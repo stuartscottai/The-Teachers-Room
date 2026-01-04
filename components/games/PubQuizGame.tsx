@@ -161,7 +161,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
         const maxSize = Math.min(54, Math.max(30, Math.floor(window.innerWidth / 8)));
-        const minSize = 18;
+        const minSize = 16;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;
@@ -183,7 +183,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
         const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
-        const minSize = 18;
+        const minSize = 16;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;
@@ -315,6 +315,10 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         const winners = scores.map((s, i) => s === maxScore ? { name: teamNames[i], score: s, id: i } : null).filter(Boolean) as {name: string, score: number, id: number}[];
         const isTie = winners.length > 1;
 
+        const rankedTeams = scores
+            .map((score, index) => ({ name: teamNames[index], score, id: index }))
+            .sort((a, b) => b.score - a.score);
+
         // Rank others
         const otherTeams = scores
             .map((score, index) => ({ name: teamNames[index], score, id: index }))
@@ -323,6 +327,79 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         
         const second = otherTeams[0];
         const third = otherTeams[1];
+
+        if (isMobileViewport) {
+            return (
+                <div className="fixed inset-0 bg-slate-800 z-[300] flex flex-col items-center justify-center overflow-hidden">
+                    {/* Realistic 3D Confetti CSS */}
+                    <style>
+                        {`
+                        @keyframes confetti-fall {
+                            0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
+                            25% { transform: translateY(25vh) translateX(20px) rotate3d(1, 1, 1, 90deg); }
+                            50% { transform: translateY(50vh) translateX(-20px) rotate3d(1, 1, 1, 180deg); }
+                            75% { transform: translateY(75vh) translateX(20px) rotate3d(1, 1, 1, 270deg); }
+                            100% { transform: translateY(110vh) translateX(0) rotate3d(1, 1, 1, 360deg); opacity: 0; }
+                        }
+                        .confetti-piece {
+                            position: absolute;
+                            animation: confetti-fall 4s linear infinite;
+                            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+                        }
+                        `}
+                    </style>
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        {Array.from({length: 150}).map((_, i) => (
+                            <div key={i} className="confetti-piece" style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * -20}%`,
+                                backgroundColor: ['#FACC15', '#0EA5E9', '#FB923C', '#22C55E', '#EC4899', '#FFF'][Math.floor(Math.random() * 6)],
+                                width: `${Math.random() * 12 + 6}px`,
+                                height: `${Math.random() * 18 + 6}px`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                animationDuration: `${Math.random() * 2 + 3}s`,
+                                opacity: Math.random() + 0.5
+                            }} />
+                        ))}
+                    </div>
+                    <div className="relative z-10 w-full h-full overflow-y-auto px-4 pt-24 pb-10 text-center">
+                        <div className="min-h-[75vh] flex flex-col items-center justify-center">
+                            <h1 className="font-display text-4xl font-black mb-4 text-white drop-shadow-xl tracking-widest uppercase" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)' }}>
+                                {isTie ? "It's a Tie!" : "Winner!"}
+                            </h1>
+                            <Trophy size={72} className="text-brand-yellow mb-4 animate-pulse drop-shadow-xl" />
+                            <div className="text-white font-bold text-2xl mb-4">
+                                {winners.map(w => w.name).join(' & ')}
+                            </div>
+                            <div className="bg-white px-6 py-3 rounded-2xl text-brand-yellow font-mono text-3xl font-black border-2 border-yellow-100 shadow-lg">
+                                {maxScore}
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button onClick={onReplay} className="px-6 py-3 bg-brand-yellow text-slate-900 rounded-full font-bold text-base shadow-lg">
+                                    Play Again
+                                </button>
+                                <button onClick={onFinish} className="px-6 py-3 bg-white/20 text-white rounded-full font-bold text-base shadow-lg border border-white/30">
+                                    Back to Library
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 pt-6 border-t border-white/20">
+                            <h2 className="text-xs uppercase tracking-widest text-white/60 mb-4">Full Standings</h2>
+                            <div className="space-y-3">
+                                {rankedTeams.map((team, idx) => (
+                                    <div key={team.id} className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                        <div className="font-bold text-white">#{idx + 1} {team.name}</div>
+                                        <div className="font-mono font-bold text-white">{team.score}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="fixed inset-0 bg-slate-800 z-[300] flex flex-col items-center justify-center overflow-hidden">
@@ -685,15 +762,15 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             {/* TEAM EDIT MODAL */}
             {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Team Details</h3>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
+                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">Edit Team Details</h3>
                         <div className="mb-4">
                             <label className="block text-xs font-bold text-slate-500 mb-1">Team Name</label>
                             <input 
                                 type="text" 
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-lg"
+                                className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg"
                             />
                         </div>
                         <div className="mb-6">
@@ -704,7 +781,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     type="number" 
                                     value={editScore}
                                     onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                    className="w-28 sm:w-32 p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-xl"
+                                    className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-lg sm:text-xl"
                                 />
                                 <button onClick={() => setEditScore(s => s + 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">+50</button>
                             </div>
@@ -745,7 +822,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 {/* Body */}
                                 <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
                                     <div className="flex flex-col flex-1 min-h-0">
-                                        <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto px-1 sm:px-0 mb-1 sm:mb-3">
+                                        <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
                                             <div
                                                 ref={questionTextRef}
                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -756,8 +833,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                         </div>
                                         {/* Options */}
                                         {currentQuestion.options && currentQuestion.options.length > 0 && !isFlipped && (
-                                            <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-y-auto sm:overflow-visible">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full max-w-5xl sm:h-full sm:auto-rows-fr">
+                                            <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full h-full max-w-5xl auto-rows-fr">
                                                     {(() => {
                                                         const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                         const uniformSize = getOptionFontSizeClass(longestText);
@@ -766,7 +843,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                             <div
                                                                 key={i}
                                                                 style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                className={`p-2 sm:p-3 md:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[56px] md:min-h-[80px] sm:h-full whitespace-normal break-words hyphens-none ${uniformSize}`}
+                                                                className={`p-2 sm:p-3 md:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[56px] md:min-h-[80px] h-full whitespace-normal break-words hyphens-none ${uniformSize}`}
                                                             >
                                                                 {opt}
                                                             </div>

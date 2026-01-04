@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Trophy, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -13,7 +13,7 @@ interface TriviaGameProps {
 }
 
 // Sub-component for animated score numbers
-const AnimatedScore: React.FC<{ score: number }> = ({ score }) => {
+const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName?: string }> = ({ score, className, diffClassName }) => {
     const [displayScore, setDisplayScore] = useState(score);
     const [diff, setDiff] = useState(0);
 
@@ -43,11 +43,11 @@ const AnimatedScore: React.FC<{ score: number }> = ({ score }) => {
 
     return (
         <div className="relative">
-            <div className="text-5xl font-black font-mono leading-none tracking-tight transition-all">
+            <div className={`font-black font-mono leading-none tracking-tight transition-all ${className || 'text-5xl'}`}>
                 {displayScore}
             </div>
             {diff !== 0 && (
-                <div className={`absolute -top-8 left-1/2 -translate-x-1/2 font-bold text-xl animate-bounce
+                <div className={`absolute -top-8 left-1/2 -translate-x-1/2 font-bold animate-bounce ${diffClassName || 'text-xl'}
                     ${diff > 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {diff > 0 ? '+' : ''}{diff}
                 </div>
@@ -85,6 +85,14 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     // Fullscreen logic
     const containerRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [resizeTick, setResizeTick] = useState(0);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLDivElement>(null);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
+    const answerWrapRef = useRef<HTMLDivElement>(null);
+    const answerTextRef = useRef<HTMLDivElement>(null);
+    const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
 
     // Grid Calculation State
     const [gridDimensions, setGridDimensions] = useState({ width: 100, height: 100 });
@@ -101,6 +109,20 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
     }, [activeQuestionIndex, isGameOver, editingTeamIndex]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setResizeTick(prev => prev + 1);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Update dimensions using ResizeObserver for robustness
     useEffect(() => {
@@ -231,6 +253,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     }, [gameQuestions.length, gridDimensions, isFullscreen]);
 
     const toggleFullscreen = () => {
+        if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
             containerRef.current?.requestFullscreen();
             setIsFullscreen(true);
@@ -449,6 +472,73 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         return 'text-lg md:text-2xl';
     };
 
+    const getMobileOptionFontSize = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 12) return 20;
+        if (len < 20) return 18;
+        if (len < 30) return 16;
+        if (len < 40) return 15;
+        return 14;
+    };
+
+    const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
+    const isBonus = activeQ?.isBonus;
+    const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
+    const isNegativeBonus = activeQ?.bonusType === 'bust';
+    const bonusEffectText =
+        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
+        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
+        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
+    const bonusDetailText =
+        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
+        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
+        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || !activeQ || isBonus || isFlipped) {
+            setQuestionFontSize(null);
+            return;
+        }
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(54, Math.max(28, Math.floor(window.innerWidth / 8)));
+        const minSize = 16;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setQuestionFontSize(size);
+    }, [isMobileViewport, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick]);
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || !activeQ || isBonus || !isFlipped) {
+            setAnswerFontSize(null);
+            return;
+        }
+        const wrap = answerWrapRef.current;
+        const textEl = answerTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
+        const minSize = 16;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setAnswerFontSize(size);
+    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick]);
+
     if (gameQuestions.length === 0) return <div className="text-slate-500 text-center p-8">Loading Game...</div>;
 
     // Winner Screen with Podium
@@ -458,6 +548,10 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         const winners = scores.map((s, i) => s === maxScore ? { name: teamNames[i], score: s, id: i } : null).filter(Boolean) as {name: string, score: number, id: number}[];
         const isTie = winners.length > 1;
 
+        const rankedTeams = scores
+            .map((score, index) => ({ name: teamNames[index], score, id: index }))
+            .sort((a, b) => b.score - a.score);
+
         // Rank others for 2nd/3rd
         const otherTeams = scores
             .map((score, index) => ({ name: teamNames[index], score, id: index }))
@@ -466,6 +560,88 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         
         const second = otherTeams[0];
         const third = otherTeams[1];
+
+        if (isMobileViewport) {
+            return (
+                <div className="fixed inset-0 bg-gradient-to-br from-sky-50 to-indigo-100 z-[300] flex flex-col items-center justify-center overflow-hidden">
+                    {/* Realistic 3D Confetti CSS */}
+                    <style>
+                        {`
+                        @keyframes confetti-fall {
+                            0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
+                            25% { transform: translateY(25vh) translateX(20px) rotate3d(1, 1, 1, 90deg); }
+                            50% { transform: translateY(50vh) translateX(-20px) rotate3d(1, 1, 1, 180deg); }
+                            75% { transform: translateY(75vh) translateX(20px) rotate3d(1, 1, 1, 270deg); }
+                            100% { transform: translateY(110vh) translateX(0) rotate3d(1, 1, 1, 360deg); opacity: 0; }
+                        }
+                        .confetti-piece {
+                            position: absolute;
+                            animation: confetti-fall 4s linear infinite;
+                            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+                        }
+                        `}
+                    </style>
+
+                    {/* Confetti Particles */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        {Array.from({length: 150}).map((_, i) => (
+                            <div key={i} className="confetti-piece" style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * -20}%`,
+                                backgroundColor: ['#FACC15', '#0EA5E9', '#FB923C', '#22C55E', '#EC4899', '#FFF'][Math.floor(Math.random() * 6)],
+                                width: `${Math.random() * 12 + 6}px`,
+                                height: `${Math.random() * 18 + 6}px`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                animationDuration: `${Math.random() * 2 + 3}s`,
+                                opacity: Math.random() + 0.5
+                            }} />
+                        ))}
+                    </div>
+
+                    <div className="relative z-10 w-full h-full overflow-y-auto px-4 pt-24 pb-10">
+                        <div className="min-h-[75vh] flex flex-col items-center justify-center text-center">
+                            <h1 className="font-display text-4xl font-black mb-4 text-slate-800 drop-shadow-xl tracking-widest uppercase" style={{ textShadow: '4px 4px 0px #fff' }}>
+                                {isTie ? "It's a Tie!" : "Winner!"}
+                            </h1>
+                            <Trophy size={72} className="text-brand-yellow mb-4 animate-pulse drop-shadow-xl" />
+                            <div className="text-brand-blue font-bold text-2xl mb-4">
+                                {winners.map(w => w.name).join(' & ')}
+                            </div>
+                            <div className="bg-white px-6 py-3 rounded-2xl text-brand-yellow font-mono text-3xl font-black border-2 border-yellow-100 shadow-lg">
+                                {maxScore}
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button 
+                                    onClick={onReplay} 
+                                    className="px-6 py-3 bg-brand-blue text-white rounded-full font-bold text-base shadow-lg"
+                                >
+                                    Play Again
+                                </button>
+                                <button 
+                                    onClick={onFinish} 
+                                    className="px-6 py-3 bg-white text-slate-800 rounded-full font-bold text-base shadow-lg border border-slate-100"
+                                >
+                                    Back to Library
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 pt-6 border-t border-white/60">
+                            <h2 className="text-xs uppercase tracking-widest text-slate-500 text-center mb-4">Full Standings</h2>
+                            <div className="space-y-3">
+                                {rankedTeams.map((team, idx) => (
+                                    <div key={team.id} className="bg-white/90 border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
+                                        <div className="font-bold text-slate-700">#{idx + 1} {team.name}</div>
+                                        <div className="font-mono font-bold text-slate-900">{team.score}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="fixed inset-0 bg-gradient-to-br from-sky-50 to-indigo-100 z-[300] flex flex-col items-center justify-center overflow-hidden">
@@ -577,20 +753,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         );
     }
 
-    const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
-    const isBonus = activeQ?.isBonus;
-    const hasOptions = activeQ?.options && activeQ.options.length > 0;
-    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
-    const isNegativeBonus = activeQ?.bonusType === 'bust';
-    const bonusEffectText =
-        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
-        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
-        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
-    const bonusDetailText =
-        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
-        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
-        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
-
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
             <style>
@@ -629,53 +791,69 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             </style>
             
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className="bg-white p-4 shrink-0 z-[250] shadow-sm flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
-                <div className="flex flex-col items-start gap-2 min-w-[140px]">
-                    <button 
-                        onClick={() => setShowQuitConfirm(true)} 
-                        className="text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
-                    >
-                        <ArrowLeft size={16} className="mr-2" /> Quit
-                    </button>
-                    <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
-                </div>
-                
-                {/* Scoreboard Cards */}
-                <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 h-full items-center">
-                    {scores.map((score, idx) => (
+            <div className="bg-white p-2 sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative min-h-[70px] sm:min-h-[140px]">
+                <div className="flex w-full items-center gap-3 sm:gap-4">
+                    <div className="flex flex-col items-start gap-2 min-w-[64px]">
                         <button 
-                            key={idx} 
-                            onClick={() => openEditTeam(idx)}
-                            className={`px-6 py-3 rounded-xl text-center transition-all border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-sm
-                                ${currentTeam === idx 
-                                    ? 'bg-brand-blue border-sky-600 text-white shadow-lg scale-110 ring-4 ring-sky-100 z-10' 
-                                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
+                            onClick={() => setShowQuitConfirm(true)} 
+                            className="hidden sm:flex text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
                         >
-                            <div className="text-lg uppercase font-bold tracking-wider truncate max-w-[130px] mb-1 flex items-center gap-1">
-                                {teamNames[idx]}
-                                {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
-                            </div>
-                            <AnimatedScore score={score} />
-                            
-                            {/* Hover Edit Icon */}
-                            <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Edit2 size={12} />
-                            </div>
+                            <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
-                    ))}
-                </div>
+                        <button
+                            onClick={() => setShowQuitConfirm(true)}
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Quit"
+                        >
+                            <X size={18} />
+                        </button>
+                        <button 
+                            onClick={() => setIsMuted(!isMuted)} 
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                    </div>
+                    
+                    {/* Scoreboard Cards */}
+                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center">
+                        {scores.map((score, idx) => (
+                            <button 
+                                key={idx} 
+                                onClick={() => openEditTeam(idx)}
+                                className={`px-2 py-1 sm:px-6 sm:py-3 rounded-xl text-center transition-all border-b-4 min-w-[86px] sm:min-w-[150px] relative group h-12 sm:h-28 flex flex-col justify-center items-center shadow-sm
+                                    ${currentTeam === idx 
+                                        ? 'bg-brand-blue border-sky-600 text-white shadow-lg ring-2 sm:ring-4 ring-sky-100 sm:scale-110 z-10' 
+                                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
+                            >
+                                <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-[90px] sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
+                                    {teamNames[idx]}
+                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
+                                </div>
+                                <AnimatedScore score={score} className="text-lg sm:text-5xl" diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
+                                
+                                {/* Hover Edit Icon */}
+                                <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Edit2 size={12} />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
 
-                <div className="flex items-center justify-end min-w-[140px] gap-2">
-                    <button 
-                        onClick={() => setIsMuted(!isMuted)} 
-                        className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
-                        title={isMuted ? "Unmute" : "Mute"}
-                    >
-                         {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                    </button>
-                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
-                        {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                    </button>
+                    <div className="hidden sm:flex items-center justify-end min-w-[140px] gap-2">
+                        <button 
+                            onClick={() => setIsMuted(!isMuted)} 
+                            className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                        </button>
+                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
+                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -725,28 +903,28 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             {/* 3. TEAM EDIT MODAL */}
             {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Team Details</h3>
+                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
+                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">Edit Team Details</h3>
                         <div className="mb-4">
                             <label className="block text-xs font-bold text-slate-500 mb-1">Team Name</label>
                             <input 
                                 type="text" 
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-lg"
+                                className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg"
                             />
                         </div>
                         <div className="mb-6">
                             <label className="block text-xs font-bold text-slate-500 mb-1">Score Override</label>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditScore(s => s - 50)} className="p-2 bg-slate-100 rounded hover:bg-slate-200">-50</button>
+                            <div className="flex items-center gap-2 justify-center">
+                                <button onClick={() => setEditScore(s => s - 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">-50</button>
                                 <input 
                                     type="number" 
                                     value={editScore}
                                     onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                    className="flex-1 p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-xl"
+                                    className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-lg sm:text-xl"
                                 />
-                                <button onClick={() => setEditScore(s => s + 50)} className="p-2 bg-slate-100 rounded hover:bg-slate-200">+50</button>
+                                <button onClick={() => setEditScore(s => s + 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">+50</button>
                             </div>
                         </div>
                         <div className="flex gap-3">
@@ -769,9 +947,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
-                <div className="absolute inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px] overflow-hidden">
-                    
-                    <div className="w-full max-w-6xl aspect-[16/9] max-h-full [perspective:1000px]">
+                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
@@ -782,86 +959,91 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                 
                                 {isBonus ? (
                                     <div
-                                        className="relative p-8 md:p-12 text-center flex flex-col items-center justify-center h-full cursor-pointer"
+                                        className="relative p-4 sm:p-8 md:p-12 text-center flex flex-col items-center justify-center h-full cursor-pointer"
                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
                                         title="Reveal bonus"
                                     >
                                         <div className="absolute inset-0 bonus-sparkle bonus-shine opacity-60 pointer-events-none"></div>
-                                        <div className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
+                                        <div className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-5xl sm:text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
                                             BONUS
                                         </div>
                                     </div>
                                 ) : (
                                     <>
                                         {/* HEADER BAR (Blue) */}
-                                        <div className="bg-brand-blue text-white p-4 flex justify-between items-center h-20 flex-shrink-0 relative z-10">
-                                             <div className="font-bold text-xl opacity-80">Question {activeQuestionIndex! + 1}</div>
-                                             <div className="font-black text-4xl">{activeQ.points || 100}</div>
-                                             <div className="font-bold text-xl opacity-80">{teamNames[currentTeam]}</div>
+                                        <div className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                            <div className="font-bold text-sm sm:text-xl opacity-80">Question {activeQuestionIndex! + 1}</div>
+                                            <div className="font-black text-2xl sm:text-4xl">{activeQ.points || 100}</div>
+                                            <div className="font-bold text-sm sm:text-xl opacity-80 text-right max-w-[35%] truncate">{teamNames[currentTeam]}</div>
                                         </div>
 
-                                        {/* CONTENT BODY (White) - Scrollable */}
-                                        <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden z-0">
-                                            {/* Scrollable Content Container */}
-                                            <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
-                                                 <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words ${getQuestionFontSizeClass(activeQ.question)}`}>
-                                                    {activeQ.question}
+                                        {/* CONTENT BODY (White) */}
+                                        <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
+                                            <div className="flex flex-col flex-1 min-h-0">
+                                                <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                                    <div
+                                                        ref={questionTextRef}
+                                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                        className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words ${getQuestionFontSizeClass(activeQ.question)}`}
+                                                    >
+                                                        {activeQ.question}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Multiple Choice Buttons - Fixed at bottom of the body */}
-                                            {hasOptions && !isFlipped && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl mt-6 flex-shrink-0 relative z-10">
-                                                    {(() => {
-                                                        const longestText = activeQ.options!.reduce((a, b) => a.length > b.length ? a : b, '');
-                                                        const uniformSize = getOptionFontSizeClass(longestText);
-                                                        
-                                                        return activeQ.options!.map((opt, i) => (
-                                                        <button 
-                                                            key={i}
-                                                            onClick={(e) => { e.stopPropagation(); handleMcSelect(opt); }}
-                                                            className={`p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[80px] ${uniformSize} cursor-pointer relative z-50`}
-                                                        >
-                                                            {opt}
-                                                        </button>
-                                                    ))})()}
-                                                </div>
-                                            )}
+                                                {hasOptions && !isFlipped && (
+                                                    <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                            {(() => {
+                                                                const longestText = activeQ.options!.reduce((a, b) => a.length > b.length ? a : b, '');
+                                                                const uniformSize = getOptionFontSizeClass(longestText);
+                                                                const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
+                                                                return activeQ.options!.map((opt, i) => (
+                                                                    <button 
+                                                                        key={i}
+                                                                        onClick={(e) => { e.stopPropagation(); handleMcSelect(opt); }}
+                                                                        style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                        className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} cursor-pointer relative z-50 whitespace-normal break-words`}
+                                                                    >
+                                                                        {opt}
+                                                                    </button>
+                                                                ));
+                                                            })()}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                         
                                         {/* FOOTER BAR (Blue/Gradient/Red) */}
-                                        <div className={`h-24 flex items-center justify-center relative z-50 flex-shrink-0 transition-colors duration-300 
+                                        <div className={`h-[clamp(88px,14vh,120px)] flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative z-50 flex-shrink-0 transition-colors duration-300 
                                             ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
                                             
-                                            {/* Timer Overlay (Only if not Time's Up) */}
-                                            {options.timerSeconds > 0 && timeLeft > 0 && !isTimesUp && (
-                                                <div className="absolute inset-0 bg-black/10 flex items-center justify-start pointer-events-none">
-                                                    <div 
-                                                        className="h-full bg-white/20 transition-all duration-1000"
-                                                        style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }}
-                                                    />
+                                            {options.timerSeconds > 0 && (
+                                                <div className="relative h-[clamp(24px,4.5vh,32px)] bg-black/10 flex items-center justify-start pointer-events-none">
+                                                    {!isTimesUp && (
+                                                        <div 
+                                                            className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-1000"
+                                                            style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }}
+                                                        />
+                                                    )}
+                                                    <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white tracking-wider">
+                                                        {isTimesUp ? "TIME'S UP!" : (
+                                                            <><Clock size={12} className="mr-1" /> {timeLeft}s</>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                             
-                                            {!hasOptions && (
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                                                    className="bg-white text-brand-blue px-12 py-3 rounded-full font-bold text-xl shadow-lg hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
-                                                >
-                                                    Check
-                                                </button>
-                                            )}
-
-                                            {/* Clock Display or TIME'S UP Text */}
-                                            {options.timerSeconds > 0 && (
-                                                <div className="absolute right-6 top-1/2 -translate-y-1/2 text-white font-mono font-bold text-3xl opacity-80 flex items-center pointer-events-none">
-                                                    {isTimesUp ? (
-                                                        <span className="animate-pulse font-black text-white drop-shadow-md">TIME'S UP!</span>
-                                                    ) : (
-                                                        <><Clock size={24} className="mr-2" /> {timeLeft}</>
-                                                    )}
-                                                </div>
-                                            )}
+                                            <div className="w-full flex-1 flex items-center justify-center py-3">
+                                                {!hasOptions && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+                                                        className="bg-white text-brand-blue px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
+                                                    >
+                                                        Check
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </>
                                 )}
@@ -872,7 +1054,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                 ${isBonus ? (isPositiveBonus ? 'bg-gradient-to-br from-yellow-100 via-amber-200 to-yellow-300 border-4 border-yellow-300/80 bonus-glow bonus-shimmer' : 'bg-gradient-to-br from-red-200 via-rose-200 to-red-300 border-4 border-red-300') : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 
                                 {isBonus ? (
-                                    <div className="flex-grow flex flex-col items-center justify-center p-8 md:p-12 text-center overflow-hidden">
+                                    <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center overflow-hidden">
                                         <div className="w-full flex flex-col items-center justify-center gap-6">
                                             <div className={`font-display font-black leading-tight break-words ${isNegativeBonus ? 'text-red-900' : 'text-slate-800'} ${getBonusEffectSizeClass(bonusEffectText)}`}>
                                                 {bonusEffectText}
@@ -883,7 +1065,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         </div>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); handleBonusAction(); }}
-                                            className={`mt-6 px-10 py-4 ${isNegativeBonus ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-xl font-bold text-xl transition-colors shadow-lg cursor-pointer relative z-50`}
+                                            className={`mt-6 px-6 sm:px-10 py-3 sm:py-4 ${isNegativeBonus ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-xl font-bold text-base sm:text-xl transition-colors shadow-lg cursor-pointer relative z-50`}
                                         >
                                             Apply Effect
                                         </button>
@@ -891,8 +1073,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                 ) : (
                                     <>
                                         {/* HEADER (Gray) */}
-                                        <div className="bg-slate-200 text-slate-600 p-4 flex justify-between items-center h-20 flex-shrink-0 relative z-10">
-                                            <div className="font-bold text-xl opacity-80">Answer</div>
+                                        <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                            <div className="font-bold text-base sm:text-xl opacity-80">Answer</div>
                                             
                                             {/* ALWAYS SHOW FLIP BACK BUTTON */}
                                             <button 
@@ -900,43 +1082,47 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                 className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer relative z-50"
                                                 title="Flip back to question"
                                             >
-                                                <RotateCcw size={20} />
+                                                <RotateCcw size={18} className="sm:w-5 sm:h-5" />
                                             </button>
                                         </div>
 
                                         {/* CONTENT (White) */}
-                                        <div className="flex-grow flex flex-col items-center justify-center p-12 bg-white text-center overflow-hidden w-full relative z-0">
-                                            <div className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                        <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
+                                            <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
-                                                    <div className="animate-bounce mb-8">
+                                                    <div className="animate-bounce mb-4 sm:mb-8">
                                                         {mcResult === 'correct' ? (
                                                             <div className="flex flex-col items-center">
-                                                                <CheckCircle size={80} className="text-green-500 mb-4" />
-                                                                <h2 className="text-6xl font-black text-green-500 uppercase tracking-widest">Correct!</h2>
+                                                                <CheckCircle size={56} className="text-green-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
+                                                                <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">Correct!</h2>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center">
-                                                                <XCircle size={80} className="text-red-500 mb-4" />
-                                                                <h2 className="text-6xl font-black text-red-500 uppercase tracking-widest">Incorrect</h2>
+                                                                <XCircle size={56} className="text-red-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
+                                                                <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">Incorrect</h2>
                                                             </div>
                                                         )}
                                                     </div>
                                                 ) : null}
 
-                                                <div className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words ${getAnswerFontSizeClass(activeQ.answer)}`}>
+                                                <div
+                                                    ref={answerTextRef}
+                                                    style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words ${getAnswerFontSizeClass(activeQ.answer)}`}
+                                                >
                                                     {activeQ.answer}
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         {/* FOOTER (Buttons) */}
-                                        <div className="h-24 flex flex-shrink-0 relative z-50">
+                                        <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
                                             {hasOptions ? (
                                                 // Multiple Choice Footer
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
-                                                    className={`flex-1 text-white font-bold text-2xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
+                                                    className={`flex-1 text-white font-bold text-lg sm:text-2xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
                                                         ${mcResult === 'correct' 
                                                             ? 'bg-green-500 hover:bg-green-600 border-green-700' 
                                                             : 'bg-red-500 hover:bg-red-600 border-red-700'}`}
@@ -948,15 +1134,15 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                 <>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleAnswer(false); }}
-                                                        className="flex-1 bg-red-500 text-white font-bold text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0 cursor-pointer relative z-50"
+                                                        className="flex-1 bg-red-500 text-white font-bold text-lg sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0 cursor-pointer relative z-50"
                                                     >
-                                                        <X size={32} className="mr-3" /> Oops
+                                                        <X size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Oops
                                                     </button>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleAnswer(true); }}
-                                                        className="flex-1 bg-green-500 text-white font-bold text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0 cursor-pointer relative z-50"
+                                                        className="flex-1 bg-green-500 text-white font-bold text-lg sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0 cursor-pointer relative z-50"
                                                     >
-                                                        <Check size={32} className="mr-3" /> OK
+                                                        <Check size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> OK
                                                     </button>
                                                 </>
                                             )}
