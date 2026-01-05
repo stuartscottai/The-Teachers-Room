@@ -44,6 +44,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Audio & Fullscreen
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Sanity check for questions
@@ -81,6 +82,24 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         };
         document.addEventListener('fullscreenchange', handleFsChange);
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const updateViewport = () => setIsMobileViewport(media.matches);
+        updateViewport();
+        if (media.addEventListener) {
+            media.addEventListener('change', updateViewport);
+        } else {
+            media.addListener(updateViewport);
+        }
+        return () => {
+            if (media.removeEventListener) {
+                media.removeEventListener('change', updateViewport);
+            } else {
+                media.removeListener(updateViewport);
+            }
+        };
     }, []);
 
     // Reset state per question
@@ -229,6 +248,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     };
 
     const toggleFullscreen = () => {
+        if (isMobileViewport) return;
         if (!document.fullscreenElement) {
             containerRef.current?.requestFullscreen();
             setIsFullscreen(true);
@@ -245,7 +265,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         let base = "relative flex items-center w-full border-2 rounded-full transition-all duration-200 font-bold text-left group overflow-hidden ";
         
         // Responsive Sizing based on Fullscreen
-        base += isFullscreen ? "p-6 md:p-8 text-3xl md:text-5xl" : "p-4 md:p-6 text-xl md:text-3xl";
+        if (isMobileViewport) {
+            base += "p-3 text-sm sm:text-xl";
+        } else {
+            base += isFullscreen ? "p-6 md:p-8 text-3xl md:text-5xl" : "p-4 md:p-6 text-xl md:text-3xl";
+        }
         
         if (gameState === 'reveal' || gameState === 'result') {
             if (gameState === 'reveal' && correctOption === null && index === selectedOption) {
@@ -263,6 +287,12 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Helper for dynamic question font size
     const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
+        if (isMobileViewport) {
+            if (len < 40) return 'text-[clamp(1.4rem,6vw,2rem)]';
+            if (len < 80) return 'text-[clamp(1.2rem,5vw,1.7rem)]';
+            if (len < 150) return 'text-[clamp(1rem,4.5vw,1.4rem)]';
+            return 'text-[clamp(0.9rem,4vw,1.2rem)]';
+        }
         if (isFullscreen) {
              if (len < 40) return 'text-5xl md:text-7xl';
              if (len < 80) return 'text-4xl md:text-6xl';
@@ -281,6 +311,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Helper for dynamic answer font size to allow wrapping
     const getAnswerFontSize = (text: string) => {
         const len = text.length;
+        if (isMobileViewport) {
+            if (len > 60) return "text-[clamp(0.7rem,2.8vw,0.95rem)] leading-tight";
+            if (len > 30) return "text-[clamp(0.8rem,3.2vw,1.05rem)] leading-tight";
+            return "text-[clamp(0.9rem,3.6vw,1.2rem)]";
+        }
         if (len > 60) return isFullscreen ? "text-lg md:text-xl leading-tight" : "text-xs md:text-sm leading-tight";
         if (len > 30) return isFullscreen ? "text-xl md:text-2xl leading-tight" : "text-sm md:text-base leading-tight";
         return isFullscreen ? "text-3xl md:text-5xl" : "text-xl md:text-3xl"; 
@@ -289,7 +324,19 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Dynamic Container Class - Z-Index 9999 to cover Navbar absolutely
     const containerClass = isFullscreen 
         ? "fixed inset-0 z-[9999] bg-black text-white flex flex-col overflow-hidden h-screen w-screen top-0 left-0"
-        : "relative h-[calc(100vh-64px)] w-full bg-black text-white flex flex-col overflow-hidden";
+        : "fixed inset-x-0 bottom-0 top-16 z-[50] bg-black text-white flex flex-col overflow-hidden";
+
+    const mobileLadderVisibleCols = 5;
+    const mobileLadderCenterIndex = Math.floor(mobileLadderVisibleCols / 2);
+    const mobileLadderMaxStart = Math.max(0, MONEY_LADDER.length - mobileLadderVisibleCols);
+    const mobileLadderWindowStart = Math.min(
+        mobileLadderMaxStart,
+        Math.max(0, currentLevel - mobileLadderCenterIndex)
+    );
+    const mobileLadderWindow = MONEY_LADDER.slice(
+        mobileLadderWindowStart,
+        mobileLadderWindowStart + mobileLadderVisibleCols
+    );
 
     return (
         <div ref={containerRef} className={containerClass}>
@@ -326,18 +373,20 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">Back</span>
                         </button>
                     </div>
-                    <div className="absolute top-4 right-4">
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
-                    </div>
+                    {!isMobileViewport && (
+                        <div className="absolute top-4 right-4">
+                            <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2">
+                                {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                            </button>
+                        </div>
+                    )}
 
                     <div className="text-center animate-fade-in max-w-4xl w-full">
                         <div className="relative mb-12">
                             <div className="absolute inset-0 bg-indigo-500 blur-[100px] opacity-20 rounded-full"></div>
                             <Trophy size={160} className="text-yellow-400 mx-auto drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] relative z-10" />
                         </div>
-                        <h1 className="text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-wider uppercase text-shadow">
+                        <h1 className="text-[clamp(2.4rem,8vw,4.5rem)] sm:text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-wider uppercase text-shadow leading-tight break-words">
                             Millionaire Maker
                         </h1>
                         <p className="text-indigo-200 text-2xl md:text-3xl mb-16 font-light">15 Questions. 3 Lifelines. One Million Dollars.</p>
@@ -404,11 +453,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 </div>
 
                 {/* TOP BAR - Increased padding for safe area */}
-                <div className={`relative z-10 flex flex-wrap md:flex-nowrap justify-between items-center p-4 gap-4 bg-gradient-to-b from-black via-black/80 to-transparent shrink-0 w-full transition-all duration-300 ${isFullscreen ? 'pt-8 pb-8' : 'pt-4'}`}>
+                <div className={`relative z-10 flex flex-wrap md:flex-nowrap justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent shrink-0 w-full transition-all duration-300 ${isMobileViewport ? 'px-2 py-2 gap-2' : 'p-4 gap-4'} ${isFullscreen ? 'pt-8 pb-8' : ''}`}>
                     {/* Back Button */}
                     <div className="flex items-center gap-4 w-auto shrink-0 order-1">
-                        <button onClick={onBack} className="text-slate-400 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20 flex items-center gap-2 px-4">
-                            <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">Back</span>
+                        <button onClick={onBack} className={`text-slate-400 hover:text-white transition-colors bg-white/10 rounded-full hover:bg-white/20 flex items-center gap-2 ${isMobileViewport ? 'p-2' : 'p-2 px-4'}`}>
+                            <ArrowLeft size={isMobileViewport ? 18 : 24} /> <span className="font-bold hidden md:inline">Back</span>
                         </button>
                     </div>
                     
@@ -417,7 +466,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         <button 
                             onClick={useFiftyFifty} 
                             disabled={used5050 || isProcessing}
-                            className={`w-20 h-12 md:w-28 md:h-16 rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden group
+                            className={`${isMobileViewport ? 'w-12 h-9 text-xs' : 'w-20 h-12 md:w-28 md:h-16'} rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden group
                                 ${used5050 ? 'border-slate-800 text-slate-700 bg-slate-900 cursor-not-allowed' : 'border-indigo-400 text-indigo-300 hover:bg-indigo-600 hover:text-white hover:border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] bg-black'}`}
                             title="50:50"
                         >
@@ -428,7 +477,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         <button 
                             onClick={usePhone} 
                             disabled={usedPhone || isProcessing}
-                            className={`w-20 h-12 md:w-28 md:h-16 rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
+                            className={`${isMobileViewport ? 'w-12 h-9 text-xs' : 'w-20 h-12 md:w-28 md:h-16'} rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
                                 ${usedPhone ? 'border-slate-800 text-slate-700 bg-slate-900 cursor-not-allowed' : 'border-indigo-400 text-indigo-300 hover:bg-indigo-600 hover:text-white hover:border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] bg-black'}`}
                             title="Phone a Friend"
                         >
@@ -439,7 +488,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         <button 
                             onClick={useAudience} 
                             disabled={usedAudience || isProcessing}
-                            className={`w-20 h-12 md:w-28 md:h-16 rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
+                            className={`${isMobileViewport ? 'w-12 h-9 text-xs' : 'w-20 h-12 md:w-28 md:h-16'} rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
                                 ${usedAudience ? 'border-slate-800 text-slate-700 bg-slate-900 cursor-not-allowed' : 'border-indigo-400 text-indigo-300 hover:bg-indigo-600 hover:text-white hover:border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] bg-black'}`}
                             title="Ask the Audience"
                         >
@@ -450,22 +499,24 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
                     <div className="flex gap-2 w-auto shrink-0 order-2 md:order-3">
                         <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-2">
-                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                            {isMuted ? <VolumeX size={isMobileViewport ? 18 : 24} /> : <Volume2 size={isMobileViewport ? 18 : 24} />}
                         </button>
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
+                        {!isMobileViewport && (
+                            <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2">
+                                {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* MAIN GAME AREA */}
-                <div className="flex-1 relative z-10 flex flex-col md:flex-row h-full overflow-hidden">
+                <div className="flex-1 relative z-10 flex flex-col md:flex-row min-h-0 overflow-hidden">
                     
                     {/* CENTER STAGE */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
                         
                         {/* QUESTION BOX - Adjusted for no scrolling */}
-                        <div className="w-full max-w-6xl bg-black/90 border-2 border-indigo-400 rounded-[2rem] p-6 md:p-10 mb-4 md:mb-8 text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex-shrink-0 flex items-center justify-center min-h-[20vh] overflow-hidden">
+                        <div className={`w-full max-w-6xl bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 mb-3 min-h-[18vh]' : 'p-6 md:p-10 mb-4 md:mb-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex-shrink-0 flex items-center justify-center overflow-hidden`}>
                             {/* Decorative side bars */}
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-r-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-l-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
@@ -476,7 +527,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         </div>
 
                         {/* OPTIONS GRID */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 w-full max-w-6xl relative z-20 flex-shrink-0">
+                        <div className={`grid grid-cols-2 md:grid-cols-2 ${isMobileViewport ? 'gap-3' : 'gap-4 md:gap-6'} w-full max-w-6xl relative z-20 flex-shrink-0`}>
                             {optionsList.map((opt, idx) => (
                                 <button 
                                     key={idx}
@@ -484,7 +535,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     onClick={() => handleAnswer(idx)}
                                     className={getOptionClass(idx)}
                                 >
-                                    <span className={`text-yellow-500 mr-4 group-hover:text-white transition-colors font-display ${isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl'}`}>
+                                    <span className={`text-yellow-500 mr-3 group-hover:text-white transition-colors font-display ${isMobileViewport ? 'text-base' : (isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl')}`}>
                                         {['A', 'B', 'C', 'D'][idx]}:
                                     </span>
                                     <span className={`drop-shadow-sm w-full leading-tight text-left ${getAnswerFontSize(opt)}`}>
@@ -500,10 +551,10 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
                         {/* WALK AWAY BUTTON - Preserved layout space to prevent shifting */}
                         {currentLevel > 0 && (
-                            <div className={`mt-8 transition-opacity duration-300 ${gameState === 'question' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                            <div className={`mt-6 sm:mt-8 transition-opacity duration-300 ${gameState === 'question' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                                 <button 
                                     onClick={handleWalkAway}
-                                    className="text-slate-400 hover:text-white text-lg font-bold uppercase tracking-widest border-2 border-slate-700 px-8 py-3 rounded-full hover:bg-slate-800 transition-colors bg-black/50 backdrop-blur-md"
+                                    className={`text-slate-400 hover:text-white font-bold uppercase tracking-widest border-2 border-slate-700 rounded-full hover:bg-slate-800 transition-colors bg-black/50 backdrop-blur-md ${isMobileViewport ? 'text-xs px-4 py-2' : 'text-lg px-8 py-3'}`}
                                 >
                                     Walk Away: ${MONEY_LADDER[currentLevel-1].toLocaleString()}
                                 </button>
@@ -537,32 +588,65 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         </div>
                     </div>
                 </div>
+
+                {isMobileViewport && (
+                    <div className="sm:hidden w-full shrink-0 px-3 pb-3">
+                        <div className="mx-auto w-full max-w-sm bg-slate-950/90 border border-indigo-400/60 rounded-xl px-3 py-2 shadow-[0_0_28px_rgba(15,23,42,0.9)] backdrop-blur-sm">
+                            <div className="text-[10px] uppercase tracking-widest text-slate-200 font-bold text-center mb-2">Money Ladder</div>
+                            <div className="grid grid-cols-5 gap-2 transition-all duration-300 ease-out">
+                                {mobileLadderWindow.map((amount, i) => {
+                                    const globalIndex = mobileLadderWindowStart + i;
+                                    const isCurrent = globalIndex === currentLevel;
+                                    const isSafe = SAFETY_NETS.includes(globalIndex);
+                                    return (
+                                        <div
+                                            key={`${amount}-${globalIndex}`}
+                                            className={`h-[40px] flex flex-col items-center justify-center rounded-lg font-mono text-[10px] leading-tight transition-all duration-300 ease-out ${
+                                                isCurrent
+                                                    ? 'bg-orange-500 text-white font-black shadow-[0_0_12px_rgba(249,115,22,0.7)] scale-[1.02]'
+                                                    : isSafe
+                                                        ? 'bg-slate-900/70 text-white font-bold'
+                                                        : 'bg-slate-900/60 text-slate-200'
+                                            }`}
+                                        >
+                                            <span className="opacity-80">{globalIndex + 1}</span>
+                                            <div className="flex items-center gap-1">
+                                                <span className="h-3 w-px bg-slate-200/40" />
+                                                <span>${amount.toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* LIFELINE OVERLAYS (MODALS) */}
             
             {/* Phone A Friend */}
             {(isCalling || phoneHint) && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
-                    <div className="bg-slate-900 border-4 border-indigo-500 rounded-[3rem] p-12 max-w-4xl w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative">
-                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-8 py-2 rounded-full font-bold text-xl uppercase tracking-widest border-4 border-slate-900">
+                <div className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-16'} z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-3 sm:p-4`}>
+                    <div className={`bg-slate-900 border-4 border-indigo-500 w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative ${isMobileViewport ? 'rounded-2xl p-4 w-[90vw] max-w-[90vw] h-[50vh] max-h-[50vh] overflow-hidden flex items-center justify-center pt-8' : 'rounded-[3rem] p-12 max-w-4xl'}`}>
+                        <div className={`absolute left-1/2 -translate-x-1/2 bg-indigo-600 text-white font-bold uppercase tracking-widest border-4 border-slate-900 ${isMobileViewport ? 'top-2 px-4 py-1 rounded-full text-xs' : '-top-10 px-8 py-2 rounded-full text-xl'}`}>
                             Phone-A-Friend
                         </div>
                         
                         {isCalling ? (
-                            <div className="flex flex-col items-center py-10">
-                                <Phone size={80} className="text-white mb-8 animate-bounce" />
-                                <h3 className="text-6xl font-display font-bold text-white animate-pulse">Dialing...</h3>
+                            <div className={`flex flex-col items-center w-full ${isMobileViewport ? 'h-[75%] justify-center' : 'py-10'}`}>
+                                <Phone size={isMobileViewport ? 48 : 80} className="text-white mb-6 animate-bounce" />
+                                <h3 className={`font-display font-bold text-white animate-pulse ${isMobileViewport ? 'text-3xl' : 'text-6xl'}`}>Dialing...</h3>
                             </div>
                         ) : (
-                            <div className="animate-slide-up">
-                                <div className="text-left bg-slate-800 p-10 rounded-3xl relative mt-4 border border-slate-700">
-                                    <div className="absolute -left-4 -top-4 bg-yellow-500 text-black font-bold px-6 py-2 rounded-lg text-lg transform -rotate-2">FRIEND SAYS:</div>
-                                    <p className="text-3xl md:text-5xl font-medium text-white leading-relaxed font-display">
+                            <div className={`animate-slide-up w-full ${isMobileViewport ? 'h-[75%] flex flex-col justify-center' : ''}`}>
+                                <div className={`text-left bg-slate-800 rounded-3xl relative mt-3 border border-slate-700 ${isMobileViewport ? 'p-4' : 'p-10'}`}>
+                                    <div className={`absolute bg-yellow-500 text-black font-bold transform -rotate-2 ${isMobileViewport ? 'left-3 -top-3 px-3 py-1 rounded-md text-xs' : '-left-4 -top-4 px-6 py-2 rounded-lg text-lg'}`}>FRIEND SAYS:</div>
+                                    <p className={`font-medium text-white leading-snug font-display ${isMobileViewport ? 'text-[clamp(1rem,4vw,1.3rem)]' : 'text-3xl md:text-5xl'}`}>
                                         "{phoneHint}"
                                     </p>
                                 </div>
-                                <button onClick={() => setPhoneHint(null)} className="mt-10 bg-white text-slate-900 px-10 py-4 rounded-full font-bold text-xl hover:bg-slate-200 transition-colors">
+                                <button onClick={() => setPhoneHint(null)} className={`bg-white text-slate-900 rounded-full font-bold hover:bg-slate-200 transition-colors ${isMobileViewport ? 'mt-5 w-full px-5 py-3 text-sm' : 'mt-10 px-10 py-4 text-xl'}`}>
                                     Thanks, hang up
                                 </button>
                             </div>
@@ -573,26 +657,26 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
             {/* Audience Vote */}
             {(isPolling || audienceStats) && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-4">
-                    <div className="bg-slate-900 border-4 border-indigo-500 rounded-[3rem] p-8 md:p-12 max-w-5xl w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative">
-                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-8 py-2 rounded-full font-bold text-xl uppercase tracking-widest border-4 border-slate-900">
+                <div className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-16'} z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-3 sm:p-4`}>
+                    <div className={`bg-slate-900 border-4 border-indigo-500 w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative ${isMobileViewport ? 'rounded-2xl p-4 w-[90vw] max-w-[90vw] h-[50vh] max-h-[50vh] overflow-hidden flex items-center justify-center pt-8' : 'rounded-[3rem] p-8 md:p-12 max-w-5xl'}`}>
+                        <div className={`absolute left-1/2 -translate-x-1/2 bg-indigo-600 text-white font-bold uppercase tracking-widest border-4 border-slate-900 ${isMobileViewport ? 'top-2 px-4 py-1 rounded-full text-xs' : '-top-10 px-8 py-2 rounded-full text-xl'}`}>
                             Audience Vote
                         </div>
 
                         {isPolling ? (
-                            <div className="flex flex-col items-center py-20">
-                                <Users size={100} className="text-white mb-8 animate-pulse" />
-                                <h3 className="text-5xl font-bold text-white mb-4">Polling Audience...</h3>
-                                <div className="w-full max-w-md h-4 bg-slate-700 rounded-full overflow-hidden">
+                            <div className={`flex flex-col items-center w-full ${isMobileViewport ? 'h-[75%] justify-center' : 'py-20'}`}>
+                                <Users size={isMobileViewport ? 60 : 100} className="text-white mb-6 animate-pulse" />
+                                <h3 className={`font-bold text-white mb-3 ${isMobileViewport ? 'text-xl' : 'text-5xl'}`}>Polling Audience...</h3>
+                                <div className={`w-full max-w-md h-3 ${isMobileViewport ? 'max-w-[200px]' : ''} bg-slate-700 rounded-full overflow-hidden`}>
                                     <div className="h-full bg-indigo-500 animate-[width_3s_ease-in-out] w-full"></div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="animate-slide-up w-full flex flex-col items-center">
-                                <div className="flex items-end justify-center gap-6 md:gap-12 w-full h-[50vh] px-4 md:px-12 pb-4">
+                            <div className={`animate-slide-up w-full flex flex-col items-center ${isMobileViewport ? 'h-[75%] justify-center' : ''}`}>
+                                <div className={`flex items-end justify-center w-full pb-4 ${isMobileViewport ? 'gap-3 h-[22vh] px-2' : 'gap-6 md:gap-12 h-[50vh] px-4 md:px-12'}`}>
                                     {audienceStats && audienceStats.map((stat, i) => (
-                                        <div key={i} className="flex flex-col items-center h-full justify-end group w-20 md:w-32">
-                                            <div className="text-3xl font-black text-white mb-4 opacity-0 animate-[fade-in_0.5s_0.5s_forwards]">{stat}%</div>
+                                        <div key={i} className={`flex flex-col items-center h-full justify-end group ${isMobileViewport ? 'w-12' : 'w-20 md:w-32'}`}>
+                                            <div className={`font-black text-white mb-2 opacity-0 animate-[fade-in_0.5s_0.5s_forwards] ${isMobileViewport ? 'text-base' : 'text-3xl'}`}>{stat}%</div>
                                             <div 
                                                 className="w-full bg-gradient-to-t from-blue-900 via-blue-500 to-cyan-400 rounded-t-xl transition-all duration-[1500ms] ease-out shadow-[0_0_20px_rgba(56,189,248,0.5)] border-t-4 border-white/50 relative overflow-hidden"
                                                 style={{ height: '0%', animation: `grow-bar-${i} 1s forwards` }}
@@ -601,11 +685,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                                 <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_25%,rgba(255,255,255,0.1)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.1)_75%,transparent_100%)] bg-[length:20px_20px] opacity-50"></div>
                                                 <style>{`@keyframes grow-bar-${i} { from { height: 0%; } to { height: ${stat}%; } }`}</style>
                                             </div>
-                                            <div className="text-4xl md:text-6xl font-black mt-6 text-yellow-400 font-display border-t-2 border-slate-700 w-full pt-2">{['A','B','C','D'][i]}</div>
+                                            <div className={`font-black mt-3 text-yellow-400 font-display border-t-2 border-slate-700 w-full pt-2 ${isMobileViewport ? 'text-xl' : 'text-4xl md:text-6xl'}`}>{['A','B','C','D'][i]}</div>
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => setAudienceStats(null)} className="mx-auto mt-8 bg-white text-slate-900 px-12 py-4 rounded-full font-bold text-xl hover:bg-slate-200 transition-colors shadow-lg">
+                                <button onClick={() => setAudienceStats(null)} className={`mx-auto bg-white text-slate-900 rounded-full font-bold hover:bg-slate-200 transition-colors shadow-lg ${isMobileViewport ? 'mt-4 px-5 py-2.5 text-sm' : 'mt-8 px-12 py-4 text-xl'}`}>
                                     Close Results
                                 </button>
                             </div>
