@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 
 interface MillionaireGameProps {
     game: GeneratedGame;
@@ -46,6 +46,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [showQuitConfirm, setShowQuitConfirm] = useState(false);
 
     // Sanity check for questions
     const questions = game.questions || [];
@@ -369,7 +370,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
             {gameState === 'intro' && (
                 <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-b from-indigo-950 to-black z-30">
                     <div className="absolute top-4 left-4 z-40 pointer-events-auto">
-                        <button onClick={onBack} className="text-slate-400 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20 flex items-center gap-2 px-4">
+                        <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20 flex items-center gap-2 px-4">
                             <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">Back</span>
                         </button>
                     </div>
@@ -456,7 +457,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 <div className={`relative z-10 flex flex-wrap md:flex-nowrap justify-between items-center bg-gradient-to-b from-black via-black/80 to-transparent shrink-0 w-full transition-all duration-300 ${isMobileViewport ? 'px-2 py-2 gap-2' : 'p-4 gap-4'} ${isFullscreen ? 'pt-8 pb-8' : ''}`}>
                     {/* Back Button */}
                     <div className="flex items-center gap-4 w-auto shrink-0 order-1">
-                        <button onClick={onBack} className={`text-slate-400 hover:text-white transition-colors bg-white/10 rounded-full hover:bg-white/20 flex items-center gap-2 ${isMobileViewport ? 'p-2' : 'p-2 px-4'}`}>
+                        <button onClick={() => setShowQuitConfirm(true)} className={`text-slate-400 hover:text-white transition-colors bg-white/10 rounded-full hover:bg-white/20 flex items-center gap-2 ${isMobileViewport ? 'p-2' : 'p-2 px-4'}`}>
                             <ArrowLeft size={isMobileViewport ? 18 : 24} /> <span className="font-bold hidden md:inline">Back</span>
                         </button>
                     </div>
@@ -694,6 +695,31 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                 </button>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Quit Confirmation Modal */}
+            {showQuitConfirm && (
+                <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
+                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setShowQuitConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { setShowQuitConfirm(false); onBack(); }}
+                                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                                Quit
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Trophy, Target, FileQuestion, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Trophy, Target, FileQuestion, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface DartsGameProps {
     game: GeneratedGame;
@@ -463,11 +463,11 @@ const AnimatedScore: React.FC<{ score: number, is301: boolean }> = ({ score, is3
 
     return (
         <div className="relative">
-            <div className="text-5xl font-black font-mono leading-none tracking-tight transition-all">
+            <div className="text-xl sm:text-5xl font-black font-mono leading-none tracking-tight transition-all">
                 {displayScore}
             </div>
             {diff !== 0 && (
-                <div className={`absolute -top-8 left-1/2 -translate-x-1/2 font-bold text-xl animate-bounce
+                <div className={`absolute -top-5 sm:-top-8 left-1/2 -translate-x-1/2 font-bold text-xs sm:text-xl animate-bounce
                     ${(is301 && diff < 0) || (!is301 && diff > 0) ? 'text-green-500' : 'text-red-500'}`}>
                     {diff > 0 ? '+' : ''}{diff}
                 </div>
@@ -499,7 +499,19 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const boardAreaRef = useRef<HTMLDivElement>(null);
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [showAimOverlay, setShowAimOverlay] = useState(true);
+    const [boardSize, setBoardSize] = useState<number | null>(null);
+    const [boardOffsetY, setBoardOffsetY] = useState(0);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLDivElement>(null);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
+    const answerWrapRef = useRef<HTMLDivElement>(null);
+    const answerTextRef = useRef<HTMLDivElement>(null);
+    const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
+    const [resizeTick, setResizeTick] = useState(0);
     
     // NEW: Track total turns played to prevent infinite loop in High Score mode
     const [turnsPlayed, setTurnsPlayed] = useState(0);
@@ -812,24 +824,130 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         }
     };
 
-    const getFontSizeClass = (text: string) => {
+    const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        // Adjusted sizes to be more conservative and prevent scrolling
-        if (len < 20) return 'text-6xl md:text-8xl'; 
-        if (len < 60) return 'text-5xl md:text-7xl';
-        if (len < 120) return 'text-4xl md:text-6xl';
-        if (len < 200) return 'text-3xl md:text-5xl';
-        return 'text-2xl md:text-4xl';
+        if (len < 30) return 'text-3xl sm:text-5xl md:text-7xl';
+        if (len < 60) return 'text-2xl sm:text-4xl md:text-6xl';
+        if (len < 110) return 'text-xl sm:text-3xl md:text-5xl';
+        if (len < 180) return 'text-lg sm:text-2xl md:text-4xl';
+        if (len < 260) return 'text-base sm:text-xl md:text-3xl';
+        if (len < 360) return 'text-sm sm:text-lg md:text-2xl';
+        return 'text-xs sm:text-base md:text-xl';
+    };
+
+    const getAnswerFontSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 30) return 'text-3xl sm:text-5xl md:text-7xl';
+        if (len < 70) return 'text-2xl sm:text-4xl md:text-6xl';
+        if (len < 130) return 'text-xl sm:text-3xl md:text-5xl';
+        if (len < 200) return 'text-lg sm:text-2xl md:text-4xl';
+        if (len < 300) return 'text-base sm:text-xl md:text-3xl';
+        if (len < 420) return 'text-sm sm:text-lg md:text-2xl';
+        return 'text-xs sm:text-base md:text-xl';
     };
 
     const getOptionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (len < 20) return 'text-3xl md:text-5xl';
-        if (len < 35) return 'text-2xl md:text-4xl';
-        return 'text-lg md:text-2xl';
+        if (len < 20) return 'text-lg sm:text-2xl md:text-5xl';
+        if (len < 35) return 'text-base sm:text-xl md:text-4xl';
+        if (len < 60) return 'text-sm sm:text-lg md:text-3xl';
+        return 'text-xs sm:text-base md:text-2xl';
+    };
+
+    const getMobileOptionFontSize = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 12) return 20;
+        if (len < 20) return 18;
+        if (len < 30) return 16;
+        if (len < 40) return 15;
+        return 14;
     };
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setResizeTick(prev => prev + 1);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (phase === 'aim') {
+            setShowAimOverlay(true);
+        }
+    }, [phase, currentTeam]);
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || phase !== 'question' || isFlipped) {
+            setQuestionFontSize(null);
+            return;
+        }
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(54, Math.max(30, Math.floor(window.innerWidth / 8)));
+        const minSize = 16;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setQuestionFontSize(size);
+    }, [isMobileViewport, phase, isFlipped, currentQuestion?.question, currentQuestion?.options?.length, resizeTick]);
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || phase !== 'question' || !isFlipped) {
+            setAnswerFontSize(null);
+            return;
+        }
+        const wrap = answerWrapRef.current;
+        const textEl = answerTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
+        const minSize = 16;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setAnswerFontSize(size);
+    }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick]);
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport) {
+            setBoardSize(null);
+            return;
+        }
+        const el = boardAreaRef.current;
+        if (!el) return;
+        const updateSize = () => {
+            const rect = el.getBoundingClientRect();
+            const padding = 16;
+            const size = Math.max(0, Math.min(rect.width, rect.height) - padding);
+            setBoardSize(prev => (prev && Math.abs(prev - size) < 1 ? prev : size));
+            setBoardOffsetY(0);
+        };
+        updateSize();
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [isMobileViewport, resizeTick]);
 
     // Helper to determine winner name
     const getWinnerName = () => {
@@ -848,88 +966,158 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
-            <div className="bg-white p-4 shrink-0 z-[50] shadow-sm flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
-                <div className="flex flex-col items-start gap-2 min-w-[140px]">
-                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"><ArrowLeft size={16} className="mr-2" /> Quit</button>
-                    <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
-                    
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
-                            {is301 ? '301 Mode' : 'High Score'}
-                        </span>
-                        {!is301 && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-600 px-2 py-1 rounded flex items-center">
-                                <FileQuestion size={10} className="mr-1" />
-                                Q: {turnsPlayed}/{targetQuestionCount}
-                            </span>
-                        )}
-                        {currentQuestion && (
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex items-center
-                                ${currentQuestion.difficulty === 'hard' ? 'bg-red-100 text-red-600' : 
-                                  currentQuestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
-                                  'bg-green-100 text-green-600'}`}>
-                                {currentQuestion.difficulty || 'Easy'}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 h-full items-center">
-                    {scores.map((score, idx) => (
-                        <button key={idx} onClick={() => openEditTeam(idx)} className={`px-6 py-3 rounded-xl text-center transition-all border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-sm ${currentTeam === idx ? 'bg-brand-blue border-sky-600 text-white shadow-lg scale-110 ring-4 ring-sky-100 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}>
-                            <div className="text-lg uppercase font-bold tracking-wider truncate max-w-[130px] mb-1 flex items-center gap-1">
-                                {teamNames[idx]}
-                                {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
-                            </div>
-                            <AnimatedScore score={score} is301={is301} />
-                            <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></div>
+            <div className="bg-white p-2 sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-200 relative min-h-[70px] sm:min-h-[140px]">
+                <div className="flex w-full items-center gap-3 sm:gap-4">
+                    <div className="flex flex-col items-start gap-2 min-w-[64px]">
+                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200">
+                            <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
-                    ))}
-                </div>
-                <div className="flex items-center justify-end min-w-[140px] gap-2">
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
-                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}</button>
+                        <button
+                            onClick={() => setShowQuitConfirm(true)}
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Quit"
+                        >
+                            <XIcon size={18} />
+                        </button>
+                        <button
+                            onClick={() => setIsMuted(!isMuted)}
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                        </button>
+                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                        
+                        <div className="hidden sm:flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
+                                {is301 ? '301 Mode' : 'High Score'}
+                            </span>
+                            {!is301 && (
+                                <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-600 px-2 py-1 rounded flex items-center">
+                                    <FileQuestion size={10} className="mr-1" />
+                                    Q: {turnsPlayed}/{targetQuestionCount}
+                                </span>
+                            )}
+                            {currentQuestion && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded flex items-center
+                                    ${currentQuestion.difficulty === 'hard' ? 'bg-red-100 text-red-600' : 
+                                      currentQuestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                      'bg-green-100 text-green-600'}`}>
+                                    {currentQuestion.difficulty || 'Easy'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center">
+                        {scores.map((score, idx) => (
+                            <button key={idx} onClick={() => openEditTeam(idx)} className={`px-2 py-1 sm:px-6 sm:py-3 rounded-xl text-center transition-all border-b-4 min-w-[86px] sm:min-w-[150px] relative group h-12 sm:h-28 flex flex-col justify-center items-center shadow-sm ${currentTeam === idx ? 'bg-brand-blue border-sky-600 text-white shadow-lg ring-2 sm:ring-4 ring-sky-100 sm:scale-110 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}>
+                                <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-[90px] sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
+                                    {teamNames[idx]}
+                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
+                                </div>
+                                <AnimatedScore score={score} is301={is301} />
+                                <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></div>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="hidden sm:flex items-center justify-end min-w-[140px] gap-2">
+                        <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
+                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}</button>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex-grow relative cursor-crosshair bg-[#fdf6e3] overflow-hidden min-h-0">
-                <div className="absolute inset-0">
-                    <Canvas camera={{ position: [0, 0, 28], fov: 45 }} shadows style={{ width: '100%', height: '100%' }}>
-                        <color attach="background" args={['#fdf6e3']} />
-                        <Suspense fallback={null}>
-                            <DartboardScene 
-                                onHover={handleBoardHover} 
-                                onClick={handleBoardClick}
-                                darts={darts}
-                                isAiming={phase === 'aim'}
-                                hoverData={hoverData}
-                                onDartLand={handleDartLand}
-                            />
-                        </Suspense>
-                    </Canvas>
+            <div ref={boardAreaRef} className="flex-grow relative cursor-crosshair bg-[#fdf6e3] overflow-hidden min-h-0">
+                <div className="absolute inset-0 flex items-center justify-center">
+                    {isMobileViewport ? (
+                        <div
+                            style={boardSize ? {
+                                width: `${boardSize}px`,
+                                height: `${boardSize}px`,
+                                transform: `translateY(-${boardOffsetY}px)`
+                            } : undefined}
+                        >
+                            <Canvas camera={{ position: [0, 0, 20], fov: 54 }} shadows style={{ width: '100%', height: '100%' }}>
+                                <color attach="background" args={['#fdf6e3']} />
+                                <Suspense fallback={null}>
+                                    <DartboardScene 
+                                        onHover={handleBoardHover} 
+                                        onClick={handleBoardClick}
+                                        darts={darts}
+                                        isAiming={phase === 'aim'}
+                                        hoverData={hoverData}
+                                        onDartLand={handleDartLand}
+                                    />
+                                </Suspense>
+                            </Canvas>
+                        </div>
+                    ) : (
+                        <div className="w-full h-full">
+                            <Canvas camera={{ position: [0, 0, 28], fov: 45 }} shadows style={{ width: '100%', height: '100%' }}>
+                                <color attach="background" args={['#fdf6e3']} />
+                                <Suspense fallback={null}>
+                                    <DartboardScene 
+                                        onHover={handleBoardHover} 
+                                        onClick={handleBoardClick}
+                                        darts={darts}
+                                        isAiming={phase === 'aim'}
+                                        hoverData={hoverData}
+                                        onDartLand={handleDartLand}
+                                    />
+                                </Suspense>
+                            </Canvas>
+                        </div>
+                    )}
                 </div>
 
                 {phase === 'aim' && !hoverData && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 bg-black/40 backdrop-blur-[2px] animate-fade-in">
-                        <div className="bg-white/10 backdrop-blur-md p-10 rounded-3xl border-4 border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center animate-bounce-slow">
-                            <Target size={80} className="text-brand-yellow mb-4 drop-shadow-lg" />
-                            <div className="text-white text-6xl font-display font-black mb-2 drop-shadow-xl uppercase tracking-wider text-center" style={{ textShadow: '0 4px 0 #000' }}>
-                                {teamNames[currentTeam]}
+                    isMobileViewport ? (
+                        showAimOverlay && (
+                            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-[520px] pointer-events-none animate-fade-in">
+                                <div className="pointer-events-auto bg-black/60 text-white px-4 py-3 rounded-2xl shadow-lg backdrop-blur-md border border-white/20 flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="font-display font-black text-[clamp(16px,4.2vw,22px)] leading-tight whitespace-normal break-words">
+                                            {teamNames[currentTeam]}'s Turn
+                                        </div>
+                                        <div className="text-[clamp(12px,3.2vw,16px)] text-white/80 leading-tight whitespace-normal break-words">
+                                            {is301 ? `You require ${Math.max(scores[currentTeam], 0)}` : 'Click board to aim'}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowAimOverlay(false)}
+                                        className="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition-colors flex-shrink-0"
+                                        title="Dismiss"
+                                    >
+                                        <XIcon size={16} />
+                                    </button>
+                                </div>
                             </div>
-                            <div className="text-sky-300 font-mono font-bold text-2xl tracking-[0.3em] uppercase bg-black/50 px-6 py-2 rounded-full border border-sky-500/50 shadow-inner">
-                                Your Turn
-                            </div>
-                            <div className="mt-6 text-white/80 font-bold text-lg animate-pulse">
-                                CLICK BOARD TO AIM
+                        )
+                    ) : (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 bg-black/40 backdrop-blur-[2px] animate-fade-in">
+                            <div className="bg-white/10 backdrop-blur-md p-6 sm:p-10 rounded-3xl border-4 border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center animate-bounce-slow">
+                                <Target size={56} className="text-brand-yellow mb-4 drop-shadow-lg sm:w-20 sm:h-20" />
+                                <div className="text-white text-3xl sm:text-6xl font-display font-black mb-2 drop-shadow-xl uppercase tracking-wider text-center" style={{ textShadow: '0 4px 0 #000' }}>
+                                    {teamNames[currentTeam]}
+                                </div>
+                                <div className="text-sky-300 font-mono font-bold text-sm sm:text-2xl tracking-[0.3em] uppercase bg-black/50 px-4 sm:px-6 py-2 rounded-full border border-sky-500/50 shadow-inner">
+                                    Your Turn
+                                </div>
+                                <div className="mt-4 sm:mt-6 text-white/80 font-bold text-sm sm:text-lg animate-pulse">
+                                    CLICK BOARD TO AIM
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )
                 )}
 
                 {phase === 'result' && turnResult && (
-                    <div className="absolute top-1/4 right-10 z-40 pointer-events-none animate-[slide-up_0.3s_ease-out]">
-                        <div className="bg-black/80 backdrop-blur-md p-6 rounded-2xl text-center shadow-2xl border-2 border-white/20 transform rotate-2">
-                            <div className={`text-6xl font-black italic ${turnResult.score > 0 ? 'text-brand-yellow' : 'text-red-500'}`}>{turnResult.text}</div>
-                            <div className="text-white text-3xl font-bold mt-2">
+                    <div className={`absolute z-40 pointer-events-none animate-[slide-up_0.3s_ease-out] ${isMobileViewport ? 'bottom-6 left-1/2 -translate-x-1/2' : 'top-1/4 right-10'}`}>
+                        <div className={`bg-black/80 backdrop-blur-md ${isMobileViewport ? 'p-5 max-w-[90vw]' : 'p-6'} rounded-2xl text-center shadow-2xl border-2 border-white/20 transform rotate-2`}>
+                            <div className={`${isMobileViewport ? 'text-[clamp(22px,7vw,40px)] leading-tight' : 'text-6xl'} font-black italic whitespace-normal break-words ${turnResult.score > 0 ? 'text-brand-yellow' : 'text-red-500'}`}>
+                                {turnResult.text}
+                            </div>
+                            <div className={`${isMobileViewport ? 'text-[clamp(14px,4vw,22px)]' : 'text-3xl'} text-white font-bold mt-2`}>
                                 {is301 
                                     ? (turnResult.score === 0 ? 'Invalid / Bust' : `-${turnResult.score}`)
                                     : (turnResult.score > 0 ? `+${turnResult.score}` : '0')
@@ -941,78 +1129,108 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             </div>
 
             {phase === 'question' && currentQuestion && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px]">
-                    <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(var(--app-vh,1vh)*100-180px)] [perspective:1000px]">
+                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-brand-blue text-white p-4 flex justify-between items-center h-24 flex-shrink-0 relative z-10">
-                                    <div className="font-bold text-2xl opacity-90">{teamNames[currentTeam]}'s Turn</div>
-                                    <div className="bg-white/20 px-4 py-1 rounded-full font-black text-2xl">Target: {lockedTarget?.label}</div>
-                                    <div className="font-bold text-xl opacity-80">{lockedTarget?.points} Points</div>
+                                <div className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                    <div className="font-bold text-sm sm:text-xl opacity-90 truncate max-w-[40%]">{teamNames[currentTeam]}'s Turn</div>
+                                    <div className="bg-white/20 px-3 py-1 rounded-full font-black text-sm sm:text-xl">Target: {lockedTarget?.label}</div>
+                                    <div className="font-bold text-sm sm:text-xl opacity-80 text-right">{lockedTarget?.points} Points</div>
                                 </div>
 
-                                <div className="bg-white flex-grow w-full flex flex-col p-8 relative overflow-hidden z-0">
-                                    <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center w-full min-h-0">
-                                        <div className={`font-display font-bold text-slate-800 leading-tight text-center w-full ${getFontSizeClass(currentQuestion.question)}`}>{currentQuestion.question}</div>
+                                <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
+                                    <div className="flex flex-col flex-1 min-h-0">
+                                        <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                            <div
+                                                ref={questionTextRef}
+                                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                            >
+                                                {currentQuestion.question}
+                                            </div>
+                                        </div>
+                                        {hasOptions && !isFlipped && (
+                                            <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                    {(() => {
+                                                        const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
+                                                        const uniformSize = getOptionFontSizeClass(longestText);
+                                                        const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
+                                                        return currentQuestion.options!.map((opt, i) => (
+                                                            <button 
+                                                                key={i}
+                                                                onClick={() => {
+                                                                    const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
+                                                                    const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                    setMcResult(isCorrect ? 'correct' : 'incorrect');
+                                                                    setIsFlipped(true);
+                                                                }}
+                                                                style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-words hyphens-none`}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    {hasOptions && !isFlipped && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl mt-6 flex-shrink-0 relative z-10">
-                                            {(() => {
-                                                const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
-                                                const uniformSize = getOptionFontSizeClass(longestText);
-                                                return currentQuestion.options!.map((opt, i) => (
-                                                    <button key={i} onClick={() => {
-                                                            const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
-                                                            const isCorrect = clean(opt) === clean(currentQuestion.answer);
-                                                            setMcResult(isCorrect ? 'correct' : 'incorrect');
-                                                            setIsFlipped(true);
-                                                        }} className={`p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[80px] ${uniformSize}`}>{opt}</button>
-                                                ));
-                                            })()}
-                                        </div>
-                                    )}
                                 </div>
 
-                                <div className={`h-24 flex items-center justify-between px-8 relative flex-shrink-0 z-50 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
-                                    {options.timerSeconds > 0 && timeLeft > 0 && !isTimesUp && (
-                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-start pointer-events-none">
-                                            <div className="h-full bg-white/20 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
-                                        </div>
-                                    )}
-                                    {!hasOptions && (
-                                        <button onClick={() => setIsFlipped(true)} className="bg-white text-brand-blue px-10 py-3 rounded-full font-bold text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-white">Check Answer</button>
-                                    )}
+                                <div className={`h-[clamp(88px,14vh,120px)] flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative flex-shrink-0 z-50 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
                                     {options.timerSeconds > 0 && (
-                                        <div className="text-white font-mono font-bold text-4xl opacity-90 flex items-center pointer-events-none absolute left-1/2 -translate-x-1/2">
-                                            {isTimesUp ? <span className="animate-pulse font-black drop-shadow-md">TIME'S UP!</span> : <><Clock size={32} className="mr-3" /> {timeLeft}</>}
+                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-black/10 flex items-center justify-start pointer-events-none">
+                                            {!isTimesUp && (
+                                                <div className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white tracking-wider">
+                                                {isTimesUp ? "TIME'S UP!" : (
+                                                    <><Clock size={12} className="mr-1" /> {timeLeft}s</>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
+                                    <div className="w-full flex-1 flex items-center justify-center py-3">
+                                        {!hasOptions && (
+                                            <button onClick={() => setIsFlipped(true)} className="bg-white text-brand-blue px-6 sm:px-10 py-2 rounded-full font-bold text-base sm:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-white">Check Answer</button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-slate-200 text-slate-600 p-4 flex justify-between items-center h-24 flex-shrink-0 relative z-10">
-                                    <div className="font-bold text-2xl opacity-80">Answer</div>
-                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500" title="Flip Back"><RotateCcw size={24} /></button>
+                                <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                    <div className="font-bold text-sm sm:text-xl opacity-80">Answer</div>
+                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500" title="Flip Back"><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
                                 </div>
 
-                                <div className="flex-grow flex flex-col items-center justify-center p-8 bg-white text-center overflow-hidden w-full relative z-0">
-                                    {hasOptions && mcResult && (
-                                        <div className="animate-bounce mb-8">
-                                            {mcResult === 'correct' ? <div className="text-6xl font-black text-green-500 uppercase">Correct!</div> : <div className="text-6xl font-black text-red-500 uppercase">Incorrect</div>}
+                                <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-center overflow-hidden w-full relative z-0">
+                                    <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                        {hasOptions && mcResult && (
+                                            <div className="animate-bounce mb-4 sm:mb-8">
+                                                {mcResult === 'correct' ? <div className="text-3xl sm:text-6xl font-black text-green-500 uppercase">Correct!</div> : <div className="text-3xl sm:text-6xl font-black text-red-500 uppercase">Incorrect</div>}
+                                            </div>
+                                        )}
+                                        <div
+                                            ref={answerTextRef}
+                                            style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
+                                            className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}
+                                        >
+                                            {currentQuestion.answer}
                                         </div>
-                                    )}
-                                    <div className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap ${getFontSizeClass(currentQuestion.answer)}`}>{currentQuestion.answer}</div>
+                                    </div>
                                 </div>
 
-                                <div className="h-24 flex gap-0 flex-shrink-0 relative z-50">
+                                <div className="h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex gap-0 flex-shrink-0 relative z-50">
                                     {hasOptions ? (
-                                        <button onClick={() => handleThrow(mcResult === 'correct')} className={`flex-1 text-white font-bold text-2xl transition-colors flex items-center justify-center ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>Throw Dart</button>
+                                        <button onClick={() => handleThrow(mcResult === 'correct')} className={`flex-1 text-white font-bold text-base sm:text-2xl transition-colors flex items-center justify-center ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>Throw Dart</button>
                                     ) : (
                                         <>
-                                            <button onClick={() => handleThrow(false)} className="flex-1 bg-red-500 text-white font-bold text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0"><XIcon size={32} className="mr-3" /> Miss</button>
-                                            <button onClick={() => handleThrow(true)} className="flex-1 bg-green-500 text-white font-bold text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0"><Check size={32} className="mr-3" /> Hit!</button>
+                                            <button onClick={() => handleThrow(false)} className="flex-1 bg-red-500 text-white font-bold text-base sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0"><XIcon size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Miss</button>
+                                            <button onClick={() => handleThrow(true)} className="flex-1 bg-green-500 text-white font-bold text-base sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0"><Check size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Hit!</button>
                                         </>
                                     )}
                                 </div>
@@ -1053,6 +1271,30 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 <RefreshCw size={24} className="mr-2" /> Play Again
                             </button>
                             <button onClick={onFinish} className="px-10 py-5 bg-slate-800 text-white rounded-full font-bold text-2xl hover:bg-slate-700 transition-colors border-2 border-slate-600">Exit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showQuitConfirm && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
+                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <div className="flex space-x-4">
+                            <button 
+                                onClick={() => setShowQuitConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => { setShowQuitConfirm(false); onBack(); }}
+                                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                                Quit
+                            </button>
                         </div>
                     </div>
                 </div>

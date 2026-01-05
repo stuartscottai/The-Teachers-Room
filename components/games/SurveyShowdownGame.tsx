@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Trophy, RefreshCw, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Trophy, RefreshCw, Plus, Minus, AlertTriangle } from 'lucide-react';
 
 interface SurveyShowdownGameProps {
     game: GeneratedGame;
@@ -76,6 +76,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     
     const [phase, setPhase] = useState<'play' | 'gameover'>('play');
     
@@ -469,11 +470,11 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             <div className="bg-slate-800/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[56px] sm:min-h-[140px]">
                 <div className="flex w-full items-center gap-2 sm:gap-4">
                     <div className="flex flex-col items-start gap-1 min-w-[52px]">
-                        <button onClick={onBack} className="hidden sm:flex bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
+                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
-                            onClick={onBack}
+                            onClick={() => setShowQuitConfirm(true)}
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
                             title="Quit"
                         >
@@ -745,6 +746,31 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md"
                             >
                                 Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quit Confirmation Modal */}
+            {showQuitConfirm && (
+                <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
+                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <div className="flex space-x-4">
+                            <button 
+                                onClick={() => setShowQuitConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => { setShowQuitConfirm(false); onBack(); }}
+                                className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
+                            >
+                                Quit
                             </button>
                         </div>
                     </div>
