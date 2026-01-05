@@ -322,7 +322,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     }
 
     return (
-        <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative text-white font-sans`}>
+        <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER */}
             <div className="bg-slate-900/90 backdrop-blur-md p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[180px] shadow-2xl relative overflow-visible">

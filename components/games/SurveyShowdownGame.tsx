@@ -463,7 +463,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
     return (
         // MAIN CONTAINER: Fixed Height, No Scroll on Body
-        <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative text-white font-sans`}>
+        <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER / SCOREBOARD (Increased Height to match Trivia) */}
             <div className="bg-slate-800/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[56px] sm:min-h-[140px]">

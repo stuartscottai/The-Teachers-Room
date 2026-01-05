@@ -635,7 +635,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     }
 
     return (
-        <div ref={containerRef} className={`bg-stone-100 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative`}>
+        <div ref={containerRef} className={`bg-stone-100 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             <style>
                 {`
                 @keyframes bonus-pulse {

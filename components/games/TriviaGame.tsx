@@ -754,7 +754,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     }
 
     return (
-        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
             <style>
                 {`
                 @keyframes bonus-pulse {

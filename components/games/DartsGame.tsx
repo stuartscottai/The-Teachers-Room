@@ -846,7 +846,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     };
 
     return (
-        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} overflow-hidden relative`}>
+        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
             <div className="bg-white p-4 shrink-0 z-[50] shadow-sm flex justify-between items-center gap-4 min-h-[140px] border-b border-slate-200 relative">
                 <div className="flex flex-col items-start gap-2 min-w-[140px]">
@@ -942,7 +942,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
             {phase === 'question' && currentQuestion && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 animate-fade-in pt-[150px]">
-                    <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(100vh-180px)] [perspective:1000px]">
+                    <div className="w-full max-w-6xl aspect-[16/9] max-h-[calc(var(--app-vh,1vh)*100-180px)] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>

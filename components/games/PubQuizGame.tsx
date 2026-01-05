@@ -507,8 +507,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const containerHeightClass = isFullscreen
         ? 'h-screen'
         : phase === 'home'
-            ? 'min-h-[calc(100vh-4rem)]'
-            : 'h-[calc(100vh-4rem)]';
+            ? 'min-h-[calc(var(--app-vh,1vh)*100-4rem)]'
+            : 'h-[calc(var(--app-vh,1vh)*100-4rem)]';
 
     return (
         <div ref={containerRef} className={`bg-slate-800 flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`}>

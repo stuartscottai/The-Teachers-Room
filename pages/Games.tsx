@@ -976,6 +976,23 @@ export const Games: React.FC = () => {
         setIsDirty(true);
     };
 
+    useEffect(() => {
+        if (step === 'play') {
+            document.body.classList.add('gameplay-active');
+        } else {
+            document.body.classList.remove('gameplay-active');
+        }
+        return () => {
+            document.body.classList.remove('gameplay-active');
+        };
+    }, [step]);
+
+    useEffect(() => {
+        if (step === 'setup' || step === 'play') {
+            window.scrollTo(0, 0);
+        }
+    }, [step]);
+
     return (
         <div className="min-h-screen bg-slate-50">
             {step === 'hub' && (

@@ -368,7 +368,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
             {/* INTRO SCREEN */}
             {gameState === 'intro' && (
                 <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-b from-indigo-950 to-black z-30">
-                    <div className="absolute top-4 left-4">
+                    <div className="absolute top-4 left-4 z-40 pointer-events-auto">
                         <button onClick={onBack} className="text-slate-400 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20 flex items-center gap-2 px-4">
                             <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">Back</span>
                         </button>
