@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, Trophy, RefreshCw, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull } from 'lucide-react';
@@ -42,10 +42,19 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const timerRef = useRef<any>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [showExplosionModal, setShowExplosionModal] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLHeadingElement>(null);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
+    const answerWrapRef = useRef<HTMLDivElement>(null);
+    const answerTextRef = useRef<HTMLHeadingElement>(null);
+    const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
+    const [resizeTick, setResizeTick] = useState(0);
 
     // Fuse Ref for Spark Calculation
     const fusePathRef = useRef<SVGPathElement>(null);
-    const [sparkPos, setSparkPos] = useState({ x: 160, y: 10 }); // Default start pos matches SVG path start
+    const mobileFusePathRef = useRef<SVGPathElement>(null);
+    const [sparkPos, setSparkPos] = useState({ x: 340, y: 60 }); // Default start pos for mobile fuse path
 
     // Initial Question Setup
     const currentQuestion = questions[currentQuestionIndex];
@@ -55,6 +64,20 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     useEffect(() => {
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = ''; };
+    }, []);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => setResizeTick(prev => prev + 1);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     // Fullscreen Handling
@@ -119,16 +142,16 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     // Spark Position Logic (Follows Fuse)
     useEffect(() => {
-        if (fusePathRef.current && bombTime > 0) {
+        const activeFuseRef = isMobileViewport ? mobileFusePathRef : fusePathRef;
+        if (activeFuseRef.current && bombTime > 0) {
             const max = options.bombDuration || 60;
-            const length = fusePathRef.current.getTotalLength();
-            // Adjust ratio to match visual fuse length
+            const length = activeFuseRef.current.getTotalLength();
             const ratio = Math.max(0, Math.min(1, bombTime / max));
-            const point = fusePathRef.current.getPointAtLength(length * ratio);
+            const point = activeFuseRef.current.getPointAtLength(length * ratio);
             
             setSparkPos({ x: point.x, y: point.y });
         }
-    }, [bombTime, options.bombDuration]);
+    }, [bombTime, options.bombDuration, isMobileViewport]);
 
     const checkElimination = () => {
         setTeamLives(currentLives => {
@@ -298,6 +321,59 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         return 'text-base md:text-lg';
     };
 
+    const getMobileOptionFontSize = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 12) return 18;
+        if (len < 20) return 16;
+        if (len < 30) return 14;
+        if (len < 40) return 13;
+        return 12;
+    };
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || !currentQuestion || isFlipped || gameState !== 'play') {
+            setQuestionFontSize(null);
+            return;
+        }
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(38, Math.max(20, Math.floor(window.innerWidth / 9)));
+        const minSize = 12;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setQuestionFontSize(size);
+    }, [isMobileViewport, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, gameState, resizeTick]);
+
+    useLayoutEffect(() => {
+        if (!isMobileViewport || !currentQuestion || !isFlipped || gameState !== 'play') {
+            setAnswerFontSize(null);
+            return;
+        }
+        const wrap = answerWrapRef.current;
+        const textEl = answerTextRef.current;
+        if (!wrap || !textEl) return;
+        const availableHeight = wrap.clientHeight;
+        if (availableHeight === 0) return;
+        const maxSize = Math.min(36, Math.max(20, Math.floor(window.innerWidth / 9.2)));
+        const minSize = 12;
+        let size = maxSize;
+        textEl.style.lineHeight = '1.15';
+        textEl.style.fontSize = `${size}px`;
+        while (textEl.scrollHeight > availableHeight && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setAnswerFontSize(size);
+    }, [isMobileViewport, currentQuestion?.answer, isFlipped, gameState, resizeTick]);
+
     if (gameState === 'gameover') {
         const winnerIndex = teamLives.findIndex(l => l > 0);
         const winnerName = winnerIndex !== -1 ? teamNames[winnerIndex] : "Everyone Exploded!";
@@ -325,8 +401,26 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER */}
-            <div className="bg-slate-900/90 backdrop-blur-md p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[180px] shadow-2xl relative overflow-visible">
-                <div className="flex flex-col items-start gap-2 min-w-[140px]">
+            <div className="bg-slate-900/90 backdrop-blur-md p-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[clamp(64px,10vh,84px)] sm:min-h-[180px] shadow-2xl relative overflow-visible">
+                <div className="flex flex-col items-start gap-1.5 min-w-[40px] sm:hidden">
+                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                        <ArrowLeft size={16} />
+                    </button>
+                    {gameState === 'play' && (
+                        <button 
+                            onClick={() => setIsPaused(!isPaused)} 
+                            className={`text-slate-400 hover:text-white p-2 rounded-lg transition-colors border ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+                            title={isPaused ? "Resume" : "Pause"}
+                        >
+                            {isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
+                        </button>
+                    )}
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700">
+                        {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    </button>
+                </div>
+
+                <div className="hidden sm:flex flex-col items-start gap-2 min-w-[140px]">
                     <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
@@ -334,7 +428,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 </div>
 
                 {/* Team Status Bar */}
-                <div className="flex-1 flex justify-center gap-6 overflow-x-auto no-scrollbar px-4 py-2 h-full items-center">
+                <div className="flex-1 grid grid-cols-3 auto-rows-fr gap-1.5 px-2 py-1 place-items-center sm:flex sm:justify-center sm:gap-6 sm:overflow-x-auto sm:no-scrollbar sm:px-4 sm:py-2 sm:items-center">
                     {teamNames.map((name, idx) => {
                         const isAlive = teamLives[idx] > 0;
                         const isActive = idx === activeTeamIndex;
@@ -342,26 +436,26 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <div 
                                 key={idx} 
                                 className={`
-                                    relative px-6 py-3 rounded-xl border-2 transition-all min-w-[140px] flex flex-col items-center justify-center min-h-[6rem]
+                                    relative w-full min-w-0 px-1.5 py-1.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all min-h-[clamp(40px,6.8vh,58px)] sm:min-h-[6rem] sm:w-auto sm:min-w-[140px] flex flex-col items-center justify-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
-                                      isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] scale-110 z-10 ring-2 ring-yellow-500/50' : 
+                                      isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] scale-105 sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
                                       'border-slate-700 bg-slate-800/80 text-slate-400'}
                                 `}
                             >
-                                <div className="text-xs md:text-sm font-black uppercase tracking-wider leading-tight mb-2 text-center break-words max-w-[140px]">
+                                <div className="text-[clamp(8px,2vw,11px)] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center break-words w-full">
                                     {name}
                                 </div>
-                                <div className="flex gap-1.5">
+                                <div className="flex gap-1">
                                     {Array.from({length: Math.max(0, teamLives[idx])}).map((_, i) => (
-                                        <Heart key={i} size={20} className="fill-red-500 text-red-500 drop-shadow-sm" />
+                                        <Heart key={i} size={isMobileViewport ? 10 : 20} className="fill-red-500 text-red-500 drop-shadow-sm" />
                                     ))}
-                                    {teamLives[idx] === 0 && <span className="text-xs font-bold text-red-900 uppercase">Eliminated</span>}
+                                    {teamLives[idx] === 0 && <span className="text-[10px] sm:text-xs font-bold text-red-900 uppercase">Eliminated</span>}
                                 </div>
                                 
                                 {/* Active Indicator (Center Left) */}
                                 {isActive && isAlive && (
-                                    <div className="absolute -left-3 top-1/2 -translate-y-1/2 bg-yellow-500 text-black p-2 rounded-full animate-bounce shadow-lg border-2 border-black z-20">
-                                        <Zap size={16} className="fill-black" />
+                                    <div className="absolute -left-2 sm:-left-3 top-1/2 -translate-y-1/2 bg-yellow-500 text-black p-1 sm:p-2 rounded-full animate-bounce shadow-lg border-2 border-black z-20">
+                                        <Zap size={isMobileViewport ? 10 : 16} className="fill-black" />
                                     </div>
                                 )}
                             </div>
@@ -369,7 +463,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     })}
                 </div>
 
-                <div className="flex items-center gap-2 min-w-[140px] justify-end">
+                <div className="hidden sm:flex items-center gap-2 min-w-[140px] justify-end">
                     {gameState === 'play' && (
                         <button 
                             onClick={() => setIsPaused(!isPaused)} 
@@ -392,6 +486,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     {!isExploded && <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none"></div>}
                 </div>
 
+                
+
                 {/* INTRO OVERLAY (Centered Full Screen) */}
                 {gameState === 'intro' ? (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
@@ -413,44 +509,58 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 ) : (
                     <>
                         {/* LEFT: QUESTION ZONE (75%) - No Border */}
-                        <div className="flex-1 md:flex-[3] p-4 md:p-6 flex items-center justify-center relative z-10">
+                        <div className="flex-1 min-h-0 md:flex-[3] p-2 sm:p-3 md:p-6 flex items-center justify-center relative z-10">
                             {/* QUESTION CARD */}
                             {!isExploded && gameState === 'play' && (
-                                <div className="w-[85%] max-w-5xl aspect-[16/9] max-h-[60vh] relative [perspective:1000px]">
+                                <div className="w-full max-w-[440px] h-full max-h-full sm:max-w-[600px] sm:h-full sm:max-h-[90vh] md:w-[85%] md:max-w-5xl md:aspect-[16/9] md:h-auto md:max-h-[60vh] relative [perspective:1000px]">
                                     <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
                                         <div className={`absolute inset-0 [backface-visibility:hidden] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                            <div className="bg-indigo-900/50 p-4 border-b border-indigo-800 flex justify-between items-center shrink-0">
-                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-sm">Question</span>
+                                            <div className="bg-indigo-900/50 px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 border-b border-indigo-800 flex justify-between items-center shrink-0">
+                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-[clamp(9px,2vw,12px)] sm:text-sm">Question</span>
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-3 h-3 rounded-full bg-red-600 animate-pulse border border-red-800"></span>
-                                                    <span className="text-indigo-200 font-bold text-xs uppercase">Live Timer</span>
+                                                    <span className="text-indigo-200 font-bold text-[clamp(9px,2vw,12px)] sm:text-xs uppercase">Live Timer</span>
                                                 </div>
                                             </div>
                                             
                                             {/* CONTENT BODY */}
-                                            <div className="flex-1 flex flex-col p-6 md:p-8 text-center overflow-hidden bg-slate-800 relative">
+                                            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-4 md:p-10 text-center overflow-hidden bg-slate-800 relative">
                                                 {/* Question Text Area - Flex-1 to take available space */}
-                                                <div className={`flex-1 flex items-center justify-center w-full ${hasOptions ? 'mb-2' : ''}`}>
-                                                    <h3 className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words break-all ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...", hasOptions)}`}>
+                                                <div
+                                                    ref={questionWrapRef}
+                                                    style={isMobileViewport ? { flex: '1.1 1 0%' } : undefined}
+                                                    className={`flex-1 md:flex-[2] min-h-0 flex items-center justify-center w-full ${hasOptions ? 'mb-2' : ''}`}
+                                                >
+                                                    <h3
+                                                        ref={questionTextRef}
+                                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                        className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...", hasOptions)}`}
+                                                    >
                                                         {currentQuestion?.question || "Loading question..."}
                                                     </h3>
                                                 </div>
 
                                                 {/* MULTIPLE CHOICE GRID - Pushed to bottom */}
                                                 {hasOptions && (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full mt-auto pt-2 shrink-0">
+                                                    <div
+                                                        className="w-full flex-1 md:flex-[3] min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
+                                                        style={isMobileViewport ? { flex: '3.9 1 0%' } : undefined}
+                                                    >
+                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full h-full max-w-5xl auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                             const uniformSize = getOptionFontSizeClass(longestText);
+                                                            const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
                                                             
                                                             return currentQuestion.options!.map((opt, i) => (
                                                                 <button
                                                                     key={i}
                                                                     disabled={disabledOptions.includes(i) || isPaused}
                                                                     onClick={() => handleMCOptionClick(opt, i)}
-                                                                    className={`p-2 rounded-xl border-2 font-bold transition-all min-h-[50px] flex items-center justify-center ${uniformSize}
+                                                                    style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                    className={`p-2 sm:p-3 md:p-4 rounded-xl border-2 font-bold transition-all min-h-[clamp(42px,7.5vh,68px)] sm:min-h-[60px] md:min-h-[80px] flex items-center justify-center h-full whitespace-normal break-words hyphens-none ${uniformSize}
                                                                         ${disabledOptions.includes(i) 
                                                                             ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through' 
                                                                             : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-indigo-600 hover:border-indigo-400 hover:text-white active:scale-95 shadow-sm'}`}
@@ -459,25 +569,26 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                 </button>
                                                             ));
                                                         })()}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
                                             
                                             {/* FOOTER */}
-                                            <div className="p-4 bg-slate-900 border-t border-indigo-900 flex justify-center gap-4 shrink-0">
+                                            <div className="px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 bg-slate-900 border-t border-indigo-900 flex justify-center gap-2 sm:gap-4 shrink-0">
                                                 <button 
                                                     onClick={handlePass}
                                                     disabled={isPaused}
-                                                    className="bg-slate-800 text-slate-300 px-6 py-4 rounded-full font-bold text-lg hover:bg-slate-700 transition-colors flex items-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
+                                                    className="bg-slate-800 text-slate-300 w-[clamp(160px,60%,240px)] sm:w-auto px-4 sm:px-6 py-[clamp(6px,1.8vh,14px)] sm:py-4 rounded-full font-bold text-[clamp(11px,2.4vw,14px)] sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                 >
-                                                    <SkipForward size={20} className="mr-2" /> Skip (-5s)
+                                                    <SkipForward size={14} className="mr-2" /> Skip (-5s)
                                                 </button>
                                                 
                                                 {!hasOptions && (
                                                     <button 
                                                         onClick={() => setIsFlipped(true)}
                                                         disabled={isPaused}
-                                                        className="bg-brand-blue text-white px-10 py-4 rounded-full font-bold text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
+                                                        className="bg-brand-blue text-white px-6 sm:px-10 py-2.5 sm:py-4 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                     >
                                                         Reveal Answer
                                                     </button>
@@ -487,35 +598,39 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
                                         {/* BACK: ANSWER & SCORING */}
                                         <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                            <div className="bg-indigo-900/50 p-4 border-b border-indigo-800 flex justify-between items-center">
-                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-sm">Answer</span>
+                                            <div className="bg-indigo-900/50 p-3 sm:p-4 border-b border-indigo-800 flex justify-between items-center">
+                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-[10px] sm:text-sm">Answer</span>
                                                 <button onClick={() => setIsFlipped(false)} className="p-2 bg-indigo-800 rounded-full text-indigo-200 hover:text-white transition-colors" title="Flip Back">
                                                     <RotateCcw size={20} />
                                                 </button>
                                             </div>
                                             
-                                            <div className="flex-1 flex items-center justify-center p-8 text-center overflow-hidden bg-slate-800">
-                                                <h3 className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words break-all ${getAnswerFontSizeClass(currentQuestion?.answer || "")}`}>
+                                            <div ref={answerWrapRef} className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 md:p-8 text-center overflow-hidden bg-slate-800">
+                                                <h3
+                                                    ref={answerTextRef}
+                                                    style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion?.answer || "")}`}
+                                                >
                                                     {currentQuestion?.answer}
                                                 </h3>
                                             </div>
                                             
-                                            <div className="p-6 bg-slate-900 border-t border-indigo-900 grid grid-cols-2 gap-4">
+                                            <div className="p-3 sm:p-4 md:p-6 bg-slate-900 border-t border-indigo-900 grid grid-cols-2 gap-2 sm:gap-4">
                                                 <button 
                                                     onClick={handleIncorrect}
                                                     disabled={isPaused}
-                                                    className="bg-red-600 text-white font-bold text-lg md:text-xl rounded-xl py-4 hover:bg-red-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-red-800 active:border-b-0 active:translate-y-1 group disabled:opacity-50"
+                                                    className="bg-red-600 text-white font-bold text-sm sm:text-lg md:text-xl rounded-xl py-2.5 sm:py-4 hover:bg-red-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-red-800 active:border-b-0 active:translate-y-1 group disabled:opacity-50"
                                                 >
-                                                    <XCircle size={28} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
+                                                    <XCircle size={20} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
                                                     <span>Wrong <span className="text-red-200 text-sm block md:inline">(-10s)</span></span>
                                                 </button>
 
                                                 <button 
                                                     onClick={handleCorrect}
                                                     disabled={isPaused}
-                                                    className="bg-green-600 text-white font-bold text-lg md:text-xl rounded-xl py-4 hover:bg-green-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-green-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(22,163,74,0.4)] group disabled:opacity-50"
+                                                    className="bg-green-600 text-white font-bold text-sm sm:text-lg md:text-xl rounded-xl py-2.5 sm:py-4 hover:bg-green-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-green-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(22,163,74,0.4)] group disabled:opacity-50"
                                                 >
-                                                    <CheckCircle size={28} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
+                                                    <CheckCircle size={20} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
                                                     <span>Correct <span className="text-green-200 text-sm block md:inline">(Pass)</span></span>
                                                 </button>
                                             </div>
@@ -526,22 +641,82 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                         </div>
 
                         {/* RIGHT: BOMB ZONE (25%) - No Border, adjusted padding */}
-                        <div className="flex-1 md:flex-1 p-4 flex items-center justify-center relative z-10 bg-black/20">
+                        <div className={`p-2 sm:p-4 flex relative z-10 bg-black/20 ${isMobileViewport ? 'items-end justify-end flex-none h-[20vh] w-full' : 'items-center justify-center flex-1'}`}>
                             {(gameState === 'play' || gameState === 'exploded') && (
-                                <div className="relative flex-shrink-0 transition-all duration-300" style={{ transform: `scale(${getBombScale()})` }}>
+                                <div className={`relative flex-shrink-0 transition-all duration-300 ${isMobileViewport ? 'mb-2 mr-2' : ''}`} style={{ transform: `scale(${getBombScale()})`, ...(isMobileViewport ? { width: '100%', height: '100%' } : {}) }}>
                                     {isExploded ? (
-                                        <g className="animate-pulse origin-center" style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
-                                            <svg width="300" height="300" viewBox="0 0 200 200" overflow="visible" className="w-full h-auto max-w-[300px]">
-                                                <path 
-                                                    d="M100,10 L125,70 L190,60 L145,110 L180,170 L120,150 L100,200 L80,150 L20,170 L55,110 L10,60 L75,70 Z" 
-                                                    fill="#fef2f2" 
-                                                    stroke="#ef4444" 
-                                                    strokeWidth="6" 
-                                                    className="animate-[pulse_0.2s_ease-in-out_infinite]"
-                                                />
-                                                <text x="100" y="125" textAnchor="middle" fill="#ef4444" fontSize="50" fontFamily="sans-serif" fontWeight="900">BOOM!</text>
-                                            </svg>
-                                        </g>
+                                        <svg width="300" height="300" viewBox="0 0 200 200" overflow="visible" className="w-full h-full animate-pulse origin-center">
+                                            <path 
+                                                d="M100,10 L125,70 L190,60 L145,110 L180,170 L120,150 L100,200 L80,150 L20,170 L55,110 L10,60 L75,70 Z" 
+                                                fill="#fef2f2" 
+                                                stroke="#ef4444" 
+                                                strokeWidth="6" 
+                                                className="animate-[pulse_0.2s_ease-in-out_infinite]"
+                                            />
+                                            <text x="100" y="125" textAnchor="middle" fill="#ef4444" fontSize="50" fontFamily="sans-serif" fontWeight="900">BOOM!</text>
+                                        </svg>
+                                    ) : isMobileViewport ? (
+                                        <svg width="300" height="350" viewBox="0 0 400 200" overflow="visible" className="w-full h-full">
+                                            <defs>
+                                                <radialGradient id="bombBody" cx="35%" cy="35%" r="65%">
+                                                    <stop offset="0%" stopColor="#64748b" />
+                                                    <stop offset="40%" stopColor="#1e293b" />
+                                                    <stop offset="100%" stopColor="#020617" />
+                                                </radialGradient>
+                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feGaussianBlur stdDeviation="4" result="blur" />
+                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                                </filter>
+                                            </defs>
+
+                                            <path ref={mobileFusePathRef} d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" fill="none" stroke="none" />
+                                            <path d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" fill="none" stroke="#713f12" strokeWidth="6" strokeLinecap="round" />
+                                            <path 
+                                                d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" 
+                                                fill="none" 
+                                                stroke="#fbbf24" 
+                                                strokeWidth="4" 
+                                                strokeLinecap="round"
+                                                strokeDasharray={mobileFusePathRef.current?.getTotalLength() || 100}
+                                                strokeDashoffset={(mobileFusePathRef.current?.getTotalLength() || 100) * (1 - (bombTime / (options.bombDuration || 60)))}
+                                                className="transition-all duration-100 ease-linear"
+                                                filter="url(#glow)"
+                                            />
+                                            {isTicking && !isPaused && (
+                                                <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
+                                                    <circle r="6" fill="#fef08a" className="animate-ping" opacity="0.8" />
+                                                    <circle r="4" fill="#fff" />
+                                                    <path 
+                                                        d="M-6,0 L6,0 M0,-6 L0,6 M-4,-4 L4,4 M-4,4 L4,-4" 
+                                                        stroke="#fbbf24" 
+                                                        strokeWidth="1.5" 
+                                                        className="animate-spin" 
+                                                        style={{ animationDuration: '1s', transformBox: 'fill-box', transformOrigin: 'center' }} 
+                                                    />
+                                                </g>
+                                            )}
+
+                                            <rect x="330" y="80" width="18" height="12" rx="4" fill="#334155" stroke="#1e293b" strokeWidth="2" />
+                                            <path d="M339 80 L339 72" stroke="#1e293b" strokeWidth="4" strokeLinecap="round" />
+                                            <path d="M339 80 L339 72" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
+                                            <circle cx="340" cy="125" r="45" fill="url(#bombBody)" stroke="#000" strokeWidth="2" />
+                                            <ellipse cx="322" cy="110" rx="14" ry="7" fill="rgba(255,255,255,0.15)" transform="rotate(-35 322 110)" />
+
+                                            <g transform="translate(340, 130)">
+                                                <text 
+                                                    textAnchor="middle" 
+                                                    fill={getTimerColor()} 
+                                                    fontSize="28" 
+                                                    fontFamily="monospace" 
+                                                    fontWeight="900"
+                                                    dy="10"
+                                                    filter="url(#glow)"
+                                                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
+                                                >
+                                                    {bombTime.toFixed(1)}
+                                                </text>
+                                            </g>
+                                        </svg>
                                     ) : (
                                         <svg width="300" height="350" viewBox="0 0 200 240" overflow="visible" className="w-full h-auto max-w-[300px]">
                                             <defs>
@@ -556,11 +731,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 </filter>
                                             </defs>
 
-                                            {/* FUSE PATH */}
                                             <path ref={fusePathRef} d="M100,60 C100,30 140,40 160,10" fill="none" stroke="none" />
-                                            
                                             <path d="M100,60 C100,30 140,40 160,10" fill="none" stroke="#713f12" strokeWidth="6" strokeLinecap="round" />
-                                            
                                             <path 
                                                 d="M100,60 C100,30 140,40 160,10" 
                                                 fill="none" 
@@ -573,7 +745,6 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 filter="url(#glow)"
                                             />
 
-                                            {/* SPARK PARTICLE */}
                                             {isTicking && !isPaused && (
                                                 <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
                                                     <circle r="8" fill="#fef08a" className="animate-ping" opacity="0.8" />
