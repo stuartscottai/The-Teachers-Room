@@ -50,6 +50,7 @@ const COLORS = {
     green: '#10b981',
     wire: '#94a3b8'
 };
+const CHALK_FONT = '"Schoolbell", "Chalkboard SE", "Chalkboard", "Bradley Hand", "Marker Felt", "Comic Sans MS", "Comic Sans", cursive';
 
 const createDartboardTexture = () => {
     const size = 1024;
@@ -342,17 +343,20 @@ const DartboardScene = ({
     darts, 
     isAiming,
     hoverData,
-    onDartLand
+    onDartLand,
+    wallTexture
 }: { 
     onHover: (data: any, pos: THREE.Vector3) => void, 
     onClick: (data: any) => void,
     darts: DartObject[],
     isAiming: boolean,
     hoverData: any,
-    onDartLand: (dart: DartObject) => void
+    onDartLand: (dart: DartObject) => void,
+    wallTexture?: THREE.Texture
 }) => {
     const texture = useMemo(() => createDartboardTexture(), []);
-    const wallTexture = useMemo(() => createWallTexture(), []);
+    const fallbackWallTexture = useMemo(() => createWallTexture(), []);
+    const wallTextureMap = wallTexture ?? fallbackWallTexture;
     const highlightRef = useRef<THREE.Mesh>(null);
     const lastHoverLabel = useRef<string>("");
     const lastHoverYPositive = useRef<boolean>(true);
@@ -401,7 +405,7 @@ const DartboardScene = ({
 
             <mesh position={[0, 0, -2]}>
                 <planeGeometry args={[100, 100]} />
-                <meshStandardMaterial map={wallTexture} roughness={1} />
+                <meshBasicMaterial map={wallTextureMap} toneMapped={false} />
             </mesh>
 
             <mesh 
@@ -463,7 +467,7 @@ const AnimatedScore: React.FC<{ score: number, is301: boolean }> = ({ score, is3
 
     return (
         <div className="relative">
-            <div className="text-xl sm:text-5xl font-black font-mono leading-none tracking-tight transition-all">
+            <div className="text-xl sm:text-5xl font-black leading-none tracking-tight transition-all text-slate-100" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 6px rgba(255,255,255,0.35)' }}>
                 {displayScore}
             </div>
             {diff !== 0 && (
@@ -528,6 +532,28 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                 difficulty: 'easy' 
             } as GeneratedQuestion];
     }, [game.questions]);
+
+    const wallTexture = useMemo(() => createWallTexture(), []);
+    const wallTextureUrl = useMemo(() => {
+        const canvas = wallTexture?.image as HTMLCanvasElement | undefined;
+        if (!canvas || typeof canvas.toDataURL !== 'function') return null;
+        return canvas.toDataURL('image/png');
+    }, [wallTexture]);
+    const wallBackgroundStyle = wallTextureUrl
+        ? {
+            backgroundColor: '#fdf6e3',
+            backgroundImage: `url(${wallTextureUrl})`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '128px 128px'
+        }
+        : { backgroundColor: '#fdf6e3' };
+    const chalkboardStyle = {
+        backgroundColor: '#0f1b14',
+        backgroundImage: "url('/assets/background/chalkboard.jpg')",
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+    };
 
     // Target Limit Logic:
     // If High Score Mode + Turns Limit Set: limit = players * turns
@@ -966,27 +992,27 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
-            <div className="bg-white p-2 sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-200 relative min-h-[70px] sm:min-h-[140px]">
+            <div className="p-2 sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative min-h-[70px] sm:min-h-[140px]" style={chalkboardStyle}>
                 <div className="flex w-full items-center gap-3 sm:gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[64px]">
-                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200">
+                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex text-slate-100 hover:text-red-200 items-center text-sm bg-black/40 hover:bg-red-900/40 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-700">
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-700 bg-black/40 text-slate-100 hover:text-red-200 hover:bg-red-900/40 transition-colors"
                             title="Quit"
                         >
                             <XIcon size={18} />
                         </button>
                         <button
                             onClick={() => setIsMuted(!isMuted)}
-                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-700 bg-black/40 text-slate-100 hover:text-sky-200 hover:bg-black/60 transition-colors"
                             title={isMuted ? "Unmute" : "Mute"}
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
-                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                        <h1 className="text-slate-100 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-95" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 6px rgba(255,255,255,0.35)' }}>{game.title}</h1>
                         
                         <div className="hidden sm:flex items-center gap-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
@@ -1008,26 +1034,34 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             )}
                         </div>
                     </div>
-                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center">
+                    <div className="flex-1 flex justify-end sm:justify-center gap-3 sm:gap-6 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center">
                         {scores.map((score, idx) => (
-                            <button key={idx} onClick={() => openEditTeam(idx)} className={`px-2 py-1 sm:px-6 sm:py-3 rounded-xl text-center transition-all border-b-4 min-w-[86px] sm:min-w-[150px] relative group h-12 sm:h-28 flex flex-col justify-center items-center shadow-sm ${currentTeam === idx ? 'bg-brand-blue border-sky-600 text-white shadow-lg ring-2 sm:ring-4 ring-sky-100 sm:scale-110 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}>
-                                <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-[90px] sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
+                            <button
+                                key={idx}
+                                onClick={() => openEditTeam(idx)}
+                                className="px-1 sm:px-2 py-1 sm:py-2 text-center transition-transform min-w-[70px] sm:min-w-[120px] relative group flex flex-col justify-center items-center"
+                            >
+                                <div className="text-[11px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-[90px] sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1 text-slate-100" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 8px rgba(255,255,255,0.55)' }}>
                                     {teamNames[idx]}
-                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
+                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1" />}
                                 </div>
                                 <AnimatedScore score={score} is301={is301} />
-                                <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></div>
+                                <div className="absolute -top-1 -right-1 text-slate-100/70 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></div>
                             </button>
                         ))}
                     </div>
                     <div className="hidden sm:flex items-center justify-end min-w-[140px] gap-2">
-                        <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}</button>
+                        <button onClick={() => setIsMuted(!isMuted)} className="text-slate-100 hover:text-sky-200 p-3 bg-black/40 hover:bg-black/60 rounded-xl transition-colors border border-slate-700">{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
+                        <button onClick={toggleFullscreen} className="text-slate-100 hover:text-sky-200 p-3 bg-black/40 hover:bg-black/60 rounded-xl transition-colors border border-slate-700">{isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}</button>
                     </div>
                 </div>
             </div>
 
-            <div ref={boardAreaRef} className="flex-grow relative cursor-crosshair bg-[#fdf6e3] overflow-hidden min-h-0">
+            <div
+                ref={boardAreaRef}
+                className="flex-grow relative cursor-crosshair overflow-hidden min-h-0"
+                style={wallBackgroundStyle}
+            >
                 <div className="absolute inset-0 flex items-center justify-center">
                     {isMobileViewport ? (
                         <div
@@ -1037,19 +1071,20 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 transform: `translateY(-${boardOffsetY}px)`
                             } : undefined}
                         >
-                            <Canvas camera={{ position: [0, 0, 20], fov: 54 }} shadows style={{ width: '100%', height: '100%' }}>
-                                <color attach="background" args={['#fdf6e3']} />
-                                <Suspense fallback={null}>
-                                    <DartboardScene 
-                                        onHover={handleBoardHover} 
-                                        onClick={handleBoardClick}
-                                        darts={darts}
-                                        isAiming={phase === 'aim'}
-                                        hoverData={hoverData}
-                                        onDartLand={handleDartLand}
-                                    />
-                                </Suspense>
-                            </Canvas>
+                                <Canvas camera={{ position: [0, 0, 20], fov: 54 }} shadows style={{ width: '100%', height: '100%' }}>
+                                    <color attach="background" args={['#fdf6e3']} />
+                                    <Suspense fallback={null}>
+                                        <DartboardScene 
+                                            onHover={handleBoardHover} 
+                                            onClick={handleBoardClick}
+                                            darts={darts}
+                                            isAiming={phase === 'aim'}
+                                            hoverData={hoverData}
+                                            onDartLand={handleDartLand}
+                                            wallTexture={wallTexture}
+                                        />
+                                    </Suspense>
+                                </Canvas>
                         </div>
                     ) : (
                         <div className="w-full h-full">
@@ -1063,6 +1098,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                         isAiming={phase === 'aim'}
                                         hoverData={hoverData}
                                         onDartLand={handleDartLand}
+                                        wallTexture={wallTexture}
                                     />
                                 </Suspense>
                             </Canvas>
@@ -1076,10 +1112,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-[520px] pointer-events-none animate-fade-in">
                                 <div className="pointer-events-auto bg-black/60 text-white px-4 py-3 rounded-2xl shadow-lg backdrop-blur-md border border-white/20 flex items-center justify-between gap-3">
                                     <div className="min-w-0">
-                                        <div className="font-display font-black text-[clamp(16px,4.2vw,22px)] leading-tight whitespace-normal break-words">
+                                        <div className="font-display font-black text-[clamp(16px,4.2vw,22px)] leading-tight whitespace-normal break-words" style={{ fontFamily: CHALK_FONT }}>
                                             {teamNames[currentTeam]}'s Turn
                                         </div>
-                                        <div className="text-[clamp(12px,3.2vw,16px)] text-white/80 leading-tight whitespace-normal break-words">
+                                        <div className="text-[clamp(12px,3.2vw,16px)] text-white/80 leading-tight whitespace-normal break-words" style={{ fontFamily: CHALK_FONT }}>
                                             {is301 ? `You require ${Math.max(scores[currentTeam], 0)}` : 'Click board to aim'}
                                         </div>
                                     </div>
