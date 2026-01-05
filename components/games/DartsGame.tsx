@@ -964,7 +964,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         if (!el) return;
         const updateSize = () => {
             const rect = el.getBoundingClientRect();
-            const padding = 16;
+            const padding = 0;
             const size = Math.max(0, Math.min(rect.width, rect.height) - padding);
             setBoardSize(prev => (prev && Math.abs(prev - size) < 1 ? prev : size));
             setBoardOffsetY(0);
