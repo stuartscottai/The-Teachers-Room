@@ -282,33 +282,25 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     // Responsive Font Size Logic
-    const getQuestionFontSizeClass = (text: string, hasOptions: boolean) => {
+    const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
-        if (!hasOptions) {
-            if (len < 25) return 'text-6xl md:text-7xl';
-            if (len < 60) return 'text-5xl md:text-6xl';
-            if (len < 100) return 'text-4xl md:text-5xl';
-            if (len < 160) return 'text-3xl md:text-4xl';
-            if (len < 240) return 'text-2xl md:text-3xl';
-            if (len < 340) return 'text-xl md:text-2xl';
-            return 'text-lg md:text-xl';
-        } else {
-            if (len < 30) return 'text-4xl md:text-5xl';
-            if (len < 60) return 'text-3xl md:text-4xl';
-            if (len < 100) return 'text-2xl md:text-3xl';
-            if (len < 150) return 'text-xl md:text-2xl';
-            return 'text-lg md:text-xl';
-        }
-    };
-
-    const getAnswerFontSizeClass = (text: string) => {
-        const len = text ? text.length : 0;
-        if (len < 25) return 'text-6xl md:text-7xl';
+        if (len < 30) return 'text-6xl md:text-7xl';
         if (len < 60) return 'text-5xl md:text-6xl';
         if (len < 110) return 'text-4xl md:text-5xl';
         if (len < 180) return 'text-3xl md:text-4xl';
         if (len < 260) return 'text-2xl md:text-3xl';
         if (len < 360) return 'text-xl md:text-2xl';
+        return 'text-lg md:text-xl';
+    };
+
+    const getAnswerFontSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 30) return 'text-6xl md:text-7xl';
+        if (len < 70) return 'text-5xl md:text-6xl';
+        if (len < 130) return 'text-4xl md:text-5xl';
+        if (len < 200) return 'text-3xl md:text-4xl';
+        if (len < 300) return 'text-2xl md:text-3xl';
+        if (len < 420) return 'text-xl md:text-2xl';
         return 'text-lg md:text-xl';
     };
 
@@ -340,7 +332,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         if (!wrap || !textEl) return;
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
-        const maxSize = Math.min(38, Math.max(20, Math.floor(window.innerWidth / 9)));
+        const maxSize = Math.min(48, Math.max(22, Math.floor(window.innerWidth / 9)));
         const minSize = 12;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
@@ -362,7 +354,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         if (!wrap || !textEl) return;
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
-        const maxSize = Math.min(36, Math.max(20, Math.floor(window.innerWidth / 9.2)));
+        const maxSize = Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2)));
         const minSize = 12;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
@@ -526,17 +518,17 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                             </div>
                                             
                                             {/* CONTENT BODY */}
-                                            <div className="flex-1 min-h-0 flex flex-col p-3 sm:p-4 md:p-10 text-center overflow-hidden bg-slate-800 relative">
+                                            <div className={`flex-1 min-h-0 flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} text-center overflow-hidden bg-slate-800 relative`}>
                                                 {/* Question Text Area - Flex-1 to take available space */}
                                                 <div
                                                     ref={questionWrapRef}
-                                                    style={isMobileViewport ? { flex: '1.1 1 0%' } : undefined}
-                                                    className={`flex-1 md:flex-[2] min-h-0 flex items-center justify-center w-full ${hasOptions ? 'mb-2' : ''}`}
+                                                    style={isMobileViewport && hasOptions ? { flex: '1 1 0%' } : undefined}
+                                                    className={`flex-1 md:flex-[2] min-h-0 flex items-center w-full ${hasOptions ? 'justify-start mb-2' : 'justify-center'}`}
                                                 >
                                                     <h3
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                        className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...", hasOptions)}`}
+                                                        className={`w-full font-display font-bold text-white text-center leading-tight whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
                                                     >
                                                         {currentQuestion?.question || "Loading question..."}
                                                     </h3>
@@ -546,9 +538,9 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 {hasOptions && (
                                                     <div
                                                         className="w-full flex-1 md:flex-[3] min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
-                                                        style={isMobileViewport ? { flex: '3.9 1 0%' } : undefined}
+                                                        style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                     >
-                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                             const uniformSize = getOptionFontSizeClass(longestText);
@@ -560,7 +552,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                     disabled={disabledOptions.includes(i) || isPaused}
                                                                     onClick={() => handleMCOptionClick(opt, i)}
                                                                     style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                    className={`p-2 sm:p-3 md:p-4 rounded-xl border-2 font-bold transition-all min-h-[clamp(42px,7.5vh,68px)] sm:min-h-[60px] md:min-h-[80px] flex items-center justify-center h-full whitespace-normal break-words hyphens-none ${uniformSize}
+                                                                    className={`p-3 sm:p-4 md:p-5 rounded-none border-2 font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-words hyphens-none ${uniformSize}
                                                                         ${disabledOptions.includes(i) 
                                                                             ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through' 
                                                                             : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-indigo-600 hover:border-indigo-400 hover:text-white active:scale-95 shadow-sm'}`}
@@ -575,11 +567,11 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                             </div>
                                             
                                             {/* FOOTER */}
-                                            <div className="px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 bg-slate-900 border-t border-indigo-900 flex justify-center gap-2 sm:gap-4 shrink-0">
+                                            <div className="px-3 py-[clamp(3px,0.8vh,5px)] sm:px-4 sm:py-2 bg-slate-900 border-t border-indigo-900 flex justify-center gap-2 sm:gap-4 shrink-0">
                                                 <button 
                                                     onClick={handlePass}
                                                     disabled={isPaused}
-                                                    className="bg-slate-800 text-slate-300 w-[clamp(160px,60%,240px)] sm:w-auto px-4 sm:px-6 py-[clamp(6px,1.8vh,14px)] sm:py-4 rounded-full font-bold text-[clamp(11px,2.4vw,14px)] sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
+                                                    className="bg-slate-800 text-slate-300 w-[clamp(160px,60%,240px)] sm:w-auto px-4 sm:px-6 py-[clamp(3px,1.1vh,8px)] sm:py-2 rounded-full font-bold text-[clamp(11px,2.4vw,14px)] sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                 >
                                                     <SkipForward size={14} className="mr-2" /> Skip (-5s)
                                                 </button>
@@ -588,7 +580,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     <button 
                                                         onClick={() => setIsFlipped(true)}
                                                         disabled={isPaused}
-                                                        className="bg-brand-blue text-white px-6 sm:px-10 py-2.5 sm:py-4 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
+                                                        className="bg-brand-blue text-white px-6 sm:px-10 py-1.5 sm:py-2.5 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                     >
                                                         Reveal Answer
                                                     </button>

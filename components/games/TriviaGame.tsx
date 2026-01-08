@@ -494,6 +494,9 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
         activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
         activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
+    const timerProgress = options.timerSeconds > 0
+        ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
+        : 0;
 
     useLayoutEffect(() => {
         if (!isMobileViewport || !activeQ || isBonus || isFlipped) {
@@ -978,9 +981,12 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         </div>
 
                                         {/* CONTENT BODY (White) */}
-                                        <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
+                                        <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                             <div className="flex flex-col flex-1 min-h-0">
-                                                <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                                <div
+                                                    ref={questionWrapRef}
+                                                    className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
+                                                >
                                                     <div
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -991,8 +997,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                 </div>
 
                                                 {hasOptions && !isFlipped && (
-                                                    <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                    <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
+                                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
                                                             {(() => {
                                                                 const longestText = activeQ.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                                 const uniformSize = getOptionFontSizeClass(longestText);
@@ -1002,7 +1008,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                                         key={i}
                                                                         onClick={(e) => { e.stopPropagation(); handleMcSelect(opt); }}
                                                                         style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} cursor-pointer relative z-50 whitespace-normal break-words`}
+                                                                        className={`p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer relative z-50 whitespace-normal break-words`}
                                                                     >
                                                                         {opt}
                                                                     </button>
@@ -1014,36 +1020,35 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                             </div>
                                         </div>
                                         
-                                        {/* FOOTER BAR (Blue/Gradient/Red) */}
-                                        <div className={`h-[clamp(88px,14vh,120px)] flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative z-50 flex-shrink-0 transition-colors duration-300 
-                                            ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
+                                        {/* FOOTER BAR */}
+                                        <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                             
                                             {options.timerSeconds > 0 && (
-                                                <div className="relative h-[clamp(24px,4.5vh,32px)] bg-black/10 flex items-center justify-start pointer-events-none">
+                                                <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
                                                     {!isTimesUp && (
                                                         <div 
-                                                            className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-1000"
-                                                            style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }}
+                                                            className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000"
+                                                            style={{ width: `${timerProgress * 100}%` }}
                                                         />
                                                     )}
-                                                    <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white tracking-wider">
+                                                    <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
                                                         {isTimesUp ? "TIME'S UP!" : (
-                                                            <><Clock size={12} className="mr-1" /> {timeLeft}s</>
+                                                            <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                         )}
                                                     </div>
                                                 </div>
                                             )}
-                                            
-                                            <div className="w-full flex-1 flex items-center justify-center py-3">
-                                                {!hasOptions && (
+
+                                            {!hasOptions && (
+                                                <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                                                        className="bg-white text-brand-blue px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
+                                                        className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
                                                     >
                                                         Check
                                                     </button>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 )}
