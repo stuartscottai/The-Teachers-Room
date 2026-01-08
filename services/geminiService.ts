@@ -90,6 +90,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   Create a structured game based on the following parameters.
   
   If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
+
+  IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
   
   CRITICAL JSON RULES:
   1. Return ONLY valid JSON.
@@ -879,6 +881,8 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     - If the user gives enough info, recommend a specific game type and explain why briefly.
     - When you make a recommendation, populate the 'suggestion' field in the JSON response with a valid GameConfig.
     - If no recommendation is ready yet, leave 'suggestion' null.
+    - Default to at least 25 questions unless the game format caps it (e.g. Millionaire Maker is always 15) or the user explicitly asks for a different count.
+    - For Jeopardy or Pub Quiz, set rows/rounds so the total questions are at least 25 unless the user explicitly asks for fewer.
     
     TONE: Professional, encouraging, concise.
     `;

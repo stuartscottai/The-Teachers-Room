@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, Bot, User, ArrowRight, Loader2 } from 'lucide-react';
-import { GameConfig, GeneratedGame } from '../../types';
+import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent } from '../../services/geminiService';
 
 interface AiAssistantChatProps {
@@ -28,6 +28,61 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const [isTyping, setIsTyping] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const MIN_AI_QUESTION_COUNT = 25;
+
+    const getUserRequestedQuestionCount = () => {
+        const patterns = [
+            /\b(\d{1,3})\s*(questions?|qs|q's|rounds?)\b/i,
+            /\b(\d{1,3})\s*q\b/i
+        ];
+        for (const msg of messages) {
+            if (msg.role !== 'user') continue;
+            for (const pattern of patterns) {
+                const match = msg.text.match(pattern);
+                if (match) {
+                    const value = Number.parseInt(match[1], 10);
+                    if (Number.isFinite(value) && value > 0 && value <= 200) {
+                        return value;
+                    }
+                }
+            }
+        }
+        return null;
+    };
+
+    const applyAiQuestionDefaults = (config: GameConfig) => {
+        const requestedCount = getUserRequestedQuestionCount();
+        const targetCount = requestedCount ?? MIN_AI_QUESTION_COUNT;
+
+        if (config.type === GameType.MILLIONAIRE) {
+            return { ...config, questionCount: 15 };
+        }
+
+        if (config.type === GameType.JEOPARDY) {
+            const categories = config.jeopardyCategoryNames?.length || config.jeopardyCategories || 5;
+            const rows = config.jeopardyRows || 5;
+            const total = categories * rows;
+            if (total >= targetCount) return config;
+            return {
+                ...config,
+                jeopardyRows: Math.max(rows, Math.ceil(targetCount / categories))
+            };
+        }
+
+        if (config.type === GameType.PUB_QUIZ) {
+            const rounds = config.pubQuizRoundNames?.length || config.pubQuizRoundsCount || 3;
+            const perRound = config.pubQuizQuestionsPerRound || 5;
+            const total = rounds * perRound;
+            if (total >= targetCount) return config;
+            return {
+                ...config,
+                pubQuizQuestionsPerRound: Math.max(perRound, Math.ceil(targetCount / rounds))
+            };
+        }
+
+        const desiredCount = Math.max(config.questionCount || 0, targetCount);
+        return { ...config, questionCount: desiredCount };
+    };
 
     useEffect(() => {
         const previousOverflow = document.body.style.overflow;
@@ -79,12 +134,12 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         setIsGenerating(true);
         try {
             // Default fallbacks if AI missed something
-            const finalConfig = {
+            const finalConfig = applyAiQuestionDefaults({
                 ...config,
-                questionCount: config.questionCount || 10,
+                questionCount: config.questionCount || MIN_AI_QUESTION_COUNT,
                 questionType: config.questionType || 'mixed',
                 isAI: true
-            };
+            });
             
             const game = await generateGameContent(finalConfig);
             onGameGenerated(game);

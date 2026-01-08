@@ -422,7 +422,10 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             {gameState === 'walkaway' ? "You walked away with" : "You go home with"}
                         </p>
                         
-                        <div className="text-7xl md:text-9xl font-black text-yellow-400 mb-16 drop-shadow-xl font-mono" style={{ animation: winnings === 1000000 ? 'pulse-gold 2s infinite' : 'none' }}>
+                        <div
+                            className={`font-black text-yellow-400 mb-16 drop-shadow-xl font-mono leading-none max-w-full ${isMobileViewport ? 'text-[clamp(32px,10vw,72px)]' : 'text-7xl md:text-9xl'}`}
+                            style={{ animation: winnings === 1000000 ? 'pulse-gold 2s infinite' : 'none' }}
+                        >
                             ${winnings.toLocaleString()}
                         </div>
                         

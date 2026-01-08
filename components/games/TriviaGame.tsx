@@ -505,8 +505,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         if (!wrap || !textEl) return;
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
-        const maxSize = Math.min(54, Math.max(28, Math.floor(window.innerWidth / 8)));
-        const minSize = 16;
+        const maxSize = Math.min(48, Math.max(22, Math.floor(window.innerWidth / 9)));
+        const minSize = 12;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;
@@ -527,8 +527,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         if (!wrap || !textEl) return;
         const availableHeight = wrap.clientHeight;
         if (availableHeight === 0) return;
-        const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
-        const minSize = 16;
+        const maxSize = Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2)));
+        const minSize = 12;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;

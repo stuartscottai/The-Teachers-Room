@@ -602,7 +602,15 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         
         let selectedQ: GeneratedQuestion;
 
-        if (available.length === 0) {
+        if (!options.randomizeQuestions) {
+            if (available.length === 0) {
+                selectedQ = questions[0];
+                setUsedQuestionIds([selectedQ.id]);
+            } else {
+                selectedQ = available[0];
+                setUsedQuestionIds(prev => [...prev, selectedQ.id]);
+            }
+        } else if (available.length === 0) {
             // RECYCLE LOGIC: If we absolutely ran out (reserve depleted), reuse a random question to finish the round.
             // This prevents a crash if the game goes extremely long.
             selectedQ = questions[Math.floor(Math.random() * questions.length)];

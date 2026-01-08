@@ -19,6 +19,27 @@ const Pips = () => {
         </mesh>
     );
 
+    const face6: [number, number, number][] = [
+        [-0.25, 0.25, 0], [0.25, 0.25, 0],
+        [-0.25, 0, 0], [0.25, 0, 0],
+        [-0.25, -0.25, 0], [0.25, -0.25, 0]
+    ];
+    const face2: [number, number, number][] = [
+        [-0.25, -0.25, 0], [0.25, 0.25, 0]
+    ];
+    const face5: [number, number, number][] = [
+        [-0.25, -0.25, 0], [0.25, 0.25, 0],
+        [-0.25, 0.25, 0], [0.25, -0.25, 0],
+        [0, 0, 0]
+    ];
+    const face3: [number, number, number][] = [
+        [-0.25, -0.25, 0], [0, 0, 0], [0.25, 0.25, 0]
+    ];
+    const face4: [number, number, number][] = [
+        [-0.25, -0.25, 0], [0.25, 0.25, 0],
+        [-0.25, 0.25, 0], [0.25, -0.25, 0]
+    ];
+
     return (
         <group>
             {/* Face 1 (Front / Z+) */}
@@ -27,28 +48,33 @@ const Pips = () => {
             </group>
             {/* Face 6 (Back / Z-) */}
             <group position={[0, 0, -PIP_OFFSET]} rotation={[0, Math.PI, 0]}>
-                <Pip position={[-0.25, 0.25, 0]} /> <Pip position={[0.25, 0.25, 0]} />
-                <Pip position={[-0.25, 0, 0]} />    <Pip position={[0.25, 0, 0]} />
-                <Pip position={[-0.25, -0.25, 0]} /> <Pip position={[0.25, -0.25, 0]} />
+                {face6.map((position, idx) => (
+                    <Pip key={`f6-${idx}`} position={position} />
+                ))}
             </group>
             {/* Face 2 (Top / Y+) */}
             <group position={[0, PIP_OFFSET, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                <Pip position={[-0.25, -0.25, 0]} /> <Pip position={[0.25, 0.25, 0]} />
+                {face2.map((position, idx) => (
+                    <Pip key={`f2-${idx}`} position={position} />
+                ))}
             </group>
             {/* Face 5 (Bottom / Y-) */}
             <group position={[0, -PIP_OFFSET, 0]} rotation={[Math.PI/2, 0, 0]}>
-                <Pip position={[-0.25, -0.25, 0]} /> <Pip position={[0.25, 0.25, 0]} />
-                <Pip position={[-0.25, 0.25, 0]} />  <Pip position={[0.25, -0.25, 0]} />
-                <Pip position={[0, 0, 0]} />
+                {face5.map((position, idx) => (
+                    <Pip key={`f5-${idx}`} position={position} />
+                ))}
             </group>
             {/* Face 3 (Right / X+) */}
             <group position={[PIP_OFFSET, 0, 0]} rotation={[0, Math.PI/2, 0]}>
-                <Pip position={[-0.25, -0.25, 0]} /> <Pip position={[0, 0, 0]} /> <Pip position={[0.25, 0.25, 0]} />
+                {face3.map((position, idx) => (
+                    <Pip key={`f3-${idx}`} position={position} />
+                ))}
             </group>
             {/* Face 4 (Left / X-) */}
             <group position={[-PIP_OFFSET, 0, 0]} rotation={[0, -Math.PI/2, 0]}>
-                <Pip position={[-0.25, -0.25, 0]} /> <Pip position={[0.25, 0.25, 0]} />
-                <Pip position={[-0.25, 0.25, 0]} />  <Pip position={[0.25, -0.25, 0]} />
+                {face4.map((position, idx) => (
+                    <Pip key={`f4-${idx}`} position={position} />
+                ))}
             </group>
         </group>
     );
@@ -253,10 +279,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [boardSize, setBoardSize] = useState<number | null>(null);
+    const [diceSize, setDiceSize] = useState<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const boardWrapRef = useRef<HTMLDivElement>(null);
+    const diceRowRef = useRef<HTMLDivElement>(null);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLDivElement>(null);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
 
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
     const currentTeamId = turnOrder[currentTurnIndex];
+    const canRollDice = phase === 'roll' && !isDiceRolling;
 
     // SCROLL LOCK EFFECT
     useEffect(() => {
@@ -264,6 +299,80 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         document.body.style.overflow = shouldLock ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
     }, [phase, isQuestionVisible]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        if (!isMobileViewport || !boardWrapRef.current) return;
+        const element = boardWrapRef.current;
+        const updateSize = () => {
+            const rect = element.getBoundingClientRect();
+            const padding = 24;
+            const next = Math.floor(Math.min(rect.width, rect.height) - padding);
+            const safeNext = Math.max(0, next);
+            setBoardSize(prev => (prev === safeNext ? prev : safeNext));
+        };
+        updateSize();
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(element);
+        window.addEventListener('resize', updateSize);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateSize);
+        };
+    }, [isMobileViewport]);
+
+    useEffect(() => {
+        if (!isMobileViewport || !diceRowRef.current) return;
+        const element = diceRowRef.current;
+        const updateSize = () => {
+            const rect = element.getBoundingClientRect();
+            if (rect.height <= 0 || rect.width <= 0) return;
+            const sizeFromHeight = Math.floor(rect.height * 0.5);
+            const sizeFromWidth = Math.floor(rect.width * 0.5);
+            const next = Math.max(0, Math.min(sizeFromHeight, sizeFromWidth));
+            setDiceSize(prev => (prev === next ? prev : next));
+        };
+        updateSize();
+        const observer = new ResizeObserver(updateSize);
+        observer.observe(element);
+        window.addEventListener('resize', updateSize);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateSize);
+        };
+    }, [isMobileViewport, phase]);
+
+    useEffect(() => {
+        if (!isMobileViewport || phase !== 'question' || !currentQuestion || !questionWrapRef.current || !questionTextRef.current) {
+            return;
+        }
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        const maxSize = 40;
+        const minSize = 12;
+        let low = minSize;
+        let high = maxSize;
+        let best = minSize;
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            textEl.style.fontSize = `${mid}px`;
+            textEl.style.lineHeight = '1.15';
+            if (textEl.scrollHeight <= wrap.clientHeight) {
+                best = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        setQuestionFontSize(best);
+    }, [isMobileViewport, phase, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, isQuestionVisible]);
 
     // --- BOARD INITIALIZATION ---
     useEffect(() => {
@@ -391,7 +500,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
         let q: GeneratedQuestion;
         if (available.length === 0) {
-            q = questions[Math.floor(Math.random() * questions.length)];
+            if (!options.randomizeQuestions) {
+                setUsedQuestionIds([]);
+                q = questions[0];
+            } else {
+                q = questions[Math.floor(Math.random() * questions.length)];
+            }
+        } else if (!options.randomizeQuestions) {
+            q = available[0];
         } else {
             q = available[Math.floor(Math.random() * available.length)];
         }
@@ -671,36 +787,61 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 `}
             </style>
             {/* HEADER */}
-            <div className="bg-white p-4 shrink-0 z-[50] shadow-sm flex justify-between items-center gap-4 border-b border-slate-200 h-[140px]">
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"><ArrowLeft size={16} className="mr-2" /> Quit</button>
-                    <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
-                </div>
-                
-                <div className="flex items-center gap-4 bg-slate-100 px-6 py-2 rounded-xl">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Turn</span>
-                    <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${teamColors[currentTeamId % 6].bg}`}></div>
-                        <span className="font-bold text-slate-800">{teamNames[currentTeamId]}</span>
+            <div className={`bg-white shrink-0 z-[50] shadow-sm flex items-center border-b border-slate-200 ${isMobileViewport ? 'h-[70px] px-2 py-2' : 'h-[140px] p-4'}`}>
+                <div className="flex items-center justify-between w-full gap-3">
+                    <div className={`flex ${isMobileViewport ? 'flex-row items-center gap-2' : 'items-center gap-2'}`}>
+                        <button
+                            onClick={() => setShowQuitConfirm(true)}
+                            className={isMobileViewport
+                                ? 'w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 flex items-center justify-center transition-colors'
+                                : 'text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200'
+                            }
+                        >
+                            <ArrowLeft size={isMobileViewport ? 18 : 16} className={isMobileViewport ? '' : 'mr-2'} />
+                            {!isMobileViewport && 'Quit'}
+                        </button>
+                        {isMobileViewport && (
+                            <button
+                                onClick={() => setIsMuted(!isMuted)}
+                                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 hover:text-brand-blue hover:bg-sky-50 border border-slate-200 flex items-center justify-center transition-colors"
+                            >
+                                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                            </button>
+                        )}
+                        {!isMobileViewport && (
+                            <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] opacity-80">{game.title}</h1>
+                        )}
                     </div>
-                </div>
+                    
+                    <div className="flex-1 flex items-center justify-end md:justify-center">
+                        <div className={`flex items-center gap-2 bg-slate-100 ${isMobileViewport ? 'px-2 py-1 rounded-lg' : 'px-6 py-2 rounded-xl'}`}>
+                            <span className={`font-bold text-slate-400 uppercase tracking-wider ${isMobileViewport ? 'text-[10px]' : 'text-xs'}`}>Current Turn</span>
+                            <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded-full ${teamColors[currentTeamId % 6].bg}`}></div>
+                                <span className={`font-bold text-slate-800 ${isMobileViewport ? 'text-[11px]' : ''}`}>{teamNames[currentTeamId]}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
+                    {!isMobileViewport && (
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                            <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div className="flex-1 p-4 flex flex-col md:flex-row items-center justify-center bg-stone-200 relative overflow-hidden gap-8">
-                
+            <div className="flex-1 p-2 sm:p-4 flex flex-col md:flex-row items-stretch justify-center bg-stone-200 relative overflow-hidden gap-2 sm:gap-8">
+                <div className="w-full h-full flex flex-col md:flex-row gap-2 sm:gap-8 min-h-0">
+                <div ref={boardWrapRef} className="flex-1 min-h-0 w-full flex items-center justify-center">
                 {/* SQUARE BOARD CONTAINER */}
                 <div 
-                    className="relative shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-xl border-[16px] border-[#3e2723] bg-[#d7ccc8] overflow-hidden shrink-0"
-                    style={{
-                        width: 'min(100% - 2rem, 80vh)',
-                        height: 'min(100% - 2rem, 80vh)',
-                        aspectRatio: '1/1'
-                    }}
+                    className="relative shadow-[0_20px_50px_rgba(0,0,0,0.4)] rounded-lg sm:rounded-xl border-[10px] sm:border-[16px] border-[#3e2723] bg-[#d7ccc8] overflow-hidden shrink-0 max-w-full max-h-full"
+                    style={isMobileViewport
+                        ? { width: boardSize ? `${boardSize}px` : '100%', height: boardSize ? `${boardSize}px` : '100%' }
+                        : { width: 'min(100% - 2rem, 80vh)', height: 'min(100% - 2rem, 80vh)', aspectRatio: '1/1' }
+                    }
                 >
                     <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_40px_rgba(0,0,0,0.2)] z-20 rounded-lg"></div>
 
@@ -817,65 +958,92 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         );
                     })}
                 </div>
+                </div>
 
                 {/* RIGHT SIDE (Controls) */}
-                <div className="w-full md:w-80 flex flex-col justify-center gap-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-xl border border-slate-100 text-center min-h-[300px] flex flex-col items-center justify-center">
+                <div className="w-full md:w-80 flex flex-col justify-center gap-4 sm:gap-6 shrink-0">
+                    <div className={`bg-white rounded-2xl p-2 sm:p-6 shadow-xl border border-slate-100 text-center flex flex-col items-center justify-center overflow-hidden ${isMobileViewport ? 'h-[clamp(160px,22vh,240px)]' : 'min-h-[300px]'}`}>
                         
                         {phase === 'setup' && (
                             <div className="animate-fade-in w-full">
-                                <h3 className="font-display font-bold text-xl text-slate-800 mb-4">Turn Order</h3>
-                                <div className="space-y-2 mb-6">
+                                <h3 className="font-display font-bold text-sm sm:text-xl text-slate-800 mb-2 sm:mb-4">Turn Order</h3>
+                                <div className={`mb-2 sm:mb-6 ${isMobileViewport ? 'grid grid-cols-3 gap-1' : 'space-y-2'}`}>
                                     {turnOrder.map((teamIdx, i) => (
-                                        <div key={i} className="flex items-center p-2 bg-slate-50 rounded-lg border border-slate-200">
-                                            <span className="font-bold text-slate-400 mr-3">{i+1}.</span>
-                                            <div className={`w-3 h-3 rounded-full mr-2 ${teamColors[teamIdx % 6].bg}`}></div>
-                                            <span className="font-bold text-slate-700">{teamNames[teamIdx]}</span>
+                                        <div key={i} className={`flex items-center bg-slate-50 rounded-lg border border-slate-200 ${isMobileViewport ? 'px-1 py-1 text-[10px]' : 'p-2'}`}>
+                                            <span className={`font-bold text-slate-400 ${isMobileViewport ? 'mr-1' : 'mr-3'}`}>{i+1}.</span>
+                                            <div className={`w-2.5 h-2.5 rounded-full mr-1 ${teamColors[teamIdx % 6].bg}`}></div>
+                                            <span className={`font-bold text-slate-700 ${isMobileViewport ? 'text-[10px] truncate' : ''}`}>{teamNames[teamIdx]}</span>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="space-y-3">
-                                    <button onClick={shuffleTeams} className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center">
-                                        <Shuffle size={18} className="mr-2" /> Randomize
+                                <div className={`${isMobileViewport ? 'grid grid-cols-2 gap-2' : 'space-y-3'}`}>
+                                    <button onClick={shuffleTeams} className={`w-full border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3'}`}>
+                                        <Shuffle size={isMobileViewport ? 12 : 18} className="mr-2" /> Randomize
                                     </button>
-                                    <button onClick={() => setPhase('roll')} className="w-full py-3 bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center">
-                                        <Play size={18} className="mr-2" /> Start Game
+                                    <button onClick={() => setPhase('roll')} className={`w-full bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3 text-base sm:text-lg'}`}>
+                                        <Play size={isMobileViewport ? 12 : 18} className="mr-2" /> Start Game
                                     </button>
                                 </div>
                             </div>
                         )}
 
                         {/* PERSISTENT DICE CONTAINER - Fix for WebGL Context Thrashing */}
-                        <div style={{ width: '100%', display: (phase === 'roll' || phase === 'moving') ? 'block' : 'none' }}>
-                            <div className="flex flex-col items-center w-full animate-fade-in">
-                                <h3 className="text-xl font-bold text-slate-700 mb-2">{teamNames[currentTeamId]}'s Turn</h3>
-                                <div className="w-full h-40 relative mb-4">
-                                    <Canvas shadows camera={{ position: [0, 0, 4], fov: 45 }}>
-                                        <ambientLight intensity={0.8} />
-                                        <spotLight position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />
-                                        <Environment preset="studio" />
-                                        <Suspense fallback={null}>
-                                            <Dice3D 
-                                                rolling={isDiceRolling} 
-                                                result={diceValue} 
-                                                onLand={handleDiceLand} 
-                                                isMoving={phase === 'moving'} 
-                                            />
-                                            <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} />
-                                        </Suspense>
-                                    </Canvas>
+                        <div className="h-full" style={{ width: '100%', display: (phase === 'roll' || phase === 'moving') ? 'block' : 'none' }}>
+                            <div ref={diceRowRef} className={`w-full animate-fade-in ${isMobileViewport ? 'flex items-center justify-between gap-2 h-full' : 'flex flex-col items-center'}`}>
+                                <div
+                                    className={`${isMobileViewport ? 'flex-1 text-left flex flex-col justify-center' : 'text-center'}`}
+                                    style={isMobileViewport && diceSize ? { minHeight: `${diceSize}px` } : undefined}
+                                >
+                                    <h3
+                                        className={`font-bold text-slate-700 ${isMobileViewport ? '' : 'text-base sm:text-xl'} ${isMobileViewport ? 'mb-0.5' : 'mb-2'}`}
+                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(12, Math.floor(diceSize * 0.24))}px` } : undefined}
+                                    >
+                                        {teamNames[currentTeamId]}
+                                    </h3>
+                                    <div
+                                        className={`text-slate-500 ${isMobileViewport ? '' : 'text-sm'}`}
+                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(10, Math.floor(diceSize * 0.18))}px` } : undefined}
+                                    >
+                                        {isMobileViewport ? "It's your turn" : "It's your turn"}
+                                    </div>
                                 </div>
-                                
-                                {!isDiceRolling && phase === 'roll' && (
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => { if (canRollDice) rollDice(); }}
+                                    onKeyDown={(e) => { if (canRollDice && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); rollDice(); } }}
+                                    className={`${isMobileViewport ? 'relative flex items-center justify-center' : 'w-full h-32 sm:h-40'} ${canRollDice ? 'cursor-pointer' : 'cursor-default'}`}
+                                    style={isMobileViewport ? { width: `${diceSize ?? 96}px`, height: `${diceSize ?? 96}px` } : undefined}
+                                    aria-label={canRollDice ? 'Roll Dice' : 'Dice rolling'}
+                                >
+                                    <Canvas
+                                        shadows
+                                        camera={{ position: [0, 0, 4], fov: 45 }}
+                                        children={[
+                                            <ambientLight key="ambient" intensity={0.8} />,
+                                            <spotLight key="spot" position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />,
+                                            <Environment key="env" preset="studio" />,
+                                            <Suspense key="suspense" fallback={null}>
+                                                <Dice3D 
+                                                    rolling={isDiceRolling} 
+                                                    result={diceValue} 
+                                                    onLand={handleDiceLand} 
+                                                    isMoving={phase === 'moving'} 
+                                                />
+                                                <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} />
+                                            </Suspense>
+                                        ]}
+                                    />
+                                </div>
+                                {!isMobileViewport && !isDiceRolling && phase === 'roll' && (
                                     <button 
                                         onClick={rollDice}
-                                        className="w-full py-4 bg-brand-yellow text-slate-900 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform animate-bounce flex items-center justify-center text-xl"
+                                        className="w-full py-3 sm:py-4 bg-brand-yellow text-slate-900 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform animate-bounce flex items-center justify-center text-base sm:text-xl"
                                     >
-                                        <Play size={24} className="mr-2" /> Roll Dice
+                                        <Play size={20} className="mr-2" /> Roll Dice
                                     </button>
                                 )}
-                                
-                                {isDiceRolling && (
+                                {!isMobileViewport && isDiceRolling && (
                                     <div className="text-slate-400 font-bold animate-pulse mt-2">Rolling...</div>
                                 )}
                             </div>
@@ -903,24 +1071,34 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                         {phase === 'turn-complete' && (
                             <div className="text-center animate-fade-in">
-                                <CheckCircle size={64} className="text-green-500 mx-auto mb-4" />
-                                <h3 className="text-xl font-bold text-slate-700 mb-6">Turn Complete</h3>
+                                <CheckCircle size={isMobileViewport ? 36 : 64} className="text-green-500 mx-auto mb-2 sm:mb-4" />
+                                <h3 className={`font-bold text-slate-700 ${isMobileViewport ? 'text-[11px] mb-2' : 'text-xl mb-6'}`}>Turn Complete</h3>
                                 <button 
                                     onClick={nextTurn}
-                                    className="w-full px-8 py-4 bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center text-lg"
+                                    className={`w-full bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'px-8 py-4 text-base sm:text-lg'}`}
                                 >
-                                    Next Player <ArrowRight size={20} className="ml-2" />
+                                    Next Player <ArrowRight size={isMobileViewport ? 14 : 20} className="ml-2" />
                                 </button>
                             </div>
                         )}
                     </div>
                 </div>
+                </div>
             </div>
 
             {/* QUESTION MODAL */}
             {phase === 'question' && currentQuestion && isQuestionVisible && (
-                <div className="fixed inset-0 z-[200] flex flex-col items-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in" style={{ paddingTop: '160px' }}>
-                    <div className="w-[75vw] aspect-[16/9] max-h-[70vh] [perspective:1000px] relative">
+                <div
+                    className={`${isMobileViewport
+                        ? 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-3 animate-fade-in overflow-hidden'
+                        : 'fixed inset-0 z-[200] flex flex-col items-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in'
+                    }`}
+                    style={isMobileViewport ? undefined : { paddingTop: '160px' }}
+                >
+                    <div className={`${isMobileViewport
+                        ? 'w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative'
+                        : 'w-[75vw] aspect-[16/9] max-h-[70vh] [perspective:1000px] relative'
+                    }`}>
                         <button 
                             onClick={() => setIsQuestionVisible(false)}
                             className="absolute -top-12 right-0 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-bold backdrop-blur-md flex items-center z-[210] transition-colors"
@@ -931,30 +1109,36 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-brand-blue text-white p-4 flex justify-between items-center h-20 flex-shrink-0">
-                                    <div className="flex items-center gap-4">
-                                        <div className="font-bold text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
-                                        <div className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold border border-white/30">You rolled a {diceValue}</div>
+                                <div className="bg-brand-blue text-white p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
+                                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                                        <div className="font-bold text-sm sm:text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
+                                        <div className="bg-white/20 text-white px-3 py-1 rounded-full text-xs sm:text-sm font-bold border border-white/30">You rolled a {diceValue}</div>
                                     </div>
                                     <div className={`font-bold ${targetStatus.size} ${targetStatus.color}`}>
                                         {targetStatus.text}
                                     </div>
                                 </div>
-                                <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-8 bg-white">
-                                    <div className={`font-display font-bold text-slate-800 leading-tight text-center ${getFontSizeClass(currentQuestion.question)}`}>
-                                        {currentQuestion.question}
+                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-3 sm:p-8 bg-white">
+                                    <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden px-2">
+                                        <div
+                                            ref={questionTextRef}
+                                            style={questionFontSize && isMobileViewport ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                            className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words ${getFontSizeClass(currentQuestion.question)}`}
+                                        >
+                                            {currentQuestion.question}
+                                        </div>
                                     </div>
                                     {currentQuestion.options && currentQuestion.options.length > 0 && !isFlipped && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-8 max-w-2xl">
+                                        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full mt-4 sm:mt-8 max-w-2xl">
                                             {currentQuestion.options.map((opt, i) => (
-                                                <button key={i} onClick={() => handleMcSelect(opt)} className="p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm text-xl md:text-2xl h-full min-h-[80px] flex items-center justify-center">
+                                                <button key={i} onClick={() => handleMcSelect(opt)} className="p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm text-base sm:text-xl md:text-2xl h-full min-h-[64px] sm:min-h-[80px] flex items-center justify-center whitespace-normal break-words">
                                                     {opt}
                                                 </button>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-                                <div className={`h-24 flex items-center justify-between px-8 relative flex-shrink-0 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
+                                <div className={`h-[clamp(88px,14vh,120px)] sm:h-24 flex items-center justify-between px-4 sm:px-8 relative flex-shrink-0 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
                                     {options.timerSeconds > 0 && timeLeft > 0 && !isTimesUp && (
                                         <div className="absolute inset-0 bg-black/10 flex items-center justify-start pointer-events-none">
                                             <div className="h-full bg-white/20 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />

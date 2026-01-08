@@ -36,12 +36,71 @@ const levenshteinDistance = (a: string, b: string): number => {
     return matrix[b.length][a.length];
 };
 
+const normalizeText = (text: string): string =>
+    text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const stopWords = new Set(['a', 'an', 'the', 'to', 'of', 'and', 'or', 'for', 'in', 'on', 'with', 'at', 'by']);
+
+const synonymMap: Record<string, string> = {
+    mobile: 'phone',
+    cellphone: 'phone',
+    cell: 'phone',
+    telephone: 'phone',
+    tv: 'television',
+};
+
+const stemWord = (word: string): string => {
+    if (word.length <= 4) return word;
+    if (word.endsWith('ing')) return word.slice(0, -3);
+    if (word.endsWith('ed')) return word.slice(0, -2);
+    if (word.endsWith('es')) return word.slice(0, -2);
+    if (word.endsWith('s')) return word.slice(0, -1);
+    return word;
+};
+
+const toTokens = (text: string): string[] =>
+    normalizeText(text)
+        .split(' ')
+        .filter(Boolean)
+        .filter(word => !stopWords.has(word))
+        .map(word => synonymMap[word] ?? word)
+        .map(stemWord);
+
 const isMatch = (input: string, target: string): boolean => {
-    const cleanInput = input.trim().toLowerCase();
-    const cleanTarget = target.trim().toLowerCase();
+    const cleanInput = normalizeText(input);
+    const cleanTarget = normalizeText(target);
     
     // Direct match check first
     if (cleanInput === cleanTarget) return true;
+
+    const inputTokens = toTokens(input);
+    const targetTokens = toTokens(target);
+
+    if (inputTokens.length && targetTokens.length) {
+        const inputJoined = inputTokens.join(' ');
+        const targetJoined = targetTokens.join(' ');
+        if (inputJoined === targetJoined) return true;
+
+        const targetSet = new Set(targetTokens);
+        const overlap = inputTokens.filter(token => targetSet.has(token)).length;
+        const maxTokens = Math.max(inputTokens.length, targetTokens.length);
+        if (overlap / maxTokens >= 0.8) return true;
+
+        const inputAllInTarget = inputTokens.every(token => targetSet.has(token));
+        if (inputAllInTarget && targetTokens.length <= inputTokens.length + 2) return true;
+
+        const inputSet = new Set(inputTokens);
+        const targetAllInInput = targetTokens.every(token => inputSet.has(token));
+        if (targetAllInInput && inputTokens.length <= targetTokens.length + 2) return true;
+
+        const tokenDist = levenshteinDistance(inputJoined, targetJoined);
+        const tokenTolerance = Math.max(1, Math.floor(targetJoined.length * 0.15));
+        if (targetJoined.length > 6 && tokenDist <= tokenTolerance) return true;
+    }
 
     // Singular / Plural Checks (English rules simplified)
     if (cleanInput + 's' === cleanTarget) return true; // bag -> bags
@@ -116,7 +175,15 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [editScore, setEditScore] = useState(0);
     const [editStrikes, setEditStrikes] = useState(0);
 
-    const questions = game.questions || [];
+    const questions = React.useMemo(() => {
+        const base = [...(game.questions || [])];
+        if (!options.randomizeQuestions) return base;
+        for (let i = base.length - 1; i > 0; i -= 1) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [base[i], base[j]] = [base[j], base[i]];
+        }
+        return base;
+    }, [game.questions, options.randomizeQuestions]);
     const currentQ = questions[currentRound];
     
     // Ensure surveyAnswers exists, pad if necessary to 8
@@ -587,7 +654,17 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-slate-100 to-slate-200 border-4 border-white rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-between px-3 md:px-6 overflow-hidden">
                                         {ans.text !== "---" ? (
                                             <>
-                                                <span className="text-base md:text-2xl font-black text-slate-800 uppercase truncate pr-2 drop-shadow-sm flex-1 text-left">{ans.text}</span>
+                                                <span
+                                                    className={`font-black text-slate-800 uppercase pr-2 drop-shadow-sm flex-1 min-w-0 text-left whitespace-normal break-words leading-[1.1] ${
+                                                        ans.text.length > 90 ? 'text-[8px] sm:text-[9px] md:text-xs' :
+                                                        ans.text.length > 70 ? 'text-[9px] sm:text-[10px] md:text-sm' :
+                                                        ans.text.length > 50 ? 'text-[10px] sm:text-xs md:text-base' :
+                                                        ans.text.length > 35 ? 'text-[11px] sm:text-sm md:text-lg' :
+                                                        'text-xs sm:text-base md:text-2xl'
+                                                    }`}
+                                                >
+                                                    {ans.text}
+                                                </span>
                                                 <div className="bg-blue-600 text-white px-2 py-1 md:px-4 md:py-1 font-mono font-bold text-lg md:text-2xl border-2 border-blue-800 shadow-inner min-w-[2.5rem] text-center rounded-md">
                                                     {ans.score}
                                                 </div>
