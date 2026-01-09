@@ -334,8 +334,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const updateSize = () => {
             const rect = element.getBoundingClientRect();
             if (rect.height <= 0 || rect.width <= 0) return;
-            const sizeFromHeight = Math.floor(rect.height * 0.5);
-            const sizeFromWidth = Math.floor(rect.width * 0.5);
+            const sizeFromHeight = Math.floor(rect.height * 1.0);
+            const sizeFromWidth = Math.floor(rect.width * 1.0);
             const next = Math.max(0, Math.min(sizeFromHeight, sizeFromWidth));
             setDiceSize(prev => (prev === next ? prev : next));
         };
@@ -716,6 +716,23 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         return 'text-2xl md:text-4xl'; 
     };
 
+    const getOptionFontSizeClass = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 20) return 'text-2xl md:text-3xl';
+        if (len < 35) return 'text-xl md:text-2xl';
+        if (len < 60) return 'text-lg md:text-xl';
+        return 'text-base md:text-lg';
+    };
+
+    const getMobileOptionFontSize = (text: string) => {
+        const len = text ? text.length : 0;
+        if (len < 12) return 18;
+        if (len < 20) return 16;
+        if (len < 30) return 14;
+        if (len < 40) return 13;
+        return 12;
+    };
+
     const getTargetStatus = () => {
         const currentPos = positions[currentTeamId];
         const target = Math.min(99, currentPos + diceValue);
@@ -729,6 +746,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const targetStatus = getTargetStatus();
     const isBonusStatus = (statusMessage || '').toLowerCase().includes('bonus');
+    const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
+    const timerProgress = options.timerSeconds > 0
+        ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
+        : 0;
 
     if (phase === 'gameover') {
         return (
@@ -961,8 +982,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 </div>
 
                 {/* RIGHT SIDE (Controls) */}
-                <div className="w-full md:w-80 flex flex-col justify-center gap-4 sm:gap-6 shrink-0">
-                    <div className={`bg-white rounded-2xl p-2 sm:p-6 shadow-xl border border-slate-100 text-center flex flex-col items-center justify-center overflow-hidden ${isMobileViewport ? 'h-[clamp(160px,22vh,240px)]' : 'min-h-[300px]'}`}>
+                <div className="w-full md:flex-1 flex flex-col items-center justify-center gap-4 sm:gap-6">
+                    <div className={`w-full md:max-w-[340px] bg-white rounded-2xl p-2 sm:p-6 shadow-xl border border-slate-100 text-center flex flex-col items-center justify-center overflow-hidden ${isMobileViewport ? 'h-[clamp(160px,22vh,240px)]' : 'min-h-[300px]'}`}>
                         
                         {phase === 'setup' && (
                             <div className="animate-fade-in w-full">
@@ -996,13 +1017,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 >
                                     <h3
                                         className={`font-bold text-slate-700 ${isMobileViewport ? '' : 'text-base sm:text-xl'} ${isMobileViewport ? 'mb-0.5' : 'mb-2'}`}
-                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(12, Math.floor(diceSize * 0.24))}px` } : undefined}
+                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(10, Math.floor(diceSize * 0.2))}px`, lineHeight: '1.1' } : undefined}
                                     >
                                         {teamNames[currentTeamId]}
                                     </h3>
                                     <div
                                         className={`text-slate-500 ${isMobileViewport ? '' : 'text-sm'}`}
-                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(10, Math.floor(diceSize * 0.18))}px` } : undefined}
+                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(9, Math.floor(diceSize * 0.14))}px`, lineHeight: '1.15' } : undefined}
                                     >
                                         {isMobileViewport ? "It's your turn" : "It's your turn"}
                                     </div>
@@ -1071,13 +1092,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                         {phase === 'turn-complete' && (
                             <div className="text-center animate-fade-in">
-                                <CheckCircle size={isMobileViewport ? 36 : 64} className="text-green-500 mx-auto mb-2 sm:mb-4" />
-                                <h3 className={`font-bold text-slate-700 ${isMobileViewport ? 'text-[11px] mb-2' : 'text-xl mb-6'}`}>Turn Complete</h3>
+                                <CheckCircle size={isMobileViewport ? 45 : 80} className="text-green-500 mx-auto mb-3 sm:mb-4" />
+                                <h3 className={`font-bold text-slate-700 ${isMobileViewport ? 'text-[14px] mb-3' : 'text-2xl mb-7'}`}>Turn Complete</h3>
                                 <button 
                                     onClick={nextTurn}
-                                    className={`w-full bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'px-8 py-4 text-base sm:text-lg'}`}
+                                    className={`w-full bg-brand-blue text-white rounded-xl font-bold shadow-lg hover:bg-sky-600 transition-all flex items-center justify-center ${isMobileViewport ? 'py-2 text-[12px]' : 'px-10 py-5 text-lg'}`}
                                 >
-                                    Next Player <ArrowRight size={isMobileViewport ? 14 : 20} className="ml-2" />
+                                    Next Player <ArrowRight size={isMobileViewport ? 18 : 24} className="ml-2" />
                                 </button>
                             </div>
                         )}
@@ -1118,8 +1139,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         {targetStatus.text}
                                     </div>
                                 </div>
-                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-3 sm:p-8 bg-white">
-                                    <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden px-2">
+                                <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                    <div className="flex flex-col flex-1 min-h-0">
+                                        <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
                                         <div
                                             ref={questionTextRef}
                                             style={questionFontSize && isMobileViewport ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -1128,33 +1150,53 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                             {currentQuestion.question}
                                         </div>
                                     </div>
-                                    {currentQuestion.options && currentQuestion.options.length > 0 && !isFlipped && (
-                                        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full mt-4 sm:mt-8 max-w-2xl">
-                                            {currentQuestion.options.map((opt, i) => (
-                                                <button key={i} onClick={() => handleMcSelect(opt)} className="p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm text-base sm:text-xl md:text-2xl h-full min-h-[64px] sm:min-h-[80px] flex items-center justify-center whitespace-normal break-words focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
-                                                    {opt}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+                                        {hasOptions && !isFlipped && (
+                                            <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
+                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    {(() => {
+                                                        const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
+                                                        const uniformSize = getOptionFontSizeClass(longestText);
+                                                        const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
+                                                        return currentQuestion.options!.map((opt, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => handleMcSelect(opt)}
+                                                                style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                className={`p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full whitespace-normal break-words focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ${uniformSize}`}
+                                                            >
+                                                                {opt}
+                                                            </button>
+                                                        ));
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className={`h-[clamp(88px,14vh,120px)] sm:h-24 flex items-center justify-between px-4 sm:px-8 relative flex-shrink-0 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
-                                    {options.timerSeconds > 0 && timeLeft > 0 && !isTimesUp && (
-                                        <div className="absolute inset-0 bg-black/10 flex items-center justify-start pointer-events-none">
-                                            <div className="h-full bg-white/20 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                    {options.timerSeconds > 0 && (
+                                        <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
+                                            {!isTimesUp && (
+                                                <div 
+                                                    className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000"
+                                                    style={{ width: `${timerProgress * 100}%` }}
+                                                />
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
+                                                {isTimesUp ? "TIME'S UP!" : (
+                                                    <><Clock size={18} className="mr-2" /> {timeLeft}</>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
-                                    {(!currentQuestion.options || currentQuestion.options.length === 0) && (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleFlip(); }}
-                                            className="bg-white text-brand-blue px-10 py-3 rounded-full font-bold text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50"
-                                        >
-                                            Reveal Answer
-                                        </button>
-                                    )}
-                                    {options.timerSeconds > 0 && (
-                                        <div className="text-white font-mono font-bold text-3xl opacity-90 flex items-center pointer-events-none absolute left-1/2 -translate-x-1/2">
-                                            {isTimesUp ? <span className="animate-pulse font-black drop-shadow-md">TIME'S UP!</span> : <><Clock size={28} className="mr-3" /> {timeLeft}</>}
+                                    {!hasOptions && (
+                                        <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleFlip(); }}
+                                                className="bg-brand-blue text-white px-10 py-3 rounded-full font-bold text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50"
+                                            >
+                                                Reveal Answer
+                                            </button>
                                         </div>
                                     )}
                                 </div>

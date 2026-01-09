@@ -95,6 +95,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const rounds = game.pubQuizRounds || [];
     const currentRound = currentRoundIndex !== null ? rounds[currentRoundIndex] : null;
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
+    const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
 
     // Font Sizer Helper
     const getQuestionFontSizeClass = (text: string) => {
@@ -499,10 +500,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     const mainContentAlign = phase === 'home'
         ? 'justify-start pt-16 md:pt-20'
-        : phase === 'scoring'
+        : phase === 'scoring' || phase === 'review'
             ? 'justify-start pt-4 sm:justify-center sm:pt-6'
             : 'justify-center pt-6';
-    const mainContentOverflow = phase === 'home' ? 'overflow-visible' : 'overflow-hidden';
+    const mainContentOverflow = phase === 'home'
+        ? 'overflow-visible'
+        : phase === 'review'
+            ? 'overflow-y-auto'
+            : 'overflow-hidden';
     const containerOverflowClass = phase === 'home' ? 'overflow-visible' : 'overflow-hidden';
     const containerHeightClass = isFullscreen
         ? 'h-screen'
@@ -667,13 +672,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                 {/* REVIEW PHASE */}
                 {phase === 'review' && currentRound && (
-                    <div className="w-full max-w-6xl h-full flex flex-col animate-fade-in">
+                    <div className="w-full max-w-6xl h-full min-h-0 flex flex-col animate-fade-in">
                         <div className="text-center mb-3 sm:mb-6">
                             <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-white drop-shadow-md">Round Review: {currentRound.name}</h2>
                             <p className="text-white/60 font-bold text-sm sm:text-base md:text-lg">Review answers before scoring.</p>
                         </div>
                         
-                        <div className="flex-1 min-h-[57vh] sm:min-h-0 overflow-y-auto bg-white rounded-3xl shadow-2xl border-4 border-slate-200 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+                        <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-3xl shadow-2xl border-4 border-slate-200 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                             {currentRound.questions.map((q, idx) => (
                                 <div key={idx} className="border-b border-slate-100 pb-4 sm:pb-6 last:border-0">
                                     <div className="flex justify-between items-start mb-2 sm:mb-3">
@@ -820,9 +825,9 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
 
                                 {/* Body */}
-                                <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
+                                <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     <div className="flex flex-col flex-1 min-h-0">
-                                        <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                        <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
                                             <div
                                                 ref={questionTextRef}
                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -832,9 +837,9 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                             </div>
                                         </div>
                                         {/* Options */}
-                                        {currentQuestion.options && currentQuestion.options.length > 0 && !isFlipped && (
-                                            <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                        {hasOptions && !isFlipped && (
+                                            <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
                                                     {(() => {
                                                         const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
                                                         const uniformSize = getOptionFontSizeClass(longestText);
@@ -843,7 +848,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                             <div
                                                                 key={i}
                                                                 style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                className={`p-2 sm:p-3 md:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[56px] md:min-h-[80px] h-full whitespace-normal break-words hyphens-none ${uniformSize}`}
+                                                                className={`p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-words hyphens-none ${uniformSize}`}
                                                             >
                                                                 {opt}
                                                             </div>
@@ -856,38 +861,37 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
 
                                 {/* Footer */}
-                                <div className={`h-[clamp(88px,14vh,120px)] sm:h-24 md:h-24 flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative flex-shrink-0 z-50 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
-                                    {/* Timer Strip */}
-                                    {options.timerSeconds > 0 && (
-                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-black/10 flex items-center justify-start pointer-events-none">
-                                            {!isTimesUp && (
-                                                <div className="absolute inset-y-0 left-0 bg-white/30 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
-                                            )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white tracking-wider">
-                                                {isTimesUp ? "TIME'S UP!" : (
-                                                    <><Clock size={12} className="mr-1" /> {timeLeft}s</>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="w-full flex-1 flex items-center justify-between gap-3 py-3">
+                                <div className="flex flex-col relative flex-shrink-0 z-50 bg-white px-0">
+                                    <div className="w-full flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 md:px-8 py-2 sm:py-3">
                                         <button 
                                             onClick={() => setIsFlipped(true)}
-                                            className="bg-white text-brand-blue px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-white"
+                                            className="bg-brand-blue text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-brand-blue"
                                         >
                                             Reveal Answer
                                         </button>
 
                                         <button 
                                             onClick={handleNextQuestion}
-                                            className="text-white font-bold text-xs sm:text-base md:text-xl hover:bg-white/20 px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center opacity-90 hover:opacity-100 relative z-50"
+                                            className="text-slate-700 font-bold text-xs sm:text-base md:text-xl hover:bg-slate-100 px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center relative z-50"
                                         >
                                             <span className="sm:hidden">Next</span>
                                             <span className="hidden sm:inline">Go to next question</span>
                                             <ArrowRight size={16} className="ml-2 md:w-6 md:h-6" />
                                         </button>
                                     </div>
+
+                                    {options.timerSeconds > 0 && (
+                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-white overflow-hidden flex items-center justify-start pointer-events-none">
+                                            {!isTimesUp && (
+                                                <div className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                            )}
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-base md:text-lg font-black text-slate-900 tracking-wider">
+                                                {isTimesUp ? "TIME'S UP!" : (
+                                                    <><Clock size={12} className="mr-1" /> {timeLeft}s</>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
