@@ -263,7 +263,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const getOptionClass = (index: number) => {
         if (hiddenOptions.includes(index)) return "invisible";
         
-        let base = "relative flex items-center w-full border-2 rounded-full transition-all duration-200 font-bold text-left group overflow-hidden ";
+        let base = "relative flex items-center w-full border-2 rounded-full transition-all duration-200 font-bold text-left group overflow-hidden focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ";
         
         // Responsive Sizing based on Fullscreen
         if (isMobileViewport) {
@@ -282,7 +282,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         
         if (index === selectedOption) return base + " bg-orange-500 border-white text-white shadow-[0_0_20px_rgba(249,115,22,0.8)] z-10 scale-105";
         
-        return base + " bg-slate-900 border-indigo-300/50 text-white hover:bg-indigo-800 hover:border-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]";
+        return base + " bg-slate-900 border-indigo-300/50 text-white sm:hover:bg-indigo-800 sm:hover:border-yellow-400 sm:hover:shadow-[0_0_15px_rgba(234,179,8,0.4)]";
     };
 
     // Helper for dynamic question font size
@@ -539,7 +539,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     onClick={() => handleAnswer(idx)}
                                     className={getOptionClass(idx)}
                                 >
-                                    <span className={`text-yellow-500 mr-3 group-hover:text-white transition-colors font-display ${isMobileViewport ? 'text-base' : (isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl')}`}>
+                                    <span className={`text-yellow-500 mr-3 sm:group-hover:text-white transition-colors font-display ${isMobileViewport ? 'text-base' : (isFullscreen ? 'text-3xl md:text-5xl' : 'text-xl md:text-3xl')}`}>
                                         {['A', 'B', 'C', 'D'][idx]}:
                                     </span>
                                     <span className={`drop-shadow-sm w-full leading-tight text-left ${getAnswerFontSize(opt)}`}>

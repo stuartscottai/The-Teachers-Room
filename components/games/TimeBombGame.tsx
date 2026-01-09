@@ -50,15 +50,48 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const answerTextRef = useRef<HTMLHeadingElement>(null);
     const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
     const [resizeTick, setResizeTick] = useState(0);
+    const [explosionKey, setExplosionKey] = useState(0);
+    const explosionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [mcFeedback, setMcFeedback] = useState<{ index: number; status: 'correct' | 'wrong' } | null>(null);
+    const [isResolvingMc, setIsResolvingMc] = useState(false);
+    const mcFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Fuse Ref for Spark Calculation
     const fusePathRef = useRef<SVGPathElement>(null);
-    const mobileFusePathRef = useRef<SVGPathElement>(null);
-    const [sparkPos, setSparkPos] = useState({ x: 340, y: 60 }); // Default start pos for mobile fuse path
+    const cardFrameRef = useRef<HTMLDivElement>(null);
+    const [fuseBox, setFuseBox] = useState({ width: 0, height: 0 });
+    const [fuseLength, setFuseLength] = useState(0);
+    const [sparkPos, setSparkPos] = useState({ x: 8, y: 24 });
+    const [explosionOrigin, setExplosionOrigin] = useState({ x: 0, y: 0 });
+    const arenaRef = useRef<HTMLDivElement>(null);
+    const dynamiteRef = useRef<HTMLDivElement>(null);
 
     // Initial Question Setup
     const currentQuestion = questions[currentQuestionIndex];
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+
+    const buildFusePath = (width: number, height: number) => {
+        const padX = 6;
+        const padY = 6;
+        if (width <= padX * 2 || height <= padY * 2) return '';
+        const radius = Math.min(24, (width - padX * 2) / 2, (height - padY * 2) / 2);
+        const left = padX;
+        const top = padY;
+        const right = width - padX;
+        const bottom = height - padY;
+        const midX = (left + right) / 2;
+
+        return `M ${midX} ${top} H ${left + radius} Q ${left} ${top} ${left} ${top + radius} ` +
+            `V ${bottom - radius} Q ${left} ${bottom} ${left + radius} ${bottom} H ${right - radius} ` +
+            `Q ${right} ${bottom} ${right} ${bottom - radius} V ${top + radius} Q ${right} ${top} ${right - radius} ${top} ` +
+            `H ${midX}`;
+    };
+
+    const fuseProgress = Math.max(0, Math.min(1, 1 - (bombTime / (options.bombDuration || 60))));
+    const fuseWidth = fuseBox.width || 1000;
+    const fuseHeight = fuseBox.height || 700;
+    const fusePath = buildFusePath(fuseWidth, fuseHeight);
+    const fuseViewBox = `0 0 ${fuseWidth} ${fuseHeight}`;
 
     // Scroll Lock
     useEffect(() => {
@@ -93,10 +126,28 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     // --- GAMEPLAY LOGIC ---
 
+    const captureExplosionOrigin = () => {
+        const arena = arenaRef.current;
+        if (!arena) return;
+        const arenaRect = arena.getBoundingClientRect();
+        let x = arenaRect.width / 2;
+        let y = arenaRect.height / 3;
+        const dynamite = dynamiteRef.current;
+        if (dynamite) {
+            const dynRect = dynamite.getBoundingClientRect();
+            x = dynRect.left + dynRect.width / 2 - arenaRect.left;
+            y = dynRect.top + dynRect.height / 2 - arenaRect.top;
+        }
+        setExplosionOrigin({ x, y });
+    };
+
     const handleExplosion = () => {
+        captureExplosionOrigin();
         setIsTicking(false);
         setIsExploded(true);
         setGameState('exploded');
+        setExplosionKey(prev => prev + 1);
+        setShowExplosionModal(false);
         playSound('incorrect', isMuted, 'Explosion'); 
 
         // Deduct Life immediately
@@ -106,8 +157,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             return newLives;
         });
 
-        // Show Modal instead of auto-continuing
-        setShowExplosionModal(true);
+        // Show Modal after blast animation
+        if (explosionTimerRef.current) {
+            clearTimeout(explosionTimerRef.current);
+        }
+        explosionTimerRef.current = setTimeout(() => {
+            setShowExplosionModal(true);
+        }, 1400);
     };
 
     const handleContinueAfterExplosion = () => {
@@ -140,18 +196,65 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         return () => clearInterval(timerRef.current);
     }, [isTicking, isPaused]);
 
+    useEffect(() => {
+        return () => {
+            if (explosionTimerRef.current) {
+                clearTimeout(explosionTimerRef.current);
+            }
+        };
+    }, []);
+    useEffect(() => {
+        return () => {
+            if (mcFeedbackTimerRef.current) {
+                clearTimeout(mcFeedbackTimerRef.current);
+            }
+        };
+    }, []);
+
+    useLayoutEffect(() => {
+        const el = cardFrameRef.current;
+        if (!el) return;
+        const update = () => {
+            const rect = el.getBoundingClientRect();
+            const width = Math.round(rect.width);
+            const height = Math.round(rect.height);
+            setFuseBox(prev => (
+                prev.width === width && prev.height === height
+                    ? prev
+                    : { width, height }
+            ));
+        };
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    useLayoutEffect(() => {
+        if (!fusePathRef.current) return;
+        const length = fusePathRef.current.getTotalLength();
+        if (length && length !== fuseLength) {
+            setFuseLength(length);
+        }
+    }, [fusePath, fuseBox.width, fuseBox.height, fuseLength]);
+
+    useLayoutEffect(() => {
+        if (!isExploded) return;
+        captureExplosionOrigin();
+    }, [isExploded, explosionKey, resizeTick]);
+
     // Spark Position Logic (Follows Fuse)
     useEffect(() => {
-        const activeFuseRef = isMobileViewport ? mobileFusePathRef : fusePathRef;
-        if (activeFuseRef.current && bombTime > 0) {
+        if (fusePathRef.current && bombTime > 0) {
             const max = options.bombDuration || 60;
-            const length = activeFuseRef.current.getTotalLength();
+            const length = fusePathRef.current.getTotalLength();
             const ratio = Math.max(0, Math.min(1, bombTime / max));
-            const point = activeFuseRef.current.getPointAtLength(length * ratio);
-            
+            const burnProgress = 1 - ratio;
+            const point = fusePathRef.current.getPointAtLength(length * burnProgress);
+
             setSparkPos({ x: point.x, y: point.y });
         }
-    }, [bombTime, options.bombDuration, isMobileViewport]);
+    }, [bombTime, options.bombDuration, fuseBox.width, fuseBox.height]);
 
     const checkElimination = () => {
         setTeamLives(currentLives => {
@@ -202,6 +305,11 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const nextQuestion = () => {
         setIsFlipped(false);
         setDisabledOptions([]); // Reset MC state
+        setMcFeedback(null);
+        setIsResolvingMc(false);
+        if (mcFeedbackTimerRef.current) {
+            clearTimeout(mcFeedbackTimerRef.current);
+        }
         
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
         
@@ -250,19 +358,35 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     const handleMCOptionClick = (option: string, index: number) => {
-        if (disabledOptions.includes(index) || isPaused || isExploded) return;
+        if (disabledOptions.includes(index) || isPaused || isExploded || isResolvingMc) return;
 
         // Clean strings for comparison
         const cleanOpt = option.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
         const cleanAns = currentQuestion.answer.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
 
         if (cleanOpt === cleanAns) {
-            handleCorrect();
+            setIsResolvingMc(true);
+            setMcFeedback({ index, status: 'correct' });
+            if (mcFeedbackTimerRef.current) {
+                clearTimeout(mcFeedbackTimerRef.current);
+            }
+            mcFeedbackTimerRef.current = setTimeout(() => {
+                handleCorrect();
+                setMcFeedback(null);
+                setIsResolvingMc(false);
+            }, 350);
         } else {
             // Wrong MC answer
             playSound('incorrect', isMuted, 'Buzz');
             setBombTime(t => Math.max(0.1, t - 10)); // Penalty
             setDisabledOptions(prev => [...prev, index]); // Disable this option
+            setMcFeedback({ index, status: 'wrong' });
+            if (mcFeedbackTimerRef.current) {
+                clearTimeout(mcFeedbackTimerRef.current);
+            }
+            mcFeedbackTimerRef.current = setTimeout(() => {
+                setMcFeedback(null);
+            }, 300);
         }
     };
 
@@ -280,6 +404,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         // Pulse faster as time runs out
         return 1 + (Math.sin(Date.now() / (ratio > 0.8 ? 50 : 200)) * 0.02);
     };
+
+    const formatBombTime = (time: number) => {
+        const safe = Math.max(0, time);
+        const display = safe.toFixed(1);
+        return display.length < 4 ? display.padStart(4, '0') : display;
+    };
+
 
     // Responsive Font Size Logic
     const getQuestionFontSizeClass = (text: string) => {
@@ -391,9 +522,40 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     return (
         <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
+            <style>{`
+                @keyframes timeBombBlast {
+                    0% { transform: translate(-50%, -50%) scale(0.05); opacity: 0.9; }
+                    45% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(12); opacity: 0; }
+                }
+                @keyframes timeBombFire {
+                    0% { opacity: 1; transform: scale(0.85); }
+                    60% { opacity: 0.9; transform: scale(1.1); }
+                    100% { opacity: 0; transform: scale(1.3); }
+                }
+                @keyframes timeBombSmoke {
+                    0% { opacity: 0.15; transform: scale(0.8); }
+                    40% { opacity: 0.35; }
+                    100% { opacity: 0; transform: scale(1.6); }
+                }
+                @keyframes timeBombShockwave {
+                    0% { opacity: 0.6; transform: scale(0.6); }
+                    100% { opacity: 0; transform: scale(1.9); }
+                }
+                @keyframes mcFlashGreen {
+                    0% { transform: scale(1); filter: brightness(1.15); }
+                    50% { transform: scale(1.02); filter: brightness(1.3); }
+                    100% { transform: scale(1); filter: brightness(1); }
+                }
+                @keyframes mcFlashRed {
+                    0% { transform: scale(1); filter: brightness(1.1); }
+                    50% { transform: scale(0.99); filter: brightness(1.25); }
+                    100% { transform: scale(1); filter: brightness(1); }
+                }
+            `}</style>
             
             {/* 1. HEADER */}
-            <div className="bg-slate-900/90 backdrop-blur-md p-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[clamp(64px,10vh,84px)] sm:min-h-[180px] shadow-2xl relative overflow-visible">
+            <div className="bg-slate-900/90 backdrop-blur-md p-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[70px] sm:min-h-[140px] shadow-2xl relative overflow-visible">
                 <div className="flex flex-col items-start gap-1.5 min-w-[40px] sm:hidden">
                     <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} />
@@ -413,14 +575,14 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 </div>
 
                 <div className="hidden sm:flex flex-col items-start gap-2 min-w-[140px]">
-                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
                     <h1 className="text-slate-200 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80 uppercase tracking-widest mt-1">{game.title}</h1>
                 </div>
 
                 {/* Team Status Bar */}
-                <div className="flex-1 grid grid-cols-3 auto-rows-fr gap-1.5 px-2 py-1 place-items-center sm:flex sm:justify-center sm:gap-6 sm:overflow-x-auto sm:no-scrollbar sm:px-4 sm:py-2 sm:items-center">
+                <div className="flex-1 grid grid-cols-3 auto-rows-fr gap-1.5 px-2 py-1 place-items-center sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:no-scrollbar sm:px-3 sm:py-2 sm:items-center">
                     {teamNames.map((name, idx) => {
                         const isAlive = teamLives[idx] > 0;
                         const isActive = idx === activeTeamIndex;
@@ -428,7 +590,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <div 
                                 key={idx} 
                                 className={`
-                                    relative w-full min-w-0 px-1.5 py-1.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all min-h-[clamp(40px,6.8vh,58px)] sm:min-h-[6rem] sm:w-auto sm:min-w-[140px] flex flex-col items-center justify-center
+                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all min-h-[clamp(36px,6vh,52px)] sm:min-h-[5rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
                                       isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] scale-105 sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
                                       'border-slate-700 bg-slate-800/80 text-slate-400'}
@@ -459,24 +621,70 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     {gameState === 'play' && (
                         <button 
                             onClick={() => setIsPaused(!isPaused)} 
-                            className={`text-slate-400 hover:text-white p-3 rounded-xl transition-colors border ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+                            className={`text-slate-400 hover:text-white p-2.5 rounded-xl transition-colors border ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
                             title={isPaused ? "Resume" : "Pause"}
                         >
                             {isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
                         </button>
                     )}
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-3 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
                 </div>
             </div>
 
             {/* 2. MAIN ARENA */}
-            <div className="flex-1 relative flex flex-col md:flex-row overflow-hidden">
+            <div ref={arenaRef} className="flex-1 relative flex flex-col md:flex-row overflow-hidden">
                 
                 {/* Background Effects */}
                 <div className={`absolute inset-0 transition-colors duration-200 z-0 ${isExploded ? 'bg-red-900/60' : 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black'}`}>
                     {!isExploded && <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none"></div>}
                 </div>
+
+                {isExploded && (
+                    <div className="pointer-events-none absolute inset-0 z-[420]">
+                        <div
+                            key={explosionKey}
+                            className="absolute rounded-full"
+                            style={{
+                                left: explosionOrigin.x,
+                                top: explosionOrigin.y,
+                                width: '18vmax',
+                                height: '18vmax',
+                                animation: 'timeBombBlast 1.4s ease-out forwards'
+                            }}
+                        >
+                            <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                    background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(253,224,71,0.95) 18%, rgba(249,115,22,0.8) 45%, rgba(239,68,68,0.6) 70%, rgba(239,68,68,0) 100%)'
+                                }}
+                            />
+                            <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                    background: 'radial-gradient(circle, rgba(255,214,102,0.9) 0%, rgba(249,115,22,0.65) 50%, rgba(239,68,68,0) 80%)',
+                                    animation: 'timeBombFire 1.4s ease-out forwards',
+                                    mixBlendMode: 'screen'
+                                }}
+                            />
+                            <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                    background: 'radial-gradient(circle, rgba(148,163,184,0.6) 0%, rgba(71,85,105,0.35) 40%, rgba(30,41,59,0) 75%)',
+                                    animation: 'timeBombSmoke 1.8s ease-out forwards',
+                                    filter: 'blur(6px)'
+                                }}
+                            />
+                            <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                    border: '4px solid rgba(248,250,252,0.35)',
+                                    animation: 'timeBombShockwave 1.2s ease-out forwards'
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 
 
@@ -500,12 +708,95 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     </div>
                 ) : (
                     <>
-                        {/* LEFT: QUESTION ZONE (75%) - No Border */}
-                        <div className="flex-1 min-h-0 md:flex-[3] p-2 sm:p-3 md:p-6 flex items-center justify-center relative z-10">
-                            {/* QUESTION CARD */}
-                            {!isExploded && gameState === 'play' && (
-                                <div className="w-full max-w-[440px] h-full max-h-full sm:max-w-[600px] sm:h-full sm:max-h-[90vh] md:w-[85%] md:max-w-5xl md:aspect-[16/9] md:h-auto md:max-h-[60vh] relative [perspective:1000px]">
-                                    <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                        {/* MAIN CONTENT */}
+                        <div className="flex-1 min-h-0 p-2 sm:p-4 flex flex-col items-center justify-start sm:justify-center relative z-10">
+                            <div className="w-full flex flex-col items-center gap-2 sm:gap-4">
+                                {(gameState === 'play' || gameState === 'exploded') && (
+                                    <div className="relative flex items-center justify-center w-full">
+                                        <div
+                                            ref={dynamiteRef}
+                                            className="relative w-[min(140px,38vw)] sm:w-[min(210px,40vw)] md:w-[min(260px,30vw)] transition-transform duration-200 origin-center"
+                                            style={{ transform: `scale(${getBombScale()})` }}
+                                        >
+                                            <img
+                                                src="/assets/game_elements/dynamite.png"
+                                                alt="Dynamite"
+                                                className="w-full h-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.6)]"
+                                            />
+                                            <div className="absolute left-[46%] top-1/2 -translate-x-1/2 -translate-y-[45%]">
+                                                <span
+                                                    className="font-mono text-[clamp(22px,5.6vw,34px)] sm:text-4xl tracking-widest drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                                                    style={{ color: getTimerColor() }}
+                                                >
+                                                    {formatBombTime(bombTime)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!isExploded && gameState === 'play' && (
+                                    <div
+                                        ref={cardFrameRef}
+                                        className="relative w-full max-w-[92vw] h-[min(56vh,520px)] sm:max-w-[560px] sm:h-full sm:max-h-[68vh] md:max-w-6xl md:h-auto md:max-h-[60vh] md:aspect-[16/9] [perspective:1000px] overflow-visible"
+                                    >
+                                        <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+                                            <svg
+                                                className="w-full h-full"
+                                                viewBox={fuseViewBox}
+                                                preserveAspectRatio="none"
+                                            >
+                                            <defs>
+                                                <filter id="fuseGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                                    <feGaussianBlur stdDeviation="4" result="blur" />
+                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                                </filter>
+                                            </defs>
+                                            {fusePath && (
+                                                <>
+                                                    <path
+                                                        ref={fusePathRef}
+                                                        d={fusePath}
+                                                        fill="none"
+                                                        stroke="none"
+                                                    />
+                                                    <path
+                                                        d={fusePath}
+                                                        fill="none"
+                                                        stroke="#fbbf24"
+                                                        strokeWidth="6"
+                                                        strokeLinecap="round"
+                                                        filter="url(#fuseGlow)"
+                                                    />
+                                                    <path
+                                                        d={fusePath}
+                                                        pathLength={1000}
+                                                        fill="none"
+                                                        stroke="#7c2d12"
+                                                        strokeWidth="4"
+                                                        strokeLinecap="round"
+                                                        strokeDasharray={`${1000 * fuseProgress} 1000`}
+                                                        strokeDashoffset={0}
+                                                        className="transition-all duration-100 ease-linear"
+                                                    />
+                                                    {isTicking && !isPaused && bombTime > 0 && (
+                                                        <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
+                                                            <circle r="8" fill="#fef08a" className="animate-ping" opacity="0.8" />
+                                                            <circle r="5" fill="#fff" />
+                                                            <path
+                                                                d="M-8,0 L8,0 M0,-8 L0,8 M-6,-6 L6,6 M-6,6 L6,-6"
+                                                                stroke="#fbbf24"
+                                                                strokeWidth="2"
+                                                                className="animate-spin"
+                                                                style={{ animationDuration: '1s', transformBox: 'fill-box', transformOrigin: 'center' }}
+                                                            />
+                                                        </g>
+                                                    )}
+                                                </>
+                                            )}
+                                            </svg>
+                                        </div>
+                                        <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
                                         <div className={`absolute inset-0 [backface-visibility:hidden] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'pointer-events-none' : ''}`}>
@@ -546,20 +837,29 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             const uniformSize = getOptionFontSizeClass(longestText);
                                                             const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
                                                             
-                                                            return currentQuestion.options!.map((opt, i) => (
+                                                            return currentQuestion.options!.map((opt, i) => {
+                                                                const isDisabled = disabledOptions.includes(i);
+                                                                const isCorrect = mcFeedback?.index === i && mcFeedback.status === 'correct';
+                                                                const isWrong = mcFeedback?.index === i && mcFeedback.status === 'wrong';
+                                                                const stateClass = isCorrect
+                                                                    ? 'bg-green-600 border-green-400 text-white animate-[mcFlashGreen_0.35s_ease-out_1]'
+                                                                    : isWrong
+                                                                        ? 'bg-red-600 border-red-500 text-white animate-[mcFlashRed_0.3s_ease-out_1]'
+                                                                        : isDisabled
+                                                                            ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through'
+                                                                    : 'bg-slate-700 border-slate-600 text-slate-200 sm:hover:bg-indigo-600 sm:hover:border-indigo-400 sm:hover:text-white active:scale-95 shadow-sm';
+                                                                return (
                                                                 <button
                                                                     key={i}
-                                                                    disabled={disabledOptions.includes(i) || isPaused}
+                                                                    disabled={isDisabled || isPaused || isResolvingMc}
                                                                     onClick={() => handleMCOptionClick(opt, i)}
                                                                     style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                    className={`p-3 sm:p-4 md:p-5 rounded-none border-2 font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-words hyphens-none ${uniformSize}
-                                                                        ${disabledOptions.includes(i) 
-                                                                            ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through' 
-                                                                            : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-indigo-600 hover:border-indigo-400 hover:text-white active:scale-95 shadow-sm'}`}
+                                                                    className={`p-3 sm:p-4 md:p-5 rounded-none border-2 font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-words hyphens-none ${uniformSize} ${stateClass} focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                 >
                                                                     {opt}
                                                                 </button>
-                                                            ));
+                                                            );
+                                                            });
                                                         })()}
                                                         </div>
                                                     </div>
@@ -630,150 +930,9 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                     </div>
                                 </div>
                             )}
+                            </div>
                         </div>
 
-                        {/* RIGHT: BOMB ZONE (25%) - No Border, adjusted padding */}
-                        <div className={`p-2 sm:p-4 flex relative z-10 bg-black/20 ${isMobileViewport ? 'items-end justify-end flex-none h-[20vh] w-full' : 'items-center justify-center flex-1'}`}>
-                            {(gameState === 'play' || gameState === 'exploded') && (
-                                <div className={`relative flex-shrink-0 transition-all duration-300 ${isMobileViewport ? 'mb-2 mr-2' : ''}`} style={{ transform: `scale(${getBombScale()})`, ...(isMobileViewport ? { width: '100%', height: '100%' } : {}) }}>
-                                    {isExploded ? (
-                                        <svg width="300" height="300" viewBox="0 0 200 200" overflow="visible" className="w-full h-full animate-pulse origin-center">
-                                            <path 
-                                                d="M100,10 L125,70 L190,60 L145,110 L180,170 L120,150 L100,200 L80,150 L20,170 L55,110 L10,60 L75,70 Z" 
-                                                fill="#fef2f2" 
-                                                stroke="#ef4444" 
-                                                strokeWidth="6" 
-                                                className="animate-[pulse_0.2s_ease-in-out_infinite]"
-                                            />
-                                            <text x="100" y="125" textAnchor="middle" fill="#ef4444" fontSize="50" fontFamily="sans-serif" fontWeight="900">BOOM!</text>
-                                        </svg>
-                                    ) : isMobileViewport ? (
-                                        <svg width="300" height="350" viewBox="0 0 400 200" overflow="visible" className="w-full h-full">
-                                            <defs>
-                                                <radialGradient id="bombBody" cx="35%" cy="35%" r="65%">
-                                                    <stop offset="0%" stopColor="#64748b" />
-                                                    <stop offset="40%" stopColor="#1e293b" />
-                                                    <stop offset="100%" stopColor="#020617" />
-                                                </radialGradient>
-                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                                    <feGaussianBlur stdDeviation="4" result="blur" />
-                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                                </filter>
-                                            </defs>
-
-                                            <path ref={mobileFusePathRef} d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" fill="none" stroke="none" />
-                                            <path d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" fill="none" stroke="#713f12" strokeWidth="6" strokeLinecap="round" />
-                                            <path 
-                                                d="M339,72 C330,40 260,35 200,55 C150,75 90,95 10,110 C4,112 2,112 0,112" 
-                                                fill="none" 
-                                                stroke="#fbbf24" 
-                                                strokeWidth="4" 
-                                                strokeLinecap="round"
-                                                strokeDasharray={mobileFusePathRef.current?.getTotalLength() || 100}
-                                                strokeDashoffset={(mobileFusePathRef.current?.getTotalLength() || 100) * (1 - (bombTime / (options.bombDuration || 60)))}
-                                                className="transition-all duration-100 ease-linear"
-                                                filter="url(#glow)"
-                                            />
-                                            {isTicking && !isPaused && (
-                                                <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
-                                                    <circle r="6" fill="#fef08a" className="animate-ping" opacity="0.8" />
-                                                    <circle r="4" fill="#fff" />
-                                                    <path 
-                                                        d="M-6,0 L6,0 M0,-6 L0,6 M-4,-4 L4,4 M-4,4 L4,-4" 
-                                                        stroke="#fbbf24" 
-                                                        strokeWidth="1.5" 
-                                                        className="animate-spin" 
-                                                        style={{ animationDuration: '1s', transformBox: 'fill-box', transformOrigin: 'center' }} 
-                                                    />
-                                                </g>
-                                            )}
-
-                                            <rect x="330" y="80" width="18" height="12" rx="4" fill="#334155" stroke="#1e293b" strokeWidth="2" />
-                                            <path d="M339 80 L339 72" stroke="#1e293b" strokeWidth="4" strokeLinecap="round" />
-                                            <path d="M339 80 L339 72" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" />
-                                            <circle cx="340" cy="125" r="45" fill="url(#bombBody)" stroke="#000" strokeWidth="2" />
-                                            <ellipse cx="322" cy="110" rx="14" ry="7" fill="rgba(255,255,255,0.15)" transform="rotate(-35 322 110)" />
-
-                                            <g transform="translate(340, 130)">
-                                                <text 
-                                                    textAnchor="middle" 
-                                                    fill={getTimerColor()} 
-                                                    fontSize="28" 
-                                                    fontFamily="monospace" 
-                                                    fontWeight="900"
-                                                    dy="10"
-                                                    filter="url(#glow)"
-                                                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
-                                                >
-                                                    {bombTime.toFixed(1)}
-                                                </text>
-                                            </g>
-                                        </svg>
-                                    ) : (
-                                        <svg width="300" height="350" viewBox="0 0 200 240" overflow="visible" className="w-full h-auto max-w-[300px]">
-                                            <defs>
-                                                <radialGradient id="bombBody" cx="35%" cy="35%" r="65%">
-                                                    <stop offset="0%" stopColor="#64748b" />
-                                                    <stop offset="40%" stopColor="#1e293b" />
-                                                    <stop offset="100%" stopColor="#020617" />
-                                                </radialGradient>
-                                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                                    <feGaussianBlur stdDeviation="4" result="blur" />
-                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                                </filter>
-                                            </defs>
-
-                                            <path ref={fusePathRef} d="M100,60 C100,30 140,40 160,10" fill="none" stroke="none" />
-                                            <path d="M100,60 C100,30 140,40 160,10" fill="none" stroke="#713f12" strokeWidth="6" strokeLinecap="round" />
-                                            <path 
-                                                d="M100,60 C100,30 140,40 160,10" 
-                                                fill="none" 
-                                                stroke="#fbbf24" 
-                                                strokeWidth="4" 
-                                                strokeLinecap="round"
-                                                strokeDasharray={fusePathRef.current?.getTotalLength() || 100}
-                                                strokeDashoffset={(fusePathRef.current?.getTotalLength() || 100) * (1 - (bombTime / (options.bombDuration || 60)))}
-                                                className="transition-all duration-100 ease-linear"
-                                                filter="url(#glow)"
-                                            />
-
-                                            {isTicking && !isPaused && (
-                                                <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
-                                                    <circle r="8" fill="#fef08a" className="animate-ping" opacity="0.8" />
-                                                    <circle r="5" fill="#fff" />
-                                                    <path 
-                                                        d="M-8,0 L8,0 M0,-8 L0,8 M-6,-6 L6,6 M-6,6 L6,-6" 
-                                                        stroke="#fbbf24" 
-                                                        strokeWidth="2" 
-                                                        className="animate-spin" 
-                                                        style={{ animationDuration: '1s', transformBox: 'fill-box', transformOrigin: 'center' }} 
-                                                    />
-                                                </g>
-                                            )}
-
-                                            <rect x="85" y="50" width="30" height="20" rx="4" fill="#334155" stroke="#1e293b" strokeWidth="2" />
-                                            <circle cx="100" cy="140" r="80" fill="url(#bombBody)" stroke="#000" strokeWidth="2" />
-                                            <ellipse cx="70" cy="100" rx="25" ry="12" fill="rgba(255,255,255,0.15)" transform="rotate(-45 70 100)" />
-
-                                            <g transform="translate(100, 150)">
-                                                <text 
-                                                    textAnchor="middle" 
-                                                    fill={getTimerColor()} 
-                                                    fontSize="56" 
-                                                    fontFamily="monospace" 
-                                                    fontWeight="900"
-                                                    dy="10"
-                                                    filter="url(#glow)"
-                                                    style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
-                                                >
-                                                    {bombTime.toFixed(1)}
-                                                </text>
-                                            </g>
-                                        </svg>
-                                    )}
-                                </div>
-                            )}
-                        </div>
                     </>
                 )}
             </div>

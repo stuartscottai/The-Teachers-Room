@@ -1008,7 +1008,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                                         key={i}
                                                                         onClick={(e) => { e.stopPropagation(); handleMcSelect(opt); }}
                                                                         style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer relative z-50 whitespace-normal break-words`}
+                                                                        className={`p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer relative z-50 whitespace-normal break-words focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                     >
                                                                         {opt}
                                                                     </button>

@@ -1131,7 +1131,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     {currentQuestion.options && currentQuestion.options.length > 0 && !isFlipped && (
                                         <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full mt-4 sm:mt-8 max-w-2xl">
                                             {currentQuestion.options.map((opt, i) => (
-                                                <button key={i} onClick={() => handleMcSelect(opt)} className="p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm text-base sm:text-xl md:text-2xl h-full min-h-[64px] sm:min-h-[80px] flex items-center justify-center whitespace-normal break-words">
+                                                <button key={i} onClick={() => handleMcSelect(opt)} className="p-3 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm text-base sm:text-xl md:text-2xl h-full min-h-[64px] sm:min-h-[80px] flex items-center justify-center whitespace-normal break-words focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
                                                     {opt}
                                                 </button>
                                             ))}

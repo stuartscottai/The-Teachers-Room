@@ -1212,7 +1212,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                     setIsFlipped(true);
                                                                 }}
                                                                 style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-brand-yellow hover:border-yellow-400 hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-words hyphens-none`}
+                                                                className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-words hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                             >
                                                                 {opt}
                                                             </button>
