@@ -8,9 +8,10 @@ interface GameSetupProps {
   game: GeneratedGame;
   onBack: () => void;
   onStart: (options: GameRunOptions) => void;
+  backLabel?: string;
 }
 
-export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) => {
+export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, backLabel = 'Back to Editor' }) => {
   // Default settings
   const [options, setOptions] = useState<GameRunOptions>({
     players: 2,
@@ -111,7 +112,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart }) =
               onClick={onBack} 
               className="text-sky-200 hover:text-white flex items-center mb-6 text-sm font-bold"
             >
-              <ArrowLeft size={16} className="mr-1" /> Back to Editor
+              <ArrowLeft size={16} className="mr-1" /> {backLabel}
             </button>
             <h1 className="font-display text-3xl font-bold mb-2 leading-tight">{game.title}</h1>
             <p className="text-sky-100 text-sm">{game.config.type}</p>

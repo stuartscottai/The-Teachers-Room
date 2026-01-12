@@ -96,6 +96,7 @@ export interface GeneratedGame {
   createdAt?: string; // For saving
   title: string;
   authorName?: string; // Display name of creator
+  sourceGameId?: string; // Optional origin for shared/remixed games (client-only)
   config: GameConfig;
   questions: GeneratedQuestion[]; // For standard games
   jeopardyBoard?: JeopardyCategory[]; // For Jeopardy

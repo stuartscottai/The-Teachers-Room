@@ -4,7 +4,7 @@ import { GameType, GeneratedGame } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 import { saveGameToLibrary } from '../../utils/gameUtils';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -19,11 +19,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [showCopyToast, setShowCopyToast] = useState(false);
+    const [showShareToast, setShowShareToast] = useState(false);
+    const [hasEdits, setHasEdits] = useState(false);
     const tabsScrollRef = useRef<HTMLDivElement>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const prevIsPublicRef = useRef(isPublic);
     
     const { user } = useAuth();
-    const { setIsDirty, confirmAction } = useUnsavedChanges();
+    const { isDirty, setIsDirty, confirmAction } = useUnsavedChanges();
     
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -35,39 +38,63 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         };
     }, []);
 
+    useEffect(() => {
+        setHasEdits(false);
+        prevIsPublicRef.current = game.config.isPublic || false;
+    }, [game.id, game.createdAt]);
+
+    const didMountRef = useRef(false);
+
     // Sync isPublic back to editedGame config when changed
     useEffect(() => {
+        if (!didMountRef.current) {
+            didMountRef.current = true;
+            prevIsPublicRef.current = isPublic;
+            return;
+        }
+        if (prevIsPublicRef.current === isPublic) return;
+        prevIsPublicRef.current = isPublic;
         setEditedGame(prev => ({
             ...prev,
             config: { ...prev.config, isPublic }
         }));
+        setHasEdits(true);
         setIsDirty(true);
-    }, [isPublic]);
+    }, [isPublic, setIsDirty]);
 
-    const handleSave = async () => {
+    const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
         if (!user) {
             alert('Please log in to save games to your profile.');
-            return;
+            return null;
         }
         setSaveStatus('saving');
+        const nextPublic = opts?.overrideIsPublic ?? isPublic;
         
+        const shouldClearSourceId = hasEdits && Boolean(editedGame.sourceGameId);
+
         // Ensure config is synced
         const finalGame = {
             ...editedGame,
-            config: { ...editedGame.config, isPublic }
+            sourceGameId: shouldClearSourceId ? undefined : editedGame.sourceGameId,
+            config: { ...editedGame.config, isPublic: nextPublic }
         };
 
         // Async save with Author Name
-        const success = await saveGameToLibrary(finalGame, user.id, user.name);
+        const result = await saveGameToLibrary(finalGame, user.id, user.name);
         
-        if (success) {
+        if (result.success) {
+            const savedGame = { ...finalGame, id: result.id ?? finalGame.id };
             setSaveStatus('saved');
             setIsDirty(false);
-            onSave(finalGame);
+            setHasEdits(false);
+            setEditedGame(savedGame);
+            onSave(savedGame);
             setTimeout(() => setSaveStatus('idle'), 2000);
+            return savedGame;
         } else {
             setSaveStatus('idle');
             alert("Failed to save. Please try again.");
+            return null;
         }
     };
 
@@ -78,6 +105,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const handleChange = (updater: (prev: GeneratedGame) => GeneratedGame) => {
         setEditedGame(updater);
         setIsDirty(true);
+        setHasEdits(true);
         setSaveStatus('idle');
     };
 
@@ -100,6 +128,73 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         if (!el) return;
         const amount = Math.round(el.clientWidth * 0.6);
         el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
+    };
+
+    const isUuid = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+    const getShareUrl = (id: string) => {
+        const base = (import.meta as any).env?.BASE_URL || '/';
+        const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+        return `${window.location.origin}${normalizedBase}#/share/game/${id}`;
+    };
+
+    const handleShare = async () => {
+        if (!user) {
+            alert("Please log in to share games.");
+            return;
+        }
+
+        if (!hasEdits && editedGame.sourceGameId) {
+            const shareUrl = getShareUrl(editedGame.sourceGameId);
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                setShowShareToast(true);
+                setTimeout(() => setShowShareToast(false), 2000);
+            } catch (error) {
+                alert(`Copy failed. Share this link:\n${shareUrl}`);
+            }
+            return;
+        }
+
+        let desiredPublic = isPublic;
+        if (!desiredPublic) {
+            const confirmPublic = window.confirm("This game is private. Make it public to share?");
+            if (!confirmPublic) return;
+            desiredPublic = true;
+            setIsPublic(true);
+        }
+
+        let shareGame = editedGame;
+        const needsSave = hasEdits;
+        if (needsSave) {
+            const confirmSave = window.confirm("Save this game to generate a share link?");
+            if (!confirmSave) return;
+            const saved = await handleSave({ overrideIsPublic: desiredPublic });
+            if (!saved) return;
+            shareGame = saved;
+        } else if (desiredPublic !== shareGame.config.isPublic) {
+            const saved = await handleSave({ overrideIsPublic: desiredPublic });
+            if (!saved) return;
+            shareGame = saved;
+        } else if (!isUuid(shareGame.id)) {
+            const saved = await handleSave({ overrideIsPublic: desiredPublic });
+            if (!saved) return;
+            shareGame = saved;
+        }
+
+        if (!shareGame.id || !isUuid(shareGame.id)) {
+            alert("Please save this game before sharing.");
+            return;
+        }
+
+        const shareUrl = getShareUrl(shareGame.id);
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setShowShareToast(true);
+            setTimeout(() => setShowShareToast(false), 2000);
+        } catch (error) {
+            alert(`Copy failed. Share this link:\n${shareUrl}`);
+        }
     };
 
     const addQuestion = () => {
@@ -277,6 +372,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             <Globe size={12} className="mr-1" /> Public
                                         </div>
                                     </div>
+
+                                    <button
+                                        onClick={handleShare}
+                                        disabled={saveStatus === 'saving'}
+                                        className="bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-[92px] sm:px-5 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[130px]"
+                                        title="Copy share link"
+                                    >
+                                        <Share2 size={18} className="mr-2" /> Share
+                                    </button>
 
                                     <button 
                                         onClick={handleSave} 
@@ -750,6 +854,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         )}
                 </div>
             </div>
+
+            {showShareToast && (
+                <div className="fixed top-24 right-6 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-fade-in z-[120]">
+                    <CheckCircle size={14} className="text-green-400" /> Share link copied!
+                </div>
+            )}
 
             {/* AI Prompt Info Modal */}
             {showAiPrompt && (

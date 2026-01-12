@@ -345,7 +345,7 @@ export const getLocalGames = (): GeneratedGame[] => {
     }
 };
 
-export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, authorName?: string): Promise<boolean> => {
+export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, authorName?: string): Promise<{ success: boolean; id?: string }> => {
     if (!userId) {
         // Local Storage for guests - PRIVATE ONLY
         try {
@@ -361,14 +361,19 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
                 library.push(safeGame);
             }
             localStorage.setItem('teachersRoomGames', JSON.stringify(library));
-            return true;
+            return { success: true };
         } catch (e) {
             console.error(e);
-            return false;
+            return { success: false };
         }
     }
 
     try {
+        const extractId = (data: any) => {
+            if (!data) return undefined;
+            if (Array.isArray(data)) return data[0]?.id;
+            return data.id;
+        };
         // Prepare payload with top-level is_public column
         const payload: any = {
             user_id: userId,
@@ -384,19 +389,20 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
 
         if (game.id && isUUID(game.id)) {
             payload.id = game.id;
-            const { error } = await supabase.from('saved_games').upsert(payload);
+            const { data, error } = await supabase.from('saved_games').upsert(payload).select('id');
             if (error) throw error;
+            return { success: true, id: extractId(data) || game.id };
         } else {
             if (game.id && isUUID(game.id)) {
                  payload.id = game.id;
             }
-            const { error } = await supabase.from('saved_games').insert(payload);
+            const { data, error } = await supabase.from('saved_games').insert(payload).select('id');
             if (error) throw error;
+            return { success: true, id: extractId(data) };
         }
-        return true;
     } catch (e) {
         console.error("Supabase Save Error:", e);
-        return false;
+        return { success: false };
     }
 };
 
@@ -490,6 +496,35 @@ export const getCommunityGames = async (
     } catch (e: any) {
         console.error("Community Fetch Error:", e);
         return { data: [], count: 0, error: e.message || "Failed to fetch games" };
+    }
+};
+
+export const getSharedGame = async (id: string): Promise<GeneratedGame | null> => {
+    if (!id) return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('saved_games')
+            .select('*')
+            .eq('id', id)
+            .eq('is_public', true)
+            .single();
+
+        if (error || !data) return null;
+
+        return {
+            id: data.id,
+            title: data.title,
+            authorName: data.author_name,
+            config: { ...data.config, isPublic: data.is_public },
+            questions: data.questions,
+            jeopardyBoard: data.jeopardy_board,
+            pubQuizRounds: data.pub_quiz_rounds,
+            createdAt: data.created_at,
+        };
+    } catch (e) {
+        console.error("Shared Game Fetch Error:", e);
+        return null;
     }
 };
 
