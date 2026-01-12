@@ -14,6 +14,47 @@ const cleanJson = (text: string): string => {
   return cleaned.trim();
 };
 
+const stripOptionPrefix = (value: string) => (value || '').replace(/^[A-D]\)\s*/i, '').trim();
+const normalizeOption = (value: string) => stripOptionPrefix(value).toLowerCase();
+const normalizeOptionWithoutArticle = (value: string) => normalizeOption(value).replace(/^(a|an|the)\s+/i, '');
+
+const enforceAnswerMatchesOptions = (question: any) => {
+  if (!question || typeof question.answer !== 'string' || !Array.isArray(question.options)) return;
+  const options = question.options.filter((opt: any) => typeof opt === 'string');
+  if (options.length === 0) return;
+  if (options.includes(question.answer)) return;
+
+  const normalizedAnswer = normalizeOption(question.answer);
+  const normalizedArticleAnswer = normalizeOptionWithoutArticle(question.answer);
+
+  const directMatch = options.find((opt: string) => normalizeOption(opt) === normalizedAnswer);
+  if (directMatch) {
+    question.answer = directMatch;
+    return;
+  }
+
+  const articleMatches = options.filter((opt: string) => normalizeOptionWithoutArticle(opt) === normalizedArticleAnswer);
+  if (articleMatches.length === 1) {
+    question.answer = articleMatches[0];
+  }
+};
+
+const enforceGameAnswerMatchesOptions = (data: any) => {
+  if (!data) return;
+  const apply = (questions?: any[]) => {
+    if (!Array.isArray(questions)) return;
+    questions.forEach(enforceAnswerMatchesOptions);
+  };
+
+  apply(data.questions);
+  if (Array.isArray(data.pubQuizRounds)) {
+    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
+  }
+  if (Array.isArray(data.jeopardyBoard)) {
+    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
+  }
+};
+
 export default async function handler(req: any, res: any) {
   // 1. Handle CORS manually for Vercel Node Functions
   // Allow requests from any Vercel preview URL or production domain
@@ -69,6 +110,7 @@ export default async function handler(req: any, res: any) {
       If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
 
       IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
+      If a question includes options, the "answer" must EXACTLY match one of the option strings (including articles like "a/an/the", punctuation, and capitalization). Do not paraphrase or drop articles.
       
       CRITICAL JSON RULES:
       1. Return ONLY valid JSON.
@@ -317,6 +359,8 @@ export default async function handler(req: any, res: any) {
 
       const text = response.text;
       const data = JSON.parse(cleanJson(text || "{}"));
+
+      enforceGameAnswerMatchesOptions(data);
       
       // Ensure ID exists for database
       data.id = randomUUID();

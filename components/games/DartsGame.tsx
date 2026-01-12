@@ -515,6 +515,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const answerWrapRef = useRef<HTMLDivElement>(null);
     const answerTextRef = useRef<HTMLDivElement>(null);
     const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
+    const optionGridRef = useRef<HTMLDivElement>(null);
+    const optionMeasureRef = useRef<HTMLDivElement>(null);
+    const [optionFontSize, setOptionFontSize] = useState<number | null>(null);
     const [resizeTick, setResizeTick] = useState(0);
     
     // NEW: Track total turns played to prevent infinite loop in High Score mode
@@ -888,16 +891,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         return 'text-xs sm:text-base md:text-2xl';
     };
 
-    const getMobileOptionFontSize = (text: string) => {
-        const len = text ? text.length : 0;
-        if (len < 12) return 20;
-        if (len < 20) return 18;
-        if (len < 30) return 16;
-        if (len < 40) return 15;
-        return 14;
-    };
+    const stripOptionPrefix = (value: string) => value.replace(/^[A-D]\)\s*/i, '').trim();
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+    const optionKey = currentQuestion?.options?.join('|') || '';
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -920,7 +917,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     }, [phase, currentTeam]);
 
     useLayoutEffect(() => {
-        if (!isMobileViewport || phase !== 'question' || isFlipped) {
+        if (phase !== 'question' || !currentQuestion || isFlipped) {
             setQuestionFontSize(null);
             return;
         }
@@ -928,18 +925,19 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         const textEl = questionTextRef.current;
         if (!wrap || !textEl) return;
         const availableHeight = wrap.clientHeight;
-        if (availableHeight === 0) return;
-        const maxSize = Math.min(54, Math.max(30, Math.floor(window.innerWidth / 8)));
+        const availableWidth = textEl.clientWidth;
+        if (availableHeight === 0 || availableWidth === 0) return;
+        const maxSize = Math.min(hasOptions ? 54 : 72, Math.max(30, Math.floor(window.innerWidth / (hasOptions ? 8 : 7))));
         const minSize = 16;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;
-        while (textEl.scrollHeight > availableHeight && size > minSize) {
+        while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > availableWidth) && size > minSize) {
             size -= 1;
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, phase, isFlipped, currentQuestion?.question, currentQuestion?.options?.length, resizeTick]);
+    }, [isMobileViewport, hasOptions, phase, isFlipped, currentQuestion?.question, currentQuestion?.options?.length, resizeTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || phase !== 'question' || !isFlipped) {
@@ -962,6 +960,60 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         }
         setAnswerFontSize(size);
     }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick]);
+
+    useLayoutEffect(() => {
+        if (!hasOptions || !currentQuestion?.options || phase !== 'question' || isFlipped) {
+            setOptionFontSize(null);
+            return;
+        }
+        const gridEl = optionGridRef.current;
+        const measureEl = optionMeasureRef.current;
+        if (!gridEl || !measureEl) return;
+        const sampleCell = gridEl.firstElementChild as HTMLElement | null;
+        if (!sampleCell) return;
+
+        const rect = sampleCell.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const styles = window.getComputedStyle(sampleCell);
+        const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+        const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+        const innerWidth = Math.max(0, rect.width - paddingX);
+        const innerHeight = Math.max(0, rect.height - paddingY);
+        if (innerWidth === 0 || innerHeight === 0) return;
+
+        const textEl = sampleCell.querySelector('[data-option-text="true"]') as HTMLElement | null;
+        const textStyles = textEl ? window.getComputedStyle(textEl) : null;
+
+        measureEl.style.width = `${innerWidth}px`;
+        measureEl.style.fontFamily = styles.fontFamily;
+        measureEl.style.fontWeight = styles.fontWeight;
+        measureEl.style.letterSpacing = styles.letterSpacing;
+        measureEl.style.whiteSpace = 'normal';
+        measureEl.style.wordBreak = 'normal';
+        measureEl.style.overflowWrap = 'normal';
+        measureEl.style.hyphens = 'none';
+        measureEl.style.paddingLeft = textStyles?.paddingLeft || '0px';
+        measureEl.style.paddingRight = textStyles?.paddingRight || '0px';
+
+        const lineHeight = 1.2;
+        const maxSize = Math.min(48, Math.max(14, Math.floor(innerHeight * 0.85)));
+        const minSize = 12;
+        let size = maxSize;
+
+        const fitsAll = (fontSize: number) => {
+            measureEl.style.fontSize = `${fontSize}px`;
+            measureEl.style.lineHeight = `${lineHeight}`;
+            return currentQuestion.options!.every((opt) => {
+                measureEl.textContent = stripOptionPrefix(opt);
+                return measureEl.scrollHeight <= innerHeight && measureEl.scrollWidth <= innerWidth + 1;
+            });
+        };
+
+        while (size > minSize && !fitsAll(size)) {
+            size -= 1;
+        }
+        setOptionFontSize(size);
+    }, [hasOptions, optionKey, phase, isFlipped, isMobileViewport, resizeTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport) {
@@ -1190,35 +1242,58 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                             <div
                                                 ref={questionTextRef}
                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                             >
                                                 {currentQuestion.question}
                                             </div>
                                         </div>
                                         {hasOptions && !isFlipped && (
                                             <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
                                                     {(() => {
-                                                        const longestText = currentQuestion.options!.reduce((a, b) => a.length > b.length ? a : b, '');
-                                                        const uniformSize = getOptionFontSizeClass(longestText);
-                                                        const mobileFontSize = isMobileViewport ? getMobileOptionFontSize(longestText) : null;
-                                                        return currentQuestion.options!.map((opt, i) => (
-                                                            <button 
-                                                                key={i}
-                                                                onClick={() => {
-                                                                    const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
-                                                                    const isCorrect = clean(opt) === clean(currentQuestion.answer);
-                                                                    setMcResult(isCorrect ? 'correct' : 'incorrect');
-                                                                    setIsFlipped(true);
-                                                                }}
-                                                                style={mobileFontSize ? { fontSize: `${mobileFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                className={`p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-words hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
-                                                            >
-                                                                {opt}
-                                                            </button>
-                                                        ));
+                                                        const longestText = currentQuestion.options!.reduce(
+                                                            (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
+                                                            ''
+                                                        );
+                                                        const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
+                                                        return currentQuestion.options!.map((opt, i) => {
+                                                            const optionLabel = String.fromCharCode(65 + i);
+                                                            const displayOpt = stripOptionPrefix(opt);
+                                                            return (
+                                                                <button 
+                                                                    key={i}
+                                                                    onClick={() => {
+                                                                        const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
+                                                                        const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                        setMcResult(isCorrect ? 'correct' : 'incorrect');
+                                                                        setIsFlipped(true);
+                                                                    }}
+                                                                    style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                    className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                >
+                                                                    <span
+                                                                        aria-hidden="true"
+                                                                        data-option-label="true"
+                                                                        className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
+                                                                    >
+                                                                        {optionLabel}
+                                                                    </span>
+                                                                    <span
+                                                                        data-option-text="true"
+                                                                        className="w-full text-center sm:pl-12 md:pl-16"
+                                                                    >
+                                                                        {displayOpt}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        });
                                                     })()}
                                                 </div>
+                                                <div
+                                                    ref={optionMeasureRef}
+                                                    aria-hidden="true"
+                                                    className="absolute -left-[9999px] -top-[9999px] invisible"
+                                                />
                                             </div>
                                         )}
                                     </div>
