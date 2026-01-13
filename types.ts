@@ -111,6 +111,7 @@ export type ActivityType =
   | 'multiple-choice'
   | 'word-formation'
   | 'open-ended'
+  | 'information-sheet'
   | 'table'
   | 'custom';
 
@@ -167,6 +168,7 @@ export interface WorksheetAiParts {
   wordSearch?: Array<{ grid: string[][]; words: string[] }>;
   matching?: Array<{ left: string; right: string }>;
   sentenceTransform?: Array<{ prompt: string; answer?: string }>;
+  infoSections?: Array<{ title: string; bodyHtml: string }>;
   custom?: Array<{ text: string }>;
   table?: { headers: string[]; rows: string[][] };
   gapFill?: Array<{ sentence: string; answer: string }>;

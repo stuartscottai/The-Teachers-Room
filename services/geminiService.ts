@@ -452,6 +452,7 @@ RULES:
 12. custom items use { text }.
 13. answerKeyHtml (if requested) must be safe, simple HTML (use <div>, <h3>, <p>, <ol>, <ul>, <li>, <strong>, <em>, <br>).
 14. table should match the requested activity types and fit on an A4 page when possible.
+15. infoSections items use { title, bodyHtml } with safe HTML in bodyHtml (use <p>, <strong>, <em>, <u>, <ul>, <ol>, <li>, <br>, <h3>).
 `;
 
   const activities = config.activities || [];
@@ -462,6 +463,7 @@ RULES:
   const sentenceTransformActivities = activities.filter((a) => a.type === 'sentence-transform');
   const wordFormationActivities = activities.filter((a) => a.type === 'word-formation');
   const openEndedActivities = activities.filter((a) => a.type === 'open-ended');
+  const infoSheetActivities = activities.filter((a) => a.type === 'information-sheet');
   const customActivities = activities.filter((a) => a.type === 'custom');
   const tableActivities = activities.filter((a) => a.type === 'table');
   const wantsStory = activities.some(
@@ -474,9 +476,10 @@ RULES:
   const wantsSentenceTransform = sentenceTransformActivities.length > 0;
   const wantsWordFormation = wordFormationActivities.length > 0;
   const wantsOpenEnded = openEndedActivities.length > 0;
+  const wantsInfoSheet = infoSheetActivities.length > 0;
   const wantsCustom = customActivities.length > 0;
   const wantsTable = tableActivities.length > 0;
-  const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.length > 0;
+  const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.some((a) => a.type !== 'information-sheet');
 
   const mcqCount = mcqActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const wordSearchCount = wordSearchActivities.length;
@@ -485,6 +488,7 @@ RULES:
   const sentenceTransformCount = sentenceTransformActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const wordFormationCount = wordFormationActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const openEndedCount = openEndedActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+  const infoSectionCount = infoSheetActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const customCount = customActivities.length;
   const formatActivityNotes = (note?: string) => {
     const trimmed = (note || '').trim();
@@ -518,6 +522,7 @@ RULES:
       'sentence-transform',
       'word-formation',
       'open-ended',
+      'information-sheet',
       'custom',
       'table',
     ].includes(a.type)
@@ -526,6 +531,7 @@ RULES:
   const activityOrder = orderedActivities
     .map((a, idx) => {
       const activityCount = a.type === 'custom' ? 1 : a.count || 0;
+      const countSuffix = a.type === 'information-sheet' ? ' sections' : '';
       let contextNote = '';
       if (['gap-fill', 'word-formation'].includes(a.type)) {
         const context = a.contextType === 'text' ? 'story' : 'sentences';
@@ -541,7 +547,7 @@ RULES:
               return `, size: ${spec.rows}x${spec.cols}`;
             })()
           : '';
-      return `${idx + 1}. ${a.type} (${activityCount}${contextNote}${optionsNote}${gridNote})${formatActivityNotes(
+      return `${idx + 1}. ${a.type} (${activityCount}${countSuffix}${contextNote}${optionsNote}${gridNote})${formatActivityNotes(
         a.customInstructions
       )}`;
     })
@@ -651,6 +657,18 @@ RULES:
           })
           .join('\n')
     );
+  }
+  if (wantsInfoSheet) {
+    requestedBlocks.push(
+      `- infoSections: ${infoSectionCount} information-only sections (no questions). Provide one section per requested count in the same order as listed below.`
+    );
+    requestedBlocks.push(
+      '  Information Sheet groups (sections + notes):\n' +
+        infoSheetActivities
+          .map((a) => `  - ${a.count || 0} sections${formatActivityNotes(a.customInstructions)}`)
+          .join('\n')
+    );
+    requestedBlocks.push('  Each section must include a short title and a concise bodyHtml (1-3 short paragraphs or bullet list).');
   }
   if (wantsCustom) {
     requestedBlocks.push(
@@ -840,6 +858,21 @@ If source files are attached, base requested content on those documents instead 
                   }
                 }
               : {}),
+            ...(wantsInfoSheet
+              ? {
+                  infoSections: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        title: { type: Type.STRING },
+                        bodyHtml: { type: Type.STRING }
+                      },
+                      required: ["title", "bodyHtml"]
+                    }
+                  }
+                }
+              : {}),
             ...(wantsCustom
               ? {
                   custom: {
@@ -878,6 +911,7 @@ If source files are attached, base requested content on those documents instead 
             ...(wantsSentenceTransform ? ["sentenceTransform"] : []),
             ...(wantsWordFormation ? ["wordFormation"] : []),
             ...(wantsOpenEnded ? ["openEnded"] : []),
+            ...(wantsInfoSheet ? ["infoSections"] : []),
             ...(wantsCustom ? ["custom"] : []),
             ...(wantsTable ? ["table"] : []),
             ...(wantsAnswerKey ? ["answerKeyHtml"] : [])

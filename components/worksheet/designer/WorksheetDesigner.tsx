@@ -24,6 +24,8 @@ export const WorksheetDesigner: React.FC<{
   onAddImage?: () => void;
   isPublic?: boolean;
   onTogglePublic?: () => void;
+  rightSidebarMode?: 'auto' | 'collapsed' | 'expanded';
+  isMobile?: boolean;
 }> = ({
   pages,
   setPages,
@@ -41,6 +43,8 @@ export const WorksheetDesigner: React.FC<{
   onAddImage,
   isPublic,
   onTogglePublic,
+  rightSidebarMode = 'auto',
+  isMobile = false,
 }) => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const printableRef = useRef<HTMLDivElement | null>(null);
@@ -50,9 +54,19 @@ export const WorksheetDesigner: React.FC<{
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [toolbarBounds, setToolbarBounds] = useState<{ left: number; width: number } | null>(null);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
+  const [pageScale, setPageScale] = useState(1);
+  const resolvedRightSidebarCollapsed =
+    rightSidebarMode === 'collapsed' ? true : rightSidebarMode === 'expanded' ? false : isRightSidebarCollapsed;
+  const canToggleRightSidebar = rightSidebarMode === 'auto';
+  const rightSidebarWidthClass = resolvedRightSidebarCollapsed
+    ? rightSidebarMode === 'auto'
+      ? 'w-14'
+      : 'w-0 md:w-14'
+    : 'w-80 max-w-[360px]';
   const measureRef = useRef<HTMLDivElement | null>(null);
   const marginPreset = settings?.marginPreset || 'normal';
   const marginMm = marginPreset === 'narrow' ? 12 : marginPreset === 'wide' ? 30 : 20;
+  const mobileScaleEnabled = Boolean(isMobile);
 
   useEffect(() => {
     const el = printableRef.current;
@@ -61,6 +75,15 @@ export const WorksheetDesigner: React.FC<{
       const rect = el.getBoundingClientRect();
       if (!rect.width) return;
       setToolbarBounds({ left: rect.left, width: rect.width });
+      if (mobileScaleEnabled) {
+        const available = Math.max(0, rect.width - 32);
+        const a4WidthPx = (210 / 25.4) * 96;
+        const nextScale = Math.min(1, available / a4WidthPx);
+        const safeScale = Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1;
+        setPageScale((prev) => (Math.abs(prev - safeScale) < 0.001 ? prev : safeScale));
+      } else {
+        setPageScale((prev) => (prev === 1 ? prev : 1));
+      }
     };
     update();
     const ro = new ResizeObserver(update);
@@ -70,7 +93,7 @@ export const WorksheetDesigner: React.FC<{
       ro.disconnect();
       window.removeEventListener('resize', update);
     };
-  }, [isRightSidebarCollapsed]);
+  }, [resolvedRightSidebarCollapsed, mobileScaleEnabled]);
 
   useEffect(() => {
     if (!onDirty) return;
@@ -198,18 +221,21 @@ export const WorksheetDesigner: React.FC<{
         const pointer = lastPointerRef.current;
         const clientX = dragEvent?.clientX ?? dragEvent?.pageX ?? pointer?.x ?? rect.left + 20;
         const clientY = dragEvent?.clientY ?? dragEvent?.pageY ?? pointer?.y ?? rect.top + 20;
-        const dropX = clientX - rect.left;
-        const dropY = clientY - rect.top;
+        const scale = Math.max(0.1, pageScale || 1);
+        const dropX = (clientX - rect.left) / scale;
+        const dropY = (clientY - rect.top) / scale;
+        const pageWidth = rect.width / scale;
+        const pageHeight = rect.height / scale;
 
-        const x = Math.max(0, Math.min(dropX, rect.width - 20));
-        const y = Math.max(0, Math.min(dropY, rect.height - 20));
+        const x = Math.max(0, Math.min(dropX, pageWidth - 20));
+        const y = Math.max(0, Math.min(dropY, pageHeight - 20));
 
         const next = createElementFromBlock({
           block,
           pageId,
           x,
           y,
-          pageInnerSize: { width: rect.width, height: rect.height },
+          pageInnerSize: { width: pageWidth, height: pageHeight },
         });
         setElements((prev) => [...prev, next]);
         setSelectedElementId(next.id);
@@ -229,7 +255,7 @@ export const WorksheetDesigner: React.FC<{
       }
       dragGhostByTargetRef.current.clear();
     };
-  }, [blocks, setBlocks, setElements, setSelectedElementId]);
+  }, [blocks, pageScale, setBlocks, setElements, setSelectedElementId]);
 
   useEffect(() => {
     if (!trayRef.current) return;
@@ -337,25 +363,28 @@ export const WorksheetDesigner: React.FC<{
     if (!pageInner) return;
     const rect = pageInner.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    const scale = Math.max(0.1, pageScale || 1);
     const styles = window.getComputedStyle(pageInner);
     const padLeft = parseFloat(styles.paddingLeft || '0') || 0;
     const padRight = parseFloat(styles.paddingRight || '0') || 0;
     const padTop = parseFloat(styles.paddingTop || '0') || 0;
     const padBottom = parseFloat(styles.paddingBottom || '0') || 0;
-    const contentWidth = Math.max(0, rect.width - padLeft - padRight);
-    const contentHeight = Math.max(0, rect.height - padTop - padBottom);
+    const pageWidth = rect.width / scale;
+    const pageHeight = rect.height / scale;
+    const contentWidth = Math.max(0, pageWidth - padLeft - padRight);
+    const contentHeight = Math.max(0, pageHeight - padTop - padBottom);
     if (!contentWidth || !contentHeight) return;
     const originX = padLeft;
     const originY = padTop;
     const maxY = originY + contentHeight;
 
-    const firstMaxHeight = Math.max(50, rect.height - selected.y);
+    const firstMaxHeight = Math.max(50, pageHeight - selected.y);
     const chunks = splitIntoChunks({
       html: selected.html,
       styles: selected.styles,
       width: selected.w,
       firstMaxHeight,
-      fullMaxHeight: rect.height,
+      fullMaxHeight: pageHeight,
     });
 
     if (chunks.length <= 1) return;
@@ -685,13 +714,16 @@ export const WorksheetDesigner: React.FC<{
     if (!pageInner) return;
     const rect = pageInner.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
+    const scale = Math.max(0.1, pageScale || 1);
     const styles = window.getComputedStyle(pageInner);
     const padLeft = parseFloat(styles.paddingLeft || '0') || 0;
     const padRight = parseFloat(styles.paddingRight || '0') || 0;
     const padTop = parseFloat(styles.paddingTop || '0') || 0;
     const padBottom = parseFloat(styles.paddingBottom || '0') || 0;
-    const contentWidth = Math.max(0, rect.width - padLeft - padRight);
-    const contentHeight = Math.max(0, rect.height - padTop - padBottom);
+    const pageWidth = rect.width / scale;
+    const pageHeight = rect.height / scale;
+    const contentWidth = Math.max(0, pageWidth - padLeft - padRight);
+    const contentHeight = Math.max(0, pageHeight - padTop - padBottom);
     if (!contentWidth || !contentHeight) return;
     const originX = padLeft;
     const originY = padTop;
@@ -991,6 +1023,7 @@ export const WorksheetDesigner: React.FC<{
             }, 0);
           }}
           onStopEditing={() => setEditingElementId(null)}
+          pageScale={pageScale}
         />
 
         {selected ? (
@@ -1020,29 +1053,31 @@ export const WorksheetDesigner: React.FC<{
       </div>
 
       <div
-        className={`no-print ${isRightSidebarCollapsed ? 'w-14' : 'w-80 max-w-[360px]'} border-l border-slate-200 bg-white flex flex-col shrink-0 sticky self-start`}
+        className={`no-print ${rightSidebarWidthClass} border-l border-slate-200 bg-white flex flex-col shrink-0 sticky self-start overflow-hidden`}
         style={{ top: '4rem' }}
       >
         <div className="px-3 py-2 border-b border-slate-200 bg-white flex items-center justify-between sticky top-0 z-30">
-          {!isRightSidebarCollapsed && <div className="text-xs font-bold text-slate-600">Tools</div>}
-          <button
-            type="button"
-            onClick={() => setIsRightSidebarCollapsed((prev) => !prev)}
-            title={isRightSidebarCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}
-            aria-label={isRightSidebarCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}
-            className="p-2 rounded hover:bg-slate-100 text-slate-600"
-          >
-            {isRightSidebarCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-          </button>
+          {!resolvedRightSidebarCollapsed && <div className="text-xs font-bold text-slate-600">Tools</div>}
+          {canToggleRightSidebar && (
+            <button
+              type="button"
+              onClick={() => setIsRightSidebarCollapsed((prev) => !prev)}
+              title={resolvedRightSidebarCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}
+              aria-label={resolvedRightSidebarCollapsed ? 'Expand toolbar' : 'Collapse toolbar'}
+              className="p-2 rounded hover:bg-slate-100 text-slate-600"
+            >
+              {resolvedRightSidebarCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          )}
         </div>
 
-        {!isRightSidebarCollapsed && (
+        {!resolvedRightSidebarCollapsed && (
           <div className="flex-1">
             <div className="px-3 py-2 border-b border-slate-200 bg-white space-y-2">
               <button
                 type="button"
                 onClick={suggestOptimalDistribution}
-                className="w-full py-2.5 rounded-xl font-extrabold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700"
+                className="w-full py-2 rounded-lg text-xs font-bold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 md:py-2.5 md:rounded-xl md:text-sm md:font-extrabold"
               >
                 Suggest Optimal Distribution
               </button>
@@ -1052,7 +1087,7 @@ export const WorksheetDesigner: React.FC<{
                   <button
                     type="button"
                     onClick={onSave}
-                    className="flex-1 py-2 rounded-xl font-extrabold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm"
+                    className="flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm md:py-2 md:rounded-xl md:text-sm md:font-extrabold"
                   >
                     {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
                   </button>
@@ -1060,7 +1095,7 @@ export const WorksheetDesigner: React.FC<{
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="flex-1 py-2 rounded-xl font-extrabold text-white bg-brand-blue hover:bg-sky-500 shadow-sm"
+                  className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-blue hover:bg-sky-500 shadow-sm md:py-2 md:rounded-xl md:text-sm md:font-extrabold"
                 >
                   Print / PDF
                 </button>
@@ -1070,7 +1105,7 @@ export const WorksheetDesigner: React.FC<{
                 <button
                   type="button"
                   onClick={onAddImage}
-                  className="w-full py-2.5 rounded-xl font-extrabold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center gap-2"
+                  className="w-full py-2 rounded-lg text-xs font-bold bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center gap-2 md:py-2.5 md:rounded-xl md:text-sm md:font-extrabold"
                 >
                   <ImagePlus size={16} /> Add Image
                 </button>
@@ -1079,18 +1114,18 @@ export const WorksheetDesigner: React.FC<{
               <button
                 type="button"
                 onClick={() => setPages((prev) => [...prev, { id: createId() }])}
-                className="w-full py-2.5 rounded-xl font-extrabold bg-white border-2 border-dashed border-slate-300 hover:bg-slate-50 text-slate-700"
+                className="w-full py-2 rounded-lg text-xs font-bold bg-white border-2 border-dashed border-slate-300 hover:bg-slate-50 text-slate-700 md:py-2.5 md:rounded-xl md:text-sm md:font-extrabold"
                 title="Add a new A4 page"
               >
                 + Add Page ({pages.length})
               </button>
 
-              <label className="flex items-center justify-between gap-2 text-xs font-bold text-slate-700 pt-1">
+              <label className="flex items-center justify-between gap-2 text-[11px] font-bold text-slate-700 pt-1 md:text-xs">
                 <span>Print margins</span>
                 <select
                   value={marginPreset}
                   onChange={(e) => setSettings((prev) => ({ ...prev, marginPreset: e.target.value as any }))}
-                  className="p-2 rounded-xl border border-slate-200 bg-white text-xs font-extrabold text-slate-700"
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 md:p-2 md:rounded-xl md:text-xs md:font-extrabold"
                   title="Page margin preset"
                 >
                   <option value="narrow">Narrow</option>
@@ -1100,12 +1135,12 @@ export const WorksheetDesigner: React.FC<{
               </label>
 
               <div className="pt-1">
-                <div className="text-[11px] font-extrabold text-slate-600 mb-1">Pages</div>
+                <div className="text-[10px] font-extrabold text-slate-600 mb-1 md:text-[11px]">Pages</div>
                 <div className="space-y-1">
                   {pages.map((p, idx) => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs"
+                      className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] md:text-xs"
                     >
                       <span className="font-bold text-slate-700">Page {idx + 1}</span>
                       {pages.length > 1 ? (
@@ -1116,7 +1151,7 @@ export const WorksheetDesigner: React.FC<{
                               deletePage(p.id);
                             }
                           }}
-                          className="px-2 py-1 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-[11px] font-extrabold text-red-700"
+                          className="px-2 py-1 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-[10px] font-bold text-red-700 md:text-[11px] md:font-extrabold"
                           title="Delete page"
                         >
                           Delete
@@ -1137,7 +1172,7 @@ export const WorksheetDesigner: React.FC<{
                   <button
                     type="button"
                     onClick={onTogglePublic}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold border ${
+                    className={`px-2 py-1 rounded-full text-[10px] font-bold border md:px-3 md:py-1.5 md:text-[11px] md:font-extrabold ${
                       isPublic
                         ? 'bg-green-50 border-green-200 text-green-700'
                         : 'bg-slate-50 border-slate-200 text-slate-600'
@@ -1167,10 +1202,18 @@ export const WorksheetDesigner: React.FC<{
 
 const DESIGNER_CSS = `
   .ws-page {
+    width: calc(210mm * var(--ws-page-scale, 1));
+    height: calc(297mm * var(--ws-page-scale, 1));
+    border-radius: 16px;
+    overflow: var(--ws-page-overflow, visible);
+  }
+
+  .ws-page-scale {
     width: 210mm;
     height: 297mm;
-    border-radius: 16px;
-    overflow: visible;
+    transform: scale(var(--ws-page-scale, 1));
+    transform-origin: top left;
+    position: relative;
   }
 
   .ws-page-inner {
@@ -1377,6 +1420,10 @@ const DESIGNER_CSS = `
     padding: 0 16px;
   }
 
+  .ws-add-page {
+    width: calc(210mm * var(--ws-page-scale, 1));
+  }
+
   @media print {
     @page { size: A4; margin: 0; }
     html, body { background: white !important; }
@@ -1386,13 +1433,23 @@ const DESIGNER_CSS = `
       border: none !important;
       break-after: page;
       page-break-after: always;
+      width: 210mm !important;
+      height: 297mm !important;
+      overflow: visible !important;
     }
     .ws-page:last-child { break-after: auto; page-break-after: auto; }
     .ws-page-inner { overflow: visible; }
+    .ws-page-scale { transform: none !important; width: 210mm !important; height: 297mm !important; }
     .ws-element-drag-handle, .ws-resize-handle, .ws-placed-element { box-shadow: none !important; }
     .ws-element-drag-handle, .ws-resize-handle { display: none !important; }
     .ws-canvas { background: white !important; overflow: visible !important; }
-    .ws-pages-wrap { padding: 0 !important; gap: 0 !important; align-items: flex-start !important; }
+    .ws-pages-wrap {
+      --ws-page-scale: 1;
+      --ws-page-overflow: visible;
+      padding: 0 !important;
+      gap: 0 !important;
+      align-items: flex-start !important;
+    }
 
     .no-print { display: none !important; }
     #printable-area { width: 100% !important; }

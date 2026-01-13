@@ -17,6 +17,7 @@ type PlacedElementProps = {
   onStopEdit: () => void;
   onCommit: (patch: CommitPatch) => void;
   onGuidesChange?: (pageId: string, guides: CanvasGuides) => void;
+  pageScale?: number;
 };
 
 const PlacedElementImpl: React.FC<PlacedElementProps> = ({
@@ -29,6 +30,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
   onStopEdit,
   onCommit,
   onGuidesChange,
+  pageScale = 1,
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -38,6 +40,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
   const lastImageFitKeyRef = useRef<string>('');
   const suppressDragRef = useRef(false);
   const requestEditRef = useRef<() => void>(() => {});
+  const scale = Math.max(0.1, pageScale || 1);
 
   const requestEdit = () => {
     if (editing) return;
@@ -194,8 +197,8 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
           },
           move(event) {
             const target = event.target as HTMLElement;
-            const rawX = (parseFloat(target.getAttribute('data-x') || '0') || 0) + event.dx;
-            const rawY = (parseFloat(target.getAttribute('data-y') || '0') || 0) + event.dy;
+            const rawX = (parseFloat(target.getAttribute('data-x') || '0') || 0) + event.dx / scale;
+            const rawY = (parseFloat(target.getAttribute('data-y') || '0') || 0) + event.dy / scale;
             const snapped = computeMoveSnapAndGuides({
               x: rawX,
               y: rawY,
@@ -204,6 +207,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
               otherElements,
               parentEl: target.parentElement as HTMLElement | null,
               allowOverflow: true,
+              pageScale: scale,
             });
             updateTransform(target, snapped.x, snapped.y);
             onGuidesChange?.(element.pageId, snapped.guides);
@@ -230,8 +234,8 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
             if (hit) {
               const pageId = hit.getAttribute('data-page-id') || element.pageId;
               const pageRect = hit.getBoundingClientRect();
-              const nextX = targetRect.left - pageRect.left;
-              const nextY = targetRect.top - pageRect.top;
+              const nextX = (targetRect.left - pageRect.left) / scale;
+              const nextY = (targetRect.top - pageRect.top) / scale;
               onCommit({ x: nextX, y: nextY, pageId });
             } else {
               onCommit({ x, y });
@@ -265,11 +269,15 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
           },
           move(event) {
             const target = event.target as HTMLElement;
-            const x = (parseFloat(target.getAttribute('data-x') || '0') || 0) + (event.deltaRect?.left || 0);
-            const y = (parseFloat(target.getAttribute('data-y') || '0') || 0) + (event.deltaRect?.top || 0);
+            const deltaLeft = (event.deltaRect?.left || 0) / scale;
+            const deltaTop = (event.deltaRect?.top || 0) / scale;
+            const deltaRight = (event.deltaRect?.right || 0) / scale;
+            const deltaBottom = (event.deltaRect?.bottom || 0) / scale;
+            const x = (parseFloat(target.getAttribute('data-x') || '0') || 0) + deltaLeft;
+            const y = (parseFloat(target.getAttribute('data-y') || '0') || 0) + deltaTop;
 
-            let rawW = event.rect.width;
-            let rawH = event.rect.height;
+            let rawW = event.rect.width / scale;
+            let rawH = event.rect.height / scale;
             const edges = (event as any).edges as
               | { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean }
               | undefined;
@@ -280,8 +288,8 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
               const isCorner = (edges.left || edges.right) && (edges.top || edges.bottom);
               if (isCorner) {
                 const ratio = element.w > 0 ? element.h / element.w : 1;
-                const dx = Math.abs((event.deltaRect?.left || 0) + (event.deltaRect?.right || 0));
-                const dy = Math.abs((event.deltaRect?.top || 0) + (event.deltaRect?.bottom || 0));
+                const dx = Math.abs(deltaLeft + deltaRight);
+                const dy = Math.abs(deltaTop + deltaBottom);
                 if (dy > dx) {
                   rawH = Math.max(50, rawH);
                   rawW = Math.max(80, Math.round(rawH / (ratio || 1)));
@@ -305,6 +313,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
               otherElements,
               parentEl: target.parentElement as HTMLElement | null,
               edges,
+              pageScale: scale,
             });
 
             target.style.width = `${snapped.w}px`;
@@ -333,7 +342,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
     return () => {
       interactable.unset();
     };
-  }, [editing, element.h, element.w, onCommit]);
+  }, [editing, element.h, element.w, onCommit, pageScale]);
 
   const isActive = selected || editing;
 
@@ -477,7 +486,12 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
 // Important: avoid React rerenders during interact.js move/resize.
 // Rerenders can overwrite DOM transforms mid-interaction and make dragging feel "stuck".
 export const PlacedElement = React.memo(PlacedElementImpl, (prev, next) => {
-  return prev.element === next.element && prev.selected === next.selected && prev.editing === next.editing;
+  return (
+    prev.element === next.element &&
+    prev.selected === next.selected &&
+    prev.editing === next.editing &&
+    prev.pageScale === next.pageScale
+  );
 });
 
 const getHandleStyle = (
@@ -508,11 +522,13 @@ const computeMoveSnapAndGuides = (opts: {
   otherElements: WorksheetPlacedElement[];
   parentEl: HTMLElement | null;
   allowOverflow?: boolean;
+  pageScale?: number;
 }): { x: number; y: number; guides: CanvasGuides } => {
   const { otherElements, parentEl, allowOverflow } = opts;
   const parentRect = parentEl?.getBoundingClientRect();
-  const parentW = parentRect?.width ?? 0;
-  const parentH = parentRect?.height ?? 0;
+  const scale = Math.max(0.1, opts.pageScale || 1);
+  const parentW = parentRect?.width ? parentRect.width / scale : 0;
+  const parentH = parentRect?.height ? parentRect.height / scale : 0;
 
   let x = opts.x;
   let y = opts.y;
@@ -654,10 +670,12 @@ const computeResizeSnapAndGuides = (opts: {
   otherElements: WorksheetPlacedElement[];
   parentEl: HTMLElement | null;
   edges?: { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean };
+  pageScale?: number;
 }): { x: number; y: number; w: number; h: number; guides: CanvasGuides } => {
   const parentRect = opts.parentEl?.getBoundingClientRect();
-  const parentW = parentRect?.width ?? 0;
-  const parentH = parentRect?.height ?? 0;
+  const scale = Math.max(0.1, opts.pageScale || 1);
+  const parentW = parentRect?.width ? parentRect.width / scale : 0;
+  const parentH = parentRect?.height ? parentRect.height / scale : 0;
 
   const edges = opts.edges || {};
   let x = opts.x;

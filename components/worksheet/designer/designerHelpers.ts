@@ -340,6 +340,7 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   const sentenceTransformItems = Array.isArray(ai?.sentenceTransform) ? ai.sentenceTransform : [];
   const wordFormationItems = Array.isArray(ai?.wordFormation) ? ai.wordFormation : [];
   const openEndedItems = Array.isArray(ai?.openEnded) ? ai.openEnded : [];
+  const infoSectionItems = Array.isArray(ai?.infoSections) ? ai.infoSections : [];
   const customItems = Array.isArray(ai?.custom) ? ai.custom : [];
   let mcqIndex = 0;
   let wordSearchIndex = 0;
@@ -348,8 +349,30 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   let sentenceTransformIndex = 0;
   let wordFormationIndex = 0;
   let openEndedIndex = 0;
+  let infoSectionIndex = 0;
   let customIndex = 0;
   let tableInserted = false;
+
+  const pushInfoSectionBlock = (section: any) => {
+    const title = toPlainText(section?.title ?? '').trim();
+    const bodyHtml = String(section?.bodyHtml ?? '').trim();
+    const titleHtml = title ? `<h3>${escapeHtml(title)}</h3>` : '';
+    const fallbackBody = `<p>${escapeHtml(title ? '' : 'Information')}</p>`;
+    const html = sanitizeHtml(`<div>${titleHtml}${bodyHtml || fallbackBody}</div>`);
+    const previewText = title || toPlainText(bodyHtml) || 'Information';
+    const preview = sanitizeHtml(
+      `<div><div style="font-weight:700;margin-bottom:6px;">Info</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
+        previewText
+      )}</div></div>`
+    );
+    blocks.push({
+      id: createId(),
+      type: 'custom',
+      title: title ? `Info: ${title}` : 'Information',
+      payload: { html },
+      previewHtml: preview,
+    });
+  };
 
   const maybeInsertTable = () => {
     if (tableInserted) return;
@@ -503,6 +526,14 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         }
         return;
       }
+      if (act.type === 'information-sheet') {
+        const slice = infoSectionItems.slice(infoSectionIndex, infoSectionIndex + count);
+        infoSectionIndex += slice.length;
+        if (slice.length > 0) {
+          slice.forEach(pushInfoSectionBlock);
+        }
+        return;
+      }
       if (act.type === 'custom') {
         const item = customItems[customIndex];
         customIndex += 1;
@@ -629,6 +660,9 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         payload: { items: openEndedItems },
         previewHtml: preview,
       });
+    }
+    if (infoSectionItems.length > 0) {
+      infoSectionItems.forEach(pushInfoSectionBlock);
     }
     if (customItems.length > 0) {
       const first = customItems[0];

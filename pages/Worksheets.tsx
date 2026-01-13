@@ -733,6 +733,8 @@ const WorksheetBuilder: React.FC<{
     const [isPublic, setIsPublic] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [mobileTab, setMobileTab] = useState<'config' | 'canvas' | 'tools'>('config');
+    const [isMobile, setIsMobile] = useState(false);
 
     // --- NEW DESIGNER STATE ---
     const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
@@ -741,6 +743,27 @@ const WorksheetBuilder: React.FC<{
     const [designerSettings, setDesignerSettings] = useState<WorksheetDesignerSettings>(() => createEmptyDoc().settings || {});
     const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
     const lastLoadedWorksheetKeyRef = useRef<string>('');
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const media = window.matchMedia('(max-width: 767px)');
+        const update = () => setIsMobile(media.matches);
+        update();
+        if (media.addEventListener) {
+            media.addEventListener('change', update);
+            return () => media.removeEventListener('change', update);
+        }
+        media.addListener(update);
+        return () => media.removeListener(update);
+    }, []);
+
+    useEffect(() => {
+        if (!isMobile) return;
+        const id = window.setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 0);
+        return () => window.clearTimeout(id);
+    }, [isMobile, mobileTab]);
     
     // Active Formats State for Toolbar
     const [activeFormats, setActiveFormats] = useState({
@@ -971,6 +994,7 @@ const WorksheetBuilder: React.FC<{
         { type: 'sentence-transform', label: 'Sentence Transform' },
         { type: 'word-formation', label: 'Word Formation' },
         { type: 'open-ended', label: 'Open Ended' },
+        { type: 'information-sheet', label: 'Information Sheet' },
         { type: 'table', label: 'Table' },
         { type: 'custom', label: 'Custom' },
     ];
@@ -1384,7 +1408,17 @@ const WorksheetBuilder: React.FC<{
     const addActivity = (type: ActivityType) => {
         const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice'].includes(type);
         const defaultCount =
-            type === 'wordsearch' ? 10 : type === 'matching' ? 8 : type === 'table' ? 4 : type === 'custom' ? 1 : 5;
+            type === 'wordsearch'
+                ? 10
+                : type === 'matching'
+                    ? 8
+                    : type === 'information-sheet'
+                        ? 4
+                        : type === 'table'
+                            ? 4
+                            : type === 'custom'
+                                ? 1
+                                : 5;
         const defaultOptions =
             type === 'multiple-choice'
                 ? { mcCount: 4 as const }
@@ -1413,7 +1447,9 @@ const WorksheetBuilder: React.FC<{
     };
 
     const updateActivityCount = (id: string, count: number) => {
-        setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, count } : a) }));
+        if (!Number.isFinite(count)) return;
+        const nextCount = Math.max(1, Math.floor(count));
+        setConfig(prev => ({ ...prev, activities: prev.activities.map(a => a.id === id ? { ...a, count: nextCount } : a) }));
     };
 
     const updateActivityContext = (id: string, contextType: 'sentences' | 'text') => {
@@ -1429,12 +1465,25 @@ const WorksheetBuilder: React.FC<{
     };
 
     const updateActivityGrid = (id: string, patch: { rows?: number; cols?: number }) => {
+        const nextRows =
+            typeof patch.rows === 'number' && Number.isFinite(patch.rows)
+                ? Math.max(2, Math.floor(patch.rows))
+                : undefined;
+        const nextCols =
+            typeof patch.cols === 'number' && Number.isFinite(patch.cols)
+                ? Math.max(2, Math.floor(patch.cols))
+                : undefined;
+        if (nextRows === undefined && nextCols === undefined) return;
         setConfig(prev => ({
             ...prev,
             activities: prev.activities.map(a => {
                 if (a.id !== id) return a;
-                const nextOptions = { ...(a.options || {}), ...patch };
-                const nextCount = a.type === 'table' && typeof patch.rows === 'number' ? patch.rows : a.count;
+                const nextOptions = {
+                    ...(a.options || {}),
+                    ...(nextRows !== undefined ? { rows: nextRows } : {}),
+                    ...(nextCols !== undefined ? { cols: nextCols } : {})
+                };
+                const nextCount = a.type === 'table' && nextRows !== undefined ? nextRows : a.count;
                 return { ...a, options: nextOptions, count: nextCount };
             })
         }));
@@ -1505,6 +1554,9 @@ const WorksheetBuilder: React.FC<{
             });
             setSaveStatus('idle');
             onDirtyChange?.(true);
+            if (isMobile) {
+                setMobileTab('canvas');
+            }
         } catch (error) {
             console.error(error);
             alert("Error generating worksheet.");
@@ -1634,10 +1686,54 @@ const WorksheetBuilder: React.FC<{
         setIsPublic(!isPublic);
     };
 
+    const rightSidebarMode = isMobile ? (mobileTab === 'tools' ? 'expanded' : 'collapsed') : 'auto';
+
     return (
-        <div className="flex bg-slate-50 relative items-stretch">
+        <div className="flex flex-col md:flex-row bg-slate-50 relative items-stretch">
+            <div className="no-print md:hidden px-4 pt-4 pb-0">
+                <div className="bg-slate-100 border border-slate-200 rounded-t-2xl px-2 pt-2">
+                    <div className="grid grid-cols-3 gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('config')}
+                            className={`px-3 py-2 rounded-t-lg text-[11px] font-bold tracking-wide transition-all border border-b-0 ${
+                                mobileTab === 'config'
+                                    ? 'bg-white text-slate-800 border-slate-200 shadow-sm'
+                                    : 'bg-slate-200/70 text-slate-500 border-transparent hover:text-slate-700'
+                            }`}
+                        >
+                            Setup
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('canvas')}
+                            className={`px-3 py-2 rounded-t-lg text-[11px] font-bold tracking-wide transition-all border border-b-0 ${
+                                mobileTab === 'canvas'
+                                    ? 'bg-white text-slate-800 border-slate-200 shadow-sm'
+                                    : 'bg-slate-200/70 text-slate-500 border-transparent hover:text-slate-700'
+                            }`}
+                        >
+                            Canvas
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('tools')}
+                            className={`px-3 py-2 rounded-t-lg text-[11px] font-bold tracking-wide transition-all border border-b-0 ${
+                                mobileTab === 'tools'
+                                    ? 'bg-white text-slate-800 border-slate-200 shadow-sm'
+                                    : 'bg-slate-200/70 text-slate-500 border-transparent hover:text-slate-700'
+                            }`}
+                        >
+                            Tools
+                        </button>
+                    </div>
+                </div>
+                <div className="border-b border-slate-200" />
+            </div>
             {/* Sidebar */}
-            <div className={`no-print ${isSidebarCollapsed ? 'w-14' : 'w-96'} flex-shrink-0 bg-white border-r border-slate-200 z-20 shadow-xl transition-[width] duration-200`}>
+            <div
+                className={`no-print ${mobileTab === 'config' ? 'block' : 'hidden'} md:block ${isSidebarCollapsed ? 'md:w-14' : 'md:w-96'} w-full md:flex-shrink-0 bg-white md:border-r border-slate-200 z-20 shadow-xl md:transition-[width] duration-200`}
+            >
                 <style>{SIDEBAR_CSS}</style>
                 <div className="p-4 border-b border-slate-100 flex items-start justify-between gap-2">
                     <div className={isSidebarCollapsed ? 'hidden' : ''}>
@@ -1651,7 +1747,7 @@ const WorksheetBuilder: React.FC<{
                         onClick={() => setIsSidebarCollapsed(v => !v)}
                         title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                         aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        className="p-2 rounded hover:bg-slate-100 text-slate-600"
+                        className="hidden md:inline-flex p-2 rounded hover:bg-slate-100 text-slate-600"
                     >
                         {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                     </button>
@@ -1855,6 +1951,8 @@ const WorksheetBuilder: React.FC<{
                                 const countLabel =
                                     act.type === 'wordsearch'
                                         ? 'Words'
+                                        : act.type === 'information-sheet'
+                                            ? 'Sections'
                                         : act.type === 'matching'
                                             ? 'Pairs'
                                             : 'Qty';
@@ -1877,7 +1975,14 @@ const WorksheetBuilder: React.FC<{
                                             {showCount && (
                                                 <div className="flex-1 min-w-[60px]">
                                                     <label className="text-[9px] text-slate-500 font-bold uppercase block">{countLabel}</label>
-                                                    <input type="number" min={1} max={50} value={act.count} onChange={(e) => updateActivityCount(act.id, parseInt(e.target.value))} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={50}
+                                                        value={act.count}
+                                                        onChange={(e) => updateActivityCount(act.id, Number(e.target.value))}
+                                                        className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                    />
                                                 </div>
                                             )}
                                             {act.type === 'multiple-choice' && (
@@ -1890,11 +1995,25 @@ const WorksheetBuilder: React.FC<{
                                                 <>
                                                     <div className="flex-1 min-w-[60px]">
                                                         <label className="text-[9px] text-slate-500 font-bold uppercase block">Rows</label>
-                                                        <input type="number" min={2} max={30} value={gridRows} onChange={(e) => updateActivityGrid(act.id, { rows: parseInt(e.target.value) })} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                        <input
+                                                            type="number"
+                                                            min={2}
+                                                            max={30}
+                                                            value={gridRows}
+                                                            onChange={(e) => updateActivityGrid(act.id, { rows: Number(e.target.value) })}
+                                                            className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                        />
                                                     </div>
                                                     <div className="flex-1 min-w-[60px]">
                                                         <label className="text-[9px] text-slate-500 font-bold uppercase block">Cols</label>
-                                                        <input type="number" min={2} max={30} value={gridCols} onChange={(e) => updateActivityGrid(act.id, { cols: parseInt(e.target.value) })} className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none" />
+                                                        <input
+                                                            type="number"
+                                                            min={2}
+                                                            max={30}
+                                                            value={gridCols}
+                                                            onChange={(e) => updateActivityGrid(act.id, { cols: Number(e.target.value) })}
+                                                            className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                        />
                                                     </div>
                                                 </>
                                             )}
@@ -1944,7 +2063,9 @@ const WorksheetBuilder: React.FC<{
             </div>
 
             {/* Canvas + Blocks Tray + Properties */}
-            <div className="flex-1 flex min-w-0 border-l border-slate-200">
+            <div
+                className={`flex-1 min-w-0 ${mobileTab === 'config' ? 'hidden' : 'flex'} md:flex md:border-l border-slate-200`}
+            >
                 <input
                     ref={imageInputRef}
                     type="file"
@@ -1969,6 +2090,8 @@ const WorksheetBuilder: React.FC<{
                     onAddImage={handleAddImageClick}
                     isPublic={isPublic}
                     onTogglePublic={handleVisibilityToggle}
+                    rightSidebarMode={rightSidebarMode}
+                    isMobile={isMobile}
                 />
             </div>
         </div>
