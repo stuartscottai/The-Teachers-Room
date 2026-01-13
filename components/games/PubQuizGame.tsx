@@ -878,7 +878,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 {/* Header */}
                                 <div className="bg-brand-blue text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-90 truncate max-w-[55%]">{currentRound?.name}</div>

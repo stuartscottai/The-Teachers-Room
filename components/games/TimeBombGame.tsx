@@ -861,7 +861,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
-                                        <div className={`absolute inset-0 [backface-visibility:hidden] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                        <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'pointer-events-none' : ''}`}>
                                             <div className="bg-indigo-900/50 px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 border-b border-indigo-800 flex justify-between items-center shrink-0">
                                                 <span className="font-bold text-indigo-300 uppercase tracking-widest text-[clamp(9px,2vw,12px)] sm:text-sm">Question</span>
                                                 <div className="flex items-center gap-2">

@@ -1201,7 +1201,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-brand-blue text-white p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
                                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                                         <div className="font-bold text-sm sm:text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>

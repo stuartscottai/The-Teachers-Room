@@ -1019,7 +1019,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                         >
                             {/* FRONT (QUESTION) */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
                                 ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 
                                 {isBonus ? (

@@ -643,7 +643,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
                                     
                                     {/* FRONT (Number) */}
-                                    <div className="absolute inset-0 [backface-visibility:hidden] bg-gradient-to-b from-blue-800 to-blue-950 border-2 border-blue-500 rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-center">
+                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] bg-gradient-to-b from-blue-800 to-blue-950 border-2 border-blue-500 rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-center">
                                         <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-blue-950 flex items-center justify-center border-2 border-blue-400 shadow-inner group-hover:scale-110 transition-transform">
                                             <span className="text-xl md:text-3xl font-black text-blue-200">{i + 1}</span>
                                         </div>
