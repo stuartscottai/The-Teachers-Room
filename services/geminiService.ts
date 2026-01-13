@@ -133,6 +133,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
 
   IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
+  CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse option A. Use an equal balance across A/B/C/D (or however many options are used).
+  CRITICAL: Only ONE option can be correct. Ensure the question is specific enough that only one option is unambiguously correct (e.g., add context or time reference for grammar questions).
   If a question includes options, the "answer" must EXACTLY match one of the option strings (including articles like "a/an/the", punctuation, and capitalization). Do not paraphrase or drop articles.
   
   CRITICAL JSON RULES:

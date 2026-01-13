@@ -80,6 +80,7 @@ export const Profile: React.FC = () => {
                          <img 
                             src={user.avatar} 
                             alt={user.name} 
+                            crossOrigin="anonymous"
                             className="w-32 h-32 rounded-full border-4 border-slate-100 shadow-md object-cover bg-slate-100" 
                         />
                     </div>

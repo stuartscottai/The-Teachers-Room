@@ -95,7 +95,7 @@ const Navbar: React.FC = () => {
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center space-x-2 text-slate-700 hover:text-brand-blue relative z-[101]"
                   >
-                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full border border-slate-200" />
+                    <img src={user.avatar} alt={user.name} crossOrigin="anonymous" className="w-8 h-8 rounded-full border border-slate-200" />
                     <span className="font-bold text-sm max-w-[100px] truncate">{user.name}</span>
                   </button>
                   
@@ -189,7 +189,7 @@ const Navbar: React.FC = () => {
                 {user ? (
                   <>
                     <div className="flex items-center px-3 py-2">
-                       <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full mr-2" />
+                       <img src={user.avatar} alt={user.name} crossOrigin="anonymous" className="w-8 h-8 rounded-full mr-2" />
                        <span className="font-bold text-slate-800">{user.name}</span>
                     </div>
                     <SafeLink to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">

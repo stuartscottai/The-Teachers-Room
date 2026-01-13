@@ -17,7 +17,7 @@ export const Blog: React.FC = () => {
                             className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col group"
                         >
                             <div className="h-48 overflow-hidden">
-                                <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <img src={post.image} alt={post.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             </div>
                             <div className="p-6 flex-grow">
                                 <p className="text-xs font-bold text-teal-600 mb-2">{post.date}</p>

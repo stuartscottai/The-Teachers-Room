@@ -683,7 +683,7 @@ const EditablePreview = React.memo(React.forwardRef<HTMLDivElement, {
                     style={{ left: logoPos.x, top: logoPos.y, width: logoWidth }}
                     onMouseDown={onLogoDrag}
                 >
-                    <img src={logoUrl} className="ws-logo" alt="Worksheet Logo" />
+                    <img src={logoUrl} className="ws-logo" alt="Worksheet Logo" crossOrigin="anonymous" />
                     <div className="ws-resize-handle" onMouseDown={handleResizeStart} />
                 </div>
             )}
@@ -1766,7 +1766,7 @@ const WorksheetBuilder: React.FC<{
 
                         {logoUrl && (
                             <div className="mt-2 flex items-center gap-2">
-                                <img src={logoUrl} alt="Logo preview" className="w-10 h-10 object-contain border border-slate-200 rounded bg-white" />
+                                <img src={logoUrl} alt="Logo preview" crossOrigin="anonymous" className="w-10 h-10 object-contain border border-slate-200 rounded bg-white" />
                                 <div className="text-[10px] text-slate-500 leading-snug">
                                     Drag to move. Use the handles to resize (or click and press Delete).
                                     <button

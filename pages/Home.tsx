@@ -53,6 +53,7 @@ const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: 
                     <img 
                         src={game.image} 
                         alt={game.title} 
+                        crossOrigin="anonymous"
                         className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${hasError ? 'hidden' : 'block'}`}
                         onError={() => setHasError(true)}
                     />
@@ -148,6 +149,7 @@ export const Home: React.FC = () => {
             <img 
                 src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2070&auto=format&fit=crop" 
                 alt="Teacher's Desk Background" 
+                crossOrigin="anonymous"
                 className="w-full h-full object-cover opacity-20 mix-blend-overlay filter blur-[1px]"
             />
              {/* Tint Overlay to maintain theme consistency */}

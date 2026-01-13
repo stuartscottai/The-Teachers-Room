@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, X, Bot, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, Send, X, Bot, User, ArrowRight, Loader2, Mic } from 'lucide-react';
 import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent } from '../../services/geminiService';
+import { useDictation } from '../../utils/useDictation';
 
 interface AiAssistantChatProps {
     onClose: () => void;
@@ -29,6 +30,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const [isGenerating, setIsGenerating] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const MIN_AI_QUESTION_COUNT = 25;
+    const dictation = useDictation({ model: 'tiny', language: 'auto' });
 
     const getUserRequestedQuestionCount = () => {
         const patterns = [
@@ -130,6 +132,18 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         }
     };
 
+    const handleClose = () => {
+        dictation.stop();
+        onClose();
+    };
+
+    const toggleDictation = () => {
+        void dictation.toggle({
+            getValue: () => input,
+            onUpdate: (value) => setInput(value)
+        });
+    };
+
     const handleCreateGame = async (config: GameConfig) => {
         setIsGenerating(true);
         try {
@@ -164,7 +178,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             <p className="text-xs text-sky-100 opacity-80">Game Consultant</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -240,9 +254,25 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Describe your lesson topic..."
-                            className="w-full pl-4 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all text-sm"
+                            className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all text-sm"
                             disabled={isTyping || isGenerating}
                         />
+                        <button
+                            type="button"
+                            onClick={toggleDictation}
+                            disabled={isTyping || isGenerating || dictation.isBusy}
+                            title={dictation.isListening ? 'Stop dictation' : 'Start dictation'}
+                            className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg border transition-colors
+                                ${dictation.isListening ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue'}
+                                ${dictation.isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                            <span className="relative inline-flex">
+                                <Mic size={16} />
+                                {dictation.isListening && (
+                                    <span className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-red-500" />
+                                )}
+                            </span>
+                        </button>
                         <button 
                             type="submit"
                             disabled={!input.trim() || isTyping || isGenerating}
@@ -251,6 +281,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             <Send size={18} />
                         </button>
                     </form>
+                    {dictation.statusMessage && (
+                        <p className="mt-2 text-xs text-slate-500">{dictation.statusMessage}</p>
+                    )}
                 </div>
             </div>
         </div>

@@ -27,7 +27,7 @@ export const BlogPostPage: React.FC = () => {
         <div className="min-h-screen bg-white animate-fade-in">
             {/* Hero Section */}
             <div className="relative h-[50vh] min-h-[400px]">
-                <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+                <img src={post.image} alt={post.title} crossOrigin="anonymous" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
                 
                 <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
@@ -81,7 +81,7 @@ export const BlogPostPage: React.FC = () => {
                         {blogPosts.filter(p => p.id !== post.id).slice(0, 3).map(related => (
                             <Link to={`/blog/${related.id}`} key={related.id} className="group block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-slate-100">
                                 <div className="h-48 overflow-hidden">
-                                    <img src={related.image} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={related.image} alt={related.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 </div>
                                 <div className="p-6">
                                     <p className="text-xs font-bold text-teal-600 mb-2">{related.date}</p>

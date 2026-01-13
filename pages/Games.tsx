@@ -68,6 +68,7 @@ const GameCard: React.FC<{
             {/* Image Container */}
             <div className={`h-48 w-full relative overflow-hidden ${hasError ? game.color : 'bg-slate-100'}`}>
                 <img 
+                    crossOrigin="anonymous"
                     src={game.image} 
                     alt={game.type}
                     className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${hasError ? 'hidden' : 'block'}`}
@@ -804,7 +805,7 @@ const GameHub: React.FC<{
                         <div className="md:w-1/3 flex justify-center relative z-10">
                              <div className="relative">
                                 <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
-                                <img src="https://picsum.photos/seed/robot/300/300" alt="AI Robot" className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-64 h-64 object-cover" />
+                                <img src="https://picsum.photos/seed/robot/300/300" alt="AI Robot" crossOrigin="anonymous" className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-64 h-64 object-cover" />
                              </div>
                         </div>
                     </div>

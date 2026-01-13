@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Coins, Plus, Trash2, Paperclip, FileText } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
+import { useDictation } from '../../utils/useDictation';
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
@@ -133,6 +134,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     }, [mode]);
 
     const [loading, setLoading] = useState(false);
+    const dictation = useDictation({ model: 'tiny', language: 'auto' });
+    const sourceInputRef = useRef<HTMLInputElement>(null);
 
     // Update category names array (Jeopardy)
     useEffect(() => {
@@ -201,6 +204,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     const removeFile = (index: number) => {
         setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const openSourcePicker = () => {
+        sourceInputRef.current?.click();
+    };
+
+    const toggleDictation = () => {
+        void dictation.toggle({
+            getValue: () => config.customInstructions || '',
+            onUpdate: (value) => setConfig(prev => ({ ...prev, customInstructions: value }))
+        });
     };
 
     const handleGenerate = async () => {
@@ -344,38 +358,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         placeholder="e.g., Ancient Rome, Multiplication Tables" 
                                         className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none" 
                                     />
-                                    <p className="text-xs text-slate-400 mt-1">Or upload a document below to generate from source material.</p>
-                                </div>
-                            )}
-
-                            {/* FILE UPLOAD FOR AI MODE */}
-                            {mode === 'ai' && (
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                                        <Paperclip size={16} className="mr-2 text-brand-blue" /> Upload Source Material
-                                    </label>
-                                    <p className="text-xs text-slate-500 mb-3">Upload PDFs or Images (Max 3 files, 4MB each). The AI will use these to generate questions.</p>
-                                    
-                                    <div className="space-y-3">
-                                        {uploadedFiles.map((file, idx) => (
-                                            <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
-                                                <div className="flex items-center truncate">
-                                                    <FileText size={16} className="text-slate-400 mr-2 flex-shrink-0" />
-                                                    <span className="text-sm text-slate-600 truncate max-w-[200px]">{file.name}</span>
-                                                </div>
-                                                <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-1">
-                                                    <X size={16} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        
-                                        {uploadedFiles.length < 3 && (
-                                            <label className="flex items-center justify-center p-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-brand-blue hover:bg-sky-50 cursor-pointer transition-colors text-slate-500 font-bold text-sm">
-                                                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
-                                                <Plus size={16} className="mr-2" /> Add Document
-                                            </label>
-                                        )}
-                                    </div>
                                 </div>
                             )}
 
@@ -747,13 +729,63 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
                             {mode === 'ai' && (
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">AI Instructions (Optional)</label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-slate-700">AI Instructions</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                ref={sourceInputRef}
+                                                type="file"
+                                                multiple
+                                                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={openSourcePicker}
+                                                title="Add source material"
+                                                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                            >
+                                                <Paperclip size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={toggleDictation}
+                                                disabled={dictation.isBusy}
+                                                title={dictation.isListening ? 'Stop dictation' : 'Start dictation'}
+                                                className={`p-2 rounded-lg border transition-colors
+                                                    ${dictation.isListening ? 'bg-red-50 border-red-200 text-red-600' : 'border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue'}
+                                                    ${dictation.isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            >
+                                                {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                                            </button>
+                                        </div>
+                                    </div>
                                     <textarea 
                                         value={config.customInstructions}
                                         onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
                                         placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
+                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game.</p>
+                                    {dictation.statusMessage && (
+                                        <p className="mt-1 text-xs text-slate-500">{dictation.statusMessage}</p>
+                                    )}
+                                    {uploadedFiles.length > 0 && (
+                                        <div className="mt-3 space-y-2">
+                                            {uploadedFiles.map((file, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+                                                    <div className="flex items-center truncate">
+                                                        <FileText size={16} className="text-slate-400 mr-2 flex-shrink-0" />
+                                                        <span className="text-sm text-slate-600 truncate max-w-[220px]">{file.name}</span>
+                                                    </div>
+                                                    <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-1">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

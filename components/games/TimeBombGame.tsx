@@ -117,6 +117,15 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    useLayoutEffect(() => {
+        if (!hasOptions) return;
+        const grid = optionGridRef.current;
+        if (!grid) return;
+        const observer = new ResizeObserver(() => setResizeTick(prev => prev + 1));
+        observer.observe(grid);
+        return () => observer.disconnect();
+    }, [hasOptions]);
+
     // Fullscreen Handling
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -519,6 +528,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         const textStyles = textEl ? window.getComputedStyle(textEl) : null;
 
         measureEl.style.width = `${innerWidth}px`;
+        measureEl.style.boxSizing = 'border-box';
         measureEl.style.fontFamily = styles.fontFamily;
         measureEl.style.fontWeight = styles.fontWeight;
         measureEl.style.letterSpacing = styles.letterSpacing;

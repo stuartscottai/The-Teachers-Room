@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import os from 'os';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 const getLocalNetworkHost = () => {
   const nets = os.networkInterfaces();
@@ -25,9 +27,24 @@ export default defineConfig({
       '@': path.resolve('.'),
     },
   },
+  css: {
+    postcss: {
+      plugins: [tailwindcss(), autoprefixer()],
+    },
+  },
   server: {
     host: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
     ...(hmrHost ? { hmr: { host: hmrHost, protocol: 'ws' } } : {}),
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
   build: {
     outDir: 'dist',

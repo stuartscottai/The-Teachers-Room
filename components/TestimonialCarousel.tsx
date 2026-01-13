@@ -46,7 +46,7 @@ export const TestimonialCarousel: React.FC = () => {
         {testimonials.map((t) => (
           <div key={t.id} className="snap-center flex-shrink-0 w-80 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300">
              <div className="flex items-center mb-4">
-                <img src={t.image} alt={t.name} className="w-12 h-12 rounded-full mr-4 object-cover" />
+                <img src={t.image} alt={t.name} crossOrigin="anonymous" className="w-12 h-12 rounded-full mr-4 object-cover" />
                 <div>
                   <h4 className="font-bold text-slate-800 text-sm">{t.name}</h4>
                   <p className="text-xs text-slate-500 uppercase tracking-wide">{t.role}</p>
