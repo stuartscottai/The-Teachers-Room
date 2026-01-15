@@ -75,16 +75,22 @@ export const mcqToHtml = (
 export const wordSearchToHtml = (puzzle?: { grid: string[][]; words: string[] }): string => {
   if (!puzzle) return '';
   const grid = puzzle.grid || [];
-  const words = puzzle.words || [];
   const rows = grid
     .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(String(cell || ''))}</td>`).join('')}</tr>`)
     .join('');
-  const wordList = words
-    .map((w) => `<span class="ws-wordsearch-word">${escapeHtml(toPlainText(String(w)))}</span>`)
-    .join(', ');
 
   return sanitizeHtml(
-    `<div><h3>Wordsearch</h3><table class="ws-table ws-wordsearch-table"><tbody>${rows}</tbody></table><div class="ws-wordsearch-words"><strong>Words:</strong> ${wordList}</div></div>`
+    `<div class="ws-wordsearch"><h3>Wordsearch</h3><div class="ws-wordsearch-grid"><table class="ws-table ws-wordsearch-table"><tbody>${rows}</tbody></table></div></div>`
+  );
+};
+
+export const wordSearchWordsToHtml = (words?: string[]): string => {
+  const safeWords = words ?? [];
+  const wordList = safeWords
+    .map((w) => `<span class="ws-wordsearch-word">${escapeHtml(toPlainText(String(w)))}</span>`)
+    .join(', ');
+  return sanitizeHtml(
+    `<div class="ws-wordsearch-words-box"><div class="ws-wordsearch-words"><strong>Words:</strong> ${wordList}</div></div>`
   );
 };
 
@@ -204,6 +210,10 @@ export const blockToElementHtml = (block: WorksheetBlock): string => {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
     return wordSearchToHtml(block.payload?.puzzle);
   }
+  if (block.type === 'wordsearch-words') {
+    if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
+    return wordSearchWordsToHtml(block.payload?.words ?? block.payload?.puzzle?.words ?? []);
+  }
   if (block.type === 'matching') {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
     return matchingToHtml(block.payload?.items ?? []);
@@ -267,6 +277,9 @@ export const defaultStylesForType = (type: WorksheetBlockType): WorksheetElement
   if (type === 'image') {
     return { ...base, padding: '0px' };
   }
+  if (type === 'wordsearch-words') {
+    return { ...base, fontSize: '10px', lineHeight: '1.3', padding: '0px' };
+  }
   return base;
 };
 
@@ -282,6 +295,7 @@ export const defaultSizeForType = (
   if (type === 'story') return { w: clampW(620), h: 240 };
   if (type === 'mcq') return { w: clampW(620), h: 320 };
   if (type === 'wordsearch') return { w: clampW(620), h: 360 };
+  if (type === 'wordsearch-words') return { w: clampW(420), h: 120 };
   if (type === 'matching') return { w: clampW(620), h: 260 };
   if (type === 'gap-fill') return { w: clampW(620), h: 260 };
   if (type === 'sentence-transform') return { w: clampW(620), h: 260 };
@@ -297,15 +311,75 @@ export const defaultSizeForType = (
 export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig): WorksheetBlock[] => {
   const blocks: WorksheetBlock[] = [];
 
-  const titleText = String(ai?.title ?? '').trim();
-  if (titleText) {
+  const activities = config?.activities ?? [];
+  const infoTemplate = config?.infoTemplate || 'classic';
+  const infoTheme = config?.infoTheme || 'ocean';
+  const infoSectionItems = Array.isArray(ai?.infoSections) ? ai.infoSections : [];
+  const hasInfoSections = infoSectionItems.length > 0;
+  const infoBlockStyles = {
+    padding: '0px',
+    backgroundColor: 'transparent',
+    borderStyle: 'none',
+    borderWidth: '0px',
+    borderColor: 'transparent',
+    borderRadius: '0px',
+    boxShadow: 'none',
+  };
+
+  const buildInfoHeaderBlock = (title: string, subtitle?: string) => {
+    const safeTitle = escapeHtml(toPlainText(title || ''));
+    const safeSubtitle = escapeHtml(toPlainText(subtitle || ''));
+    const subtitleHtml = safeSubtitle ? `<div class="ws-info-header__subtitle">${safeSubtitle}</div>` : '';
+    const html = sanitizeHtml(
+      `<div class="ws-info-header ws-info-header--${escapeHtml(infoTemplate)} ws-info-theme--${escapeHtml(infoTheme)}"><div class="ws-info-header__title">${safeTitle}</div>${subtitleHtml}</div>`
+    );
     blocks.push({
       id: createId(),
-      type: 'title',
-      title: 'Title',
-      payload: { text: titleText },
-      previewHtml: sanitizeHtml(`<div style="font-weight:800;font-size:14px;">${escapeHtml(titleText)}</div>`),
+      type: 'custom',
+      title: 'Infographic Header',
+      payload: { html, kind: 'info-header', template: infoTemplate, theme: infoTheme, styles: infoBlockStyles },
+      previewHtml: html,
     });
+  };
+
+  const pushInfoSectionBlock = (section: any) => {
+    const title = toPlainText(section?.title ?? '').trim();
+    const bodyHtml = String(section?.bodyHtml ?? '').trim();
+    const titleHtml = title ? `<div class="ws-info-card__title">${escapeHtml(title)}</div>` : '';
+    const fallbackBody = `<p>${escapeHtml(title ? '' : 'Information')}</p>`;
+    const html = sanitizeHtml(
+      `<div class="ws-info-card ws-info-card--${escapeHtml(infoTemplate)} ws-info-theme--${escapeHtml(infoTheme)}">${titleHtml}<div class="ws-info-card__body">${
+        bodyHtml || fallbackBody
+      }</div></div>`
+    );
+    const previewText = title || toPlainText(bodyHtml) || 'Information';
+    const preview = sanitizeHtml(
+      `<div><div style="font-weight:700;margin-bottom:6px;">Info</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
+        previewText
+      )}</div></div>`
+    );
+    blocks.push({
+      id: createId(),
+      type: 'custom',
+      title: title ? `Info: ${title}` : 'Information',
+      payload: { html, kind: 'info-section', template: infoTemplate, theme: infoTheme, styles: infoBlockStyles },
+      previewHtml: preview,
+    });
+  };
+
+  const titleText = String(ai?.title ?? '').trim();
+  if (titleText) {
+    if (hasInfoSections) {
+      buildInfoHeaderBlock(titleText, config?.topic || '');
+    } else {
+      blocks.push({
+        id: createId(),
+        type: 'title',
+        title: 'Title',
+        payload: { text: titleText },
+        previewHtml: sanitizeHtml(`<div style="font-weight:800;font-size:14px;">${escapeHtml(titleText)}</div>`),
+      });
+    }
   }
 
   if (config?.includeHeader) {
@@ -332,7 +406,6 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
     });
   }
 
-  const activities = config?.activities ?? [];
   const mcqItems = Array.isArray(ai?.mcq) ? ai.mcq : [];
   const wordSearchItems = Array.isArray(ai?.wordSearch) ? ai.wordSearch : [];
   const matchingItems = Array.isArray(ai?.matching) ? ai.matching : [];
@@ -340,7 +413,6 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   const sentenceTransformItems = Array.isArray(ai?.sentenceTransform) ? ai.sentenceTransform : [];
   const wordFormationItems = Array.isArray(ai?.wordFormation) ? ai.wordFormation : [];
   const openEndedItems = Array.isArray(ai?.openEnded) ? ai.openEnded : [];
-  const infoSectionItems = Array.isArray(ai?.infoSections) ? ai.infoSections : [];
   const customItems = Array.isArray(ai?.custom) ? ai.custom : [];
   let mcqIndex = 0;
   let wordSearchIndex = 0;
@@ -352,27 +424,6 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   let infoSectionIndex = 0;
   let customIndex = 0;
   let tableInserted = false;
-
-  const pushInfoSectionBlock = (section: any) => {
-    const title = toPlainText(section?.title ?? '').trim();
-    const bodyHtml = String(section?.bodyHtml ?? '').trim();
-    const titleHtml = title ? `<h3>${escapeHtml(title)}</h3>` : '';
-    const fallbackBody = `<p>${escapeHtml(title ? '' : 'Information')}</p>`;
-    const html = sanitizeHtml(`<div>${titleHtml}${bodyHtml || fallbackBody}</div>`);
-    const previewText = title || toPlainText(bodyHtml) || 'Information';
-    const preview = sanitizeHtml(
-      `<div><div style="font-weight:700;margin-bottom:6px;">Info</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
-        previewText
-      )}</div></div>`
-    );
-    blocks.push({
-      id: createId(),
-      type: 'custom',
-      title: title ? `Info: ${title}` : 'Information',
-      payload: { html },
-      previewHtml: preview,
-    });
-  };
 
   const maybeInsertTable = () => {
     if (tableInserted) return;
@@ -415,6 +466,7 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         const puzzle = wordSearchItems[wordSearchIndex];
         wordSearchIndex += 1;
         if (puzzle?.grid?.length) {
+          const words = Array.isArray(puzzle.words) ? puzzle.words : [];
           blocks.push({
             id: createId(),
             type: 'wordsearch',
@@ -422,6 +474,15 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
             payload: { puzzle },
             previewHtml: sanitizeHtml('<div style="font-weight:700;">Wordsearch</div>'),
           });
+          if (words.length > 0) {
+            blocks.push({
+              id: createId(),
+              type: 'wordsearch-words',
+              title: 'Wordsearch Words',
+              payload: { words },
+              previewHtml: wordSearchWordsToHtml(words),
+            });
+          }
         }
         return;
       }
@@ -576,6 +637,7 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
     if (wordSearchItems.length > 0) {
       const puzzle = wordSearchItems[0];
       if (puzzle?.grid?.length) {
+        const words = Array.isArray(puzzle.words) ? puzzle.words : [];
         blocks.push({
           id: createId(),
           type: 'wordsearch',
@@ -583,6 +645,15 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
           payload: { puzzle },
           previewHtml: sanitizeHtml('<div style="font-weight:700;">Wordsearch</div>'),
         });
+        if (words.length > 0) {
+          blocks.push({
+            id: createId(),
+            type: 'wordsearch-words',
+            title: 'Wordsearch Words',
+            payload: { words },
+            previewHtml: wordSearchWordsToHtml(words),
+          });
+        }
       }
     }
     if (matchingItems.length > 0) {
@@ -726,7 +797,10 @@ export const createElementFromBlock = (opts: {
   const { block, pageId, x, y, pageInnerSize } = opts;
   const defaults = defaultSizeForType(block.type, pageInnerSize);
   const baseW = typeof block.payload?.w === 'number' ? block.payload.w : defaults.w;
-  const w = block.type === 'image' ? baseW : Math.max(200, Math.round(pageInnerSize.width));
+  const w =
+    block.type === 'image' || block.type === 'wordsearch-words'
+      ? baseW
+      : Math.max(200, Math.round(pageInnerSize.width));
   const h = typeof block.payload?.h === 'number' ? block.payload.h : defaults.h;
   return {
     id: createId(),
@@ -786,6 +860,8 @@ export const blockFromElement = (el: WorksheetPlacedElement): WorksheetBlock => 
             ? 'MCQ'
             : type === 'wordsearch'
               ? 'Wordsearch'
+              : type === 'wordsearch-words'
+                ? 'Wordsearch Words'
               : type === 'matching'
                 ? 'Matching'
                 : type === 'gap-fill'

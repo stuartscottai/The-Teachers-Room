@@ -15,7 +15,7 @@ type PlacedElementProps = {
   onSelect: () => void;
   onRequestEdit: () => void;
   onStopEdit: () => void;
-  onCommit: (patch: CommitPatch) => void;
+  onCommit: (patch: CommitPatch, opts?: { skipHistory?: boolean }) => void;
   onGuidesChange?: (pageId: string, guides: CanvasGuides) => void;
   pageScale?: number;
 };
@@ -112,7 +112,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
       const nextH = Math.max(MIN_H, Math.ceil(measured));
       // Only shrink (avoid unexpected growth); require meaningful whitespace removal
       if (nextH > 0 && nextH < element.h - 24) {
-        onCommit({ h: nextH });
+        onCommit({ h: nextH }, { skipHistory: true });
       }
     });
   }, [editing, element.h, element.html, element.id, onCommit]);
@@ -133,9 +133,9 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
       const deltaH = Math.abs(targetH - element.h);
       const deltaW = Math.abs(targetW - element.w);
       if (deltaH <= deltaW && deltaH > 8) {
-        onCommit({ h: targetH });
+        onCommit({ h: targetH }, { skipHistory: true });
       } else if (deltaW < deltaH && deltaW > 8) {
-        onCommit({ w: targetW });
+        onCommit({ w: targetW }, { skipHistory: true });
       }
       lastImageFitKeyRef.current = key;
     };
@@ -345,6 +345,12 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
   }, [editing, element.h, element.w, onCommit, pageScale]);
 
   const isActive = selected || editing;
+  const elementKind = (() => {
+    const html = element.html || '';
+    if (html.includes('ws-info-header')) return 'info-header';
+    if (html.includes('ws-info-card')) return 'info';
+    return '';
+  })();
 
   useEffect(() => {
     const root = rootRef.current;
@@ -426,6 +432,8 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
         }
       }}
       data-element-id={element.id}
+      data-element-type={element.type}
+      data-element-kind={elementKind || undefined}
     >
       <div
         ref={contentRef}

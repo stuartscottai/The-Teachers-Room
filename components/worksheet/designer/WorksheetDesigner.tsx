@@ -5,7 +5,7 @@ import { BlocksTray } from './BlocksTray';
 import { PagesCanvas } from './PagesCanvas';
 import { CanvasToolbar } from './CanvasToolbar';
 import { blockFromElement, createElementFromBlock, escapeHtml } from './designerHelpers';
-import { WorksheetBlock, WorksheetBlockType, WorksheetDesignerPage, WorksheetDesignerSettings, WorksheetPlacedElement, createId } from './designerTypes';
+import { WorksheetBlock, WorksheetBlockType, WorksheetDesignerDocV1, WorksheetDesignerPage, WorksheetDesignerSettings, WorksheetPlacedElement, createId } from './designerTypes';
 
 export const WorksheetDesigner: React.FC<{
   pages: WorksheetDesignerPage[];
@@ -26,6 +26,10 @@ export const WorksheetDesigner: React.FC<{
   onTogglePublic?: () => void;
   rightSidebarMode?: 'auto' | 'collapsed' | 'expanded';
   isMobile?: boolean;
+  infoTemplate?: 'classic' | 'split' | 'grid' | 'minimal' | 'poster' | 'editorial' | 'playful';
+  infoTheme?: 'ocean' | 'sunset' | 'studio' | 'retro' | 'mint' | 'midnight';
+  layoutMode?: 'single' | 'columns';
+  infoLayoutKey?: string | null;
 }> = ({
   pages,
   setPages,
@@ -45,6 +49,10 @@ export const WorksheetDesigner: React.FC<{
   onTogglePublic,
   rightSidebarMode = 'auto',
   isMobile = false,
+  infoTemplate = 'classic',
+  infoTheme = 'ocean',
+  layoutMode = 'single',
+  infoLayoutKey = null,
 }) => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const printableRef = useRef<HTMLDivElement | null>(null);
@@ -55,6 +63,13 @@ export const WorksheetDesigner: React.FC<{
   const [toolbarBounds, setToolbarBounds] = useState<{ left: number; width: number } | null>(null);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [pageScale, setPageScale] = useState(1);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const lastInfoLayoutKeyRef = useRef<string | null>(null);
+  const lastLayoutModeRef = useRef(layoutMode);
+  const undoStackRef = useRef<WorksheetDesignerDocV1[]>([]);
+  const redoStackRef = useRef<WorksheetDesignerDocV1[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const resolvedRightSidebarCollapsed =
     rightSidebarMode === 'collapsed' ? true : rightSidebarMode === 'expanded' ? false : isRightSidebarCollapsed;
   const canToggleRightSidebar = rightSidebarMode === 'auto';
@@ -75,6 +90,10 @@ export const WorksheetDesigner: React.FC<{
       const rect = el.getBoundingClientRect();
       if (!rect.width) return;
       setToolbarBounds({ left: rect.left, width: rect.width });
+      if (isPrinting) {
+        setPageScale((prev) => (prev === 1 ? prev : 1));
+        return;
+      }
       if (mobileScaleEnabled) {
         const available = Math.max(0, rect.width - 32);
         const a4WidthPx = (210 / 25.4) * 96;
@@ -93,7 +112,18 @@ export const WorksheetDesigner: React.FC<{
       ro.disconnect();
       window.removeEventListener('resize', update);
     };
-  }, [resolvedRightSidebarCollapsed, mobileScaleEnabled]);
+  }, [resolvedRightSidebarCollapsed, mobileScaleEnabled, isPrinting]);
+
+  useEffect(() => {
+    const handleBefore = () => setIsPrinting(true);
+    const handleAfter = () => setIsPrinting(false);
+    window.addEventListener('beforeprint', handleBefore);
+    window.addEventListener('afterprint', handleAfter);
+    return () => {
+      window.removeEventListener('beforeprint', handleBefore);
+      window.removeEventListener('afterprint', handleAfter);
+    };
+  }, []);
 
   useEffect(() => {
     if (!onDirty) return;
@@ -215,6 +245,7 @@ export const WorksheetDesigner: React.FC<{
         const blockId = related?.getAttribute('data-block-id') || '';
         const block = blocks.find((b) => b.id === blockId);
         if (!pageId || !block) return;
+        pushUndoSnapshot();
 
         const rect = pageInner.getBoundingClientRect();
         const dragEvent = (event as any).dragEvent as any;
@@ -268,6 +299,7 @@ export const WorksheetDesigner: React.FC<{
         if (!id) return;
         const element = elements.find((e) => e.id === id);
         if (!element) return;
+        pushUndoSnapshot();
         const block = blockFromElement(element);
         setBlocks((prev) => [block, ...prev]);
         setElements((prev) => prev.filter((e) => e.id !== id));
@@ -286,15 +318,116 @@ export const WorksheetDesigner: React.FC<{
     [elements, selectedElementId]
   );
 
-  const commitElement = (id: string, patch: Partial<WorksheetPlacedElement>) => {
+  const isApplyingSnapshotRef = useRef(false);
+
+  const commitElement = (
+    id: string,
+    patch: Partial<WorksheetPlacedElement>,
+    opts?: { skipHistory?: boolean }
+  ) => {
+    if (!opts?.skipHistory && !isApplyingSnapshotRef.current) {
+      pushUndoSnapshot();
+    }
     setElements((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  };
+
+  const latestStateRef = useRef({ settings, pages, blocks, elements });
+
+  useEffect(() => {
+    latestStateRef.current = { settings, pages, blocks, elements };
+  }, [settings, pages, blocks, elements]);
+
+  const cloneSnapshot = <T,>(value: T): T => {
+    if (typeof structuredClone === 'function') {
+      try {
+        return structuredClone(value);
+      } catch {
+        // fall through
+      }
+    }
+    return JSON.parse(JSON.stringify(value));
+  };
+
+  const captureSnapshot = (): WorksheetDesignerDocV1 => {
+    const snapshot = latestStateRef.current;
+    return {
+      kind: 'worksheet-designer',
+      version: 1,
+      settings: cloneSnapshot(snapshot.settings || {}),
+      pages: cloneSnapshot(snapshot.pages),
+      blocks: cloneSnapshot(snapshot.blocks),
+      elements: cloneSnapshot(snapshot.elements),
+    };
+  };
+
+  const syncHistoryState = () => {
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(redoStackRef.current.length > 0);
+  };
+
+  const pushUndoSnapshot = () => {
+    if (isApplyingSnapshotRef.current) return;
+    undoStackRef.current.push(captureSnapshot());
+    redoStackRef.current = [];
+    syncHistoryState();
+  };
+
+  const applySnapshot = (snapshot: WorksheetDesignerDocV1) => {
+    isApplyingSnapshotRef.current = true;
+    setPages(snapshot.pages);
+    setBlocks(snapshot.blocks);
+    setElements(snapshot.elements);
+    setSettings(snapshot.settings || {});
+    setSelectedElementId(null);
+    setEditingElementId(null);
+    window.requestAnimationFrame(() => {
+      isApplyingSnapshotRef.current = false;
+    });
+  };
+
+  const handleUndo = () => {
+    const stack = undoStackRef.current;
+    if (!stack.length) return;
+    const current = captureSnapshot();
+    const previous = stack.pop()!;
+    redoStackRef.current.push(current);
+    applySnapshot(previous);
+    syncHistoryState();
+  };
+
+  const handleRedo = () => {
+    const stack = redoStackRef.current;
+    if (!stack.length) return;
+    const current = captureSnapshot();
+    const next = stack.pop()!;
+    undoStackRef.current.push(current);
+    applySnapshot(next);
+    syncHistoryState();
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!selectedElementId || editingElementId) return;
       const active = document.activeElement as HTMLElement | null;
       if (active && (active.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName))) return;
+
+      if (editingElementId) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        handleRedo();
+        return;
+      }
+
+      if (!selectedElementId) return;
 
       const step = 1;
       let dx = 0;
@@ -306,6 +439,7 @@ export const WorksheetDesigner: React.FC<{
       if (!dx && !dy) return;
 
       event.preventDefault();
+      pushUndoSnapshot();
       setElements((prev) =>
         prev.map((el) => {
           if (el.id !== selectedElementId) return el;
@@ -316,7 +450,7 @@ export const WorksheetDesigner: React.FC<{
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingElementId, selectedElementId, setElements]);
+  }, [editingElementId, handleRedo, handleUndo, selectedElementId, setElements]);
 
   const changeSelectedStyles = (patch: any) => {
     if (!selected) return;
@@ -325,6 +459,7 @@ export const WorksheetDesigner: React.FC<{
 
   const deleteSelected = () => {
     if (!selected) return;
+    pushUndoSnapshot();
     setElements((prev) => prev.filter((e) => e.id !== selected.id));
     setSelectedElementId(null);
     setEditingElementId(null);
@@ -332,6 +467,7 @@ export const WorksheetDesigner: React.FC<{
 
   const sendSelectedToTray = () => {
     if (!selected) return;
+    pushUndoSnapshot();
     const block = blockFromElement(selected);
     setBlocks((prev) => [block, ...prev]);
     setElements((prev) => prev.filter((e) => e.id !== selected.id));
@@ -353,9 +489,32 @@ export const WorksheetDesigner: React.FC<{
   }
 
   const canSplitSelected = Boolean(selected && isSplittableType(selected.type) && !selected.splitGroupId);
-  const canMergeSelected =
-    Boolean(selected?.splitGroupId) &&
-    elements.some((el) => el.splitGroupId === selected?.splitGroupId && el.id !== selected?.id);
+  const findMergeCandidate = (base: WorksheetPlacedElement) => {
+    if (base.type === 'image') return null;
+    const samePage = elements.filter((el) => el.pageId === base.pageId && el.id !== base.id);
+    const sameType = samePage.filter((el) => el.type === base.type && el.type !== 'image');
+    if (!sameType.length) return null;
+    const overlaps = sameType.filter((el) => {
+      const overlapLeft = Math.max(el.x, base.x);
+      const overlapRight = Math.min(el.x + el.w, base.x + base.w);
+      return overlapRight - overlapLeft > Math.min(el.w, base.w) * 0.3;
+    });
+    const candidates = overlaps.length ? overlaps : sameType;
+    const withDistance = candidates.map((el) => {
+      const belowGap = el.y - (base.y + base.h);
+      const aboveGap = base.y - (el.y + el.h);
+      const gap = belowGap >= 0 ? belowGap : aboveGap >= 0 ? aboveGap : Math.abs(belowGap);
+      return { el, gap };
+    });
+    withDistance.sort((a, b) => a.gap - b.gap);
+    return withDistance[0]?.el || null;
+  };
+
+  const canMergeSelected = Boolean(
+    selected &&
+      (elements.some((el) => el.splitGroupId === selected?.splitGroupId && el.id !== selected?.id) ||
+        findMergeCandidate(selected))
+  );
 
   const splitSelectedElement = () => {
     if (!selected || !isSplittableType(selected.type)) return;
@@ -389,6 +548,7 @@ export const WorksheetDesigner: React.FC<{
 
     if (chunks.length <= 1) return;
 
+    pushUndoSnapshot();
     const groupId = createId();
     const pageIds = pages.map((p) => p.id);
     let pageIndex = pageIds.indexOf(selected.pageId);
@@ -428,36 +588,67 @@ export const WorksheetDesigner: React.FC<{
   };
 
   const mergeSelectedGroup = () => {
-    if (!selected?.splitGroupId) return;
-    const groupId = selected.splitGroupId;
-    const group = elements.filter((el) => el.splitGroupId === groupId);
-    if (group.length < 2) return;
+    if (!selected) return;
+    const mergeGroupId = selected.splitGroupId || null;
+    const group = mergeGroupId ? elements.filter((el) => el.splitGroupId === mergeGroupId) : [];
+    if (mergeGroupId && group.length >= 2) {
+      pushUndoSnapshot();
+      const pageOrder = new Map(pages.map((p, idx) => [p.id, idx]));
+      const ordered = [...group].sort((a, b) => {
+        const pageA = pageOrder.get(a.pageId) ?? 0;
+        const pageB = pageOrder.get(b.pageId) ?? 0;
+        if (pageA !== pageB) return pageA - pageB;
+        if ((a.splitIndex ?? 0) !== (b.splitIndex ?? 0)) return (a.splitIndex ?? 0) - (b.splitIndex ?? 0);
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+      });
 
-    const pageOrder = new Map(pages.map((p, idx) => [p.id, idx]));
-    const ordered = [...group].sort((a, b) => {
-      const pageA = pageOrder.get(a.pageId) ?? 0;
-      const pageB = pageOrder.get(b.pageId) ?? 0;
-      if (pageA !== pageB) return pageA - pageB;
-      if ((a.splitIndex ?? 0) !== (b.splitIndex ?? 0)) return (a.splitIndex ?? 0) - (b.splitIndex ?? 0);
-      if (a.y !== b.y) return a.y - b.y;
-      return a.x - b.x;
-    });
+      const mergedHtml = mergeSplitHtml(ordered.map((el) => el.html));
+      const first = ordered[0];
+      const mergedHeight = measureElementHeight(mergedHtml, first.styles, first.w);
 
+      const mergedElement: WorksheetPlacedElement = {
+        ...first,
+        id: createId(),
+        html: mergedHtml,
+        h: Math.max(50, mergedHeight || first.h),
+        splitGroupId: undefined,
+        splitIndex: undefined,
+      };
+
+      setElements((prev) => {
+        const without = prev.filter((el) => el.splitGroupId !== mergeGroupId);
+        return [...without, mergedElement];
+      });
+      setSelectedElementId(mergedElement.id);
+      setEditingElementId(null);
+      return;
+    }
+
+    const candidate = findMergeCandidate(selected);
+    if (!candidate) return;
+    pushUndoSnapshot();
+    const ordered = [selected, candidate].sort((a, b) => a.y - b.y);
     const mergedHtml = mergeSplitHtml(ordered.map((el) => el.html));
-    const first = ordered[0];
-    const mergedHeight = measureElementHeight(mergedHtml, first.styles, first.w);
-
+    const mergedX = Math.min(selected.x, candidate.x);
+    const mergedY = Math.min(selected.y, candidate.y);
+    const mergedW = Math.max(selected.x + selected.w, candidate.x + candidate.w) - mergedX;
+    const mergedHeight = measureElementHeight(mergedHtml, selected.styles, mergedW);
+    const base = ordered[0];
     const mergedElement: WorksheetPlacedElement = {
-      ...first,
+      ...base,
       id: createId(),
+      pageId: selected.pageId,
+      x: mergedX,
+      y: mergedY,
+      w: mergedW,
       html: mergedHtml,
-      h: Math.max(50, mergedHeight || first.h),
+      h: Math.max(50, mergedHeight || base.h),
       splitGroupId: undefined,
       splitIndex: undefined,
     };
-
     setElements((prev) => {
-      const without = prev.filter((el) => el.splitGroupId !== groupId);
+      const without = prev.filter((el) => el.id !== selected.id && el.id !== candidate.id);
       return [...without, mergedElement];
     });
     setSelectedElementId(mergedElement.id);
@@ -501,6 +692,340 @@ export const WorksheetDesigner: React.FC<{
     return Math.ceil(el.scrollHeight || 0);
   };
 
+  useEffect(() => {
+    if (!infoLayoutKey) return;
+    if (lastInfoLayoutKeyRef.current === infoLayoutKey) return;
+
+    const infoBlocks = blocks.filter(
+      (b) => b?.payload?.kind === 'info-section' || b?.payload?.kind === 'info-header'
+    );
+    const isInfoElement = (el: WorksheetPlacedElement) =>
+      typeof el.html === 'string' && (el.html.includes('ws-info-card') || el.html.includes('ws-info-header'));
+    const infoElements = elements.filter(isInfoElement);
+    if (infoBlocks.length === 0 && infoElements.length === 0) return;
+    lastInfoLayoutKeyRef.current = infoLayoutKey;
+
+    const template = infoTemplate || 'classic';
+    const theme = infoTheme || 'ocean';
+    const layoutColumns = layoutMode === 'columns' ? 2 : 1;
+    const ensureTemplateClass = (html: string, baseClass: string, templateClass: string) => {
+      if (!html.includes(baseClass)) return html;
+      const withVariant = html.replace(new RegExp(`${baseClass}--[a-z-]+`, 'g'), `${baseClass}--${templateClass}`);
+      if (withVariant.includes(`${baseClass}--${templateClass}`)) return withVariant;
+      return withVariant.replace(baseClass, `${baseClass} ${baseClass}--${templateClass}`);
+    };
+    const ensureThemeClass = (html: string, baseClass: string, themeClass: string) => {
+      if (!html.includes(baseClass)) return html;
+      const withVariant = html.replace(/ws-info-theme--[a-z-]+/g, `ws-info-theme--${themeClass}`);
+      if (withVariant.includes(`ws-info-theme--${themeClass}`)) return withVariant;
+      return withVariant.replace(baseClass, `${baseClass} ws-info-theme--${themeClass}`);
+    };
+    const ensureVariantClass = (html: string, baseClass: string, variantClass?: string) => {
+      if (!html.includes(baseClass)) return html;
+      let next = html.replace(/ws-info-card--variant-[a-z-]+/g, '').replace(/\s{2,}/g, ' ');
+      if (!variantClass) return next;
+      if (next.includes(`ws-info-card--variant-${variantClass}`)) return next;
+      return next.replace(baseClass, `${baseClass} ws-info-card--variant-${variantClass}`);
+    };
+    const updateInfoTemplate = (html: string) => {
+      let next = ensureTemplateClass(html, 'ws-info-header', template);
+      next = ensureTemplateClass(next, 'ws-info-card', template);
+      next = ensureThemeClass(next, 'ws-info-header', theme);
+      next = ensureThemeClass(next, 'ws-info-card', theme);
+      return next;
+    };
+
+    const infoBlockSource =
+      infoBlocks.length > 0
+        ? infoBlocks.map((b) => ({
+            ...b,
+            payload: {
+              ...(b.payload || {}),
+              template,
+              theme,
+              html: updateInfoTemplate(String(b.payload?.html ?? b.previewHtml ?? '')),
+            },
+          }))
+        : infoElements.map((el) => {
+            const html = updateInfoTemplate(String(el.html || ''));
+            const kind = html.includes('ws-info-header') ? 'info-header' : 'info-section';
+            return {
+              id: createId(),
+              type: 'custom' as const,
+              title: kind === 'info-header' ? 'Infographic Header' : 'Information',
+              payload: { html, kind, template, theme, styles: el.styles },
+              previewHtml: html,
+            };
+          });
+
+    const headerBlock = infoBlockSource.find((b) => b?.payload?.kind === 'info-header') || null;
+    const rawSectionBlocks = infoBlockSource.filter((b) => b?.payload?.kind === 'info-section');
+    const railCount =
+      template === 'editorial' && layoutColumns === 2 ? Math.min(2, rawSectionBlocks.length) : 0;
+    const sectionBlocks = rawSectionBlocks.map((block, index) => {
+      const baseHtml = String(block.payload?.html ?? block.previewHtml ?? '');
+      let variant = '';
+      if (template === 'poster') {
+        variant = index === 0 ? 'hero' : index === 1 ? 'spotlight' : '';
+      } else if (template === 'editorial') {
+        variant = index < railCount ? 'rail' : 'main';
+      } else if (template === 'playful') {
+        const variants = ['playful-a', 'playful-b', 'playful-c'];
+        variant = variants[index % variants.length];
+      }
+      const html = ensureVariantClass(baseHtml, 'ws-info-card', variant || undefined);
+      return {
+        ...block,
+        payload: {
+          ...(block.payload || {}),
+          html,
+          variant: variant || undefined,
+        },
+        previewHtml: html,
+      };
+    });
+
+    const columnsBase = layoutColumns;
+    const gap =
+      template === 'grid'
+        ? 14
+        : template === 'minimal'
+          ? 12
+          : template === 'poster'
+            ? 22
+            : template === 'editorial'
+              ? 20
+              : template === 'playful'
+                ? 16
+                : 18;
+    const headerGap = template === 'poster' ? 22 : template === 'editorial' ? 18 : 16;
+    const headerMinHeight = template === 'poster' ? 96 : template === 'editorial' ? 84 : 70;
+    const cardMinHeight = template === 'poster' ? 130 : template === 'playful' ? 110 : template === 'editorial' ? 100 : 90;
+    const railMinHeight = template === 'editorial' ? 80 : cardMinHeight;
+    const heroMinHeight = template === 'poster' ? 180 : cardMinHeight;
+
+    const pageWidth = (210 / 25.4) * 96;
+    const pageHeight = (297 / 25.4) * 96;
+    const marginPx = (marginMm / 25.4) * 96;
+    const contentWidth = pageWidth - marginPx * 2;
+    const contentHeight = pageHeight - marginPx * 2;
+    const maxY = marginPx + contentHeight;
+
+    const pageInnerSize = { width: contentWidth, height: contentHeight };
+    const isLogoBlock = (block: WorksheetBlock) => block.type === 'image' && block.payload?.kind === 'logo';
+    const isLogoElement = (el: WorksheetPlacedElement) =>
+      el.type === 'image' && /data-kind=["']logo["']/.test(String(el.html || ''));
+    const logoBlock = blocks.find(isLogoBlock) || null;
+    const nonInfoElements = elements.filter((el) => !isInfoElement(el));
+    const hasLogoElement = nonInfoElements.some(isLogoElement);
+    const basePages = pages.length ? [...pages] : [{ id: createId() }];
+    const pagesNext: WorksheetDesignerPage[] =
+      nonInfoElements.length > 0 ? basePages : [{ id: basePages[0]?.id ?? createId() }];
+    const elementsNext: WorksheetPlacedElement[] = [...nonInfoElements];
+
+    let pageIndex = 0;
+    let startY = marginPx;
+
+    if (logoBlock && !hasLogoElement) {
+      const element = createElementFromBlock({
+        block: logoBlock,
+        pageId: pagesNext[0].id,
+        x: marginPx,
+        y: marginPx,
+        pageInnerSize,
+      });
+      const maxLogoWidth = Math.min(140, Math.max(90, Math.round(contentWidth * 0.2)));
+      const targetW = Math.min(element.w, maxLogoWidth);
+      const ratio = element.w > 0 ? element.h / element.w : 0.6;
+      const targetH = Math.max(40, Math.round(targetW * (Number.isFinite(ratio) && ratio > 0 ? ratio : 0.6)));
+      const x = marginPx + Math.max(0, contentWidth - targetW);
+      elementsNext.push({
+        ...element,
+        pageId: pagesNext[0].id,
+        x,
+        y: marginPx,
+        w: targetW,
+        h: targetH,
+      });
+      startY = marginPx + targetH + 12;
+    }
+    const getColumnOffset = (index: number) => (template === 'playful' ? (index % 2 === 1 ? 18 : 0) : 0);
+    const placeFullWidthBlock = (block: WorksheetBlock, yStart: number, minHeight: number) => {
+      let y = yStart;
+      let base = createElementFromBlock({
+        block,
+        pageId: pagesNext[pageIndex].id,
+        x: marginPx,
+        y,
+        pageInnerSize,
+      });
+      let measured = measureElementHeight(base.html, base.styles, contentWidth);
+      let height = Math.max(minHeight, Math.min(measured || base.h, contentHeight));
+
+      if (y + height > maxY && y > marginPx) {
+        pageIndex += 1;
+        pagesNext.push({ id: createId() });
+        y = marginPx;
+        base = createElementFromBlock({
+          block,
+          pageId: pagesNext[pageIndex].id,
+          x: marginPx,
+          y,
+          pageInnerSize,
+        });
+        measured = measureElementHeight(base.html, base.styles, contentWidth);
+        height = Math.max(minHeight, Math.min(measured || base.h, contentHeight));
+      }
+
+      elementsNext.push({
+        ...base,
+        pageId: pagesNext[pageIndex].id,
+        x: marginPx,
+        y,
+        w: contentWidth,
+        h: height,
+      });
+      return y + height + gap;
+    };
+    const placeBlockInColumn = (
+      block: WorksheetBlock,
+      columnIndex: number,
+      columnDefs: Array<{ x: number; width: number }>,
+      columnYs: number[],
+      minHeight: number
+    ) => {
+      let x = columnDefs[columnIndex].x;
+      let width = columnDefs[columnIndex].width;
+      let y = columnYs[columnIndex];
+
+      let base = createElementFromBlock({
+        block,
+        pageId: pagesNext[pageIndex].id,
+        x,
+        y,
+        pageInnerSize,
+      });
+      let measured = measureElementHeight(base.html, base.styles, width);
+      let height = Math.max(minHeight, Math.min(measured || base.h, contentHeight));
+
+      if (y + height > maxY && y > marginPx) {
+        pageIndex += 1;
+        pagesNext.push({ id: createId() });
+        columnYs = columnDefs.map((_, idx) => marginPx + getColumnOffset(idx));
+        x = columnDefs[columnIndex].x;
+        width = columnDefs[columnIndex].width;
+        y = columnYs[columnIndex];
+        base = createElementFromBlock({
+          block,
+          pageId: pagesNext[pageIndex].id,
+          x,
+          y,
+          pageInnerSize,
+        });
+        measured = measureElementHeight(base.html, base.styles, width);
+        height = Math.max(minHeight, Math.min(measured || base.h, contentHeight));
+      }
+
+      elementsNext.push({
+        ...base,
+        pageId: pagesNext[pageIndex].id,
+        x,
+        y,
+        w: width,
+        h: height,
+      });
+      columnYs[columnIndex] = y + height + gap;
+      return columnYs;
+    };
+
+    if (headerBlock) {
+      const headerY = startY;
+      const base = createElementFromBlock({
+        block: headerBlock,
+        pageId: pagesNext[0].id,
+        x: marginPx,
+        y: headerY,
+        pageInnerSize,
+      });
+      const headerHeight = Math.max(headerMinHeight, measureElementHeight(base.html, base.styles, contentWidth));
+      elementsNext.push({
+        ...base,
+        pageId: pagesNext[0].id,
+        x: marginPx,
+        y: headerY,
+        w: contentWidth,
+        h: Math.min(headerHeight, contentHeight),
+      });
+      startY = headerY + headerHeight + headerGap;
+    }
+
+    let remainingSections = sectionBlocks;
+    if (template === 'poster' && sectionBlocks.length > 0) {
+      startY = placeFullWidthBlock(sectionBlocks[0], startY, heroMinHeight);
+      remainingSections = sectionBlocks.slice(1);
+    }
+
+    if (template === 'editorial' && layoutColumns === 2) {
+      const railBlocks = sectionBlocks.slice(0, railCount);
+      const mainBlocks = sectionBlocks.slice(railCount);
+      const minRailWidth = 170;
+      const targetRailWidth = Math.max(minRailWidth, Math.floor(contentWidth * 0.32));
+      const railWidth = Math.min(targetRailWidth, Math.max(minRailWidth, contentWidth - 240));
+      const mainWidth = Math.max(200, contentWidth - railWidth - gap);
+      const columnDefs = [
+        { x: marginPx, width: railWidth },
+        { x: marginPx + railWidth + gap, width: mainWidth },
+      ];
+      let columnYs = columnDefs.map((_, idx) => startY + getColumnOffset(idx));
+
+      railBlocks.forEach((block) => {
+        columnYs = placeBlockInColumn(block, 0, columnDefs, columnYs, railMinHeight);
+      });
+      mainBlocks.forEach((block) => {
+        columnYs = placeBlockInColumn(block, 1, columnDefs, columnYs, cardMinHeight);
+      });
+    } else if (remainingSections.length > 0) {
+      const columns = template === 'poster' ? (layoutColumns === 2 && remainingSections.length > 1 ? 2 : 1) : columnsBase;
+      const columnWidth =
+        columns === 1 ? contentWidth : Math.max(160, (contentWidth - gap * (columns - 1)) / columns);
+      const columnDefs = Array.from({ length: columns }, (_, idx) => ({
+        x: marginPx + idx * (columnWidth + gap),
+        width: columnWidth,
+      }));
+      let columnYs = columnDefs.map((_, idx) => startY + getColumnOffset(idx));
+
+      remainingSections.forEach((block) => {
+        const colIndex = columns === 1 ? 0 : columnYs.indexOf(Math.min(...columnYs));
+        columnYs = placeBlockInColumn(block, colIndex, columnDefs, columnYs, cardMinHeight);
+      });
+    }
+
+    const remainingBlocks = blocks.filter(
+      (b) =>
+        b?.payload?.kind !== 'info-section' &&
+        b?.payload?.kind !== 'info-header' &&
+        !(logoBlock && isLogoBlock(b))
+    );
+    pushUndoSnapshot();
+    setPages(pagesNext);
+    setElements(elementsNext);
+    setBlocks(remainingBlocks);
+    setSelectedElementId(null);
+    setEditingElementId(null);
+  }, [
+    blocks,
+    elements,
+    infoLayoutKey,
+    infoTemplate,
+    infoTheme,
+    layoutMode,
+    marginMm,
+    pages,
+    setBlocks,
+    setElements,
+    setPages,
+  ]);
+
   function buildSplitSpec(html: string) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html;
@@ -509,6 +1034,18 @@ export const WorksheetDesigner: React.FC<{
       wrapper.children.length === 1 && wrapper.firstElementChild instanceof HTMLElement
         ? (wrapper.firstElementChild as HTMLElement)
         : wrapper;
+    const containerEl = maybeContainer !== wrapper ? maybeContainer : null;
+    const containerTag = containerEl ? containerEl.tagName.toLowerCase() : '';
+    const containerAttrParts = containerEl
+      ? Array.from(containerEl.attributes).map(
+          (attr) => `${attr.name}="${String(attr.value).replace(/"/g, '&quot;')}"`
+        )
+      : [];
+    const containerOpen = containerEl
+      ? `<${containerTag}${containerAttrParts.length ? ` ${containerAttrParts.join(' ')}` : ''}>`
+      : '';
+    const containerClose = containerEl ? `</${containerTag}>` : '';
+    const wrapWithContainer = (inner: string) => (containerEl ? `${containerOpen}${inner}${containerClose}` : inner);
 
     const listChild = Array.from(maybeContainer.children).find(
       (el) => el.tagName === 'OL' || el.tagName === 'UL'
@@ -566,14 +1103,17 @@ export const WorksheetDesigner: React.FC<{
                 }
               }
               const open = `<${tag}${parts.length ? ` ${parts.join(' ')}` : ''}>`;
-              return `${includeHeading ? headingHtml : ''}${open}${chunkItems.join('')}${listClose}`;
+              const body = `${includeHeading ? headingHtml : ''}${open}${chunkItems.join('')}${listClose}`;
+              return wrapWithContainer(body);
             },
           };
         }
       }
     }
 
-    const nodes = Array.from(wrapper.childNodes).filter((node) => (node.textContent || '').trim().length > 0);
+    const nodes = Array.from(maybeContainer.childNodes).filter(
+      (node) => (node.textContent || '').trim().length > 0
+    );
     const units = nodes.map((node) => {
       if (node.nodeType === Node.TEXT_NODE) {
         return `<p>${escapeHtml(node.textContent || '')}</p>`;
@@ -586,7 +1126,7 @@ export const WorksheetDesigner: React.FC<{
     return {
       kind: 'nodes' as const,
       items: units,
-      build: (chunkItems: string[]) => chunkItems.join(''),
+      build: (chunkItems: string[]) => wrapWithContainer(chunkItems.join('')),
     };
   };
 
@@ -697,10 +1237,15 @@ export const WorksheetDesigner: React.FC<{
     return parts.join('');
   }
 
-  const suggestOptimalDistribution = async () => {
+  const performAutoLayout = async (opts?: { columns?: number; confirm?: boolean }) => {
+    const columnsRequested =
+      typeof opts?.columns === 'number' && Number.isFinite(opts.columns) ? Math.max(1, Math.round(opts.columns)) : 1;
+    const columns = Math.min(2, Math.max(1, columnsRequested));
     if (blocks.length === 0 && elements.length === 0) return;
-    const ok = window.confirm('This will reflow all placed elements and blocks. Continue?');
-    if (!ok) return;
+    if (opts?.confirm) {
+      const ok = window.confirm('This will reflow all placed elements and blocks. Continue?');
+      if (!ok) return;
+    }
 
     if (document.fonts?.ready) {
       try {
@@ -728,6 +1273,7 @@ export const WorksheetDesigner: React.FC<{
     const originX = padLeft;
     const originY = padTop;
     const maxY = originY + contentHeight;
+    pushUndoSnapshot();
 
     const pageOrder = new Map(pages.map((p, idx) => [p.id, idx]));
     const orderedElements = [...elements].sort((a, b) => {
@@ -839,89 +1385,227 @@ export const WorksheetDesigner: React.FC<{
     }
 
     const contentBlocks = orderedBlocks.filter((b) => !handledIds.has(b.id));
+    if (columns === 1) {
+      contentBlocks.forEach((block) => {
+        let element = createElementFromBlock({
+          block,
+          pageId: nextPages[pageIndex].id,
+          x: originX,
+          y: cursorY,
+          pageInnerSize,
+        });
 
-    contentBlocks.forEach((block) => {
-      let element = createElementFromBlock({
-        block,
-        pageId: nextPages[pageIndex].id,
-        x: originX,
-        y: cursorY,
-        pageInnerSize,
-      });
+        const w = block.type === 'image' ? Math.min(contentWidth, element.w) : contentWidth;
+        let x = originX;
+        if (block.type === 'image' && w < contentWidth) {
+          x = originX + Math.max(0, Math.round((contentWidth - w) / 2));
+        }
 
-      const w = block.type === 'image' ? Math.min(contentWidth, element.w) : contentWidth;
-      let x = originX;
-      if (block.type === 'image' && w < contentWidth) {
-        x = originX + Math.max(0, Math.round((contentWidth - w) / 2));
-      }
+        const isSplittable = isSplittableType(block.type);
+        if (isSplittable) {
+          let firstMaxHeight = maxY - cursorY;
+          if (firstMaxHeight < minHeight) {
+            pageIndex += 1;
+            nextPages.push({ id: createId() });
+            cursorY = originY;
+            firstMaxHeight = contentHeight;
+          }
 
-      const isSplittable = isSplittableType(block.type);
-      if (isSplittable) {
-        let firstMaxHeight = maxY - cursorY;
-        if (firstMaxHeight < minHeight) {
+          const chunks = splitIntoChunks({
+            html: element.html,
+            styles: element.styles,
+            width: w,
+            firstMaxHeight: Math.max(minHeight, firstMaxHeight),
+            fullMaxHeight: contentHeight,
+          });
+
+          if (chunks.length > 1) {
+            const groupId = createId();
+            chunks.forEach((chunk, idx) => {
+              if (cursorY + chunk.height > maxY && cursorY > originY) {
+                pageIndex += 1;
+                nextPages.push({ id: createId() });
+                cursorY = originY;
+              }
+              const h = Math.max(minHeight, Math.min(chunk.height || element.h, contentHeight));
+              if (h >= contentHeight) overflowed = true;
+
+              nextElements.push({
+                ...element,
+                id: createId(),
+                pageId: nextPages[pageIndex].id,
+                x,
+                y: cursorY,
+                w,
+                h,
+                html: chunk.html,
+                splitGroupId: groupId,
+                splitIndex: idx,
+              });
+              cursorY += h + gap;
+            });
+            return;
+          }
+        }
+
+        const measuredHeight =
+          block.type === 'image' ? element.h : measureElementHeight(element.html, element.styles, w);
+        let h = Math.max(minHeight, measuredHeight || element.h);
+
+        if (cursorY + h > maxY && cursorY > originY) {
           pageIndex += 1;
           nextPages.push({ id: createId() });
           cursorY = originY;
-          firstMaxHeight = contentHeight;
         }
 
-        const chunks = splitIntoChunks({
-          html: element.html,
-          styles: element.styles,
-          width: w,
-          firstMaxHeight: Math.max(minHeight, firstMaxHeight),
-          fullMaxHeight: contentHeight,
-        });
+        if (h > contentHeight) {
+          h = contentHeight;
+          overflowed = true;
+        }
 
-        if (chunks.length > 1) {
-          const groupId = createId();
-          chunks.forEach((chunk, idx) => {
-            if (cursorY + chunk.height > maxY && cursorY > originY) {
+        x = Math.max(originX, Math.min(x, originX + Math.max(0, contentWidth - w)));
+        element = { ...element, pageId: nextPages[pageIndex].id, x, y: cursorY, w, h };
+        nextElements.push(element);
+        cursorY += element.h + gap;
+      });
+    } else {
+      const columnWidth = Math.max(160, (contentWidth - gap) / 2);
+      const columnDefs = [
+        { x: originX, width: columnWidth },
+        { x: originX + columnWidth + gap, width: columnWidth },
+      ];
+      let columnYs = columnDefs.map(() => cursorY);
+      const placeChunk = (opts: {
+        base: WorksheetPlacedElement;
+        html: string;
+        height: number;
+        width: number;
+        columnIndex: number;
+        splitGroupId?: string;
+        splitIndex?: number;
+      }) => {
+        const { base, html, height, width, columnIndex, splitGroupId, splitIndex } = opts;
+        const column = columnDefs[columnIndex];
+        let y = columnYs[columnIndex];
+        if (y + height > maxY && y > originY) {
+          pageIndex += 1;
+          nextPages.push({ id: createId() });
+          columnYs = columnDefs.map(() => originY);
+          y = originY;
+        }
+        const h = Math.max(minHeight, Math.min(height, contentHeight));
+        if (h >= contentHeight) overflowed = true;
+        nextElements.push({
+          ...base,
+          id: createId(),
+          pageId: nextPages[pageIndex].id,
+          x: column.x + Math.max(0, Math.round((column.width - width) / 2)),
+          y,
+          w: width,
+          h,
+          html,
+          splitGroupId,
+          splitIndex,
+        });
+        columnYs[columnIndex] = y + h + gap;
+      };
+      const pickColumnIndex = () => {
+        const minY = Math.min(...columnYs);
+        return columnYs.indexOf(minY);
+      };
+
+      contentBlocks.forEach((block) => {
+        const colIndex = pickColumnIndex();
+        const column = columnDefs[colIndex];
+        let element = createElementFromBlock({
+          block,
+          pageId: nextPages[pageIndex].id,
+          x: column.x,
+          y: columnYs[colIndex],
+          pageInnerSize,
+        });
+        const w = block.type === 'image' ? Math.min(column.width, element.w) : column.width;
+        const isSplittable = isSplittableType(block.type);
+
+        if (isSplittable) {
+          let available = maxY - columnYs[colIndex];
+          if (available < minHeight) {
+            const altIndex = colIndex === 0 ? 1 : 0;
+            if (columnYs[altIndex] + minHeight <= maxY || columnYs[altIndex] === originY) {
+              available = maxY - columnYs[altIndex];
+            } else {
               pageIndex += 1;
               nextPages.push({ id: createId() });
-              cursorY = originY;
+              columnYs = columnDefs.map(() => originY);
+              available = contentHeight;
             }
-            const h = Math.max(minHeight, Math.min(chunk.height || element.h, contentHeight));
-            if (h >= contentHeight) overflowed = true;
+          }
 
-            nextElements.push({
-              ...element,
-              id: createId(),
-              pageId: nextPages[pageIndex].id,
-              x,
-              y: cursorY,
-              w,
-              h,
-              html: chunk.html,
-              splitGroupId: groupId,
-              splitIndex: idx,
-            });
-            cursorY += h + gap;
+          const chunks = splitIntoChunks({
+            html: element.html,
+            styles: element.styles,
+            width: w,
+            firstMaxHeight: Math.max(minHeight, available),
+            fullMaxHeight: contentHeight,
           });
-          return;
+
+          if (chunks.length > 1) {
+            const groupId = createId();
+            chunks.forEach((chunk, idx) => {
+              let targetCol = pickColumnIndex();
+              if (columnYs[targetCol] + chunk.height > maxY && columnYs[targetCol] > originY) {
+                const altIndex = targetCol === 0 ? 1 : 0;
+                if (columnYs[altIndex] + chunk.height <= maxY || columnYs[altIndex] === originY) {
+                  targetCol = altIndex;
+                } else {
+                  pageIndex += 1;
+                  nextPages.push({ id: createId() });
+                  columnYs = columnDefs.map(() => originY);
+                  targetCol = 0;
+                }
+              }
+              placeChunk({
+                base: element,
+                html: chunk.html,
+                height: chunk.height,
+                width: w,
+                columnIndex: targetCol,
+                splitGroupId: groupId,
+                splitIndex: idx,
+              });
+            });
+            return;
+          }
         }
-      }
 
-      const measuredHeight =
-        block.type === 'image' ? element.h : measureElementHeight(element.html, element.styles, w);
-      let h = Math.max(minHeight, measuredHeight || element.h);
-
-      if (cursorY + h > maxY && cursorY > originY) {
-        pageIndex += 1;
-        nextPages.push({ id: createId() });
-        cursorY = originY;
-      }
-
-      if (h > contentHeight) {
-        h = contentHeight;
-        overflowed = true;
-      }
-
-      x = Math.max(originX, Math.min(x, originX + Math.max(0, contentWidth - w)));
-      element = { ...element, pageId: nextPages[pageIndex].id, x, y: cursorY, w, h };
-      nextElements.push(element);
-      cursorY += element.h + gap;
-    });
+        const measuredHeight =
+          block.type === 'image' ? element.h : measureElementHeight(element.html, element.styles, w);
+        let h = Math.max(minHeight, measuredHeight || element.h);
+        let targetCol = pickColumnIndex();
+        if (columnYs[targetCol] + h > maxY && columnYs[targetCol] > originY) {
+          const altIndex = targetCol === 0 ? 1 : 0;
+          if (columnYs[altIndex] + h <= maxY || columnYs[altIndex] === originY) {
+            targetCol = altIndex;
+          } else {
+            pageIndex += 1;
+            nextPages.push({ id: createId() });
+            columnYs = columnDefs.map(() => originY);
+            targetCol = 0;
+          }
+        }
+        if (h > contentHeight) {
+          h = contentHeight;
+          overflowed = true;
+        }
+        placeChunk({
+          base: element,
+          html: element.html,
+          height: h,
+          width: w,
+          columnIndex: targetCol,
+        });
+      });
+    }
 
     if (answerKeyBlocks.length > 0) {
       if (nextElements.length > 0) {
@@ -971,7 +1655,40 @@ export const WorksheetDesigner: React.FC<{
     }
   };
 
+  const suggestOptimalDistribution = async () => {
+    await performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: true });
+  };
+
+  useEffect(() => {
+    if (lastLayoutModeRef.current === layoutMode) return;
+    lastLayoutModeRef.current = layoutMode;
+    if (blocks.length === 0 && elements.length === 0) return;
+    const hasInfoBlocks = blocks.some(
+      (b) => b?.payload?.kind === 'info-section' || b?.payload?.kind === 'info-header'
+    );
+    const hasInfoElements = elements.some(
+      (el) => typeof el.html === 'string' && (el.html.includes('ws-info-card') || el.html.includes('ws-info-header'))
+    );
+    if (hasInfoBlocks || hasInfoElements) return;
+    void performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+  }, [layoutMode]);
+
+  const handlePrint = () => {
+    setIsPrinting(true);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.print();
+      });
+    });
+  };
+
+  const addPage = () => {
+    pushUndoSnapshot();
+    setPages((prev) => [...prev, { id: createId() }]);
+  };
+
   const deletePage = (pageId: string) => {
+    pushUndoSnapshot();
     setPages((prev) => {
       const next = prev.filter((p) => p.id !== pageId);
       return next.length ? next : prev;
@@ -1010,7 +1727,7 @@ export const WorksheetDesigner: React.FC<{
           selectedElementId={selectedElementId}
           onSelectElementId={selectElementId}
           onCommitElement={commitElement}
-          onAddPage={() => setPages((prev) => [...prev, { id: createId() }])}
+          onAddPage={addPage}
           onDeletePage={deletePage}
           editingElementId={editingElementId}
           onStartEditing={(id) => {
@@ -1024,6 +1741,8 @@ export const WorksheetDesigner: React.FC<{
           }}
           onStopEditing={() => setEditingElementId(null)}
           pageScale={pageScale}
+          designTemplate={infoTemplate}
+          designTheme={infoTheme}
         />
 
         {selected ? (
@@ -1035,18 +1754,22 @@ export const WorksheetDesigner: React.FC<{
             }}
           >
             <div className="pointer-events-auto">
-              <CanvasToolbar
-                selected={selected}
-                editing={editingElementId === selected?.id}
-                onChangeStyles={changeSelectedStyles}
-                onDelete={deleteSelected}
-                onFocusContent={focusSelectedContent}
-                onSendToTray={sendSelectedToTray}
-                onSplit={splitSelectedElement}
-                onMerge={mergeSelectedGroup}
-                canSplit={canSplitSelected}
-                canMerge={canMergeSelected}
-              />
+          <CanvasToolbar
+            selected={selected}
+            editing={editingElementId === selected?.id}
+            onChangeStyles={changeSelectedStyles}
+            onDelete={deleteSelected}
+            onFocusContent={focusSelectedContent}
+            onSendToTray={sendSelectedToTray}
+            onSplit={splitSelectedElement}
+            onMerge={mergeSelectedGroup}
+            canSplit={canSplitSelected}
+            canMerge={canMergeSelected}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+          />
             </div>
           </div>
         ) : null}
@@ -1094,7 +1817,7 @@ export const WorksheetDesigner: React.FC<{
                 )}
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white bg-brand-blue hover:bg-sky-500 shadow-sm md:py-2 md:rounded-xl md:text-sm md:font-extrabold"
                 >
                   Print / PDF
@@ -1113,7 +1836,7 @@ export const WorksheetDesigner: React.FC<{
 
               <button
                 type="button"
-                onClick={() => setPages((prev) => [...prev, { id: createId() }])}
+                onClick={addPage}
                 className="w-full py-2 rounded-lg text-xs font-bold bg-white border-2 border-dashed border-slate-300 hover:bg-slate-50 text-slate-700 md:py-2.5 md:rounded-xl md:text-sm md:font-extrabold"
                 title="Add a new A4 page"
               >
@@ -1124,7 +1847,10 @@ export const WorksheetDesigner: React.FC<{
                 <span>Print margins</span>
                 <select
                   value={marginPreset}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, marginPreset: e.target.value as any }))}
+                  onChange={(e) => {
+                    pushUndoSnapshot();
+                    setSettings((prev) => ({ ...prev, marginPreset: e.target.value as any }));
+                  }}
                   className="p-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 md:p-2 md:rounded-xl md:text-xs md:font-extrabold"
                   title="Page margin preset"
                 >
@@ -1189,7 +1915,10 @@ export const WorksheetDesigner: React.FC<{
               <BlocksTray
                 blocks={blocks}
                 onClear={() => {
-                  if (window.confirm('Clear all blocks?')) setBlocks([]);
+                  if (window.confirm('Clear all blocks?')) {
+                    pushUndoSnapshot();
+                    setBlocks([]);
+                  }
                 }}
               />
             </div>
@@ -1339,6 +2068,526 @@ const DESIGNER_CSS = `
   .ws-element-content ol.ws-options.ws-options-numeric { list-style-type: decimal; }
   .ws-element-content li { margin: 0 0 4px 0; }
 
+  .ws-theme--ocean,
+  .ws-info-theme--ocean {
+    --ws-info-header-from: #1e3a8a;
+    --ws-info-header-to: #0ea5e9;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #f8fafc;
+    --ws-info-card-to: #e2e8f0;
+    --ws-info-card-bg: #ffffff;
+    --ws-info-card-border: #cbd5f0;
+    --ws-info-title: #0f172a;
+    --ws-info-ink: #0f172a;
+    --ws-info-accent: #0ea5e9;
+    --ws-info-accent-strong: #1e3a8a;
+    --ws-info-shadow: rgba(15, 23, 42, 0.12);
+    --ws-info-fun-1: #dbeafe;
+    --ws-info-fun-2: #e0f2fe;
+    --ws-info-fun-3: #cffafe;
+    --ws-info-paper: #f8fafc;
+  }
+  .ws-theme--sunset,
+  .ws-info-theme--sunset {
+    --ws-info-header-from: #f97316;
+    --ws-info-header-to: #f59e0b;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #fff7ed;
+    --ws-info-card-to: #fed7aa;
+    --ws-info-card-bg: #fff7ed;
+    --ws-info-card-border: #fdba74;
+    --ws-info-title: #b45309;
+    --ws-info-ink: #7c2d12;
+    --ws-info-accent: #f97316;
+    --ws-info-accent-strong: #c2410c;
+    --ws-info-shadow: rgba(124, 45, 18, 0.12);
+    --ws-info-fun-1: #ffedd5;
+    --ws-info-fun-2: #fde68a;
+    --ws-info-fun-3: #fecaca;
+    --ws-info-paper: #fff7ed;
+  }
+  .ws-theme--studio,
+  .ws-info-theme--studio {
+    --ws-info-header-from: #0f172a;
+    --ws-info-header-to: #334155;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #f8fafc;
+    --ws-info-card-to: #e2e8f0;
+    --ws-info-card-bg: #f8fafc;
+    --ws-info-card-border: #cbd5e1;
+    --ws-info-title: #0f172a;
+    --ws-info-ink: #0f172a;
+    --ws-info-accent: #334155;
+    --ws-info-accent-strong: #0f172a;
+    --ws-info-shadow: rgba(15, 23, 42, 0.12);
+    --ws-info-fun-1: #f1f5f9;
+    --ws-info-fun-2: #e2e8f0;
+    --ws-info-fun-3: #cbd5e1;
+    --ws-info-paper: #ffffff;
+  }
+  .ws-theme--retro,
+  .ws-info-theme--retro {
+    --ws-info-header-from: #be123c;
+    --ws-info-header-to: #f472b6;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #fff1f2;
+    --ws-info-card-to: #ffe4e6;
+    --ws-info-card-bg: #fff1f2;
+    --ws-info-card-border: #fda4af;
+    --ws-info-title: #9f1239;
+    --ws-info-ink: #7f1d1d;
+    --ws-info-accent: #f472b6;
+    --ws-info-accent-strong: #be123c;
+    --ws-info-shadow: rgba(159, 18, 57, 0.12);
+    --ws-info-fun-1: #ffe4e6;
+    --ws-info-fun-2: #fbcfe8;
+    --ws-info-fun-3: #fecdd3;
+    --ws-info-paper: #fff1f2;
+  }
+  .ws-theme--mint,
+  .ws-info-theme--mint {
+    --ws-info-header-from: #10b981;
+    --ws-info-header-to: #14b8a6;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #ecfdf5;
+    --ws-info-card-to: #ccfbf1;
+    --ws-info-card-bg: #ecfdf5;
+    --ws-info-card-border: #a7f3d0;
+    --ws-info-title: #065f46;
+    --ws-info-ink: #064e3b;
+    --ws-info-accent: #10b981;
+    --ws-info-accent-strong: #0f766e;
+    --ws-info-shadow: rgba(6, 95, 70, 0.12);
+    --ws-info-fun-1: #d1fae5;
+    --ws-info-fun-2: #ccfbf1;
+    --ws-info-fun-3: #ecfeff;
+    --ws-info-paper: #ecfdf5;
+  }
+  .ws-theme--midnight,
+  .ws-info-theme--midnight {
+    --ws-info-header-from: #1e1b4b;
+    --ws-info-header-to: #0f172a;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #0f172a;
+    --ws-info-card-to: #1e293b;
+    --ws-info-card-bg: #111827;
+    --ws-info-card-border: #334155;
+    --ws-info-title: #f8fafc;
+    --ws-info-ink: #f8fafc;
+    --ws-info-accent: #6366f1;
+    --ws-info-accent-strong: #4338ca;
+    --ws-info-shadow: rgba(15, 23, 42, 0.3);
+    --ws-info-fun-1: #1f2937;
+    --ws-info-fun-2: #1e293b;
+    --ws-info-fun-3: #334155;
+    --ws-info-paper: #0f172a;
+  }
+  .ws-theme--crimson,
+  .ws-info-theme--crimson {
+    --ws-info-header-from: #7f1d1d;
+    --ws-info-header-to: #be123c;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #fff1f2;
+    --ws-info-card-to: #ffe4e6;
+    --ws-info-card-bg: #fff1f2;
+    --ws-info-card-border: #fecdd3;
+    --ws-info-title: #7f1d1d;
+    --ws-info-ink: #7f1d1d;
+    --ws-info-accent: #e11d48;
+    --ws-info-accent-strong: #be123c;
+    --ws-info-shadow: rgba(127, 29, 29, 0.16);
+    --ws-info-fun-1: #ffe4e6;
+    --ws-info-fun-2: #fecdd3;
+    --ws-info-fun-3: #fbcfe8;
+    --ws-info-paper: #fff1f2;
+  }
+  .ws-theme--forest,
+  .ws-info-theme--forest {
+    --ws-info-header-from: #0b2b1a;
+    --ws-info-header-to: #14532d;
+    --ws-info-header-ink: #ffffff;
+    --ws-info-card-from: #f6f3ee;
+    --ws-info-card-to: #eef3e7;
+    --ws-info-card-bg: #f6f3ee;
+    --ws-info-card-border: #cbd7c4;
+    --ws-info-title: #0f2a1a;
+    --ws-info-ink: #143222;
+    --ws-info-accent: #14532d;
+    --ws-info-accent-strong: #0b2b1a;
+    --ws-info-shadow: rgba(20, 50, 34, 0.12);
+    --ws-info-fun-1: #eef3e7;
+    --ws-info-fun-2: #e4eadc;
+    --ws-info-fun-3: #dbe3d2;
+    --ws-info-paper: #f6f3ee;
+  }
+
+  .ws-info-header {
+    border-radius: 16px;
+    padding: 14px 18px;
+    text-align: center;
+    box-shadow: 0 6px 16px var(--ws-info-shadow, rgba(15, 23, 42, 0.15));
+    background: linear-gradient(135deg, var(--ws-info-header-from, #1e3a8a), var(--ws-info-header-to, #0ea5e9));
+    color: var(--ws-info-header-ink, #ffffff);
+  }
+  .ws-info-header__title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .ws-info-header__subtitle {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .ws-info-header--classic {
+    border-radius: 16px;
+  }
+  .ws-info-header--split {
+    border-radius: 20px;
+  }
+  .ws-info-header--grid {
+    border-radius: 14px;
+  }
+  .ws-info-header--minimal {
+    background: var(--ws-info-accent-strong, #0f172a);
+    box-shadow: none;
+  }
+  .ws-info-header--poster {
+    border-radius: 26px;
+    padding: 20px 26px;
+    position: relative;
+    overflow: hidden;
+    background:
+      repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.2) 0,
+        rgba(255, 255, 255, 0.2) 8px,
+        rgba(255, 255, 255, 0) 8px,
+        rgba(255, 255, 255, 0) 16px
+      ),
+      linear-gradient(135deg, var(--ws-info-header-from, #1e3a8a), var(--ws-info-header-to, #0ea5e9));
+  }
+  .ws-info-header--poster .ws-info-header__title {
+    font-size: 24px;
+    letter-spacing: 0.08em;
+  }
+  .ws-info-header--poster::after {
+    content: '';
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: 8px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .ws-info-header--editorial {
+    background: var(--ws-info-card-bg, #ffffff);
+    color: var(--ws-info-ink, #0f172a);
+    border: 1px solid var(--ws-info-card-border, #e2e8f0);
+    box-shadow: none;
+    text-align: left;
+    padding: 16px 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ws-info-header--editorial .ws-info-header__title {
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+  .ws-info-header--editorial::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--ws-info-accent, #0ea5e9), var(--ws-info-header-to, #0ea5e9));
+  }
+  .ws-info-header--playful {
+    border-radius: 999px;
+    box-shadow: 0 10px 18px var(--ws-info-shadow, rgba(15, 23, 42, 0.15));
+  }
+  .ws-info-header--playful .ws-info-header__title {
+    text-transform: none;
+    letter-spacing: 0.03em;
+  }
+
+  .ws-info-card {
+    border-radius: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0);
+    background: var(--ws-info-card-bg, #ffffff);
+    box-shadow: 0 6px 16px var(--ws-info-shadow, rgba(15, 23, 42, 0.08));
+    color: var(--ws-info-ink, #0f172a);
+  }
+  .ws-info-card__title {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: var(--ws-info-title, #0f172a);
+  }
+  .ws-info-card__body p {
+    margin: 0 0 6px 0;
+  }
+  .ws-info-card__body ul,
+  .ws-info-card__body ol {
+    margin: 4px 0 6px 0;
+    padding-left: 1.1rem;
+  }
+
+  .ws-info-card--classic {
+    background: linear-gradient(135deg, var(--ws-info-card-from, #f8fafc), var(--ws-info-card-to, #e2e8f0));
+    border-color: var(--ws-info-card-border, #cbd5f0);
+  }
+
+  .ws-info-card--split {
+    background: var(--ws-info-card-bg, #fff7ed);
+    border-color: var(--ws-info-card-border, #fed7aa);
+    border-left: 5px solid var(--ws-info-accent, #fb923c);
+  }
+
+  .ws-info-card--grid {
+    background: var(--ws-info-card-bg, #f8fafc);
+    border-color: var(--ws-info-card-border, #cbd5e1);
+    box-shadow: 0 4px 10px var(--ws-info-shadow, rgba(15, 23, 42, 0.08));
+  }
+
+  .ws-info-card--minimal {
+    background: var(--ws-info-card-bg, #ffffff);
+    border-color: var(--ws-info-card-border, #e2e8f0);
+    box-shadow: none;
+  }
+
+  .ws-info-card--poster {
+    border-radius: 22px;
+    border: 2px solid var(--ws-info-accent, #0ea5e9);
+    background: var(--ws-info-paper, #ffffff);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 14px 26px var(--ws-info-shadow, rgba(15, 23, 42, 0.18));
+  }
+  .ws-info-card--poster::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-top: 8px solid var(--ws-info-accent-strong, #1e3a8a);
+    pointer-events: none;
+  }
+  .ws-info-card--poster::after {
+    content: '';
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+  }
+
+  .ws-info-card--editorial {
+    border-radius: 14px;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0);
+    border-top: 4px solid var(--ws-info-accent, #0ea5e9);
+    background: var(--ws-info-paper, #ffffff);
+    box-shadow: none;
+  }
+
+  .ws-info-card--playful {
+    border-radius: 20px;
+    border: 2px dashed var(--ws-info-accent, #10b981);
+    background: var(--ws-info-card-bg, #ecfdf5);
+    box-shadow: 0 8px 18px var(--ws-info-shadow, rgba(6, 95, 70, 0.12));
+    position: relative;
+  }
+  .ws-info-card--playful::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--ws-info-accent, #10b981);
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+  }
+
+  .ws-info-card--variant-hero {
+    background: linear-gradient(135deg, var(--ws-info-accent-strong, #1e3a8a), var(--ws-info-accent, #0ea5e9));
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 18px 30px var(--ws-info-shadow, rgba(15, 23, 42, 0.25));
+  }
+  .ws-info-card--variant-hero::after {
+    display: none;
+  }
+  .ws-info-card--variant-hero .ws-info-card__title {
+    color: #ffffff;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ws-info-card--variant-hero .ws-info-card__body {
+    font-size: 13px;
+  }
+
+  .ws-info-card--variant-spotlight {
+    border-left: 6px solid var(--ws-info-accent, #0ea5e9);
+    background: var(--ws-info-card-bg, #ffffff);
+    box-shadow: 0 10px 20px var(--ws-info-shadow, rgba(15, 23, 42, 0.16));
+  }
+
+  .ws-info-card--variant-rail {
+    border-radius: 16px;
+    border-style: dashed;
+    background: var(--ws-info-card-from, #f8fafc);
+    font-size: 12px;
+  }
+  .ws-info-card--variant-rail .ws-info-card__title {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+  }
+  .ws-info-card--variant-main .ws-info-card__title {
+    font-size: 16px;
+    letter-spacing: 0.04em;
+  }
+
+  .ws-info-card--variant-playful-a {
+    background: var(--ws-info-fun-1, #dbeafe);
+  }
+  .ws-info-card--variant-playful-b {
+    background: var(--ws-info-fun-2, #e0f2fe);
+  }
+  .ws-info-card--variant-playful-c {
+    background: var(--ws-info-fun-3, #cffafe);
+  }
+
+  .ws-pages-wrap .ws-element-content h1,
+  .ws-pages-wrap .ws-element-content h2,
+  .ws-pages-wrap .ws-element-content h3 {
+    color: var(--ws-info-accent-strong, #0f172a);
+  }
+
+  .ws-theme--midnight .ws-placed-element:not([data-element-kind]) .ws-element-content {
+    color: var(--ws-info-ink, #f8fafc) !important;
+  }
+  .ws-theme--midnight .ws-placed-element:not([data-element-kind]) .ws-element-content h1,
+  .ws-theme--midnight .ws-placed-element:not([data-element-kind]) .ws-element-content h2,
+  .ws-theme--midnight .ws-placed-element:not([data-element-kind]) .ws-element-content h3 {
+    color: #ffffff !important;
+  }
+
+  .ws-template--classic .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: var(--ws-info-card-bg, #ffffff) !important;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0) !important;
+    box-shadow: 0 6px 16px var(--ws-info-shadow, rgba(15, 23, 42, 0.08)) !important;
+    border-radius: 16px !important;
+  }
+
+  .ws-template--split .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: var(--ws-info-card-bg, #ffffff) !important;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0) !important;
+    border-left: 6px solid var(--ws-info-accent, #0ea5e9) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 12px var(--ws-info-shadow, rgba(15, 23, 42, 0.08)) !important;
+  }
+
+  .ws-template--grid .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: var(--ws-info-card-bg, #ffffff) !important;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0) !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  .ws-template--minimal .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--ws-info-card-border, #e2e8f0) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .ws-template--poster .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: linear-gradient(135deg, var(--ws-info-card-from, #f8fafc), var(--ws-info-card-to, #e2e8f0)) !important;
+    border: 2px solid var(--ws-info-accent, #0ea5e9) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 14px 26px var(--ws-info-shadow, rgba(15, 23, 42, 0.18)) !important;
+  }
+
+  .ws-template--editorial .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: var(--ws-info-paper, #ffffff) !important;
+    border: 1px solid var(--ws-info-card-border, #e2e8f0) !important;
+    border-top: 4px solid var(--ws-info-accent, #0ea5e9) !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+  }
+
+  .ws-template--playful .ws-placed-element[data-element-type]:not([data-element-type="image"]):not([data-element-kind]) {
+    background: var(--ws-info-fun-1, #dbeafe) !important;
+    border: 2px dashed var(--ws-info-accent, #0ea5e9) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 10px 20px var(--ws-info-shadow, rgba(15, 23, 42, 0.12)) !important;
+  }
+
+  .ws-template--poster .ws-element-content h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--ws-info-accent, #0ea5e9);
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+  }
+
+  .ws-template--editorial .ws-element-content h3 {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    border-bottom: 1px solid var(--ws-info-card-border, #e2e8f0);
+    padding-bottom: 4px;
+  }
+
+  .ws-template--playful .ws-element-content h3 {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--ws-info-fun-2, #e0f2fe);
+    color: var(--ws-info-accent-strong, #0f172a);
+  }
+
+  .ws-pages-wrap .ws-element-content .ws-table th {
+    background: var(--ws-info-card-from, #f8fafc);
+    color: var(--ws-info-ink, #0f172a);
+  }
+  .ws-template--poster .ws-element-content .ws-table th {
+    background: var(--ws-info-accent-strong, #1e3a8a);
+    color: #ffffff;
+  }
+
+  .ws-theme--midnight .ws-page,
+  .ws-theme--midnight .ws-page-inner {
+    background: var(--ws-info-paper, #0f172a) !important;
+  }
+  .ws-theme--midnight .ws-page {
+    border-color: #1f2937 !important;
+  }
+  .ws-theme--midnight .ws-page-margin-guides {
+    border-color: rgba(148, 163, 184, 0.35) !important;
+  }
+  .ws-theme--forest .ws-page,
+  .ws-theme--forest .ws-page-inner {
+    background: var(--ws-info-paper, #f6f3ee) !important;
+  }
+  .ws-theme--forest .ws-page {
+    border-color: #e4e0d6 !important;
+  }
+
   .ws-header-fields {
     display: flex;
     justify-content: space-between;
@@ -1372,7 +2621,29 @@ const DESIGNER_CSS = `
     font-weight: 600;
     letter-spacing: 0.08em;
   }
-  .ws-wordsearch-words { margin-top: 8px; font-size: 12px; }
+  .ws-element-content .ws-wordsearch {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ws-element-content .ws-wordsearch-grid {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
+  .ws-element-content .ws-wordsearch-table {
+    width: 100%;
+    height: 100%;
+    table-layout: fixed;
+  }
+  .ws-element-content .ws-wordsearch-words-box {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #ffffff;
+  }
+  .ws-wordsearch-words { font-size: inherit; }
   .ws-wordsearch-word { margin-right: 6px; }
 
   .ws-element-content .ws-matching-table {
@@ -1444,11 +2715,12 @@ const DESIGNER_CSS = `
     .ws-element-drag-handle, .ws-resize-handle { display: none !important; }
     .ws-canvas { background: white !important; overflow: visible !important; }
     .ws-pages-wrap {
-      --ws-page-scale: 1;
-      --ws-page-overflow: visible;
+      --ws-page-scale: 1 !important;
+      --ws-page-overflow: visible !important;
       padding: 0 !important;
       gap: 0 !important;
       align-items: flex-start !important;
+      overflow: visible !important;
     }
 
     .no-print { display: none !important; }

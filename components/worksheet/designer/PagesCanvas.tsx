@@ -12,13 +12,19 @@ export const PagesCanvas: React.FC<{
   marginMm: number;
   selectedElementId: string | null;
   onSelectElementId: (id: string | null) => void;
-  onCommitElement: (id: string, patch: Partial<WorksheetPlacedElement>) => void;
+  onCommitElement: (
+    id: string,
+    patch: Partial<WorksheetPlacedElement>,
+    opts?: { skipHistory?: boolean }
+  ) => void;
   onAddPage?: () => void;
   editingElementId?: string | null;
   onStartEditing?: (id: string) => void;
   onStopEditing?: () => void;
   onDeletePage?: (pageId: string) => void;
   pageScale?: number;
+  designTemplate?: string;
+  designTheme?: string;
 }> = ({
   pages,
   elements,
@@ -32,12 +38,16 @@ export const PagesCanvas: React.FC<{
   onStopEditing,
   onDeletePage,
   pageScale = 1,
+  designTemplate,
+  designTheme,
 }) => {
   const guidesByPageRef = useRef<Record<string, GuidesState>>({});
   const rafRef = useRef<number | null>(null);
   const clearTimersRef = useRef<Record<string, number>>({});
   const [, bump] = useState(0);
   const scale = Math.max(0.1, pageScale || 1);
+  const templateClass = designTemplate ? `ws-template--${designTemplate}` : '';
+  const themeClass = designTheme ? `ws-theme--${designTheme}` : '';
 
   const setGuidesForPage = (pageId: string, guides: CanvasGuides) => {
     const timers = clearTimersRef.current;
@@ -91,7 +101,7 @@ export const PagesCanvas: React.FC<{
       onMouseDown={() => onSelectElementId(null)}
     >
       <div
-        className="ws-pages-wrap py-8 px-4 pb-36 flex flex-col items-center gap-6"
+        className={`ws-pages-wrap py-8 px-4 pb-36 flex flex-col items-center gap-6 ${templateClass} ${themeClass}`}
         style={
           {
             ['--ws-page-scale' as any]: scale,
@@ -195,7 +205,7 @@ export const PagesCanvas: React.FC<{
                     onSelect={() => onSelectElementId(el.id)}
                     onRequestEdit={() => onStartEditing?.(el.id)}
                     onStopEdit={() => onStopEditing?.()}
-                    onCommit={(patch) => onCommitElement(el.id, patch)}
+                    onCommit={(patch, opts) => onCommitElement(el.id, patch, opts)}
                     onGuidesChange={setGuidesForPage}
                     pageScale={scale}
                   />

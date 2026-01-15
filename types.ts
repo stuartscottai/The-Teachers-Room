@@ -134,6 +134,8 @@ export interface WorksheetConfig {
   gradeLevel: string;
   customInstructions?: string;
   layout?: 'single' | 'columns'; // New Layout Option
+  infoTemplate?: 'classic' | 'split' | 'grid' | 'minimal' | 'poster' | 'editorial' | 'playful';
+  infoTheme?: 'ocean' | 'sunset' | 'studio' | 'retro' | 'mint' | 'midnight' | 'crimson' | 'forest';
   activities: ActivityConfig[];
   isPublic?: boolean; // Visibility Flag
   files?: UploadedFile[]; // Source material

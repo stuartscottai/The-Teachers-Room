@@ -453,6 +453,7 @@ RULES:
 13. answerKeyHtml (if requested) must be safe, simple HTML (use <div>, <h3>, <p>, <ol>, <ul>, <li>, <strong>, <em>, <br>).
 14. table should match the requested activity types and fit on an A4 page when possible.
 15. infoSections items use { title, bodyHtml } with safe HTML in bodyHtml (use <p>, <strong>, <em>, <u>, <ul>, <ol>, <li>, <br>, <h3>).
+16. If Information Sheet Notes are provided in the prompt, follow them strictly for infoSections.
 `;
 
   const activities = config.activities || [];
@@ -494,6 +495,9 @@ RULES:
     const trimmed = (note || '').trim();
     return trimmed ? ` notes: ${trimmed}` : '';
   };
+  const infoSheetNotes = infoSheetActivities
+    .map((a) => (a.customInstructions || '').trim())
+    .filter((note) => note.length > 0);
   const clampMcCount = (value?: number) => {
     const parsed = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(parsed)) return 4;
@@ -711,6 +715,9 @@ Grade Level: ${config.gradeLevel || 'N/A'}
 Difficulty: ${config.difficultyLevel || 'medium'}
 Additional Instructions: ${config.customInstructions || 'None'}
 
+${wantsInfoSheet && infoSheetNotes.length > 0 ? `Information Sheet Notes (apply only to infoSections):\n${infoSheetNotes
+  .map((note) => `- ${note}`)
+  .join('\n')}\n` : ''}
 ${activityOrder ? `Activities (in order):\n${activityOrder}\n` : ''}
 Requested Blocks:
 ${requestedBlocks.join('\n')}

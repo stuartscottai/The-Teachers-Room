@@ -54,7 +54,26 @@ export const CanvasToolbar: React.FC<{
   onMerge?: () => void;
   canSplit?: boolean;
   canMerge?: boolean;
-}> = ({ selected, editing, onChangeStyles, onDelete, onFocusContent, onSendToTray, onSplit, onMerge, canSplit, canMerge }) => {
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+}> = ({
+  selected,
+  editing,
+  onChangeStyles,
+  onDelete,
+  onFocusContent,
+  onSendToTray,
+  onSplit,
+  onMerge,
+  canSplit,
+  canMerge,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+}) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -142,6 +161,22 @@ export const CanvasToolbar: React.FC<{
     } else {
       exec();
     }
+  };
+
+  const handleUndo = () => {
+    if (!editing && onUndo) {
+      onUndo();
+      return;
+    }
+    runHistoryCommand('undo');
+  };
+
+  const handleRedo = () => {
+    if (!editing && onRedo) {
+      onRedo();
+      return;
+    }
+    runHistoryCommand('redo');
   };
 
   return (
@@ -360,19 +395,25 @@ export const CanvasToolbar: React.FC<{
 
           <button
             type="button"
-            onClick={() => runHistoryCommand('undo')}
+            onClick={handleUndo}
             onMouseDown={(e) => e.preventDefault()}
-            className="px-3 py-2 rounded-xl text-xs font-extrabold border bg-white border-slate-200 text-slate-700"
+            className={`px-3 py-2 rounded-xl text-xs font-extrabold border bg-white border-slate-200 text-slate-700 ${
+              !editing && onUndo && !canUndo ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             title="Undo"
+            disabled={!editing && onUndo ? !canUndo : false}
           >
             Undo
           </button>
           <button
             type="button"
-            onClick={() => runHistoryCommand('redo')}
+            onClick={handleRedo}
             onMouseDown={(e) => e.preventDefault()}
-            className="px-3 py-2 rounded-xl text-xs font-extrabold border bg-white border-slate-200 text-slate-700"
+            className={`px-3 py-2 rounded-xl text-xs font-extrabold border bg-white border-slate-200 text-slate-700 ${
+              !editing && onRedo && !canRedo ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             title="Redo"
+            disabled={!editing && onRedo ? !canRedo : false}
           >
             Redo
           </button>

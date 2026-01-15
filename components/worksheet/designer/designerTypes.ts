@@ -4,6 +4,7 @@ export type WorksheetBlockType =
   | 'story'
   | 'mcq'
   | 'wordsearch'
+  | 'wordsearch-words'
   | 'matching'
   | 'gap-fill'
   | 'sentence-transform'

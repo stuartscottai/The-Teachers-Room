@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Columns, AlignJustify, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -735,6 +735,7 @@ const WorksheetBuilder: React.FC<{
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [mobileTab, setMobileTab] = useState<'config' | 'canvas' | 'tools'>('config');
     const [isMobile, setIsMobile] = useState(false);
+    const [infoLayoutKey, setInfoLayoutKey] = useState<string | null>(null);
 
     // --- NEW DESIGNER STATE ---
     const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
@@ -1527,6 +1528,15 @@ const WorksheetBuilder: React.FC<{
             if (finalConfig.title) ai.title = finalConfig.title;
 
             const nextBlocks = blocksFromAi(ai, finalConfig);
+            if (logoUrl) {
+                nextBlocks.unshift({
+                    id: `logo-${createId()}`,
+                    type: 'image',
+                    title: 'Logo',
+                    payload: { url: logoUrl, kind: 'logo', storagePath: logoStoragePath || undefined },
+                    previewHtml: imageToHtml(logoUrl, logoStoragePath || undefined, 'logo'),
+                } as WorksheetBlock);
+            }
             const seed = createEmptyDoc();
             const nextDoc = {
                 kind: 'worksheet-designer',
@@ -1542,6 +1552,9 @@ const WorksheetBuilder: React.FC<{
             setElements(nextDoc.elements);
             setDesignerSettings(nextDoc.settings || {});
             setSelectedElementId(null);
+            if (nextDoc.blocks.some((b) => b?.payload?.kind === 'info-section')) {
+                setInfoLayoutKey(createId());
+            }
 
             setGeneratedWs({
                 id: generatedWs?.id || createId(),
@@ -1687,6 +1700,99 @@ const WorksheetBuilder: React.FC<{
     };
 
     const rightSidebarMode = isMobile ? (mobileTab === 'tools' ? 'expanded' : 'collapsed') : 'auto';
+    const infoTemplateOptions = [
+        {
+            value: 'classic',
+            label: 'Modern Cards',
+            shortLabel: 'Modern',
+            headerClass: 'bg-gradient-to-r from-sky-800 to-sky-500',
+            cardClass: 'bg-slate-200',
+            cols: 2,
+            count: 4,
+        },
+        {
+            value: 'split',
+            label: 'Accent Stripe',
+            shortLabel: 'Stripe',
+            headerClass: 'bg-gradient-to-r from-orange-500 to-amber-400',
+            cardClass: 'bg-orange-100 border border-orange-200',
+            cols: 2,
+            count: 4,
+        },
+        {
+            value: 'grid',
+            label: 'Structured Cards',
+            shortLabel: 'Structured',
+            headerClass: 'bg-gradient-to-r from-slate-900 to-slate-600',
+            cardClass: 'bg-slate-100 border border-slate-200',
+            cols: 3,
+            count: 6,
+        },
+        {
+            value: 'minimal',
+            label: 'Clean Lines',
+            shortLabel: 'Clean',
+            headerClass: 'bg-slate-900',
+            cardClass: 'bg-white border border-slate-200',
+            cols: 1,
+            count: 3,
+        },
+        {
+            value: 'poster',
+            label: 'Poster Hero',
+            shortLabel: 'Poster',
+            headerClass: 'bg-gradient-to-r from-fuchsia-600 to-pink-500',
+            cardClass: 'bg-fuchsia-100 border border-fuchsia-200',
+            cols: 1,
+            count: 3,
+        },
+        {
+            value: 'editorial',
+            label: 'Editorial Spread',
+            shortLabel: 'Editorial',
+            headerClass: 'bg-gradient-to-r from-slate-800 to-slate-500',
+            cardClass: 'bg-stone-100 border border-stone-200',
+            cols: 2,
+            count: 4,
+        },
+        {
+            value: 'playful',
+            label: 'Playful Stickers',
+            shortLabel: 'Playful',
+            headerClass: 'bg-gradient-to-r from-emerald-500 to-teal-400',
+            cardClass: 'bg-emerald-100 border border-emerald-200',
+            cols: 2,
+            count: 4,
+        },
+    ] as const;
+    const applyInfoTemplate = (next: WorksheetConfig['infoTemplate']) => {
+        setConfig(prev => ({ ...prev, infoTemplate: next }));
+        setInfoLayoutKey(createId());
+    };
+    const infoThemeOptions = [
+        { value: 'ocean', label: 'Ocean', swatch: 'bg-gradient-to-r from-sky-700 to-sky-400' },
+        { value: 'sunset', label: 'Sunset', swatch: 'bg-gradient-to-r from-orange-500 to-amber-400' },
+        { value: 'studio', label: 'Studio', swatch: 'bg-gradient-to-r from-slate-900 to-slate-600' },
+        { value: 'retro', label: 'Retro', swatch: 'bg-gradient-to-r from-rose-500 to-pink-400' },
+        { value: 'mint', label: 'Mint', swatch: 'bg-gradient-to-r from-emerald-500 to-teal-400' },
+        { value: 'midnight', label: 'Midnight', swatch: 'bg-gradient-to-r from-indigo-900 to-slate-800' },
+        { value: 'crimson', label: 'Crimson', swatch: 'bg-gradient-to-r from-red-700 to-rose-500' },
+        { value: 'forest', label: 'Forest', swatch: 'bg-gradient-to-r from-emerald-900 to-emerald-600' },
+    ] as const;
+    const applyInfoTheme = (next: WorksheetConfig['infoTheme']) => {
+        setConfig(prev => ({ ...prev, infoTheme: next }));
+        setInfoLayoutKey(createId());
+    };
+    const shuffleInfoStyle = () => {
+        const nextTemplate = infoTemplateOptions[Math.floor(Math.random() * infoTemplateOptions.length)]?.value;
+        const nextTheme = infoThemeOptions[Math.floor(Math.random() * infoThemeOptions.length)]?.value;
+        setConfig(prev => ({
+            ...prev,
+            infoTemplate: nextTemplate || prev.infoTemplate || 'classic',
+            infoTheme: nextTheme || prev.infoTheme || 'ocean',
+        }));
+        setInfoLayoutKey(createId());
+    };
 
     return (
         <div className="flex flex-col md:flex-row bg-slate-50 relative items-stretch">
@@ -1767,10 +1873,114 @@ const WorksheetBuilder: React.FC<{
                         <GradeSelector value={config.gradeLevel} onChange={(val) => setConfig({...config, gradeLevel: val})} />
                         
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 mb-1">Page Layout</label>
-                            <div className="flex bg-slate-100 rounded-lg p-1">
-                                <button onClick={() => setConfig({...config, layout: 'single'})} className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'single' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}><AlignJustify size={14} className="mr-1" /> Single</button>
-                                <button onClick={() => setConfig({...config, layout: 'columns'})} className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs font-bold transition-all ${config.layout === 'columns' ? 'bg-white text-teal-600 shadow-sm' : 'text-slate-500'}`}><Columns size={14} className="mr-1" /> Two Cols</button>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Design Template</label>
+                            <select
+                                value={config.infoTemplate || 'classic'}
+                                onChange={(e) => applyInfoTemplate(e.target.value as WorksheetConfig['infoTemplate'])}
+                                className="w-full p-2 rounded border border-slate-200 bg-white text-sm focus:ring-1 focus:ring-teal-400 outline-none"
+                            >
+                                {infoTemplateOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                            <div className="mt-2">
+                                <label className="block text-[10px] font-bold text-slate-600 mb-1">Layout Columns</label>
+                                <div className="flex bg-slate-100 rounded-lg p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setConfig({ ...config, layout: 'single' });
+                                            setInfoLayoutKey(createId());
+                                        }}
+                                        className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${
+                                            (config.layout || 'single') === 'single'
+                                                ? 'bg-white text-teal-600 shadow-sm'
+                                                : 'text-slate-500'
+                                        }`}
+                                    >
+                                        1 Column
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setConfig({ ...config, layout: 'columns' });
+                                            setInfoLayoutKey(createId());
+                                        }}
+                                        className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${
+                                            (config.layout || 'single') === 'columns'
+                                                ? 'bg-white text-teal-600 shadow-sm'
+                                                : 'text-slate-500'
+                                        }`}
+                                    >
+                                        2 Columns
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="mt-3">
+                                <div className="text-[11px] font-bold text-slate-600 mb-2">Template Carousel</div>
+                                <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {infoTemplateOptions.map((option) => {
+                                        const isActive = (config.infoTemplate || 'classic') === option.value;
+                                        const gridClass =
+                                            option.cols === 3 ? 'grid-cols-3' : option.cols === 2 ? 'grid-cols-2' : 'grid-cols-1';
+                                        return (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                onClick={() => applyInfoTemplate(option.value)}
+                                                className="text-left shrink-0"
+                                                aria-label={`Use ${option.label} template`}
+                                            >
+                                                <div
+                                                    className={`w-24 rounded-lg border bg-white ${
+                                                        isActive ? 'border-brand-blue ring-2 ring-brand-blue/30' : 'border-slate-200'
+                                                    }`}
+                                                >
+                                                    <div className={`h-2 rounded-t-lg ${option.headerClass}`} />
+                                                    <div className={`px-1 pt-1 pb-2 grid ${gridClass} gap-1`}>
+                                                        {Array.from({ length: option.count }).map((_, i) => (
+                                                            <div key={i} className={`h-2 rounded ${option.cardClass}`} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className={`mt-1 text-[10px] font-bold ${isActive ? 'text-slate-800' : 'text-slate-500'} text-center`}>
+                                                    {option.shortLabel}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="mt-3">
+                                <div className="text-[11px] font-bold text-slate-600 mb-2">Theme Packs</div>
+                                <div className="flex gap-2 flex-wrap">
+                                    {infoThemeOptions.map((theme) => {
+                                        const isActive = (config.infoTheme || 'ocean') === theme.value;
+                                        return (
+                                            <button
+                                                key={theme.value}
+                                                type="button"
+                                                onClick={() => applyInfoTheme(theme.value)}
+                                                className={`flex items-center gap-2 px-2 py-1 rounded-full border text-[10px] font-bold ${
+                                                    isActive ? 'border-brand-blue text-slate-800' : 'border-slate-200 text-slate-500'
+                                                }`}
+                                            >
+                                                <span className={`w-4 h-4 rounded-full ${theme.swatch}`} />
+                                                {theme.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                                <p className="text-xs text-slate-500">Shuffle to try a new mix of template + colors.</p>
+                                <button
+                                    type="button"
+                                    onClick={shuffleInfoStyle}
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-brand-blue text-white hover:bg-sky-600"
+                                >
+                                    Shuffle Designs
+                                </button>
                             </div>
                         </div>
 
@@ -2092,6 +2302,10 @@ const WorksheetBuilder: React.FC<{
                     onTogglePublic={handleVisibilityToggle}
                     rightSidebarMode={rightSidebarMode}
                     isMobile={isMobile}
+                    infoTemplate={config.infoTemplate}
+                    infoTheme={config.infoTheme}
+                    layoutMode={config.layout || 'single'}
+                    infoLayoutKey={infoLayoutKey}
                 />
             </div>
         </div>
@@ -2456,6 +2670,8 @@ const INITIAL_WORKSHEET_CONFIG: WorksheetConfig = {
     gradeLevel: '',
     activities: [],
     layout: 'single',
+    infoTemplate: 'classic',
+    infoTheme: 'ocean',
     isPublic: true,
     storeWorksheetAssets: true,
     logo: null,
