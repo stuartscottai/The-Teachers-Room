@@ -20,6 +20,7 @@ import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
+import { Avatar } from '../components/Avatar';
 
 // Helper to extract stats for display
 const getGameStats = (game: GeneratedGame) => {
@@ -407,10 +408,13 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> = ({ onLoadGame }) => {
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchAutoFilled, setIsSearchAutoFilled] = useState(false);
     const [typeFilter, setTypeFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
+    const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -422,7 +426,15 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
         setError(null);
         
         // Strictly fetch PUBLIC games from Database
-        const { data, count, error: fetchError } = await getCommunityGames(currentPage, itemsPerPage, search, typeFilter, sortBy, sourceFilter);
+        const { data, count, error: fetchError } = await getCommunityGames(
+            currentPage,
+            itemsPerPage,
+            searchQuery,
+            typeFilter,
+            sortBy,
+            sourceFilter,
+            authorFilter?.id
+        );
         
         if (fetchError) {
             setError(fetchError);
@@ -437,14 +449,30 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
+    }, [searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGames();
         }, 500); 
         return () => clearTimeout(timer);
-    }, [currentPage, search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
+    }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter]);
+
+    const applyAuthorFilter = (id: string, name: string) => {
+        setAuthorFilter({ id, name });
+        setSearchInput(name);
+        setSearchQuery('');
+        setIsSearchAutoFilled(true);
+    };
+
+    const clearAuthorFilter = () => {
+        setAuthorFilter(null);
+        if (isSearchAutoFilled) {
+            setSearchInput('');
+            setSearchQuery('');
+            setIsSearchAutoFilled(false);
+        }
+    };
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     const pageStart = (currentPage - 1) * itemsPerPage + 1;
@@ -458,8 +486,12 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                     <input 
                         type="text" 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => {
+                            setSearchInput(e.target.value);
+                            setSearchQuery(e.target.value);
+                            setIsSearchAutoFilled(false);
+                        }}
                         placeholder="Search community games..." 
                         className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
                     />
@@ -517,6 +549,22 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                     <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
                 </button>
             </div>
+            {authorFilter && (
+                <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-slate-500 font-semibold">Filtering by:</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold">
+                        {authorFilter.name}
+                        <button
+                            type="button"
+                            onClick={clearAuthorFilter}
+                            className="text-sky-700 hover:text-sky-900"
+                            aria-label="Clear author filter"
+                        >
+                            x
+                        </button>
+                    </span>
+                </div>
+            )}
 
             {!loading && !error && totalCount > 0 && (
                 <>
@@ -590,9 +638,27 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                                 
                                 <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
                                 <p className="text-sm text-slate-500 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
-                                {game.authorName && (
-                                    <p className="text-xs text-slate-400 mb-2">By {game.authorName}</p>
-                                )}
+                                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                                    <span>By</span>
+                                    <Avatar
+                                        name={game.authorName || 'Teacher'}
+                                        src={game.authorAvatar || game.config.authorAvatar}
+                                        className="w-4 h-4"
+                                        textClassName="text-[7px]"
+                                    />
+                                    {game.authorId ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => applyAuthorFilter(game.authorId!, game.authorName || 'Teacher')}
+                                            className="truncate text-slate-600 hover:text-brand-blue hover:underline"
+                                            title={`View all by ${game.authorName || 'Teacher'}`}
+                                        >
+                                            {game.authorName || 'Teacher'}
+                                        </button>
+                                    ) : (
+                                        <span className="truncate">{game.authorName || 'Teacher'}</span>
+                                    )}
+                                </p>
                                 
                                 {/* STATS BADGES */}
                                 <div className="flex flex-wrap gap-2 mb-4">
@@ -604,17 +670,10 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
                                     ))}
                                 </div>
                                 
-                                <div className="mt-auto pt-4 border-t border-slate-50 flex items-center gap-2">
+                                <div className="mt-auto pt-4 border-t border-slate-50 flex items-center">
                                     <button 
                                         onClick={() => onLoadGame(game)}
-                                        className="flex-1 px-3 py-2 bg-brand-blue text-white rounded-lg font-bold hover:bg-sky-600 transition-colors flex items-center justify-center gap-2 text-sm"
-                                        title="Save a copy to your library"
-                                    >
-                                        <Copy size={14} /> Remix
-                                    </button>
-                                    <button 
-                                        onClick={() => onLoadGame(game)}
-                                        className="flex-1 px-3 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-lg font-bold hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center gap-2 text-sm"
+                                        className="w-full px-3 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-lg font-bold hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center gap-2 text-sm"
                                         title="Open in Editor"
                                     >
                                         <Play size={14} fill="currentColor" /> Play

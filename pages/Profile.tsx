@@ -2,8 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../services/supabase';
-import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Database, RefreshCw } from 'lucide-react';
+import { User, Mail, Save, Lock, CheckCircle, AlertCircle, Database, RefreshCw, Edit2, X } from 'lucide-react';
 import { syncPublicGameState } from '../utils/gameUtils';
+import { Avatar } from '../components/Avatar';
+import { ALOHE_AVATAR_URLS } from '../data/avatars';
+
+const AVATAR_OPTIONS: Array<string | null> = [null, ...ALOHE_AVATAR_URLS];
 
 export const Profile: React.FC = () => {
     const { user, updateUserProfile } = useAuth();
@@ -14,9 +18,15 @@ export const Profile: React.FC = () => {
     const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
     const [syncMessage, setSyncMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [selectedAvatar, setSelectedAvatar] = useState<string | null>(user?.avatar || null);
+    const [isAvatarSaving, setIsAvatarSaving] = useState(false);
 
     useEffect(() => {
-        if (user) setFullName(user.name);
+        if (user) {
+            setFullName(user.name);
+            setSelectedAvatar(user.avatar || null);
+        }
     }, [user]);
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -27,7 +37,7 @@ export const Profile: React.FC = () => {
         try {
             // Update Name
             if (fullName !== user?.name) {
-                const { error } = await updateUserProfile(fullName);
+                const { error } = await updateUserProfile({ name: fullName });
                 if (error) throw error;
             }
 
@@ -53,7 +63,7 @@ export const Profile: React.FC = () => {
         setIsSyncing(true);
         setSyncMessage(null);
         
-        const result = await syncPublicGameState(user.id, user.name);
+        const result = await syncPublicGameState(user.id, user.name, user.avatar);
         
         if (result.success) {
             setSyncMessage({ type: 'success', text: `Successfully synced ${result.count} games.` });
@@ -61,6 +71,31 @@ export const Profile: React.FC = () => {
             setSyncMessage({ type: 'error', text: `Sync failed: ${result.error}` });
         }
         setIsSyncing(false);
+    };
+
+    const openAvatarPicker = () => {
+        setSelectedAvatar(user?.avatar || null);
+        setShowAvatarPicker(true);
+    };
+
+    const closeAvatarPicker = () => {
+        setSelectedAvatar(user?.avatar || null);
+        setShowAvatarPicker(false);
+    };
+
+    const handleAvatarSave = async () => {
+        if (!user) return;
+        setIsAvatarSaving(true);
+        setMessage(null);
+
+        const { error } = await updateUserProfile({ avatarUrl: selectedAvatar });
+        if (error) {
+            setMessage({ type: 'error', text: error.message || 'Failed to update avatar' });
+        } else {
+            setMessage({ type: 'success', text: 'Avatar updated successfully!' });
+            setShowAvatarPicker(false);
+        }
+        setIsAvatarSaving(false);
     };
 
     if (!user) return (
@@ -77,12 +112,21 @@ export const Profile: React.FC = () => {
                 {/* Header / Avatar */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center gap-8">
                     <div className="relative group">
-                         <img 
-                            src={user.avatar} 
-                            alt={user.name} 
-                            crossOrigin="anonymous"
-                            className="w-32 h-32 rounded-full border-4 border-slate-100 shadow-md object-cover bg-slate-100" 
+                        <Avatar
+                            name={user.name}
+                            src={user.avatar}
+                            className="w-32 h-32 border-4 border-slate-100 shadow-md"
+                            textClassName="text-3xl"
                         />
+                        <button
+                            type="button"
+                            onClick={openAvatarPicker}
+                            className="absolute bottom-2 right-2 bg-white text-slate-600 border border-slate-200 rounded-full p-2 shadow-sm hover:bg-slate-50 transition-colors"
+                            aria-label="Edit avatar"
+                            title="Edit avatar"
+                        >
+                            <Edit2 size={16} />
+                        </button>
                     </div>
                     <div className="text-center md:text-left">
                         <h1 className="text-3xl font-display font-bold text-slate-800">{user.name}</h1>
@@ -229,6 +273,81 @@ export const Profile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {showAvatarPicker && (
+                    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="bg-white text-slate-900 rounded-2xl shadow-2xl border border-slate-100 w-full max-w-5xl max-h-[85vh] flex flex-col">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                                <div>
+                                    <h2 className="text-xl font-bold">Choose an avatar</h2>
+                                    <p className="text-sm text-slate-500">Pick one from the full Alohe collection.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeAvatarPicker}
+                                    className="p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors"
+                                    aria-label="Close avatar picker"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 overflow-y-auto">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                                    {AVATAR_OPTIONS.map((avatarUrl) => {
+                                        const isSelected = selectedAvatar === avatarUrl;
+                                        const key = avatarUrl || 'initials';
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                onClick={() => setSelectedAvatar(avatarUrl)}
+                                                className={`relative rounded-full p-1 transition-all ${isSelected ? 'ring-2 ring-brand-blue' : 'ring-1 ring-slate-200 hover:ring-slate-300'}`}
+                                                aria-pressed={isSelected}
+                                                aria-label={avatarUrl ? 'Select avatar' : 'Use initials'}
+                                            >
+                                                {avatarUrl ? (
+                                                    <img
+                                                        src={avatarUrl}
+                                                        alt="Avatar option"
+                                                        loading="lazy"
+                                                        className="w-16 h-16 rounded-full object-cover bg-slate-100"
+                                                    />
+                                                ) : (
+                                                    <Avatar
+                                                        name={user.name}
+                                                        src={null}
+                                                        className="w-16 h-16"
+                                                        textClassName="text-lg"
+                                                        title="Use initials"
+                                                    />
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeAvatarPicker}
+                                    className="px-4 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAvatarSave}
+                                    disabled={isAvatarSaving}
+                                    className={`px-5 py-2 rounded-lg font-bold text-white bg-brand-blue hover:bg-sky-600 transition-colors ${isAvatarSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                >
+                                    {isAvatarSaving ? 'Saving...' : 'Save Avatar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>

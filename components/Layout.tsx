@@ -5,6 +5,7 @@ import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, File
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
+import { Avatar } from './Avatar';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
@@ -95,7 +96,12 @@ const Navbar: React.FC = () => {
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center space-x-2 text-slate-700 hover:text-brand-blue relative z-[101]"
                   >
-                    <img src={user.avatar} alt={user.name} crossOrigin="anonymous" className="w-8 h-8 rounded-full border border-slate-200" />
+                    <Avatar
+                      name={user.name}
+                      src={user.avatar}
+                      className="w-8 h-8 border border-slate-200"
+                      textClassName="text-[10px]"
+                    />
                     <span className="font-bold text-sm max-w-[100px] truncate">{user.name}</span>
                   </button>
                   
@@ -189,7 +195,12 @@ const Navbar: React.FC = () => {
                 {user ? (
                   <>
                     <div className="flex items-center px-3 py-2">
-                       <img src={user.avatar} alt={user.name} crossOrigin="anonymous" className="w-8 h-8 rounded-full mr-2" />
+                       <Avatar
+                         name={user.name}
+                         src={user.avatar}
+                         className="w-8 h-8 mr-2"
+                         textClassName="text-[10px]"
+                       />
                        <span className="font-bold text-slate-800">{user.name}</span>
                     </div>
                     <SafeLink to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">

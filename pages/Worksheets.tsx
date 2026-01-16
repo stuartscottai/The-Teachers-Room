@@ -11,6 +11,7 @@ import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorkshee
 import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
 import { blocksFromAi, imageToHtml, sanitizeHtml } from '../components/worksheet/designer/designerHelpers';
 import { WorksheetAiResultV1, WorksheetDesignerDocV1, WorksheetDesignerSettings, createEmptyDoc, tryParseDesignerDoc, WorksheetBlock, WorksheetDesignerPage, WorksheetPlacedElement, createId } from '../components/worksheet/designer/designerTypes';
+import { Avatar } from '../components/Avatar';
 
 // --- TIPTAP EDITOR STYLESHEET ---
 const TIPTAP_EDITOR_CSS = `
@@ -1598,7 +1599,7 @@ const WorksheetBuilder: React.FC<{
             title: config.title || generatedWs.title,
             content: getCurrentDocString(),
             type: 'Designer',
-            config: { ...config, isPublic, files: uploadedFiles },
+            config: { ...config, isPublic, files: uploadedFiles, authorAvatar: user.avatar || null },
         };
         setSaveStatus('saving');
         saveWorksheetToLibrary(finalWs, user.id, user.name).then(success => {
@@ -2511,7 +2512,10 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
 const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> = ({ onLoad }) => {
     const [worksheets, setWorksheets] = useState<GeneratedWorksheet[]>([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchAutoFilled, setIsSearchAutoFilled] = useState(false);
+    const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -2521,7 +2525,14 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
     const fetchWorksheets = async () => {
         setLoading(true);
         setError(null);
-        const { data, count, error: fetchError } = await getCommunityWorksheets(currentPage, itemsPerPage, search);
+        const { data, count, error: fetchError } = await getCommunityWorksheets(
+            currentPage,
+            itemsPerPage,
+            searchQuery,
+            'all',
+            'newest',
+            authorFilter?.id
+        );
         if (fetchError) {
             setError(fetchError);
             setLoading(false);
@@ -2534,12 +2545,28 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, itemsPerPage]);
+    }, [searchQuery, itemsPerPage, authorFilter]);
 
     useEffect(() => {
         const timer = setTimeout(fetchWorksheets, 500);
         return () => clearTimeout(timer);
-    }, [search, currentPage, itemsPerPage]);
+    }, [searchQuery, currentPage, itemsPerPage, authorFilter]);
+
+    const applyAuthorFilter = (id: string, name: string) => {
+        setAuthorFilter({ id, name });
+        setSearchInput(name);
+        setSearchQuery('');
+        setIsSearchAutoFilled(true);
+    };
+
+    const clearAuthorFilter = () => {
+        setAuthorFilter(null);
+        if (isSearchAutoFilled) {
+            setSearchInput('');
+            setSearchQuery('');
+            setIsSearchAutoFilled(false);
+        }
+    };
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     const pageStart = (currentPage - 1) * itemsPerPage + 1;
@@ -2552,13 +2579,33 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                         type="text" 
-                        value={search} 
-                        onChange={(e) => setSearch(e.target.value)} 
+                        value={searchInput} 
+                        onChange={(e) => {
+                            setSearchInput(e.target.value);
+                            setSearchQuery(e.target.value);
+                            setIsSearchAutoFilled(false);
+                        }} 
                         placeholder="Search community worksheets..." 
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-teal-400 shadow-sm" 
                     />
                 </div>
             </div>
+            {authorFilter && (
+                <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-slate-500 font-semibold">Filtering by:</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-100 font-bold">
+                        {authorFilter.name}
+                        <button
+                            type="button"
+                            onClick={clearAuthorFilter}
+                            className="text-teal-700 hover:text-teal-900"
+                            aria-label="Clear author filter"
+                        >
+                            x
+                        </button>
+                    </span>
+                </div>
+            )}
 
             {!loading && !error && totalCount > 0 && (
                 <>
@@ -2613,7 +2660,30 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                                 <span className="text-slate-400 text-xs flex items-center"><Globe size={12} className="mr-1" /> Community</span>
                             </div>
                             <h3 className="font-display font-bold text-lg text-slate-800 mb-1 truncate" title={ws.title}>{ws.title}</h3>
-                            <p className="text-xs text-slate-400 mb-3">By {ws.authorName || 'Teacher'}</p>
+                            <p className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
+                                <span>By</span>
+                                <Avatar
+                                    name={ws.authorName || 'Teacher'}
+                                    src={ws.authorAvatar || ws.config?.authorAvatar}
+                                    className="w-4 h-4"
+                                    textClassName="text-[7px]"
+                                />
+                                {ws.authorId ? (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            applyAuthorFilter(ws.authorId!, ws.authorName || 'Teacher');
+                                        }}
+                                        className="truncate text-slate-600 hover:text-teal-700 hover:underline"
+                                        title={`View all by ${ws.authorName || 'Teacher'}`}
+                                    >
+                                        {ws.authorName || 'Teacher'}
+                                    </button>
+                                ) : (
+                                    <span className="truncate">{ws.authorName || 'Teacher'}</span>
+                                )}
+                            </p>
                             
                             <div className="pt-4 border-t border-slate-50 flex justify-between items-center mt-2">
                                 <button className="text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 transition-colors flex items-center">

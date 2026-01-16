@@ -423,7 +423,9 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
         return data.map((d: any) => ({
             id: d.id,
             title: d.title,
+            authorId: d.user_id,
             authorName: d.author_name,
+            authorAvatar: d.author_avatar || d.config?.authorAvatar,
             // Sync isPublic from column to config object for consistency
             config: { ...d.config, isPublic: d.is_public },
             questions: d.questions,
@@ -444,7 +446,8 @@ export const getCommunityGames = async (
     search: string = '', 
     typeFilter: string = 'all', 
     sort: string = 'newest',
-    sourceFilter: 'all' | 'ai' | 'manual' = 'all'
+    sourceFilter: 'all' | 'ai' | 'manual' = 'all',
+    authorId?: string
 ): Promise<{ data: GeneratedGame[], count: number, error: string | null }> => {
     try {
         // Query using the top-level is_public column (faster/cleaner)
@@ -453,8 +456,12 @@ export const getCommunityGames = async (
             .select('*', { count: 'exact' })
             .eq('is_public', true); 
 
+        if (authorId) {
+            query = query.eq('user_id', authorId);
+        }
+
         if (search) {
-            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%`);
+            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%,author_name.ilike.%${search}%`);
         }
 
         if (typeFilter && typeFilter !== 'all') {
@@ -484,7 +491,9 @@ export const getCommunityGames = async (
         const mappedData = data.map((d: any) => ({
             id: d.id,
             title: d.title,
+            authorId: d.user_id,
             authorName: d.author_name,
+            authorAvatar: d.author_avatar || d.config?.authorAvatar,
             config: { ...d.config, isPublic: d.is_public },
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
@@ -515,7 +524,9 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
         return {
             id: data.id,
             title: data.title,
+            authorId: data.user_id,
             authorName: data.author_name,
+            authorAvatar: data.author_avatar || data.config?.authorAvatar,
             config: { ...data.config, isPublic: data.is_public },
             questions: data.questions,
             jeopardyBoard: data.jeopardy_board,
@@ -528,7 +539,7 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
     }
 };
 
-export const syncPublicGameState = async (userId: string, userName?: string) => {
+export const syncPublicGameState = async (userId: string, userName?: string, userAvatar?: string) => {
     try {
         // 1. Fetch all user games
         const { data: games, error } = await supabase
@@ -547,15 +558,19 @@ export const syncPublicGameState = async (userId: string, userName?: string) => 
             
             // Fix missing author name
             const needsAuthorUpdate = !game.author_name && userName;
+            const needsAvatarUpdate = userAvatar !== undefined && game.config?.authorAvatar !== userAvatar;
 
             // If they mismatch, or if author_name is missing, update
-            if (configPublic !== dbPublic || needsAuthorUpdate) {
+            if (configPublic !== dbPublic || needsAuthorUpdate || needsAvatarUpdate) {
                 // If config says public, enforce it on DB. 
                 // If config says private (or undefined), enforce false on DB.
                 // We trust the JSON config as the "user intent" if they just migrated.
                 
                 const updates: any = { is_public: configPublic };
                 if (needsAuthorUpdate) updates.author_name = userName;
+                if (needsAvatarUpdate) {
+                    updates.config = { ...game.config, authorAvatar: userAvatar };
+                }
 
                 await supabase
                     .from('saved_games')
@@ -565,6 +580,36 @@ export const syncPublicGameState = async (userId: string, userName?: string) => 
                 updateCount++;
             }
         }
+
+        const { data: worksheets, error: wsError } = await supabase
+            .from('saved_worksheets')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (wsError) throw wsError;
+
+        for (const worksheet of worksheets) {
+            const configPublic = worksheet.config?.isPublic || false;
+            const dbPublic = worksheet.is_public;
+            const needsAuthorUpdate = !worksheet.author_name && userName;
+            const needsAvatarUpdate = userAvatar !== undefined && worksheet.config?.authorAvatar !== userAvatar;
+
+            if (configPublic !== dbPublic || needsAuthorUpdate || needsAvatarUpdate) {
+                const updates: any = { is_public: configPublic };
+                if (needsAuthorUpdate) updates.author_name = userName;
+                if (needsAvatarUpdate) {
+                    updates.config = { ...worksheet.config, authorAvatar: userAvatar };
+                }
+
+                await supabase
+                    .from('saved_worksheets')
+                    .update(updates)
+                    .eq('id', worksheet.id);
+
+                updateCount++;
+            }
+        }
+
         return { success: true, count: updateCount };
     } catch (e: any) {
         console.error("Sync Error:", e);
@@ -660,7 +705,9 @@ export const getSavedWorksheets = async (userId?: string): Promise<GeneratedWork
         return data.map((d: any) => ({
             id: d.id,
             title: d.title,
+            authorId: d.user_id,
             authorName: d.author_name,
+            authorAvatar: d.author_avatar || d.config?.authorAvatar,
             config: { ...d.config, isPublic: d.is_public },
             content: d.content,
             type: d.type,
@@ -678,7 +725,8 @@ export const getCommunityWorksheets = async (
     limit: number = 30, 
     search: string = '', 
     gradeFilter: string = 'all',
-    sort: string = 'newest'
+    sort: string = 'newest',
+    authorId?: string
 ): Promise<{ data: GeneratedWorksheet[], count: number, error: string | null }> => {
     try {
         let query = supabase
@@ -686,8 +734,12 @@ export const getCommunityWorksheets = async (
             .select('*', { count: 'exact' })
             .eq('is_public', true); 
 
+        if (authorId) {
+            query = query.eq('user_id', authorId);
+        }
+
         if (search) {
-            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%`);
+            query = query.or(`title.ilike.%${search}%,config->>topic.ilike.%${search}%,author_name.ilike.%${search}%`);
         }
 
         if (gradeFilter && gradeFilter !== 'all') {
@@ -710,7 +762,9 @@ export const getCommunityWorksheets = async (
         const mappedData = data.map((d: any) => ({
             id: d.id,
             title: d.title,
+            authorId: d.user_id,
             authorName: d.author_name,
+            authorAvatar: d.author_avatar || d.config?.authorAvatar,
             config: { ...d.config, isPublic: d.is_public },
             content: d.content,
             type: d.type,

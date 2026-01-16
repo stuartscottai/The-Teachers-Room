@@ -76,7 +76,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         const finalGame = {
             ...editedGame,
             sourceGameId: shouldClearSourceId ? undefined : editedGame.sourceGameId,
-            config: { ...editedGame.config, isPublic: nextPublic }
+            config: { ...editedGame.config, isPublic: nextPublic, authorAvatar: user.avatar || null }
         };
 
         // Async save with Author Name

@@ -26,6 +26,7 @@ export interface GameConfig {
   topic: string; // Still used for non-Jeopardy games
   isAI: boolean;
   isPublic?: boolean; // Visibility Flag
+  authorAvatar?: string | null; // Optional avatar URL for community display
   customInstructions?: string;
   files?: UploadedFile[]; // Source material
   // Jeopardy specific
@@ -95,7 +96,9 @@ export interface GeneratedGame {
   id?: string; // For saving
   createdAt?: string; // For saving
   title: string;
+  authorId?: string; // User ID for community filtering
   authorName?: string; // Display name of creator
+  authorAvatar?: string; // Optional avatar URL for creator
   sourceGameId?: string; // Optional origin for shared/remixed games (client-only)
   config: GameConfig;
   questions: GeneratedQuestion[]; // For standard games
@@ -138,6 +141,7 @@ export interface WorksheetConfig {
   infoTheme?: 'ocean' | 'sunset' | 'studio' | 'retro' | 'mint' | 'midnight' | 'crimson' | 'forest';
   activities: ActivityConfig[];
   isPublic?: boolean; // Visibility Flag
+  authorAvatar?: string | null; // Optional avatar URL for community display
   files?: UploadedFile[]; // Source material
   difficultyLevel?: 'easy' | 'medium' | 'hard' | 'mixed'; // Difficulty control
   generateAnswerKey?: boolean; // Answer key generation toggle
@@ -157,7 +161,9 @@ export interface GeneratedWorksheet {
   createdAt?: string;
   config?: WorksheetConfig;
   title: string;
+  authorId?: string;
   authorName?: string;
+  authorAvatar?: string;
   content: string; // HTML or structured text representation
   answerKey?: string | null; // Answer key content (HTML)
   type: string; // Helper for display (e.g. "Mixed", "Wordsearch")

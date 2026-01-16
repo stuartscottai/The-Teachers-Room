@@ -8,7 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ error: any }>;
   signup: (email: string, password: string, name: string) => Promise<{ error: any }>;
   logout: () => void;
-  updateUserProfile: (name: string) => Promise<{ error: any }>;
+  updateUserProfile: (updates: { name?: string; avatarUrl?: string | null }) => Promise<{ error: any }>;
   isLoading: boolean;
 }
 
@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: session.user.id,
             email: session.user.email || '',
             name: session.user.user_metadata?.full_name || 'Teacher',
-            avatar: session.user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.user_metadata?.full_name || 'T')}&background=FACC15&color=0F172A`
+            avatar: session.user.user_metadata?.avatar_url || undefined
           });
         }
       } catch (authError) {
@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: session.user.id,
           email: session.user.email || '',
           name: session.user.user_metadata?.full_name || 'Teacher',
-          avatar: session.user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(session.user.user_metadata?.full_name || 'T')}&background=FACC15&color=0F172A`
+          avatar: session.user.user_metadata?.avatar_url || undefined
         });
       } else {
         setUser(null);
@@ -81,8 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         options: {
             data: {
-                full_name: name,
-                avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=FACC15&color=0F172A`
+                full_name: name
             }
         }
     });
@@ -94,37 +93,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const updateUserProfile = async (name: string) => {
+  const updateUserProfile = async (updates: { name?: string; avatarUrl?: string | null }) => {
     if (!user) return { error: 'No user logged in' };
-    
-    // 1. Update Auth User Metadata (for session persistence)
-    const { error: authError } = await supabase.auth.updateUser({
-      data: { 
-        full_name: name,
-        avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=FACC15&color=0F172A`
-      }
-    });
 
-    if (authError) return { error: authError };
+    const authUpdates: { full_name?: string; avatar_url?: string | null } = {};
+    if (updates.name !== undefined) authUpdates.full_name = updates.name;
+    if (updates.avatarUrl !== undefined) authUpdates.avatar_url = updates.avatarUrl;
 
-    // 2. Update Profiles Table (for relational data)
-    const { error: dbError } = await supabase
-      .from('profiles')
-      .update({ 
-          full_name: name,
-          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=FACC15&color=0F172A`
-      })
-      .eq('id', user.id);
-    
-    if (dbError) return { error: dbError };
+    if (Object.keys(authUpdates).length > 0) {
+      const { error: authError } = await supabase.auth.updateUser({
+        data: authUpdates
+      });
 
-    // 3. Update Local State immediately
-    setUser(prev => prev ? ({ 
-        ...prev, 
-        name,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=FACC15&color=0F172A`
+      if (authError) return { error: authError };
+    }
+
+    const profileUpdates: { full_name?: string; avatar_url?: string | null } = {};
+    if (updates.name !== undefined) profileUpdates.full_name = updates.name;
+    if (updates.avatarUrl !== undefined) profileUpdates.avatar_url = updates.avatarUrl;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: dbError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', user.id);
+
+      if (dbError) return { error: dbError };
+    }
+
+    setUser(prev => prev ? ({
+        ...prev,
+        name: updates.name ?? prev.name,
+        avatar: updates.avatarUrl !== undefined ? (updates.avatarUrl || undefined) : prev.avatar
     }) : null);
-    
+
     return { error: null };
   };
 

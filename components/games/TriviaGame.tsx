@@ -106,6 +106,24 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const [isTimesUp, setIsTimesUp] = useState(false);
     const timerRef = useRef<any>(null);
 
+    const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
+    const isBonus = activeQ?.isBonus;
+    const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const optionKey = activeQ?.options?.join('|') || '';
+    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
+    const isNegativeBonus = activeQ?.bonusType === 'bust';
+    const bonusEffectText =
+        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
+        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
+        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
+    const bonusDetailText =
+        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
+        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
+        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
+    const timerProgress = options.timerSeconds > 0
+        ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
+        : 0;
+
     // BODY SCROLL LOCK
     useEffect(() => {
         const shouldLock = activeQuestionIndex !== null || isGameOver || editingTeamIndex !== null;
@@ -485,24 +503,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     };
 
     const stripOptionPrefix = (value: string) => value.replace(/^[A-D]\)\s*/i, '').trim();
-
-    const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
-    const isBonus = activeQ?.isBonus;
-    const hasOptions = activeQ?.options && activeQ.options.length > 0;
-    const optionKey = activeQ?.options?.join('|') || '';
-    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
-    const isNegativeBonus = activeQ?.bonusType === 'bust';
-    const bonusEffectText =
-        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
-        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
-        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
-    const bonusDetailText =
-        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
-        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
-        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
-    const timerProgress = options.timerSeconds > 0
-        ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
-        : 0;
 
     useLayoutEffect(() => {
         if (!activeQ || isBonus || isFlipped) {
