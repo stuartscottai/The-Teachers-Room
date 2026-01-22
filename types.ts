@@ -127,6 +127,18 @@ export interface ActivityConfig {
     mcCount?: 2 | 3 | 4; // For multiple choice options
     rows?: number; // For wordsearch/table
     cols?: number; // For wordsearch/table
+    allowDiagonals?: boolean; // For wordsearch
+    wordBank?: boolean; // For gap-fill
+    embedInStory?: boolean; // For story-based activities
+    useImages?: boolean; // Use image bank for wordsearch/matching
+    imageBank?: {
+      items: Array<{
+        id: string;
+        url: string;
+        thumbUrl?: string;
+        label: string;
+      }>;
+    };
   };
   customInstructions?: string;
 }
@@ -175,10 +187,12 @@ export interface WorksheetAiParts {
   mcq?: Array<{ q: string; options: string[] }>;
   wordSearch?: Array<{ grid: string[][]; words: string[] }>;
   matching?: Array<{ left: string; right: string }>;
-  sentenceTransform?: Array<{ prompt: string; answer?: string }>;
+  matchingMeta?: Array<{ title: string; instructions?: string }>;
+  sentenceTransform?: Array<{ prompt: string; keyword?: string; answer?: string }>;
   infoSections?: Array<{ title: string; bodyHtml: string }>;
-  custom?: Array<{ text: string }>;
+  custom?: Array<{ text?: string; html?: string }>;
   table?: { headers: string[]; rows: string[][] };
+  tables?: Array<{ headers: string[]; rows: string[][] }>;
   gapFill?: Array<{ sentence: string; answer: string }>;
   wordFormation?: Array<{ base: string; sentence: string; answer: string }>;
   openEnded?: Array<{ question: string; sampleAnswer?: string }>;

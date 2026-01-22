@@ -17,6 +17,8 @@ export const PagesCanvas: React.FC<{
     patch: Partial<WorksheetPlacedElement>,
     opts?: { skipHistory?: boolean }
   ) => void;
+  onLiveEdit?: (id: string, html: string, height?: number) => void;
+  onOpenStyleMenu?: (id: string, pos: { x: number; y: number }) => void;
   onAddPage?: () => void;
   editingElementId?: string | null;
   onStartEditing?: (id: string) => void;
@@ -32,6 +34,8 @@ export const PagesCanvas: React.FC<{
   selectedElementId,
   onSelectElementId,
   onCommitElement,
+  onLiveEdit,
+  onOpenStyleMenu,
   onAddPage,
   editingElementId,
   onStartEditing,
@@ -206,6 +210,8 @@ export const PagesCanvas: React.FC<{
                     onRequestEdit={() => onStartEditing?.(el.id)}
                     onStopEdit={() => onStopEditing?.()}
                     onCommit={(patch, opts) => onCommitElement(el.id, patch, opts)}
+                    onLiveEdit={onLiveEdit}
+                    onOpenStyleMenu={onOpenStyleMenu}
                     onGuidesChange={setGuidesForPage}
                     pageScale={scale}
                   />

@@ -14,6 +14,8 @@ export const sanitizeHtml = (html: string): string => {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['style', 'script'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseenter', 'onmouseover', 'style'],
+    // Allow safe image sources used in local uploads and previews.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|ftp|tel|data|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   });
 };
 
@@ -37,6 +39,33 @@ const toPlainText = (value: string): string => {
 
 const stripLeadingLabel = (value: string): string => {
   return value.replace(/^\s*([A-Za-z]|\d{1,2})\s*[\)\.\-:]\s*/g, '').trim();
+};
+
+type ImageBankItem = {
+  url: string;
+  thumbUrl?: string;
+  label: string;
+};
+
+const normalizeImageLabel = (value: string): string => value.toLowerCase().trim();
+
+const shouldProxyImageUrl = (value: string): boolean => /pixabay\.com/i.test(value);
+
+const resolveImageUrl = (value: string): string => {
+  if (!value) return '';
+  if (!shouldProxyImageUrl(value)) return value;
+  const cleaned = value.replace(/^https?:\/\//i, '');
+  return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}`;
+};
+
+const buildImageBankLookup = (items?: ImageBankItem[]) => {
+  const lookup = new Map<string, ImageBankItem>();
+  (items || []).forEach((item) => {
+    const key = normalizeImageLabel(String(item?.label || ''));
+    if (!key || !item?.url) return;
+    lookup.set(key, item);
+  });
+  return lookup;
 };
 
 const resolveMcqOptionLabelType = (note?: string): 'A' | '1' => {
@@ -84,32 +113,71 @@ export const wordSearchToHtml = (puzzle?: { grid: string[][]; words: string[] })
   );
 };
 
-export const wordSearchWordsToHtml = (words?: string[]): string => {
+export const wordSearchWordsToHtml = (words?: string[], imageBank?: ImageBankItem[]): string => {
   const safeWords = words ?? [];
-  const wordList = safeWords
+  const lookup = buildImageBankLookup(imageBank);
+  const cards = safeWords.map((w) => {
+    const label = toPlainText(String(w));
+    const key = normalizeImageLabel(label);
+    const img = lookup.get(key);
+    if (img) {
+      return `<div class="ws-wordsearch-word-card"><img class="ws-wordsearch-word-img" src="${escapeHtml(
+        resolveImageUrl(img.url)
+      )}" alt="${escapeHtml(label)}" /><div class="ws-wordsearch-word-label">${escapeHtml(label)}</div></div>`;
+    }
+    return `<div class="ws-wordsearch-word-card ws-wordsearch-word-card--text">${escapeHtml(label)}</div>`;
+  });
+
+  const listFallback = safeWords
     .map((w) => `<span class="ws-wordsearch-word">${escapeHtml(toPlainText(String(w)))}</span>`)
     .join(', ');
-  return sanitizeHtml(
-    `<div class="ws-wordsearch-words-box"><div class="ws-wordsearch-words"><strong>Words:</strong> ${wordList}</div></div>`
-  );
+
+  const bodyHtml = lookup.size
+    ? `<div class="ws-wordsearch-words-title"><strong>Words:</strong></div><div class="ws-wordsearch-words-grid">${cards.join(
+        ''
+      )}</div>`
+    : `<div class="ws-wordsearch-words"><strong>Words:</strong> ${listFallback}</div>`;
+
+  return sanitizeHtml(`<div class="ws-wordsearch-words-box">${bodyHtml}</div>`);
 };
 
-export const matchingToHtml = (items: WorksheetAiResultV1['matching']): string => {
+export const matchingToHtml = (
+  items: WorksheetAiResultV1['matching'],
+  opts?: { title?: string; instructions?: string; imageBank?: ImageBankItem[] }
+): string => {
   const safeItems = items ?? [];
+  const lookup = buildImageBankLookup(opts?.imageBank);
+  const renderCell = (value: string) => {
+    const label = toPlainText(value || '');
+    const key = normalizeImageLabel(label);
+    const img = lookup.get(key);
+    if (!img) return escapeHtml(label);
+    return `<div class="ws-matching-item"><img class="ws-matching-image" src="${escapeHtml(
+      resolveImageUrl(img.url)
+    )}" alt="${escapeHtml(label)}" /><div class="ws-matching-label">${escapeHtml(label)}</div></div>`;
+  };
   const rows = safeItems
     .map((item) => {
-      const left = escapeHtml(toPlainText(item?.left || ''));
-      const right = escapeHtml(toPlainText(item?.right || ''));
+      const left = renderCell(item?.left || '');
+      const right = renderCell(item?.right || '');
       return `<tr><td>${left}</td><td></td><td>${right}</td></tr>`;
     })
     .join('');
 
+  const title = escapeHtml(toPlainText(opts?.title || 'Match the pairs'));
+  const instructions = escapeHtml(
+    toPlainText(opts?.instructions || 'Draw lines or write the correct matches.')
+  );
+
   return sanitizeHtml(
-    `<div><h3>Matching</h3><table class="ws-matching-table"><tbody>${rows}</tbody></table></div>`
+    `<div><h3>${title}</h3><div class="ws-activity-instructions">${instructions}</div><table class="ws-matching-table"><tbody>${rows}</tbody></table></div>`
   );
 };
 
-export const gapFillToHtml = (items: WorksheetAiResultV1['gapFill']): string => {
+export const gapFillToHtml = (
+  items: WorksheetAiResultV1['gapFill'],
+  opts?: { wordBank?: string[] }
+): string => {
   const safeItems = items ?? [];
   const li = safeItems
     .map((item) => {
@@ -118,7 +186,14 @@ export const gapFillToHtml = (items: WorksheetAiResultV1['gapFill']): string => 
     })
     .join('');
 
-  return sanitizeHtml(`<div><h3>Gap Fill</h3><ol class="ws-gap-fill">${li}</ol></div>`);
+  const wordBankItems = (opts?.wordBank || []).filter(Boolean);
+  const wordBankHtml = wordBankItems.length
+    ? `<div class="ws-word-bank"><strong>Word bank:</strong> ${wordBankItems
+        .map((w) => `<span class="ws-word-bank-item">${escapeHtml(toPlainText(String(w)))}</span>`)
+        .join(', ')}</div>`
+    : '';
+
+  return sanitizeHtml(`<div><h3>Gap Fill</h3>${wordBankHtml}<ol class="ws-gap-fill">${li}</ol></div>`);
 };
 
 export const sentenceTransformToHtml = (items: WorksheetAiResultV1['sentenceTransform']): string => {
@@ -126,11 +201,15 @@ export const sentenceTransformToHtml = (items: WorksheetAiResultV1['sentenceTran
   const li = safeItems
     .map((item) => {
       const prompt = escapeHtml(toPlainText(item?.prompt || ''));
-      return `<li><div>${prompt}</div><div>________________________________</div></li>`;
+      const keyword = escapeHtml(toPlainText((item as any)?.keyword || ''));
+      const keywordHtml = keyword ? `<div class="ws-transform-keyword">${keyword}</div>` : '';
+      return `<li><div class="ws-transform-prompt">${prompt}</div>${keywordHtml}<div class="ws-transform-line">________________________________</div></li>`;
     })
     .join('');
 
-  return sanitizeHtml(`<div><h3>Sentence Transformation</h3><ol class="ws-sentence-transform">${li}</ol></div>`);
+  return sanitizeHtml(
+    `<div><h3>Sentence Transformation</h3><div class="ws-transform-instructions">Rewrite the sentence using the keyword. Do not change the keyword.</div><ol class="ws-sentence-transform">${li}</ol></div>`
+  );
 };
 
 export const wordFormationToHtml = (items: WorksheetAiResultV1['wordFormation']): string => {
@@ -161,7 +240,21 @@ export const openEndedToHtml = (items: WorksheetAiResultV1['openEnded']): string
 export const customToHtml = (items: WorksheetAiResultV1['custom']): string => {
   const safeItems = items ?? [];
   const blocks = safeItems
-    .map((item) => `<p>${escapeHtml(toPlainText(item?.text || ''))}</p>`)
+    .map((item) => {
+      const html = (item as any)?.html;
+      if (html) {
+        return String(html);
+      }
+      const raw = toPlainText((item as any)?.text || '');
+      const paragraphs = raw
+        .split(/\n{2,}/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+      if (paragraphs.length <= 1) {
+        return `<p>${escapeHtml(raw)}</p>`;
+      }
+      return paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
+    })
     .join('');
 
   return sanitizeHtml(`<div><h3>Custom</h3>${blocks}</div>`);
@@ -212,15 +305,21 @@ export const blockToElementHtml = (block: WorksheetBlock): string => {
   }
   if (block.type === 'wordsearch-words') {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
-    return wordSearchWordsToHtml(block.payload?.words ?? block.payload?.puzzle?.words ?? []);
+    const words = block.payload?.words ?? block.payload?.puzzle?.words ?? [];
+    const imageBank = block.payload?.imageBank?.items ?? block.payload?.imageBank;
+    return wordSearchWordsToHtml(words, imageBank);
   }
   if (block.type === 'matching') {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
-    return matchingToHtml(block.payload?.items ?? []);
+    return matchingToHtml(block.payload?.items ?? [], {
+      title: block.payload?.title,
+      instructions: block.payload?.instructions,
+      imageBank: block.payload?.imageBank?.items ?? block.payload?.imageBank,
+    });
   }
   if (block.type === 'gap-fill') {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
-    return gapFillToHtml(block.payload?.items ?? []);
+    return gapFillToHtml(block.payload?.items ?? [], { wordBank: block.payload?.wordBank });
   }
   if (block.type === 'sentence-transform') {
     if (block.payload?.html) return sanitizeHtml(String(block.payload.html));
@@ -409,6 +508,7 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   const mcqItems = Array.isArray(ai?.mcq) ? ai.mcq : [];
   const wordSearchItems = Array.isArray(ai?.wordSearch) ? ai.wordSearch : [];
   const matchingItems = Array.isArray(ai?.matching) ? ai.matching : [];
+  const matchingMeta = Array.isArray((ai as any)?.matchingMeta) ? (ai as any).matchingMeta : [];
   const gapFillItems = Array.isArray(ai?.gapFill) ? ai.gapFill : [];
   const sentenceTransformItems = Array.isArray(ai?.sentenceTransform) ? ai.sentenceTransform : [];
   const wordFormationItems = Array.isArray(ai?.wordFormation) ? ai.wordFormation : [];
@@ -417,25 +517,32 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   let mcqIndex = 0;
   let wordSearchIndex = 0;
   let matchingIndex = 0;
+  let matchingGroupIndex = 0;
   let gapFillIndex = 0;
   let sentenceTransformIndex = 0;
   let wordFormationIndex = 0;
   let openEndedIndex = 0;
   let infoSectionIndex = 0;
   let customIndex = 0;
-  let tableInserted = false;
+  const tableItems = Array.isArray(ai?.tables)
+    ? ai.tables
+    : ai?.table
+      ? [ai.table]
+      : [];
+  let tableIndex = 0;
 
   const maybeInsertTable = () => {
-    if (tableInserted) return;
-    if (ai?.table?.headers?.length || ai?.table?.rows?.length) {
+    const table = tableItems[tableIndex];
+    if (!table) return;
+    tableIndex += 1;
+    if (table?.headers?.length || table?.rows?.length) {
       blocks.push({
         id: createId(),
         type: 'table',
         title: 'Table',
-        payload: ai.table,
-        previewHtml: tableToHtml(ai.table),
+        payload: table,
+        previewHtml: tableToHtml(table),
       });
-      tableInserted = true;
     }
   };
 
@@ -467,6 +574,10 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         wordSearchIndex += 1;
         if (puzzle?.grid?.length) {
           const words = Array.isArray(puzzle.words) ? puzzle.words : [];
+          const imageBankItems =
+            act.options?.useImages && Array.isArray(act.options?.imageBank?.items)
+              ? act.options.imageBank.items
+              : [];
           blocks.push({
             id: createId(),
             type: 'wordsearch',
@@ -479,8 +590,11 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
               id: createId(),
               type: 'wordsearch-words',
               title: 'Wordsearch Words',
-              payload: { words },
-              previewHtml: wordSearchWordsToHtml(words),
+              payload: {
+                words,
+                ...(imageBankItems.length ? { imageBank: { items: imageBankItems } } : {}),
+              },
+              previewHtml: wordSearchWordsToHtml(words, imageBankItems),
             });
           }
         }
@@ -490,17 +604,28 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         const slice = matchingItems.slice(matchingIndex, matchingIndex + count);
         matchingIndex += slice.length;
         if (slice.length > 0) {
+          const meta = matchingMeta[matchingGroupIndex] || null;
+          matchingGroupIndex += 1;
+          const imageBankItems =
+            act.options?.useImages && Array.isArray(act.options?.imageBank?.items)
+              ? act.options.imageBank.items
+              : [];
           const first = slice[0];
           const preview = sanitizeHtml(
-            `<div><div style="font-weight:700;margin-bottom:6px;">Matching</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
+            `<div><div style="font-weight:700;margin-bottom:6px;">Match the pairs</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
               `${toPlainText(first?.left ?? '')} -> ${toPlainText(first?.right ?? '')}`
             )}</div></div>`
           );
           blocks.push({
             id: createId(),
             type: 'matching',
-            title: `Matching (${slice.length})`,
-            payload: { items: slice },
+            title: meta?.title || `Pairs (${slice.length})`,
+            payload: {
+              items: slice,
+              ...(meta?.title ? { title: meta.title } : {}),
+              ...(meta?.instructions ? { instructions: meta.instructions } : {}),
+              ...(imageBankItems.length ? { imageBank: { items: imageBankItems } } : {}),
+            },
             previewHtml: preview,
           });
         }
@@ -510,6 +635,12 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         const slice = gapFillItems.slice(gapFillIndex, gapFillIndex + count);
         gapFillIndex += slice.length;
         if (slice.length > 0) {
+          const wordBank = act.options?.wordBank
+            ? Array.from(new Set(slice.map((item) => toPlainText(item?.answer || '')).filter(Boolean)))
+            : undefined;
+          if (act.contextType === 'text' && act.options?.embedInStory) {
+            return;
+          }
           const first = slice[0];
           const preview = sanitizeHtml(
             `<div><div style="font-weight:700;margin-bottom:6px;">Gap Fill</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
@@ -520,7 +651,7 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
             id: createId(),
             type: 'gap-fill',
             title: `Gap Fill (${slice.length})`,
-            payload: { items: slice },
+            payload: { items: slice, ...(wordBank ? { wordBank } : {}) },
             previewHtml: preview,
           });
         }
@@ -550,6 +681,9 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         const slice = wordFormationItems.slice(wordFormationIndex, wordFormationIndex + count);
         wordFormationIndex += slice.length;
         if (slice.length > 0) {
+          if (act.contextType === 'text' && (act.options?.embedInStory ?? true)) {
+            return;
+          }
           const first = slice[0];
           const previewText = toPlainText(first?.sentence || first?.base || '');
           const preview = sanitizeHtml(
@@ -599,9 +733,11 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         const item = customItems[customIndex];
         customIndex += 1;
         if (item) {
+          const html = (item as any)?.html;
+          const previewSource = html ? toPlainText(String(html)) : toPlainText(item?.text ?? '');
           const preview = sanitizeHtml(
             `<div><div style="font-weight:700;margin-bottom:6px;">Custom</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
-              toPlainText(item?.text ?? '')
+              previewSource
             )}</div></div>`
           );
           blocks.push({
@@ -658,16 +794,21 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
     }
     if (matchingItems.length > 0) {
       const first = matchingItems[0];
+      const meta = matchingMeta[0] || null;
       const preview = sanitizeHtml(
-        `<div><div style="font-weight:700;margin-bottom:6px;">Matching</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
+        `<div><div style="font-weight:700;margin-bottom:6px;">Match the pairs</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
           `${toPlainText(first?.left ?? '')} -> ${toPlainText(first?.right ?? '')}`
         )}</div></div>`
       );
       blocks.push({
         id: createId(),
         type: 'matching',
-        title: `Matching (${matchingItems.length})`,
-        payload: { items: matchingItems },
+        title: meta?.title || `Pairs (${matchingItems.length})`,
+        payload: {
+          items: matchingItems,
+          ...(meta?.title ? { title: meta.title } : {}),
+          ...(meta?.instructions ? { instructions: meta.instructions } : {}),
+        },
         previewHtml: preview,
       });
     }
@@ -737,9 +878,11 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
     }
     if (customItems.length > 0) {
       const first = customItems[0];
+      const html = (first as any)?.html;
+      const previewSource = html ? toPlainText(String(html)) : toPlainText(first?.text ?? '');
       const preview = sanitizeHtml(
         `<div><div style="font-weight:700;margin-bottom:6px;">Custom</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
-          toPlainText(first?.text ?? '')
+          previewSource
         )}</div></div>`
       );
       blocks.push({
@@ -750,13 +893,16 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
         previewHtml: preview,
       });
     }
-    if (ai?.table?.headers?.length || ai?.table?.rows?.length) {
-      blocks.push({
-        id: createId(),
-        type: 'table',
-        title: 'Table',
-        payload: ai.table,
-        previewHtml: tableToHtml(ai.table),
+    if (tableItems.length > 0) {
+      tableItems.forEach((table) => {
+        if (!table?.headers?.length && !table?.rows?.length) return;
+        blocks.push({
+          id: createId(),
+          type: 'table',
+          title: 'Table',
+          payload: table,
+          previewHtml: tableToHtml(table),
+        });
       });
     }
   }

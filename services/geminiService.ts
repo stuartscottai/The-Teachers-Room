@@ -444,12 +444,12 @@ RULES:
 4. All non-HTML text fields must be plain text only (no HTML tags or entities).
 5. mcq must contain clear questions and answer options appropriate for the grade level.
 6. wordSearch items use { grid, words } where grid is rows x cols of single letters and words lists the target words.
-7. matching items use { left, right } pairs.
+7. matching items use { left, right } pairs. If matching is requested, also include matchingMeta (one per matching activity) with { title, instructions? }.
 8. gapFill items use { sentence, answer } where sentence includes a "_____" blank.
-9. sentenceTransform items use { prompt, answer? }.
+9. sentenceTransform items use { prompt, keyword?, answer? }.
 10. wordFormation items use { base, sentence, answer } where sentence includes a "_____" blank.
 11. openEnded items use { question, sampleAnswer? }.
-12. custom items use { text }.
+12. custom items use { text, html? } where html (if provided) is safe, simple HTML (same rules as storyHtml).
 13. answerKeyHtml (if requested) must be safe, simple HTML (use <div>, <h3>, <p>, <ol>, <ul>, <li>, <strong>, <em>, <br>).
 14. table should match the requested activity types and fit on an A4 page when possible.
 15. infoSections items use { title, bodyHtml } with safe HTML in bodyHtml (use <p>, <strong>, <em>, <u>, <ul>, <ol>, <li>, <br>, <h3>).
@@ -468,7 +468,8 @@ RULES:
   const customActivities = activities.filter((a) => a.type === 'custom');
   const tableActivities = activities.filter((a) => a.type === 'table');
   const wantsStory = activities.some(
-    (a) => ['gap-fill', 'word-formation', 'multiple-choice'].includes(a.type) && a.contextType === 'text'
+    (a) =>
+      ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(a.type) && a.contextType === 'text'
   );
   const wantsMcq = mcqActivities.length > 0;
   const wantsWordSearch = wordSearchActivities.length > 0;
@@ -481,6 +482,7 @@ RULES:
   const wantsCustom = customActivities.length > 0;
   const wantsTable = tableActivities.length > 0;
   const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.some((a) => a.type !== 'information-sheet');
+  const multipleTablesRequested = tableActivities.length > 1;
 
   const mcqCount = mcqActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const wordSearchCount = wordSearchActivities.length;
@@ -491,6 +493,10 @@ RULES:
   const openEndedCount = openEndedActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const infoSectionCount = infoSheetActivities.reduce((sum, a) => sum + (a.count || 0), 0);
   const customCount = customActivities.length;
+  const gapFillEmbedInStory = gapFillActivities.some((a) => a.contextType === 'text' && a.options?.embedInStory);
+  const wordFormationEmbedInStory = wordFormationActivities.some(
+    (a) => a.contextType === 'text' && (a.options?.embedInStory ?? true)
+  );
   const formatActivityNotes = (note?: string) => {
     const trimmed = (note || '').trim();
     return trimmed ? ` notes: ${trimmed}` : '';
@@ -508,6 +514,20 @@ RULES:
     const rows = Math.max(2, Math.floor(activity?.options?.rows ?? fallback.rows));
     const cols = Math.max(2, Math.floor(activity?.options?.cols ?? fallback.cols));
     return { rows, cols };
+  };
+
+  const getImageBankLabels = (activity: any): string[] => {
+    if (!activity?.options?.useImages) return [];
+    const items = Array.isArray(activity?.options?.imageBank?.items)
+      ? activity.options.imageBank.items
+      : [];
+    return items.map((item: any) => String(item?.label || '').trim()).filter(Boolean);
+  };
+
+  const formatImageBankNote = (activity: any): string => {
+    const labels = getImageBankLabels(activity);
+    if (labels.length === 0) return '';
+    return `, image labels: ${JSON.stringify(labels)}`;
   };
 
   const tableActivitySummary = tableActivities
@@ -542,16 +562,20 @@ RULES:
         contextNote = `, context: ${context}`;
       } else if (a.type === 'multiple-choice' && a.contextType === 'text') {
         contextNote = ', context: story';
+      } else if (a.type === 'open-ended' && a.contextType === 'text') {
+        contextNote = ', context: story';
       }
       const optionsNote = a.type === 'multiple-choice' ? `, options: ${clampMcCount(a.options?.mcCount)}` : '';
       const gridNote =
         a.type === 'wordsearch' || a.type === 'table'
           ? (() => {
               const spec = getGridSpec(a, a.type === 'wordsearch' ? { rows: 10, cols: 10 } : { rows: 4, cols: 3 });
-              return `, size: ${spec.rows}x${spec.cols}`;
+              const diagonalNote = a.type === 'wordsearch' ? `, diagonals: ${a.options?.allowDiagonals ? 'yes' : 'no'}` : '';
+              return `, size: ${spec.rows}x${spec.cols}${diagonalNote}`;
             })()
           : '';
-      return `${idx + 1}. ${a.type} (${activityCount}${countSuffix}${contextNote}${optionsNote}${gridNote})${formatActivityNotes(
+      const imageNote = ['wordsearch', 'matching'].includes(a.type) ? formatImageBankNote(a) : '';
+      return `${idx + 1}. ${a.type} (${activityCount}${countSuffix}${contextNote}${optionsNote}${gridNote}${imageNote})${formatActivityNotes(
         a.customInstructions
       )}`;
     })
@@ -592,11 +616,16 @@ RULES:
         wordSearchActivities
           .map((a) => {
             const spec = getGridSpec(a, { rows: 10, cols: 10 });
-            return `  - ${spec.rows}x${spec.cols}, ${a.count || 0} words${formatActivityNotes(a.customInstructions)}`;
+            const diagonalNote = a.options?.allowDiagonals ? 'allow diagonals' : 'no diagonals';
+            const imageNote = formatImageBankNote(a);
+            return `  - ${spec.rows}x${spec.cols}, ${a.count || 0} words, ${diagonalNote}${imageNote}${formatActivityNotes(
+              a.customInstructions
+            )}`;
           })
           .join('\n')
     );
     requestedBlocks.push('  If notes include a word list, use it. Otherwise, generate words to match the requested count.');
+    requestedBlocks.push('  If image labels are provided for a wordsearch, use those labels as the word list exactly (no extra words, no edits).');
   }
   if (wantsMatching) {
     requestedBlocks.push(
@@ -605,10 +634,12 @@ RULES:
     requestedBlocks.push(
       '  Matching groups (count + notes):\n' +
         matchingActivities
-          .map((a) => `  - ${a.count || 0} pairs${formatActivityNotes(a.customInstructions)}`)
+          .map((a) => `  - ${a.count || 0} pairs${formatImageBankNote(a)}${formatActivityNotes(a.customInstructions)}`)
           .join('\n')
     );
     requestedBlocks.push('  Matching is rendered as a 3-column table (left item, blank middle, right item). Provide left/right pairs only.');
+    requestedBlocks.push('  Also provide matchingMeta: one short title + 1-line instruction per matching group, in the same order.');
+    requestedBlocks.push('  If image labels are provided for matching, use those labels as the LEFT items exactly (no edits).');
   }
   if (wantsGapFill) {
     requestedBlocks.push(
@@ -619,7 +650,11 @@ RULES:
         gapFillActivities
           .map((a) => {
             const context = a.contextType === 'text' ? 'story' : 'sentences';
-            return `  - ${a.count || 0} items (${context})${formatActivityNotes(a.customInstructions)}`;
+            const wordBankNote = a.options?.wordBank ? ', include word bank' : '';
+            const embedNote = a.options?.embedInStory ? ', embed gaps in storyHtml' : '';
+            return `  - ${a.count || 0} items (${context})${wordBankNote}${embedNote}${formatActivityNotes(
+              a.customInstructions
+            )}`;
           })
           .join('\n')
     );
@@ -644,7 +679,11 @@ RULES:
         wordFormationActivities
           .map((a) => {
             const context = a.contextType === 'text' ? 'story' : 'sentences';
-            return `  - ${a.count || 0} items (${context})${formatActivityNotes(a.customInstructions)}`;
+            const embedNote =
+              a.contextType === 'text' && (a.options?.embedInStory ?? true)
+                ? ', embed gaps in storyHtml with base words in brackets'
+                : '';
+            return `  - ${a.count || 0} items (${context})${embedNote}${formatActivityNotes(a.customInstructions)}`;
           })
           .join('\n')
     );
@@ -657,7 +696,9 @@ RULES:
       '  Open Ended groups (count + notes):\n' +
         openEndedActivities
           .map((a) => {
-            return `  - ${a.count || 0} questions${formatActivityNotes(a.customInstructions)}`;
+            const context = a.contextType === 'text' ? 'story' : 'questions';
+            const contextNote = a.contextType ? ` (${context})` : '';
+            return `  - ${a.count || 0} questions${contextNote}${formatActivityNotes(a.customInstructions)}`;
           })
           .join('\n')
     );
@@ -687,15 +728,31 @@ RULES:
           })
           .join('\n')
     );
+    requestedBlocks.push('  For custom outputs, use multiple short paragraphs or bullets. If formatting is needed, return custom.html with safe HTML.');
   }
   if (wantsTable) {
-    const activityLine = tableActivitySummary
-      ? `- table: Create a table with the specified size(s): ${tableActivitySummary}. Use the first size if multiple are listed.`
-      : '- table: Create a table with the requested rows/columns.';
-    requestedBlocks.push(activityLine);
-    if (tableActivities[0]) {
-      const spec = getGridSpec(tableActivities[0], { rows: 4, cols: 3 });
-      requestedBlocks.push(`  Use exactly ${spec.rows} body rows and ${spec.cols} columns (headers length must equal columns).`);
+    if (multipleTablesRequested) {
+      requestedBlocks.push(
+        `- tables: Create ${tableActivities.length} tables (one per table activity) in the same order as listed above.`
+      );
+      requestedBlocks.push(
+        '  Table specs (rows x cols, notes):\n' +
+          tableActivities
+            .map((a) => {
+              const spec = getGridSpec(a, { rows: 4, cols: 3 });
+              return `  - ${spec.rows}x${spec.cols}${formatActivityNotes(a.customInstructions)}`;
+            })
+            .join('\n')
+      );
+    } else {
+      const activityLine = tableActivitySummary
+        ? `- table: Create a table with the specified size(s): ${tableActivitySummary}.`
+        : '- table: Create a table with the requested rows/columns.';
+      requestedBlocks.push(activityLine);
+      if (tableActivities[0]) {
+        const spec = getGridSpec(tableActivities[0], { rows: 4, cols: 3 });
+        requestedBlocks.push(`  Use exactly ${spec.rows} body rows and ${spec.cols} columns (headers length must equal columns).`);
+      }
     }
   }
   if (wantsAnswerKey) {
@@ -722,6 +779,18 @@ ${activityOrder ? `Activities (in order):\n${activityOrder}\n` : ''}
 Requested Blocks:
 ${requestedBlocks.join('\n')}
 
+${gapFillEmbedInStory
+  ? 'Gap Fill embedded-story mode: storyHtml must include the gap-fill blanks (use "_____"). Still return gapFill items for answer keys, but do not repeat the questions inside the story.\n'
+  : ''}
+${wordFormationEmbedInStory
+  ? 'Word Formation embedded-story mode: storyHtml must include blanks with base words in brackets after each blank, e.g., "The _____ (decide)..." Still return wordFormation items for answer keys.\n'
+  : ''}
+${wordFormationActivities.length > 0
+  ? 'Word Formation variety: include a mix of nouns, verbs, adjectives, and adverbs unless instructions specify otherwise.\n'
+  : ''}
+${sentenceTransformActivities.length > 0
+  ? 'Sentence Transform format: include a single KEYWORD for each prompt (1-2 words, uppercase) to guide the transformation.\n'
+  : ''}
 Only include fields for the requested blocks. Do not include extra fields.
 
 If source files are attached, base requested content on those documents instead of inventing unrelated facts.
@@ -801,6 +870,17 @@ If source files are attached, base requested content on those documents instead 
                       },
                       required: ["left", "right"]
                     }
+                  },
+                  matchingMeta: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        title: { type: Type.STRING },
+                        instructions: { type: Type.STRING }
+                      },
+                      required: ["title"]
+                    }
                   }
                 }
               : {}),
@@ -827,6 +907,7 @@ If source files are attached, base requested content on those documents instead 
                       type: Type.OBJECT,
                       properties: {
                         prompt: { type: Type.STRING },
+                        keyword: { type: Type.STRING },
                         answer: { type: Type.STRING }
                       },
                       required: ["prompt"]
@@ -887,24 +968,39 @@ If source files are attached, base requested content on those documents instead 
                     items: {
                       type: Type.OBJECT,
                       properties: {
-                        text: { type: Type.STRING }
+                        text: { type: Type.STRING },
+                        html: { type: Type.STRING }
                       },
-                      required: ["text"]
+                      required: []
                     }
                   }
                 }
               : {}),
             ...(wantsTable
-              ? {
-                  table: {
-                    type: Type.OBJECT,
-                    properties: {
-                      headers: { type: Type.ARRAY, items: { type: Type.STRING } },
-                      rows: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.STRING } } }
-                    },
-                    required: ["headers", "rows"]
+              ? multipleTablesRequested
+                ? {
+                    tables: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          headers: { type: Type.ARRAY, items: { type: Type.STRING } },
+                          rows: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.STRING } } }
+                        },
+                        required: ["headers", "rows"]
+                      }
+                    }
                   }
-                }
+                : {
+                    table: {
+                      type: Type.OBJECT,
+                      properties: {
+                        headers: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        rows: { type: Type.ARRAY, items: { type: Type.ARRAY, items: { type: Type.STRING } } }
+                      },
+                      required: ["headers", "rows"]
+                    }
+                  }
               : {}),
             ...(wantsAnswerKey ? { answerKeyHtml: { type: Type.STRING } } : {})
           },
@@ -920,7 +1016,7 @@ If source files are attached, base requested content on those documents instead 
             ...(wantsOpenEnded ? ["openEnded"] : []),
             ...(wantsInfoSheet ? ["infoSections"] : []),
             ...(wantsCustom ? ["custom"] : []),
-            ...(wantsTable ? ["table"] : []),
+            ...(wantsTable ? (multipleTablesRequested ? ["tables"] : ["table"]) : []),
             ...(wantsAnswerKey ? ["answerKeyHtml"] : [])
           ]
         }

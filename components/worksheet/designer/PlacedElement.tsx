@@ -17,6 +17,8 @@ type PlacedElementProps = {
   onStopEdit: () => void;
   onCommit: (patch: CommitPatch, opts?: { skipHistory?: boolean }) => void;
   onGuidesChange?: (pageId: string, guides: CanvasGuides) => void;
+  onLiveEdit?: (id: string, html: string, height?: number) => void;
+  onOpenStyleMenu?: (id: string, pos: { x: number; y: number }) => void;
   pageScale?: number;
 };
 
@@ -30,17 +32,34 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
   onStopEdit,
   onCommit,
   onGuidesChange,
+  onLiveEdit,
+  onOpenStyleMenu,
   pageScale = 1,
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastTapRef = useRef<{ t: number; x: number; y: number } | null>(null);
-  const downRef = useRef<{ x: number; y: number } | null>(null);
+  const downRef = useRef<{ x: number; y: number; wasSelected: boolean } | null>(null);
   const lastAutoFitKeyRef = useRef<string>('');
   const lastImageFitKeyRef = useRef<string>('');
   const suppressDragRef = useRef(false);
+  const dragPageRef = useRef<HTMLElement | null>(null);
   const requestEditRef = useRef<() => void>(() => {});
+  const wasSelectedRef = useRef(false);
+  const inputFrameRef = useRef<number | null>(null);
+  const lastInputRef = useRef<{ html: string; height: number } | null>(null);
   const scale = Math.max(0.1, pageScale || 1);
+
+  const elementKind = (() => {
+    const html = element.html || '';
+    if (html.includes('ws-info-header')) return 'info-header';
+    if (html.includes('ws-info-card')) return 'info';
+    return '';
+  })();
+
+  useEffect(() => {
+    wasSelectedRef.current = selected;
+  }, [selected]);
 
   const requestEdit = () => {
     if (editing) return;
@@ -57,6 +76,30 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
     const borderStyle = s.borderStyle && s.borderStyle !== 'none' ? s.borderStyle : 'none';
     const borderWidth = borderStyle === 'none' ? '0px' : s.borderWidth || '1px';
     const borderColor = s.borderColor || '#e2e8f0';
+    const cssVars: React.CSSProperties = {};
+    if (elementKind === 'info-header') {
+      if (s.backgroundColor && s.backgroundColor !== 'transparent') {
+        (cssVars as any)['--ws-info-header-from'] = s.backgroundColor;
+        (cssVars as any)['--ws-info-header-to'] = s.backgroundColor;
+      }
+      if (s.color) {
+        (cssVars as any)['--ws-info-header-ink'] = s.color;
+      }
+    }
+    if (elementKind === 'info') {
+      if (s.backgroundColor && s.backgroundColor !== 'transparent') {
+        (cssVars as any)['--ws-info-card-bg'] = s.backgroundColor;
+        (cssVars as any)['--ws-info-card-from'] = s.backgroundColor;
+        (cssVars as any)['--ws-info-card-to'] = s.backgroundColor;
+      }
+      if (s.borderColor) {
+        (cssVars as any)['--ws-info-card-border'] = s.borderColor;
+      }
+      if (s.color) {
+        (cssVars as any)['--ws-info-ink'] = s.color;
+        (cssVars as any)['--ws-info-title'] = s.color;
+      }
+    }
     return {
       width: `${element.w}px`,
       height: `${element.h}px`,
@@ -74,8 +117,9 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
       userSelect: editing ? 'text' : 'none',
       zIndex: selected ? 50 : 10,
       cursor: editing ? 'text' : 'grab',
+      ...cssVars,
     };
-  }, [editing, element.h, element.styles, element.w, element.x, element.y, selected]);
+  }, [editing, element.h, element.styles, element.w, element.x, element.y, elementKind, selected]);
 
   const contentStyle = useMemo<React.CSSProperties>(() => {
     const s = element.styles || {};
@@ -96,6 +140,23 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
       overflow: 'hidden',
     };
   }, [element.styles, element.type]);
+
+  const handleLiveInput = () => {
+    if (!editing) return;
+    const content = contentRef.current;
+    if (!content) return;
+    lastInputRef.current = {
+      html: content.innerHTML || '',
+      height: content.scrollHeight || 0,
+    };
+    if (inputFrameRef.current) return;
+    inputFrameRef.current = window.requestAnimationFrame(() => {
+      inputFrameRef.current = null;
+      const payload = lastInputRef.current;
+      if (!payload) return;
+      onLiveEdit?.(element.id, payload.html, payload.height);
+    });
+  };
 
   useEffect(() => {
     if (editing) return;
@@ -170,11 +231,20 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
     const elevate = (target: HTMLElement) => {
       target.style.willChange = 'transform';
       target.style.zIndex = '200';
+      const page = target.closest('.ws-page') as HTMLElement | null;
+      if (page) {
+        dragPageRef.current = page;
+        page.style.zIndex = '500';
+      }
     };
 
     const unelevate = (target: HTMLElement) => {
       target.style.willChange = '';
       target.style.zIndex = '';
+      if (dragPageRef.current) {
+        dragPageRef.current.style.zIndex = '';
+        dragPageRef.current = null;
+      }
     };
 
     const interactable = interact(el);
@@ -345,13 +415,6 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
   }, [editing, element.h, element.w, onCommit, pageScale]);
 
   const isActive = selected || editing;
-  const elementKind = (() => {
-    const html = element.html || '';
-    if (html.includes('ws-info-header')) return 'info-header';
-    if (html.includes('ws-info-card')) return 'info';
-    return '';
-  })();
-
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -396,9 +459,14 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
           requestEdit();
         }
       }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenStyleMenu?.(element.id, { x: e.clientX, y: e.clientY });
+      }}
       onPointerDown={(e) => {
         // Reliable double-click / double-tap detection (React dblclick can be flaky with pointer-based dragging).
-        downRef.current = { x: e.clientX, y: e.clientY };
+        downRef.current = { x: e.clientX, y: e.clientY, wasSelected: wasSelectedRef.current };
       }}
       onDoubleClick={(e) => {
         if (editing) return;
@@ -429,6 +497,13 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
           e.stopPropagation();
           suppressDragRef.current = true;
           requestEdit();
+          return;
+        }
+
+        if (down.wasSelected) {
+          e.preventDefault();
+          e.stopPropagation();
+          requestEdit();
         }
       }}
       data-element-id={element.id}
@@ -441,6 +516,7 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
         style={contentStyle}
         contentEditable={editing}
         suppressContentEditableWarning={true}
+        onInput={handleLiveInput}
         onBlur={() => {
           const raw = contentRef.current?.innerHTML ?? '';
           if (editing) {
@@ -473,6 +549,11 @@ const PlacedElementImpl: React.FC<PlacedElementProps> = ({
             onCommit({ html: safe, h: nextH < element.h - 12 ? nextH : element.h });
             onStopEdit();
             (rootRef.current as HTMLElement | null)?.focus?.();
+            return;
+          }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            document.execCommand('insertText', false, '     ');
           }
         }}
         dangerouslySetInnerHTML={{ __html: element.html }}

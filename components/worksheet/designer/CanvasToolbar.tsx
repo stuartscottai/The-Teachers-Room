@@ -58,6 +58,10 @@ export const CanvasToolbar: React.FC<{
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  onCopyStyles?: () => void;
+  onPasteStyles?: () => void;
+  onPasteStylesAll?: () => void;
+  canPasteStyles?: boolean;
 }> = ({
   selected,
   editing,
@@ -73,6 +77,10 @@ export const CanvasToolbar: React.FC<{
   onRedo,
   canUndo,
   canRedo,
+  onCopyStyles,
+  onPasteStyles,
+  onPasteStylesAll,
+  canPasteStyles,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -343,6 +351,45 @@ export const CanvasToolbar: React.FC<{
           >
             Edit
           </button>
+
+          {onCopyStyles && (
+            <button
+              type="button"
+              onClick={onCopyStyles}
+              className="px-3 py-2 rounded-xl text-xs font-extrabold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+              title="Copy style"
+            >
+              Copy Style
+            </button>
+          )}
+
+          {onPasteStyles && (
+            <button
+              type="button"
+              onClick={onPasteStyles}
+              className={`px-3 py-2 rounded-xl text-xs font-extrabold border border-slate-200 bg-white text-slate-700 ${
+                canPasteStyles ? 'hover:bg-slate-50' : 'opacity-50 cursor-not-allowed'
+              }`}
+              title="Paste style to this section"
+              disabled={!canPasteStyles}
+            >
+              Paste Style
+            </button>
+          )}
+
+          {onPasteStylesAll && (
+            <button
+              type="button"
+              onClick={onPasteStylesAll}
+              className={`px-3 py-2 rounded-xl text-xs font-extrabold border border-slate-200 bg-white text-slate-700 ${
+                canPasteStyles ? 'hover:bg-slate-50' : 'opacity-50 cursor-not-allowed'
+              }`}
+              title="Paste style to all sections"
+              disabled={!canPasteStyles}
+            >
+              Paste All
+            </button>
+          )}
 
           {onSendToTray && (
             <button

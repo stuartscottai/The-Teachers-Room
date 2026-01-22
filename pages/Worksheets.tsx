@@ -9,9 +9,12 @@ import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCo
 import { optimizeImageForUpload } from '../utils/imageOptimize';
 import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
 import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
-import { blocksFromAi, imageToHtml, sanitizeHtml } from '../components/worksheet/designer/designerHelpers';
+import { blocksFromAi, blockToElementHtml, imageToHtml, sanitizeHtml } from '../components/worksheet/designer/designerHelpers';
 import { WorksheetAiResultV1, WorksheetDesignerDocV1, WorksheetDesignerSettings, createEmptyDoc, tryParseDesignerDoc, WorksheetBlock, WorksheetDesignerPage, WorksheetPlacedElement, createId } from '../components/worksheet/designer/designerTypes';
 import { Avatar } from '../components/Avatar';
+import { StockImagePicker, StockImageSelection } from '../components/worksheet/StockImagePicker';
+import { searchStockImages } from '../services/stockImageService';
+import { generateWordSearchPuzzle } from '../utils/wordsearchGenerator';
 
 // --- TIPTAP EDITOR STYLESHEET ---
 const TIPTAP_EDITOR_CSS = `
@@ -737,6 +740,7 @@ const WorksheetBuilder: React.FC<{
     const [mobileTab, setMobileTab] = useState<'config' | 'canvas' | 'tools'>('config');
     const [isMobile, setIsMobile] = useState(false);
     const [infoLayoutKey, setInfoLayoutKey] = useState<string | null>(null);
+    const [autoLayoutKey, setAutoLayoutKey] = useState<string | null>(null);
 
     // --- NEW DESIGNER STATE ---
     const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
@@ -785,6 +789,11 @@ const WorksheetBuilder: React.FC<{
     const [logoStoragePath, setLogoStoragePath] = useState<string | null>(null);
     const [logoSelected, setLogoSelected] = useState(false);
     const imageInputRef = useRef<HTMLInputElement | null>(null);
+    const [imagePickerOpen, setImagePickerOpen] = useState(false);
+    const [imagePickerMode, setImagePickerMode] = useState<'single' | 'multi'>('single');
+    const [imagePickerTarget, setImagePickerTarget] = useState<{ type: 'add-image' | 'wordsearch' | 'matching'; activityId?: string } | null>(null);
+    const [imagePickerSelection, setImagePickerSelection] = useState<StockImageSelection[]>([]);
+    const [imagePickerQuery, setImagePickerQuery] = useState('');
     const [isDraggingLogo, setIsDraggingLogo] = useState(false);
     const logoDragOffset = useRef({ x: 0, y: 0 });
     const [isResizingLogo, setIsResizingLogo] = useState(false);
@@ -922,14 +931,27 @@ const WorksheetBuilder: React.FC<{
                     id: `logo-${createId()}`,
                     type: 'image',
                     title: 'Logo',
-                    payload: { url: logoUrl, kind: 'logo' },
-                    previewHtml: imageToHtml(logoUrl),
+                    payload: { url: logoUrl, kind: 'logo', storagePath: logoStoragePath || undefined },
+                    previewHtml: imageToHtml(logoUrl, logoStoragePath || undefined, 'logo'),
                 } as WorksheetBlock,
                 ...without,
             ];
         });
         onDirtyChange?.(true);
-    }, [logoUrl, onDirtyChange]);
+    }, [logoStoragePath, logoUrl, onDirtyChange, setBlocks]);
+
+    useEffect(() => {
+        if (!logoUrl) return;
+        setElements((prev) =>
+            prev.map((el) => {
+                if (el.type !== 'image' || !el.html?.includes('data-kind="logo"')) return el;
+                return {
+                    ...el,
+                    html: imageToHtml(logoUrl, logoStoragePath || undefined, 'logo'),
+                };
+            })
+        );
+    }, [logoStoragePath, logoUrl, setElements]);
 
     useEffect(() => {
         const pending = pendingLogoUploadRef.current;
@@ -1242,8 +1264,26 @@ const WorksheetBuilder: React.FC<{
         e.target.value = '';
     };
 
+    const openImagePicker = (opts: {
+        mode: 'single' | 'multi';
+        target: { type: 'add-image' | 'wordsearch' | 'matching'; activityId?: string };
+        selection?: StockImageSelection[];
+        query?: string;
+    }) => {
+        setImagePickerMode(opts.mode);
+        setImagePickerTarget(opts.target);
+        setImagePickerSelection(opts.selection || []);
+        setImagePickerQuery(opts.query || '');
+        setImagePickerOpen(true);
+    };
+
     const handleAddImageClick = () => {
-        imageInputRef.current?.click();
+        openImagePicker({
+            mode: 'single',
+            target: { type: 'add-image' },
+            selection: [],
+            query: config.topic || '',
+        });
     };
 
     const addImageBlock = useCallback((url: string, storagePath?: string) => {
@@ -1259,6 +1299,37 @@ const WorksheetBuilder: React.FC<{
         ]);
         onDirtyChange?.(true);
     }, [onDirtyChange, setBlocks]);
+
+    const handleImagePickerClose = () => {
+        setImagePickerOpen(false);
+        setImagePickerTarget(null);
+    };
+
+    const handleImagePickerConfirm = (selection: StockImageSelection[]) => {
+        const target = imagePickerTarget;
+        if (!target) {
+            setImagePickerOpen(false);
+            return;
+        }
+        if (target.type === 'add-image') {
+            const first = selection[0];
+            if (first) addImageBlock(first.url);
+        } else if (target.activityId) {
+            const nextCount = selection.length;
+            updateActivityOptions(target.activityId, {
+                imageBank: { items: selection },
+                useImages: nextCount > 0,
+            });
+            if (nextCount > 0 && ['wordsearch', 'matching'].includes(target.type)) {
+                updateActivityCount(target.activityId, nextCount);
+            }
+            if (['wordsearch', 'matching'].includes(target.type)) {
+                syncImageBankForActivity(target.activityId, target.type, selection);
+            }
+        }
+        setImagePickerOpen(false);
+        setImagePickerTarget(null);
+    };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -1408,7 +1479,7 @@ const WorksheetBuilder: React.FC<{
 
     // Activity Management
     const addActivity = (type: ActivityType) => {
-        const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice'].includes(type);
+        const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(type);
         const defaultCount =
             type === 'wordsearch'
                 ? 10
@@ -1425,10 +1496,12 @@ const WorksheetBuilder: React.FC<{
             type === 'multiple-choice'
                 ? { mcCount: 4 as const }
                 : type === 'wordsearch'
-                    ? { rows: 10, cols: 10 }
-                    : type === 'table'
-                        ? { rows: 4, cols: 3 }
-                        : undefined;
+                    ? { rows: 10, cols: 10, allowDiagonals: false }
+                    : type === 'word-formation'
+                        ? { embedInStory: true }
+                        : type === 'table'
+                            ? { rows: 4, cols: 3 }
+                            : undefined;
         setConfig(prev => ({
             ...prev,
             activities: [...prev.activities, { 
@@ -1491,6 +1564,197 @@ const WorksheetBuilder: React.FC<{
         }));
     };
 
+    const updateActivityOptions = (id: string, patch: Record<string, any>) => {
+        setConfig(prev => ({
+            ...prev,
+            activities: prev.activities.map(a => {
+                if (a.id !== id) return a;
+                return { ...a, options: { ...(a.options || {}), ...patch } };
+            })
+        }));
+    };
+
+    const syncImageBankForActivity = (
+        activityId: string,
+        activityType: 'wordsearch' | 'matching',
+        items: StockImageSelection[]
+    ) => {
+        const activitiesOfType = config.activities.filter((a) => a.type === activityType);
+        const typeIndex = activitiesOfType.findIndex((a) => a.id === activityId);
+        if (typeIndex < 0) return;
+        const labels = items.map((item) => item.label).filter(Boolean);
+        const updateBlocks: WorksheetBlock[] = [];
+        const updateElements: Array<{ type: string; prevHtml: string; nextHtml: string }> = [];
+        const updateBlock = (block: WorksheetBlock, nextPayload: any) => {
+            const nextBlock = { ...block, payload: nextPayload };
+            const nextHtml = blockToElementHtml(nextBlock);
+            const prevHtml = blockToElementHtml(block);
+            updateBlocks.push({ ...nextBlock, previewHtml: nextHtml });
+            updateElements.push({ type: block.type, prevHtml, nextHtml });
+            return nextBlock;
+        };
+
+        if (activityType === 'wordsearch') {
+            const wordsearchBlocks = blocks.filter((b) => b.type === 'wordsearch');
+            const wordBlocks = blocks.filter((b) => b.type === 'wordsearch-words');
+            const wordsearchBlock = wordsearchBlocks[typeIndex];
+            const wordBlock = wordBlocks[typeIndex];
+
+            if (wordsearchBlock && labels.length > 0) {
+                const activity = activitiesOfType[typeIndex];
+                const rows = Math.max(2, Math.floor(activity?.options?.rows ?? 10));
+                const cols = Math.max(2, Math.floor(activity?.options?.cols ?? 10));
+                const allowDiagonals = Boolean(activity?.options?.allowDiagonals);
+                const currentWords = Array.isArray(wordsearchBlock.payload?.puzzle?.words)
+                    ? wordsearchBlock.payload.puzzle.words
+                    : [];
+                const normalizeList = (list: string[]) => list.map((w) => String(w || '').trim().toLowerCase());
+                const currentKey = normalizeList(currentWords).join('|');
+                const labelKey = normalizeList(labels).join('|');
+                if (currentKey !== labelKey) {
+                    const puzzle = generateWordSearchPuzzle(labels, rows, cols, allowDiagonals);
+                    updateBlock(wordsearchBlock, { ...(wordsearchBlock.payload || {}), puzzle });
+                    if (wordBlock) {
+                        updateBlock(wordBlock, {
+                            ...(wordBlock.payload || {}),
+                            words: puzzle.words,
+                            imageBank: { items },
+                        });
+                    }
+                } else if (wordBlock) {
+                    updateBlock(wordBlock, {
+                        ...(wordBlock.payload || {}),
+                        imageBank: { items },
+                    });
+                }
+            } else if (wordBlock) {
+                const nextPayload = { ...(wordBlock.payload || {}) };
+                if (items.length > 0) {
+                    nextPayload.imageBank = { items };
+                } else if (nextPayload.imageBank) {
+                    delete nextPayload.imageBank;
+                }
+                updateBlock(wordBlock, nextPayload);
+            }
+        } else {
+            const blockType = 'matching';
+            const blocksOfType = blocks.filter((b) => b.type === blockType);
+            const targetBlock = blocksOfType[typeIndex];
+            if (!targetBlock) return;
+            const nextPayload = { ...(targetBlock.payload || {}) } as any;
+            if (items.length > 0) {
+                nextPayload.imageBank = { items };
+            } else if (nextPayload.imageBank) {
+                delete nextPayload.imageBank;
+            }
+            updateBlock(targetBlock, nextPayload);
+        }
+
+        if (updateBlocks.length === 0) return;
+
+        setBlocks((prev) =>
+            prev.map((b) => {
+                const updated = updateBlocks.find((u) => u.id === b.id);
+                return updated || b;
+            })
+        );
+        setElements((prev) =>
+            prev.map((el) => {
+                const update = updateElements.find((u) => u.type === el.type && el.html === u.prevHtml);
+                return update ? { ...el, html: update.nextHtml } : el;
+            })
+        );
+        onDirtyChange?.(true);
+    };
+
+    const autoPickImagesForLabels = async (labels: string[], cache: Map<string, StockImageSelection | null>) => {
+        const picks: StockImageSelection[] = [];
+        for (const raw of labels) {
+            const label = String(raw || '').trim();
+            if (!label) continue;
+            const key = label.toLowerCase();
+            if (cache.has(key)) {
+                const cached = cache.get(key);
+                if (cached) picks.push({ ...cached, label });
+                continue;
+            }
+            try {
+                const data = await searchStockImages(label, { page: 1, perPage: 6 });
+                const first = data.items[0];
+                if (first) {
+                    const picked = { id: first.id, url: first.url, thumbUrl: first.thumbUrl, label };
+                    cache.set(key, picked);
+                    picks.push(picked);
+                } else {
+                    cache.set(key, null);
+                }
+            } catch (err) {
+                console.warn('Image auto-pick failed for label:', label, err);
+                cache.set(key, null);
+            }
+        }
+        return picks;
+    };
+
+    const applyAutoImageBanks = async (ai: WorksheetAiResultV1, sourceConfig: WorksheetConfig) => {
+        if (!import.meta.env.VITE_PIXABAY_API_KEY) {
+            return sourceConfig;
+        }
+        const activities = sourceConfig.activities || [];
+        const nextActivities = [...activities];
+        const imageCache = new Map<string, StockImageSelection | null>();
+        let wordSearchIndex = 0;
+        let matchingIndex = 0;
+        let changed = false;
+
+        for (let i = 0; i < nextActivities.length; i += 1) {
+            const act = nextActivities[i];
+            if (!act || !act.options?.useImages) {
+                if (act?.type === 'wordsearch') wordSearchIndex += 1;
+                if (act?.type === 'matching') matchingIndex += act.count || 0;
+                continue;
+            }
+
+            const hasImageBank = Array.isArray(act.options?.imageBank?.items) && act.options?.imageBank?.items?.length;
+
+            if (act.type === 'wordsearch') {
+                const puzzle = ai.wordSearch?.[wordSearchIndex];
+                wordSearchIndex += 1;
+                if (hasImageBank || !puzzle?.words?.length) continue;
+                const picks = await autoPickImagesForLabels(puzzle.words, imageCache);
+                if (picks.length) {
+                    nextActivities[i] = {
+                        ...act,
+                        count: puzzle.words.length,
+                        options: { ...(act.options || {}), imageBank: { items: picks } },
+                    };
+                    changed = true;
+                }
+                continue;
+            }
+
+            if (act.type === 'matching') {
+                const slice = (ai.matching || []).slice(matchingIndex, matchingIndex + (act.count || 0));
+                matchingIndex += act.count || 0;
+                if (hasImageBank || slice.length === 0) continue;
+                const labels = slice.map((item) => String(item?.left || '').trim()).filter(Boolean);
+                const picks = await autoPickImagesForLabels(labels, imageCache);
+                if (picks.length) {
+                    nextActivities[i] = {
+                        ...act,
+                        count: slice.length,
+                        options: { ...(act.options || {}), imageBank: { items: picks } },
+                    };
+                    changed = true;
+                }
+                continue;
+            }
+        }
+
+        if (!changed) return sourceConfig;
+        return { ...sourceConfig, activities: nextActivities };
+    };
+
     // Drag & Drop
     const handleDragStart = (e: React.DragEvent, index: number) => {
         e.dataTransfer.setData("text/plain", index.toString());
@@ -1528,7 +1792,12 @@ const WorksheetBuilder: React.FC<{
 
             if (finalConfig.title) ai.title = finalConfig.title;
 
-            const nextBlocks = blocksFromAi(ai, finalConfig);
+            const hydratedConfig = await applyAutoImageBanks(ai, finalConfig);
+            if (hydratedConfig !== finalConfig) {
+                setConfig(hydratedConfig);
+            }
+
+            const nextBlocks = blocksFromAi(ai, hydratedConfig);
             if (logoUrl) {
                 nextBlocks.unshift({
                     id: `logo-${createId()}`,
@@ -1556,6 +1825,7 @@ const WorksheetBuilder: React.FC<{
             if (nextDoc.blocks.some((b) => b?.payload?.kind === 'info-section')) {
                 setInfoLayoutKey(createId());
             }
+            setAutoLayoutKey(createId());
 
             setGeneratedWs({
                 id: generatedWs?.id || createId(),
@@ -1579,8 +1849,8 @@ const WorksheetBuilder: React.FC<{
         }
     };
 
-    const getCurrentDocString = () => {
-        const doc: WorksheetDesignerDocV1 = {
+    const getCurrentDocString = (docOverride?: WorksheetDesignerDocV1) => {
+        const doc: WorksheetDesignerDocV1 = docOverride || {
             kind: 'worksheet-designer',
             version: 1,
             settings: designerSettings,
@@ -1591,13 +1861,13 @@ const WorksheetBuilder: React.FC<{
         return JSON.stringify(doc);
     };
 
-    const handleSave = () => {
+    const handleSave = (docOverride?: WorksheetDesignerDocV1) => {
         if (!user) { alert("Please log in to save."); return; }
         if (!generatedWs) return;
         const finalWs = {
             ...generatedWs,
             title: config.title || generatedWs.title,
-            content: getCurrentDocString(),
+            content: getCurrentDocString(docOverride),
             type: 'Designer',
             config: { ...config, isPublic, files: uploadedFiles, authorAvatar: user.avatar || null },
         };
@@ -2156,8 +2426,9 @@ const WorksheetBuilder: React.FC<{
                         <div className="space-y-2 mt-3">
                             {config.activities.map((act, index) => {
                                 const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
-                                const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice'].includes(act.type);
+                                const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(act.type);
                                 const isMcq = act.type === 'multiple-choice';
+                                const isOpenEnded = act.type === 'open-ended';
                                 const showCount = !['table', 'custom'].includes(act.type);
                                 const countLabel =
                                     act.type === 'wordsearch'
@@ -2174,6 +2445,16 @@ const WorksheetBuilder: React.FC<{
                                 const gridRows = act.options?.rows ?? gridDefaults.rows;
                                 const gridCols = act.options?.cols ?? gridDefaults.cols;
                                 const mcCount = Math.min(4, Math.max(2, Math.round(act.options?.mcCount ?? 4)));
+                                const imageBankItems = Array.isArray(act.options?.imageBank?.items)
+                                    ? act.options?.imageBank?.items
+                                    : [];
+                                const imageBankCount = imageBankItems.length;
+                                const imageBankPreview = imageBankItems
+                                    .slice(0, 3)
+                                    .map((item) => item.label)
+                                    .filter(Boolean)
+                                    .join(', ');
+                                const usesImages = Boolean(act.options?.useImages);
                                 return (
                                     <div key={act.id} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnd={handleDragEnd} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, index)} className="border border-teal-200 bg-teal-50/30 rounded p-2 relative group cursor-move hover:shadow-sm transition-all active:cursor-grabbing">
                                         <div className="flex items-center justify-between mb-1">
@@ -2237,7 +2518,7 @@ const WorksheetBuilder: React.FC<{
                                                         className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`}
                                                         onClick={() => updateActivityContext(act.id, 'sentences')}
                                                     >
-                                                        {isMcq ? 'Questions Only' : 'Sentences'}
+                                                        {isMcq ? 'Questions Only' : isOpenEnded ? 'Questions' : 'Sentences'}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -2247,6 +2528,146 @@ const WorksheetBuilder: React.FC<{
                                                         Story
                                                     </button>
                                                 </div>
+                                            </div>
+                                        )}
+                                        {act.type === 'wordsearch' && (
+                                            <div className="mt-1 pt-1 border-t border-teal-100 pl-4 space-y-1">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.allowDiagonals)}
+                                                        onChange={(e) => updateActivityOptions(act.id, { allowDiagonals: e.target.checked })}
+                                                    />
+                                                    Allow diagonal words
+                                                </label>
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={usesImages}
+                                                        onChange={(e) => updateActivityOptions(act.id, { useImages: e.target.checked })}
+                                                    />
+                                                    Use image bank (auto-pick)
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            openImagePicker({
+                                                                mode: 'multi',
+                                                                target: { type: 'wordsearch', activityId: act.id },
+                                                                selection: imageBankItems,
+                                                                query: act.customInstructions || config.topic || '',
+                                                            })
+                                                        }
+                                                        className="px-2 py-1 rounded border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-100"
+                                                    >
+                                                        {imageBankCount > 0 ? 'Edit images' : 'Pick images'}
+                                                    </button>
+                                                    {imageBankCount > 0 && (
+                                                        <span className="text-[10px] text-slate-500">{imageBankCount} selected</span>
+                                                    )}
+                                                    {imageBankCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                updateActivityOptions(act.id, { imageBank: { items: [] }, useImages: false });
+                                                                syncImageBankForActivity(act.id, 'wordsearch', []);
+                                                            }}
+                                                            className="text-[10px] text-slate-400 hover:text-red-500"
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {imageBankPreview && (
+                                                    <div className="text-[10px] text-slate-500">
+                                                        Labels: {imageBankPreview}
+                                                        {imageBankCount > 3 ? ` +${imageBankCount - 3} more` : ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {act.type === 'matching' && (
+                                            <div className="mt-1 pt-1 border-t border-teal-100 pl-4 space-y-1">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={usesImages}
+                                                        onChange={(e) => updateActivityOptions(act.id, { useImages: e.target.checked })}
+                                                    />
+                                                    Use image bank (auto-pick)
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            openImagePicker({
+                                                                mode: 'multi',
+                                                                target: { type: 'matching', activityId: act.id },
+                                                                selection: imageBankItems,
+                                                                query: act.customInstructions || config.topic || '',
+                                                            })
+                                                        }
+                                                        className="px-2 py-1 rounded border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-100"
+                                                    >
+                                                        {imageBankCount > 0 ? 'Edit images' : 'Pick images'}
+                                                    </button>
+                                                    {imageBankCount > 0 && (
+                                                        <span className="text-[10px] text-slate-500">{imageBankCount} selected</span>
+                                                    )}
+                                                    {imageBankCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                updateActivityOptions(act.id, { imageBank: { items: [] }, useImages: false });
+                                                                syncImageBankForActivity(act.id, 'matching', []);
+                                                            }}
+                                                            className="text-[10px] text-slate-400 hover:text-red-500"
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {imageBankPreview && (
+                                                    <div className="text-[10px] text-slate-500">
+                                                        Labels: {imageBankPreview}
+                                                        {imageBankCount > 3 ? ` +${imageBankCount - 3} more` : ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {act.type === 'gap-fill' && (
+                                            <div className="mt-1 pt-1 border-t border-teal-100 pl-4 space-y-1">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.wordBank)}
+                                                        onChange={(e) => updateActivityOptions(act.id, { wordBank: e.target.checked })}
+                                                    />
+                                                    Include word bank
+                                                </label>
+                                                {act.contextType === 'text' && (
+                                                    <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(act.options?.embedInStory)}
+                                                            onChange={(e) => updateActivityOptions(act.id, { embedInStory: e.target.checked })}
+                                                        />
+                                                        Embed gaps in story
+                                                    </label>
+                                                )}
+                                            </div>
+                                        )}
+                                        {act.type === 'word-formation' && act.contextType === 'text' && (
+                                            <div className="mt-1 pt-1 border-t border-teal-100 pl-4">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.embedInStory ?? true)}
+                                                        onChange={(e) => updateActivityOptions(act.id, { embedInStory: e.target.checked })}
+                                                    />
+                                                    Embed gaps in story
+                                                </label>
                                             </div>
                                         )}
                                         <div className="mt-1 pl-4 w-full">
@@ -2284,6 +2705,15 @@ const WorksheetBuilder: React.FC<{
                     onChange={handleImageUpload}
                     className="hidden"
                 />
+                <StockImagePicker
+                    isOpen={imagePickerOpen}
+                    mode={imagePickerMode}
+                    initialQuery={imagePickerQuery}
+                    initialSelection={imagePickerSelection}
+                    onClose={handleImagePickerClose}
+                    onConfirm={handleImagePickerConfirm}
+                    onUpload={() => imageInputRef.current?.click()}
+                />
                 <WorksheetDesigner
                     pages={pages}
                     setPages={setPages}
@@ -2307,6 +2737,7 @@ const WorksheetBuilder: React.FC<{
                     infoTheme={config.infoTheme}
                     layoutMode={config.layout || 'single'}
                     infoLayoutKey={infoLayoutKey}
+                    autoLayoutKey={autoLayoutKey}
                 />
             </div>
         </div>

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ImagePlus } from 'lucide-react';
 import { BlocksTray } from './BlocksTray';
 import { PagesCanvas } from './PagesCanvas';
 import { CanvasToolbar } from './CanvasToolbar';
-import { blockFromElement, createElementFromBlock, escapeHtml } from './designerHelpers';
+import { blockFromElement, createElementFromBlock, escapeHtml, sanitizeHtml } from './designerHelpers';
 import { WorksheetBlock, WorksheetBlockType, WorksheetDesignerDocV1, WorksheetDesignerPage, WorksheetDesignerSettings, WorksheetPlacedElement, createId } from './designerTypes';
 
 export const WorksheetDesigner: React.FC<{
@@ -19,7 +19,7 @@ export const WorksheetDesigner: React.FC<{
   selectedElementId: string | null;
   setSelectedElementId: (id: string | null) => void;
   onDirty?: (dirty: boolean) => void;
-  onSave?: () => void;
+  onSave?: (docOverride?: WorksheetDesignerDocV1) => void;
   saveStatus?: 'idle' | 'saving' | 'saved';
   onAddImage?: () => void;
   isPublic?: boolean;
@@ -30,6 +30,7 @@ export const WorksheetDesigner: React.FC<{
   infoTheme?: 'ocean' | 'sunset' | 'studio' | 'retro' | 'mint' | 'midnight';
   layoutMode?: 'single' | 'columns';
   infoLayoutKey?: string | null;
+  autoLayoutKey?: string | null;
 }> = ({
   pages,
   setPages,
@@ -53,6 +54,7 @@ export const WorksheetDesigner: React.FC<{
   infoTheme = 'ocean',
   layoutMode = 'single',
   infoLayoutKey = null,
+  autoLayoutKey = null,
 }) => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const printableRef = useRef<HTMLDivElement | null>(null);
@@ -65,9 +67,14 @@ export const WorksheetDesigner: React.FC<{
   const [pageScale, setPageScale] = useState(1);
   const [isPrinting, setIsPrinting] = useState(false);
   const lastInfoLayoutKeyRef = useRef<string | null>(null);
+  const lastAutoLayoutKeyRef = useRef<string | null>(null);
   const lastLayoutModeRef = useRef(layoutMode);
   const undoStackRef = useRef<WorksheetDesignerDocV1[]>([]);
   const redoStackRef = useRef<WorksheetDesignerDocV1[]>([]);
+  const liveEditRef = useRef(new Map<string, { html: string; height?: number }>());
+  const copiedStylesRef = useRef<WorksheetPlacedElement['styles'] | null>(null);
+  const [styleMenu, setStyleMenu] = useState<{ x: number; y: number; targetId: string } | null>(null);
+  const styleMenuRef = useRef<HTMLDivElement | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const resolvedRightSidebarCollapsed =
@@ -133,6 +140,27 @@ export const WorksheetDesigner: React.FC<{
     }
     onDirty(true);
   }, [pages, blocks, elements, onDirty]);
+
+  useEffect(() => {
+    if (!styleMenu) return;
+    const onDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (styleMenuRef.current && styleMenuRef.current.contains(target)) return;
+      setStyleMenu(null);
+    };
+    const onScroll = () => setStyleMenu(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setStyleMenu(null);
+    };
+    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [styleMenu]);
 
   useEffect(() => {
     return () => {
@@ -318,6 +346,12 @@ export const WorksheetDesigner: React.FC<{
     [elements, selectedElementId]
   );
 
+  const latestStateRef = useRef({ settings, pages, blocks, elements });
+
+  useEffect(() => {
+    latestStateRef.current = { settings, pages, blocks, elements };
+  }, [settings, pages, blocks, elements]);
+
   const isApplyingSnapshotRef = useRef(false);
 
   const commitElement = (
@@ -328,14 +362,12 @@ export const WorksheetDesigner: React.FC<{
     if (!opts?.skipHistory && !isApplyingSnapshotRef.current) {
       pushUndoSnapshot();
     }
-    setElements((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    setElements((prev) => {
+      const next = prev.map((e) => (e.id === id ? { ...e, ...patch } : e));
+      latestStateRef.current = { ...latestStateRef.current, elements: next };
+      return next;
+    });
   };
-
-  const latestStateRef = useRef({ settings, pages, blocks, elements });
-
-  useEffect(() => {
-    latestStateRef.current = { settings, pages, blocks, elements };
-  }, [settings, pages, blocks, elements]);
 
   const cloneSnapshot = <T,>(value: T): T => {
     if (typeof structuredClone === 'function') {
@@ -455,6 +487,32 @@ export const WorksheetDesigner: React.FC<{
   const changeSelectedStyles = (patch: any) => {
     if (!selected) return;
     commitElement(selected.id, { styles: { ...(selected.styles || {}), ...patch } });
+  };
+
+  const copyStylesFrom = (id: string) => {
+    const element = elements.find((el) => el.id === id);
+    if (!element) return;
+    copiedStylesRef.current = { ...(element.styles || {}) };
+  };
+
+  const applyCopiedStylesTo = (id: string) => {
+    const styles = copiedStylesRef.current;
+    if (!styles) return;
+    pushUndoSnapshot();
+    setElements((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, styles: { ...(el.styles || {}), ...styles } } : el))
+    );
+  };
+
+  const applyCopiedStylesToAll = () => {
+    const styles = copiedStylesRef.current;
+    if (!styles) return;
+    pushUndoSnapshot();
+    setElements((prev) =>
+      prev.map((el) =>
+        el.type === 'image' ? el : { ...el, styles: { ...(el.styles || {}), ...styles } }
+      )
+    );
   };
 
   const deleteSelected = () => {
@@ -1673,7 +1731,169 @@ export const WorksheetDesigner: React.FC<{
     void performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
   }, [layoutMode]);
 
+  useEffect(() => {
+    if (!autoLayoutKey) return;
+    if (lastAutoLayoutKeyRef.current === autoLayoutKey) return;
+    lastAutoLayoutKeyRef.current = autoLayoutKey;
+    if (blocks.length === 0) return;
+    const hasInfoBlocks = blocks.some(
+      (b) => b?.payload?.kind === 'info-section' || b?.payload?.kind === 'info-header'
+    );
+    const hasInfoElements = elements.some(
+      (el) => typeof el.html === 'string' && (el.html.includes('ws-info-card') || el.html.includes('ws-info-header'))
+    );
+    if (hasInfoBlocks || hasInfoElements) return;
+    void performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+  }, [autoLayoutKey, blocks, elements, layoutMode]);
+
+  const applyPendingPatch = (
+    doc: WorksheetDesignerDocV1,
+    pending?: { id: string; patch: Partial<WorksheetPlacedElement> } | null
+  ): WorksheetDesignerDocV1 => {
+    if (!pending) return doc;
+    return {
+      ...doc,
+      elements: doc.elements.map((el) => (el.id === pending.id ? { ...el, ...pending.patch } : el)),
+    };
+  };
+
+  const applyLiveEdits = (doc: WorksheetDesignerDocV1): WorksheetDesignerDocV1 => {
+    if (!liveEditRef.current.size) return doc;
+    const nextElements = doc.elements.map((el) => {
+      const draft = liveEditRef.current.get(el.id);
+      if (!draft) return el;
+      const safe = sanitizeHtml(draft.html || '');
+      let next = el;
+      if (safe !== el.html) {
+        next = { ...next, html: safe };
+      }
+      if (el.type !== 'image' && draft.height) {
+        const measured = Math.max(50, Math.ceil(draft.height));
+        const finalH = measured < el.h - 12 ? measured : el.h;
+        if (finalH !== el.h) {
+          next = { ...next, h: finalH };
+        }
+      }
+      return next;
+    });
+    return { ...doc, elements: nextElements };
+  };
+
+  const buildPrintMarkup = (doc: WorksheetDesignerDocV1) => {
+    const preset = doc.settings?.marginPreset || settings?.marginPreset || 'normal';
+    const printMarginMm = preset === 'narrow' ? 12 : preset === 'wide' ? 30 : 20;
+    const templateClass = infoTemplate ? `ws-template--${infoTemplate}` : '';
+    const themeClass = infoTheme ? `ws-theme--${infoTheme}` : '';
+    const resolveElementKind = (html: string) => {
+      if (html.includes('ws-info-header')) return 'info-header';
+      if (html.includes('ws-info-card')) return 'info';
+      return '';
+    };
+    const renderElement = (el: WorksheetPlacedElement) => {
+      const s = el.styles || {};
+      const borderStyle = s.borderStyle && s.borderStyle !== 'none' ? s.borderStyle : 'none';
+      const borderWidth = borderStyle === 'none' ? '0px' : s.borderWidth || '1px';
+      const borderColor = s.borderColor || '#e2e8f0';
+      const kind = resolveElementKind(String(el.html || ''));
+      const styleVars: string[] = [];
+      if (kind === 'info-header') {
+        if (s.backgroundColor && s.backgroundColor !== 'transparent') {
+          styleVars.push(`--ws-info-header-from:${s.backgroundColor}`);
+          styleVars.push(`--ws-info-header-to:${s.backgroundColor}`);
+        }
+        if (s.color) {
+          styleVars.push(`--ws-info-header-ink:${s.color}`);
+        }
+      }
+      if (kind === 'info') {
+        if (s.backgroundColor && s.backgroundColor !== 'transparent') {
+          styleVars.push(`--ws-info-card-bg:${s.backgroundColor}`);
+          styleVars.push(`--ws-info-card-from:${s.backgroundColor}`);
+          styleVars.push(`--ws-info-card-to:${s.backgroundColor}`);
+        }
+        if (s.borderColor) {
+          styleVars.push(`--ws-info-card-border:${s.borderColor}`);
+        }
+        if (s.color) {
+          styleVars.push(`--ws-info-ink:${s.color}`);
+          styleVars.push(`--ws-info-title:${s.color}`);
+        }
+      }
+      const wrapperStyle = [
+        'position:absolute',
+        'left:0',
+        'top:0',
+        `width:${el.w}px`,
+        `height:${el.h}px`,
+        `transform:translate(${el.x}px, ${el.y}px)`,
+        `border-style:${borderStyle}`,
+        `border-width:${borderWidth}`,
+        `border-color:${borderColor}`,
+        `border-radius:${s.borderRadius || '10px'}`,
+        `background-color:${s.backgroundColor || 'transparent'}`,
+        `box-shadow:${s.boxShadow || 'none'}`,
+        'overflow:hidden',
+        ...styleVars,
+      ].join(';');
+      const isImage = el.type === 'image';
+      const contentStyle = [
+        `font-family:${s.fontFamily || 'Quicksand, sans-serif'}`,
+        `font-size:${s.fontSize || '14px'}`,
+        `font-weight:${s.fontWeight || '400'}`,
+        `font-style:${s.fontStyle || 'normal'}`,
+        `text-decoration:${s.textDecoration || 'none'}`,
+        `text-align:${s.textAlign || 'left'}`,
+        `line-height:${s.lineHeight || '1.35'}`,
+        `color:${s.color || '#0f172a'}`,
+        `padding:${isImage ? '0px' : s.padding || '12px'}`,
+        'width:100%',
+        'height:100%',
+        'box-sizing:border-box',
+        'overflow:hidden',
+      ].join(';');
+      const kindAttr = kind ? ` data-element-kind="${escapeHtml(kind)}"` : '';
+      const html = sanitizeHtml(String(el.html || ''));
+      return `<div class="ws-placed-element" data-element-id="${escapeHtml(
+        el.id
+      )}" data-element-type="${escapeHtml(el.type)}"${kindAttr} style="${wrapperStyle}"><div class="ws-element-content" style="${contentStyle}">${html}</div></div>`;
+    };
+    const pagesHtml = (doc.pages || []).map((page) => {
+      const pageStyle = `--ws-page-pad:${printMarginMm}mm;background:white;`;
+      const pageElements = (doc.elements || [])
+        .filter((el) => el.pageId === page.id)
+        .map(renderElement)
+        .join('');
+      return `<div class="ws-page" style="${pageStyle}"><div class="ws-page-scale"><div class="ws-page-inner" data-page-id="${escapeHtml(
+        page.id
+      )}">${pageElements}</div></div></div>`;
+    });
+    return `<div class="ws-pages-wrap ${templateClass} ${themeClass}" style="--ws-page-scale:1;--ws-page-overflow:visible;">${pagesHtml.join(
+      ''
+    )}</div>`;
+  };
+
   const handlePrint = () => {
+    const pending = commitEditingElement();
+    const snapshot = applyLiveEdits(applyPendingPatch(captureSnapshot(), pending));
+    const markup = buildPrintMarkup(snapshot);
+    const fonts = `<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+    const html = `<!doctype html><html><head><meta charset="utf-8" /><title>Print Worksheet</title>${fonts}<style>body{margin:0;background:white;}${DESIGNER_CSS}</style></head><body>${markup}</body></html>`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      const trigger = () => {
+        try {
+          printWindow.focus();
+          printWindow.print();
+        } catch {
+          // ignore
+        }
+      };
+      printWindow.onload = () => window.setTimeout(trigger, 80);
+      return;
+    }
     setIsPrinting(true);
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
@@ -1710,6 +1930,37 @@ export const WorksheetDesigner: React.FC<{
     }, 0);
   };
 
+  const commitEditingElement = (): { id: string; patch: Partial<WorksheetPlacedElement> } | null => {
+    if (!editingElementId) return null;
+    const element = elements.find((el) => el.id === editingElementId);
+    if (!element) {
+      setEditingElementId(null);
+      return null;
+    }
+    const root = document.querySelector(`[data-element-id="${editingElementId}"]`) as HTMLElement | null;
+    const content = root?.querySelector('.ws-element-content') as HTMLElement | null;
+    if (!content) {
+      setEditingElementId(null);
+      return null;
+    }
+    const raw = content.innerHTML || '';
+    const safe = sanitizeHtml(raw);
+    const measured = content.scrollHeight ?? 0;
+    const nextH = measured ? Math.max(50, Math.ceil(measured)) : element.h;
+    const finalH = nextH < element.h - 12 ? nextH : element.h;
+    const patch: Partial<WorksheetPlacedElement> = { html: safe, h: finalH };
+    commitElement(element.id, patch, { skipHistory: true });
+    liveEditRef.current.delete(editingElementId);
+    setEditingElementId(null);
+    return { id: element.id, patch };
+  };
+
+  const handleSaveClick = () => {
+    const pending = commitEditingElement();
+    const snapshot = applyLiveEdits(applyPendingPatch(captureSnapshot(), pending));
+    onSave?.(snapshot);
+  };
+
   const selectElementId = (id: string | null) => {
     setSelectedElementId(id);
     setEditingElementId((prev) => (id && prev === id ? prev : null));
@@ -1727,6 +1978,18 @@ export const WorksheetDesigner: React.FC<{
           selectedElementId={selectedElementId}
           onSelectElementId={selectElementId}
           onCommitElement={commitElement}
+          onLiveEdit={(id, html, height) => {
+            liveEditRef.current.set(id, { html, height });
+          }}
+          onOpenStyleMenu={(id, pos) => {
+            setSelectedElementId(id);
+            const padding = 12;
+            const menuW = 190;
+            const menuH = 140;
+            const nextX = Math.min(pos.x, window.innerWidth - menuW - padding);
+            const nextY = Math.min(pos.y, window.innerHeight - menuH - padding);
+            setStyleMenu({ x: nextX, y: nextY, targetId: id });
+          }}
           onAddPage={addPage}
           onDeletePage={deletePage}
           editingElementId={editingElementId}
@@ -1769,10 +2032,61 @@ export const WorksheetDesigner: React.FC<{
             onRedo={handleRedo}
             canUndo={canUndo}
             canRedo={canRedo}
+            onCopyStyles={() => copyStylesFrom(selected.id)}
+            onPasteStyles={() => applyCopiedStylesTo(selected.id)}
+            onPasteStylesAll={applyCopiedStylesToAll}
+            canPasteStyles={Boolean(copiedStylesRef.current)}
           />
             </div>
           </div>
         ) : null}
+
+        {styleMenu && (
+          <div
+            ref={styleMenuRef}
+            className="no-print ws-style-menu fixed z-[11000] w-44 rounded-xl border border-slate-200 bg-white shadow-xl p-1 text-xs font-bold text-slate-700"
+            style={{ left: styleMenu.x, top: styleMenu.y }}
+          >
+            <button
+              type="button"
+              className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-100"
+              onClick={() => {
+                copyStylesFrom(styleMenu.targetId);
+                setStyleMenu(null);
+              }}
+            >
+              Copy styles
+            </button>
+            <button
+              type="button"
+              className={`w-full text-left px-3 py-2 rounded-lg ${
+                copiedStylesRef.current ? 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
+              }`}
+              onClick={() => {
+                if (!copiedStylesRef.current) return;
+                applyCopiedStylesTo(styleMenu.targetId);
+                setStyleMenu(null);
+              }}
+              disabled={!copiedStylesRef.current}
+            >
+              Apply to this section
+            </button>
+            <button
+              type="button"
+              className={`w-full text-left px-3 py-2 rounded-lg ${
+                copiedStylesRef.current ? 'hover:bg-slate-100' : 'opacity-50 cursor-not-allowed'
+              }`}
+              onClick={() => {
+                if (!copiedStylesRef.current) return;
+                applyCopiedStylesToAll();
+                setStyleMenu(null);
+              }}
+              disabled={!copiedStylesRef.current}
+            >
+              Apply to all sections
+            </button>
+          </div>
+        )}
       </div>
 
       <div
@@ -1809,7 +2123,7 @@ export const WorksheetDesigner: React.FC<{
                 {onSave && (
                   <button
                     type="button"
-                    onClick={onSave}
+                    onClick={handleSaveClick}
                     className="flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-sm md:py-2 md:rounded-xl md:text-sm md:font-extrabold"
                   >
                     {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Save'}
@@ -2057,6 +2371,18 @@ const DESIGNER_CSS = `
   }
 
   .ws-element-content p { margin: 0 0 8px 0; }
+  .ws-element-content .ws-activity-instructions {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ws-word-bank {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+  }
+  .ws-word-bank-item {
+    margin-right: 6px;
+  }
   .ws-element-content ul, .ws-element-content ol {
     padding-left: 1.25rem;
     margin: 0 0 8px 0;
@@ -2067,6 +2393,11 @@ const DESIGNER_CSS = `
   .ws-element-content ol.ws-options { list-style-type: upper-alpha; margin-top: 4px; }
   .ws-element-content ol.ws-options.ws-options-numeric { list-style-type: decimal; }
   .ws-element-content li { margin: 0 0 4px 0; }
+  .ws-element-content ol.ws-mcq {
+    list-style-position: outside;
+    padding-left: 1.5rem;
+  }
+  .ws-element-content .ws-q { display: inline; }
 
   .ws-theme--ocean,
   .ws-info-theme--ocean {
@@ -2615,6 +2946,12 @@ const DESIGNER_CSS = `
     background: #f1f5f9;
     font-weight: 700;
   }
+  .ws-element-content .ws-table {
+    width: 100%;
+    height: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
 
   .ws-element-content .ws-wordsearch-table td {
     text-align: center;
@@ -2638,13 +2975,59 @@ const DESIGNER_CSS = `
     table-layout: fixed;
   }
   .ws-element-content .ws-wordsearch-words-box {
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 8px 10px;
-    background: #ffffff;
+    padding: 4px 0;
+    background: transparent;
   }
   .ws-wordsearch-words { font-size: inherit; }
   .ws-wordsearch-word { margin-right: 6px; }
+  .ws-wordsearch-words-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .ws-wordsearch-words-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+  }
+  .ws-wordsearch-word-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    text-align: center;
+  }
+  .ws-wordsearch-word-card--text {
+    justify-content: center;
+    font-weight: 600;
+    min-height: 70px;
+  }
+  .ws-wordsearch-word-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+  .ws-wordsearch-word-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: inherit;
+  }
+
+  .ws-transform-instructions {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+  }
+  .ws-transform-keyword {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 4px 0 6px 0;
+  }
 
   .ws-element-content .ws-matching-table {
     width: 100%;
@@ -2654,6 +3037,22 @@ const DESIGNER_CSS = `
     border: 1px solid transparent;
     padding: 6px 8px;
     vertical-align: middle;
+  }
+  .ws-matching-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ws-matching-image {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+  }
+  .ws-matching-label {
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .ws-element-content .ws-image {
@@ -2706,15 +3105,17 @@ const DESIGNER_CSS = `
       page-break-after: always;
       width: 210mm !important;
       height: 297mm !important;
+      margin: 0 !important;
       overflow: visible !important;
     }
-    .ws-page:last-child { break-after: auto; page-break-after: auto; }
+    .ws-pages-wrap > .ws-page:last-of-type { break-after: auto; page-break-after: auto; }
     .ws-page-inner { overflow: visible; }
     .ws-page-scale { transform: none !important; width: 210mm !important; height: 297mm !important; }
     .ws-element-drag-handle, .ws-resize-handle, .ws-placed-element { box-shadow: none !important; }
     .ws-element-drag-handle, .ws-resize-handle { display: none !important; }
     .ws-canvas { background: white !important; overflow: visible !important; }
     .ws-pages-wrap {
+      display: block !important;
       --ws-page-scale: 1 !important;
       --ws-page-overflow: visible !important;
       padding: 0 !important;
