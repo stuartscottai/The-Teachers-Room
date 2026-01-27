@@ -24,6 +24,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const tabsScrollRef = useRef<HTMLDivElement>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const prevIsPublicRef = useRef(isPublic);
+    const [bulkCategoryInput, setBulkCategoryInput] = useState('');
     
     const { user } = useAuth();
     const { isDirty, setIsDirty, confirmAction } = useUnsavedChanges();
@@ -76,11 +77,25 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         
         const shouldClearSourceId = hasEdits && Boolean(editedGame.sourceGameId);
 
+        const cleanedStopTheFireCategories =
+            editedGame.config.type === GameType.STOP_THE_FIRE
+                ? Array.from(
+                      new Set(
+                          (editedGame.stopTheFireCategories || [])
+                              .map((cat) => cat.trim())
+                              .filter(Boolean)
+                      )
+                  )
+                : undefined;
+
         // Ensure config is synced
         const finalGame = {
             ...editedGame,
             sourceGameId: shouldClearSourceId ? undefined : editedGame.sourceGameId,
-            config: { ...editedGame.config, isPublic: nextPublic, authorAvatar: user.avatar || null }
+            config: { ...editedGame.config, isPublic: nextPublic, authorAvatar: user.avatar || null },
+            ...(cleanedStopTheFireCategories
+                ? { stopTheFireCategories: cleanedStopTheFireCategories }
+                : {})
         };
 
         // Async save with Author Name
@@ -435,8 +450,43 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 <div>
                                                     <h2 className="text-xl font-bold text-slate-800">Custom Categories</h2>
                                                     <p className="text-slate-600 mt-1">
-                                                        These categories will be the only ones used in your Stop the Fire game.
+                                                        These categories are your word bank. Every save updates this bank.
                                                     </p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Add multiple categories</label>
+                                                <textarea
+                                                    value={bulkCategoryInput}
+                                                    onChange={(e) => setBulkCategoryInput(e.target.value)}
+                                                    placeholder="Paste categories here, one per line."
+                                                    className="w-full min-h-[90px] p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-200 outline-none"
+                                                />
+                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const incoming = bulkCategoryInput
+                                                                .split(/\r?\n|,/)
+                                                                .map((cat) => cat.trim())
+                                                                .filter(Boolean);
+                                                            if (incoming.length === 0) return;
+                                                            handleChange((prev) => {
+                                                                const existing = (prev.stopTheFireCategories || [])
+                                                                    .map((cat) => cat.trim())
+                                                                    .filter(Boolean);
+                                                                const merged = Array.from(new Set([...existing, ...incoming]));
+                                                                return { ...prev, stopTheFireCategories: merged };
+                                                            });
+                                                            setBulkCategoryInput('');
+                                                        }}
+                                                        className="px-4 py-2 rounded-lg bg-orange-500 text-white font-bold text-sm hover:bg-orange-600"
+                                                    >
+                                                        Add to Bank
+                                                    </button>
+                                                    <span className="text-xs text-slate-400">
+                                                        Tips: one category per line. Duplicates are ignored.
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-2">

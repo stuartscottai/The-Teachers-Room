@@ -69,6 +69,9 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const [isTwoColumn, setIsTwoColumn] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [isCompactHeight, setIsCompactHeight] = useState(false);
+    const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const [categorySearch, setCategorySearch] = useState('');
     const [mobileSetupHeight, setMobileSetupHeight] = useState<number | null>(null);
     const [showStopPrompt, setShowStopPrompt] = useState(false);
     const [stopPromptMode, setStopPromptMode] = useState<'manual' | 'timeout'>('manual');
@@ -87,6 +90,11 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         if (cleaned.length === 0) return null;
         return cleaned.map((text) => ({ text }));
     }, [game.stopTheFireCategories]);
+
+    const manualCategoryList = useMemo(() => {
+        if (!manualCategoryPool) return [];
+        return manualCategoryPool.map((cat) => cat.text);
+    }, [manualCategoryPool]);
 
     const categoryPool = useMemo(() => {
         if (manualCategoryPool) {
@@ -124,11 +132,27 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
     useEffect(() => {
         if (!manualCategoryPool) return;
-        const maxAllowed = Math.min(CATEGORY_MAX, manualCategoryPool.length);
+        const maxAllowed = Math.min(
+            CATEGORY_MAX,
+            selectedCategories.length > 0 ? selectedCategories.length : manualCategoryPool.length
+        );
         if (categoryCount > maxAllowed) {
             setCategoryCount(Math.max(1, maxAllowed));
         }
-    }, [manualCategoryPool, categoryCount]);
+    }, [manualCategoryPool, categoryCount, selectedCategories]);
+
+    useEffect(() => {
+        if (!manualCategoryPool) return;
+        setSelectedCategories([]);
+        setCategorySearch('');
+        setShowCategoryPicker(false);
+    }, [manualCategoryPool?.length]);
+
+    useEffect(() => {
+        if (manualCategoryPool) {
+            usedCategories.current.clear();
+        }
+    }, [selectedCategories, manualCategoryPool]);
 
     useEffect(() => {
         setTeamNames((prev) => {
@@ -239,8 +263,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     };
 
     const pickCategories = (count: number) => {
-        const freshPool = categoryPool.filter((c) => !usedCategories.current.has(c.text));
-        const pool = freshPool.length >= count ? freshPool : categoryPool;
+        const overridePool =
+            manualCategoryPool && selectedCategories.length > 0
+                ? selectedCategories.map((text) => ({ text }))
+                : categoryPool;
+        const freshPool = overridePool.filter((c) => !usedCategories.current.has(c.text));
+        const pool = freshPool.length >= count ? freshPool : overridePool;
         const chosen = shuffle(pool).slice(0, count).map((c) => c.text);
         chosen.forEach((text) => usedCategories.current.add(text));
         return chosen;
@@ -372,6 +400,18 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const canEditTeams = scores.every((score) => score === 0) && roundIndex === 1 && !isTieBreaker;
 
     const timerProgress = roundDuration > 0 ? Math.max(0, Math.min(1, timeLeft / roundDuration)) : 0;
+    const filteredManualCategories = useMemo(() => {
+        if (!manualCategoryList.length) return [];
+        const term = categorySearch.trim().toLowerCase();
+        if (!term) return manualCategoryList;
+        return manualCategoryList.filter((cat) => cat.toLowerCase().includes(term));
+    }, [manualCategoryList, categorySearch]);
+    const categoryCountMax = manualCategoryPool
+        ? Math.min(CATEGORY_MAX, selectedCategories.length > 0 ? selectedCategories.length : manualCategoryPool.length)
+        : CATEGORY_MAX;
+    const toggleCategorySelection = (text: string) => {
+        setSelectedCategories((prev) => (prev.includes(text) ? prev.filter((item) => item !== text) : [...prev, text]));
+    };
     const totalCategories = currentCategories.length;
     const currentReviewCategory = currentCategories[reviewIndex] || '';
 
@@ -518,7 +558,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             <input
                                                 type="range"
                                                 min={CATEGORY_MIN}
-                                                max={manualCategoryPool ? Math.min(CATEGORY_MAX, manualCategoryPool.length) : CATEGORY_MAX}
+                                                max={categoryCountMax}
                                                 value={categoryCount}
                                                 onChange={(e) => !isTieBreaker && setCategoryCount(Number(e.target.value))}
                                                 disabled={isTieBreaker}
@@ -530,10 +570,80 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         </div>
                                         <div className="flex justify-between text-[10px] text-slate-400 mt-1">
                                             <span>{CATEGORY_MIN}</span>
-                                            <span>{manualCategoryPool ? Math.min(CATEGORY_MAX, manualCategoryPool.length) : CATEGORY_MAX}</span>
+                                            <span>{categoryCountMax}</span>
                                         </div>
+                                        {manualCategoryPool && selectedCategories.length > 0 && (
+                                            <p className="text-[11px] text-slate-500 mt-2">
+                                                Using {selectedCategories.length} selected category{selectedCategories.length === 1 ? '' : 'ies'}.
+                                            </p>
+                                        )}
                                         {isTieBreaker && <p className="text-[11px] text-slate-400 mt-2">Tie-breaker uses 1 category.</p>}
                                     </div>
+
+                                    {manualCategoryPool && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase">Choose Categories (Optional)</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCategoryPicker((prev) => !prev)}
+                                                    className="text-xs font-bold text-orange-600 hover:text-orange-700"
+                                                >
+                                                    {showCategoryPicker ? 'Hide' : 'Select'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[11px] text-slate-400 mb-2">
+                                                Leave none selected to play with a random set from your word bank.
+                                            </p>
+                                            {showCategoryPicker && (
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        value={categorySearch}
+                                                        onChange={(e) => setCategorySearch(e.target.value)}
+                                                        placeholder="Search categories..."
+                                                        className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-200 outline-none"
+                                                    />
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedCategories(manualCategoryList)}
+                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-orange-200 hover:text-orange-600"
+                                                        >
+                                                            Select all
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedCategories([])}
+                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-orange-200 hover:text-orange-600"
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                        <span className="text-[11px] text-slate-400 flex items-center">
+                                                            {selectedCategories.length} selected
+                                                        </span>
+                                                    </div>
+                                                    <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+                                                        {filteredManualCategories.length === 0 ? (
+                                                            <div className="text-xs text-slate-400">No categories found.</div>
+                                                        ) : (
+                                                            filteredManualCategories.map((cat) => (
+                                                                <label key={cat} className="flex items-center gap-2 text-sm text-slate-700">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedCategories.includes(cat)}
+                                                                        onChange={() => toggleCategorySelection(cat)}
+                                                                        className="accent-orange-500"
+                                                                    />
+                                                                    <span className="flex-1">{cat}</span>
+                                                                </label>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Timer</label>
