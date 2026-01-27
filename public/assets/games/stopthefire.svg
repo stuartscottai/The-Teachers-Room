@@ -1,0 +1,20 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FDBA74"/>
+      <stop offset="55%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="45%">
+      <stop offset="0%" stop-color="#FFF7ED" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FFF7ED" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)"/>
+  <circle cx="600" cy="300" r="260" fill="url(#glow)"/>
+  <path d="M600 130 C520 230 520 310 585 375 C555 405 530 445 530 510 C530 610 600 680 680 680 C780 680 840 600 840 520 C840 430 790 380 740 340 C760 260 700 200 660 150 C650 210 610 260 585 295 C575 250 590 190 600 130 Z" fill="#FFF7ED" opacity="0.95"/>
+  <path d="M610 250 C565 310 585 370 630 410 C610 430 600 460 600 500 C600 560 645 605 700 605 C760 605 800 560 800 505 C800 450 765 415 730 385 C745 335 705 295 675 265 C668 305 635 335 610 350 C605 320 610 285 610 250 Z" fill="#FDBA74" opacity="0.9"/>
+  <text x="600" y="740" text-anchor="middle" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#FFF7ED" letter-spacing="2">
+    Stop the Fire!
+  </text>
+</svg>

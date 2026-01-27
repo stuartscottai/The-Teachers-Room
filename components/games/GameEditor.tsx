@@ -63,6 +63,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     }, [isPublic, setIsDirty]);
 
     const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
+        if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
+            alert('Word Bank games cannot be saved. Switch to Manual or AI to save this game.');
+            return null;
+        }
         if (!user) {
             alert('Please log in to save games to your profile.');
             return null;
@@ -139,6 +143,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     };
 
     const handleShare = async () => {
+        if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
+            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            return;
+        }
         if (!user) {
             alert("Please log in to share games.");
             return;
@@ -308,6 +316,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     // Determine Group Data Source (Jeopardy or Pub Quiz)
     const isGrouped = editedGame.config.type === GameType.JEOPARDY || editedGame.config.type === GameType.PUB_QUIZ;
+    const isStopTheFire = editedGame.config.type === GameType.STOP_THE_FIRE;
+    const isStopTheFireBank = isStopTheFire && editedGame.config.stopTheFireMode === 'bank';
     const groups = editedGame.config.type === GameType.JEOPARDY ? editedGame.jeopardyBoard : editedGame.pubQuizRounds;
     const groupLabel = editedGame.config.type === GameType.JEOPARDY ? "Category" : "Round";
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
@@ -362,7 +372,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </span>
                                 </h1>
                                 
-                                <div className="w-full md:w-auto items-center flex flex-row flex-nowrap justify-center gap-2 sm:justify-start sm:gap-3">
+                                <div className="w-full md:w-auto items-center flex flex-row flex-wrap justify-start gap-2 sm:gap-3">
                                     {/* VISIBILITY TOGGLE */}
                                     <div className={`flex items-center bg-slate-200 rounded-full cursor-pointer select-none p-0.5 sm:p-1 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleVisibilityToggle}>
                                         <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
@@ -375,8 +385,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button
                                         onClick={handleShare}
-                                        disabled={saveStatus === 'saving'}
-                                        className="bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-[92px] sm:px-5 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[130px]"
+                                        disabled={saveStatus === 'saving' || isStopTheFireBank}
+                                        className={`bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-0 sm:px-5 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[130px] ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Copy share link"
                                     >
                                         <Share2 size={18} className="mr-2" /> Share
@@ -384,21 +394,21 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button 
                                         onClick={handleSave} 
-                                        disabled={saveStatus === 'saving'}
-                                        className={`font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-[92px] sm:px-6 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[140px]
+                                        disabled={saveStatus === 'saving' || isStopTheFireBank}
+                                        className={`font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-0 sm:px-6 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[140px]
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
-                                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'}`}
+                                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'} ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         {saveStatus === 'saving' && <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>}
                                         {saveStatus === 'saved' && <Check size={18} className="mr-2" />}
                                         {saveStatus === 'idle' && <Save size={18} className="mr-2" />}
                                         
-                                        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Game'}
+                                        {isStopTheFireBank ? 'Save Disabled' : (saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Game')}
                                     </button>
                                     <button 
                                         onClick={handlePlay} 
-                                        className="bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer flex-none sm:flex-1 md:flex-none px-4 py-2 rounded-lg text-xs sm:px-8 sm:py-3 sm:rounded-xl sm:text-base"
+                                        className="bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer flex-none sm:flex-1 md:flex-none px-4 py-2 rounded-lg text-xs sm:px-8 sm:py-3 sm:rounded-xl sm:text-base min-w-0"
                                     >
                                         <Play size={18} className="mr-2" /> Play
                                     </button>
@@ -413,8 +423,83 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         </div>
                         )}
 
-                        {/* GROUPED EDITOR (JEOPARDY / PUB QUIZ) */}
-                        {isGrouped && groups ? (
+                        {isStopTheFire ? (
+                            <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                                <div className="p-8">
+                                    {(editedGame.config.stopTheFireMode === 'manual' || editedGame.config.stopTheFireMode === 'ai') ? (
+                                        <div className="space-y-6">
+                                            <div className="flex items-start gap-4">
+                                                <div className="bg-orange-100 text-orange-700 p-3 rounded-xl">
+                                                    <Sparkles size={22} />
+                                                </div>
+                                                <div>
+                                                    <h2 className="text-xl font-bold text-slate-800">Custom Categories</h2>
+                                                    <p className="text-slate-600 mt-1">
+                                                        These categories will be the only ones used in your Stop the Fire game.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-2">
+                                                {(editedGame.stopTheFireCategories || ['']).map((cat, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-400 w-6">{idx + 1}.</span>
+                                                        <input
+                                                            type="text"
+                                                            value={cat}
+                                                            onChange={(e) => handleChange(prev => {
+                                                                const next = [...(prev.stopTheFireCategories || [])];
+                                                                while (next.length <= idx) next.push('');
+                                                                next[idx] = e.target.value;
+                                                                return { ...prev, stopTheFireCategories: next };
+                                                            })}
+                                                            className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-orange-300 outline-none"
+                                                            placeholder="e.g., Things in a kitchen"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleChange(prev => {
+                                                                const next = (prev.stopTheFireCategories || []).filter((_, i) => i !== idx);
+                                                                return { ...prev, stopTheFireCategories: next.length ? next : [''] };
+                                                            })}
+                                                            className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-red-600"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange(prev => ({
+                                                    ...prev,
+                                                    stopTheFireCategories: [...(prev.stopTheFireCategories || []), '']
+                                                }))}
+                                                className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-orange-300 hover:text-orange-600 transition-colors"
+                                            >
+                                                + Add Category
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start gap-4">
+                                            <div className="bg-orange-100 text-orange-700 p-3 rounded-xl">
+                                                <Sparkles size={22} />
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-bold text-slate-800">Stop the Fire uses a built-in category bank</h2>
+                                                <p className="text-slate-600 mt-1">
+                                                    You will choose difficulty, category count, timer, and the round letter inside the game setup card.
+                                                </p>
+                                                <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-600">
+                                                    Tip: Use the in-game setup side to preview the letter before starting the round.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                        /* GROUPED EDITOR (JEOPARDY / PUB QUIZ) */
+                        isGrouped && groups ? (
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                                 {/* Tabs */}
                             <div className="relative">
@@ -851,7 +936,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <Plus size={20} className="mr-2" /> Add New Question Pair
                                 </button>
                             </div>
-                        )}
+                        ))}
                 </div>
             </div>
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { getSavedGames, deleteSavedGame, getCommunityGames, getLocalGames } from '../utils/gameUtils';
@@ -16,6 +16,7 @@ import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
 import { MillionaireGame } from '../components/games/MillionaireGame';
 import { TimeBombGame } from '../components/games/TimeBombGame';
 import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
+import { StopTheFireGame } from '../components/games/StopTheFireGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -124,6 +125,7 @@ const getIcon = (type: string) => {
         case GameType.DARTS: return <Target size={18} />;
         case GameType.TIME_BOMB: return <Timer size={18} />;
         case GameType.SURVEY_SHOWDOWN: return <List size={18} />;
+        case GameType.STOP_THE_FIRE: return <Flame size={18} />;
         default: return <Dice5 size={18} />;
     }
 };
@@ -795,6 +797,13 @@ const GameHub: React.FC<{
             image: "/assets/games/survey.png",
             color: "bg-emerald-600"
         },
+        { 
+            type: GameType.STOP_THE_FIRE, 
+            icon: <Flame size={24} />, 
+            desc: "Fast word race inspired by Scattergories.",
+            image: "/assets/games/stopthefire.svg",
+            color: "bg-orange-600"
+        },
     ];
 
     return (
@@ -886,7 +895,7 @@ const GameHub: React.FC<{
 export const Games: React.FC = () => {
     const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'editor' | 'setup' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
-    const [creationMode, setCreationMode] = useState<'ai' | 'manual'>('ai');
+    const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
     const [generatedGame, setGeneratedGame] = useState<GeneratedGame | null>(null);
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
     const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub'>('hub');
@@ -911,7 +920,7 @@ export const Games: React.FC = () => {
         setStep('mode');
     };
 
-    const handleModeSelect = (mode: 'ai' | 'manual') => {
+    const handleModeSelect = (mode: 'ai' | 'manual' | 'bank') => {
         setCreationMode(mode);
         setStep('config');
     };
@@ -938,6 +947,17 @@ export const Games: React.FC = () => {
                  enableBonuses: false,
                  strictMode: false,
                  muted: false
+             });
+             setStep('play');
+        } else if (updatedGame.config.type === GameType.STOP_THE_FIRE) {
+             setPlayOptions({
+                 players: 2,
+                 timerSeconds: 60,
+                 enableBonuses: false,
+                 strictMode: false,
+                 muted: false,
+                 stopTheFireCategoryCount: 10,
+                 stopTheFireDifficulty: 'beginner'
              });
              setStep('play');
         } else if (updatedGame.config.type === GameType.SURVEY_SHOWDOWN) {
@@ -990,7 +1010,7 @@ export const Games: React.FC = () => {
         const performBack = () => {
             setIsDirty(false);
             if (step === 'play') {
-                if (selectedType === GameType.MILLIONAIRE) setStep('editor');
+                if (selectedType === GameType.MILLIONAIRE || selectedType === GameType.STOP_THE_FIRE) setStep('editor');
                 else setStep('setup');
             } else if (step === 'setup') {
                 setStep('editor');
@@ -1021,6 +1041,8 @@ export const Games: React.FC = () => {
         if (selectedType === GameType.MILLIONAIRE) {
              setStep('editor'); 
              setTimeout(() => setStep('play'), 50); 
+        } else if (selectedType === GameType.STOP_THE_FIRE) {
+             setStep('play');
         } else {
              setStep('setup');
         }
@@ -1155,6 +1177,14 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.SURVEY_SHOWDOWN ? (
                     <SurveyShowdownGame
+                        game={generatedGame} 
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('hub')} 
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.STOP_THE_FIRE ? (
+                    <StopTheFireGame
                         game={generatedGame}
                         options={playOptions}
                         onBack={handleGameEnd}

@@ -15,6 +15,7 @@ import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
 import { MillionaireGame } from '../components/games/MillionaireGame';
 import { TimeBombGame } from '../components/games/TimeBombGame';
 import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
+import { StopTheFireGame } from '../components/games/StopTheFireGame';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -189,6 +190,17 @@ export const ShareGame: React.FC = () => {
               muted: false,
             });
             setStep('play');
+          } else if (updated.config.type === GameType.STOP_THE_FIRE) {
+            setPlayOptions({
+              players: 2,
+              timerSeconds: 60,
+              enableBonuses: false,
+              strictMode: false,
+              muted: false,
+              stopTheFireCategoryCount: 10,
+              stopTheFireDifficulty: 'beginner',
+            });
+            setStep('play');
           } else if (updated.config.type === GameType.SURVEY_SHOWDOWN) {
             setPlayOptions({
               players: 2,
@@ -252,6 +264,9 @@ export const ShareGame: React.FC = () => {
   }
   if (game.config.type === GameType.SURVEY_SHOWDOWN) {
     return <SurveyShowdownGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+  }
+  if (game.config.type === GameType.STOP_THE_FIRE) {
+    return <StopTheFireGame key={playKey} {...commonProps} onBack={() => setStep('editor')} />;
   }
 
   return null;

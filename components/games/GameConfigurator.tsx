@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
-import { generateGameContent } from '../../services/geminiService';
+import { generateGameContent, generateStopTheFireCategories } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
 import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 
 // Mode Selector Sub-Component
-export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual') => void }> = ({ type, onBack, onModeSelect }) => {
+export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void }> = ({ type, onBack, onModeSelect }) => {
+    const isStopTheFire = type === GameType.STOP_THE_FIRE;
+    const [isCompactHeight, setIsCompactHeight] = useState(false);
     // Lock body scroll when modal is open
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -15,10 +17,19 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
             document.body.style.overflow = '';
         };
     }, []);
+    useEffect(() => {
+        const media = window.matchMedia('(max-height: 740px)');
+        const handleChange = () => setIsCompactHeight(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fade-in">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up">
+        <div
+            className={`fixed inset-0 z-[100] flex ${isCompactHeight ? 'items-start overflow-y-auto pt-[calc(4rem+env(safe-area-inset-top))] pb-6' : 'items-center'} justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fade-in`}
+        >
+            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up max-h-[90vh] overflow-y-auto">
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
@@ -26,31 +37,73 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                 <p className="text-center text-slate-500 mb-8">How would you like to build your game?</p>
                 
                 <div className="space-y-4">
-                    <button 
-                        onClick={() => onModeSelect('manual')}
-                        className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all group flex items-center"
-                    >
-                        <div className="bg-slate-100 p-3 rounded-full mr-4 group-hover:bg-white">
-                            <Edit className="text-slate-700 group-hover:text-sky-600" size={24} />
-                        </div>
-                        <div className="text-left">
-                            <h3 className="font-bold text-slate-800 text-lg">Manual Creation</h3>
-                            <p className="text-slate-500 text-sm">Build from scratch using the editor table.</p>
-                        </div>
-                    </button>
-
-                    <button 
-                        onClick={() => onModeSelect('ai')}
-                        className="w-full p-6 border-2 border-brand-yellow/50 rounded-xl hover:border-brand-yellow hover:bg-yellow-50 transition-all group flex items-center"
-                    >
-                        <div className="bg-brand-yellow p-3 rounded-full mr-4">
-                            <Sparkles className="text-slate-900" size={24} />
-                        </div>
-                        <div className="text-left">
-                            <h3 className="font-bold text-slate-800 text-lg">Use AI Assistant</h3>
-                            <p className="text-slate-500 text-sm">Generate questions instantly with a prompt.</p>
-                        </div>
-                    </button>
+                    {isStopTheFire ? (
+                        <>
+                            <button 
+                                onClick={() => onModeSelect('manual')}
+                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                            >
+                                <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
+                                    <Edit className="text-orange-600" size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">Manual Categories</h3>
+                                    <p className="text-slate-500 text-sm">Create and use your own custom category list.</p>
+                                </div>
+                            </button>
+                            <button 
+                                onClick={() => onModeSelect('bank')}
+                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                            >
+                                <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
+                                    <Sparkles className="text-orange-600" size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">Use Word Bank</h3>
+                                    <p className="text-slate-500 text-sm">Choose from the built-in 1000-category bank.</p>
+                                </div>
+                            </button>
+                            <button 
+                                onClick={() => onModeSelect('ai')}
+                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                            >
+                                <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
+                                    <Sparkles className="text-orange-600" size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">Use AI to Create Word Bank</h3>
+                                    <p className="text-slate-500 text-sm">Upload files or add instructions to generate categories.</p>
+                                </div>
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button 
+                                onClick={() => onModeSelect('manual')}
+                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all group flex items-center"
+                            >
+                                <div className="bg-slate-100 p-3 rounded-full mr-4 group-hover:bg-white">
+                                    <Edit className="text-slate-700 group-hover:text-sky-600" size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">Manual Creation</h3>
+                                    <p className="text-slate-500 text-sm">Build from scratch using the editor table.</p>
+                                </div>
+                            </button>
+                            <button 
+                                onClick={() => onModeSelect('ai')}
+                                className="w-full p-6 border-2 border-brand-yellow/50 rounded-xl hover:border-brand-yellow hover:bg-yellow-50 transition-all group flex items-center"
+                            >
+                                <div className="bg-brand-yellow p-3 rounded-full mr-4">
+                                    <Sparkles className="text-slate-900" size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">Use AI Assistant</h3>
+                                    <p className="text-slate-500 text-sm">Generate questions instantly with a prompt.</p>
+                                </div>
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -59,7 +112,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
 
 interface GameConfiguratorProps {
     type: GameType;
-    mode: 'ai' | 'manual';
+    mode: 'ai' | 'manual' | 'bank';
     onBack: () => void;
     onProceed: (game: GeneratedGame) => void;
     initialConfig?: GameConfig;
@@ -78,7 +131,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     let defaultCount = type === GameType.TRIVIA ? 12 : 
                          type === GameType.SNAKES_LADDERS ? 20 : 
                          type === GameType.TIME_BOMB ? 25 : 
-                         type === GameType.SURVEY_SHOWDOWN ? 5 : 10;
+                         type === GameType.SURVEY_SHOWDOWN ? 5 : 
+                         type === GameType.STOP_THE_FIRE ? 10 : 10;
     
     // Millionaire requires exactly 15
     if (type === GameType.MILLIONAIRE) defaultCount = 15;
@@ -91,7 +145,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             type,
             title: '',
             questionCount: defaultCount,
-            questionType: type === GameType.MILLIONAIRE ? 'multiple-choice' : (type === GameType.TIME_BOMB ? 'open' : 'mixed'),
+            questionType: type === GameType.MILLIONAIRE ? 'multiple-choice' : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE ? 'open' : 'mixed'),
             mcOptionCount: 4, // Default to 4 options for multiple choice
             pointsMode: 'fixed',
             topic: '',
@@ -108,6 +162,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pubQuizRoundsCount: 3,
             pubQuizRoundNames: Array(3).fill(''),
             pubQuizQuestionsPerRound: 5,
+            stopTheFireMode: type === GameType.STOP_THE_FIRE
+                ? (mode === 'bank' ? 'bank' : mode === 'ai' ? 'ai' : 'manual')
+                : undefined
         };
     });
     
@@ -130,8 +187,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     
     // Check if mode changed from saved config
     useEffect(() => {
-        setConfig(prev => ({ ...prev, isAI: mode === 'ai' }));
-    }, [mode]);
+        setConfig(prev => ({
+            ...prev,
+            isAI: mode === 'ai',
+            stopTheFireMode: type === GameType.STOP_THE_FIRE
+                ? (mode === 'bank' ? 'bank' : mode === 'ai' ? 'ai' : 'manual')
+                : prev.stopTheFireMode
+        }));
+    }, [mode, type]);
+
+    const [manualCategories, setManualCategories] = useState<string[]>(Array(10).fill(''));
 
     const [loading, setLoading] = useState(false);
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
@@ -225,6 +290,34 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         
         // AI MODE
         if (mode === 'ai') {
+            if (type === GameType.STOP_THE_FIRE) {
+                const hasSource = (config.topic && config.topic.trim()) || uploadedFiles.length > 0 || (config.customInstructions && config.customInstructions.trim());
+                if (!hasSource) {
+                    alert("Please enter a topic, add instructions, or upload a file to build a word bank.");
+                    return;
+                }
+                setLoading(true);
+                try {
+                    const finalConfig = { ...config, files: uploadedFiles };
+                    const categories = await generateStopTheFireCategories(finalConfig);
+                    const bank = categories.length > 0 ? categories : [];
+                    const aiGame: GeneratedGame = {
+                        id: Date.now().toString(),
+                        createdAt: new Date().toISOString(),
+                        title: config.title,
+                        config: { ...finalConfig, stopTheFireMode: 'ai' },
+                        questions: [],
+                        stopTheFireCategories: bank
+                    };
+                    onProceed(aiGame);
+                } catch (err) {
+                    console.error(err);
+                    alert("Failed to generate word bank. Please check API configuration.");
+                } finally {
+                    setLoading(false);
+                }
+                return;
+            }
             // Require topic OR files
             const hasSource = config.topic || uploadedFiles.length > 0;
             if (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && !hasSource) {
@@ -265,13 +358,20 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         } 
         // MANUAL MODE
         else {
+            if (type === GameType.STOP_THE_FIRE && mode === 'manual') {
+                const cleaned = manualCategories.map(c => c.trim()).filter(Boolean);
+                if (cleaned.length === 0) {
+                    alert("Please enter at least one category.");
+                    return;
+                }
+            }
             // Create empty shell game
             const emptyGame: GeneratedGame = {
                 id: Date.now().toString(),
                 createdAt: new Date().toISOString(),
                 title: config.title,
                 config: config,
-                questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ) 
+                questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && type !== GameType.STOP_THE_FIRE) 
                     ? Array.from({ length: config.questionCount }).map((_, i) => ({
                         id: i,
                         question: '',
@@ -309,6 +409,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             bonusType: 'none'
                         }))
                     }))
+                    : undefined,
+                stopTheFireCategories: type === GameType.STOP_THE_FIRE && mode === 'manual'
+                    ? manualCategories.map(c => c.trim()).filter(Boolean)
                     : undefined
             };
             onProceed(emptyGame);
@@ -375,6 +478,83 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             </p>
                                         </div>
                                     </div>
+                                </div>
+                            ) : type === GameType.STOP_THE_FIRE ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                    {mode === 'manual' ? (
+                                        <>
+                                            <div className="flex items-start">
+                                                <div className="bg-orange-100 p-2 rounded-lg mr-3 text-orange-700">
+                                                    <Edit size={20} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800">Your Custom Categories</h3>
+                                                    <p className="text-sm text-slate-600 mt-1">
+                                                        Enter the categories you want to use. These will be the only categories used in the game.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                                                {manualCategories.map((cat, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-slate-400 w-6">{idx + 1}.</span>
+                                                        <input
+                                                            type="text"
+                                                            value={cat}
+                                                            onChange={(e) => {
+                                                                const next = [...manualCategories];
+                                                                next[idx] = e.target.value;
+                                                                setManualCategories(next);
+                                                            }}
+                                                            className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-orange-300 outline-none"
+                                                            placeholder="e.g., Things in a kitchen"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const next = manualCategories.filter((_, i) => i !== idx);
+                                                                setManualCategories(next.length ? next : ['']);
+                                                            }}
+                                                            className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-red-600"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setManualCategories((prev) => [...prev, ''])}
+                                                className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-orange-300 hover:text-orange-600 transition-colors"
+                                            >
+                                                + Add Category
+                                            </button>
+                                        </>
+                                    ) : mode === 'ai' ? (
+                                        <div className="flex items-start">
+                                            <div className="bg-orange-100 p-2 rounded-lg mr-3 text-orange-700">
+                                                <Sparkles size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-800">AI Word Bank</h3>
+                                                <p className="text-sm text-slate-600 mt-1">
+                                                    Provide a topic or upload files, and AI will generate a word bank (about 100 categories) you can edit later.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-start">
+                                            <div className="bg-orange-100 p-2 rounded-lg mr-3 text-orange-700">
+                                                <Sparkles size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-bold text-slate-800">Built-in Category Bank</h3>
+                                                <p className="text-sm text-slate-600 mt-1">
+                                                    Stop the Fire uses a curated bank of 1000 categories. You will choose difficulty, category count, timer, and letter inside the game setup card.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : type === GameType.TIME_BOMB ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">

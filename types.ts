@@ -7,7 +7,8 @@ export enum GameType {
   PUB_QUIZ = 'Pub Quiz',
   MILLIONAIRE = 'Millionaire Maker',
   TIME_BOMB = 'Time Bomb',
-  SURVEY_SHOWDOWN = 'Survey Showdown'
+  SURVEY_SHOWDOWN = 'Survey Showdown',
+  STOP_THE_FIRE = 'Stop the Fire!'
 }
 
 export interface UploadedFile {
@@ -38,6 +39,22 @@ export interface GameConfig {
   pubQuizRoundsCount?: number;
   pubQuizQuestionsPerRound?: number;
   pubQuizRoundNames?: string[];
+  // Stop the Fire specific
+  stopTheFireMode?: 'manual' | 'bank' | 'ai';
+}
+
+export type StopTheFireDifficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export interface StopTheFireRound {
+  letter: string;
+  categories: string[];
+  difficulty: StopTheFireDifficulty;
+}
+
+export interface StopTheFireCategory {
+  text: string;
+  difficulty: StopTheFireDifficulty;
+  tags?: string[];
 }
 
 // New Interface for Runtime Options (Players, Timer, Bonuses)
@@ -64,6 +81,9 @@ export interface GameRunOptions {
   // Time Bomb specific
   bombDuration?: number; // Starting time for the bomb
   teamLives?: number; // How many lives per team
+  // Stop the Fire specific (optional defaults)
+  stopTheFireDifficulty?: StopTheFireDifficulty;
+  stopTheFireCategoryCount?: number;
 }
 
 export interface SurveyAnswer {
@@ -104,6 +124,8 @@ export interface GeneratedGame {
   questions: GeneratedQuestion[]; // For standard games
   jeopardyBoard?: JeopardyCategory[]; // For Jeopardy
   pubQuizRounds?: JeopardyCategory[]; // Reusing structure: Category = Round
+  stopTheFireRounds?: StopTheFireRound[]; // Optional seeded rounds
+  stopTheFireCategories?: string[]; // Manual category pool for Stop the Fire
 }
 
 export type ActivityType =

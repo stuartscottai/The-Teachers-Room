@@ -102,6 +102,82 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
   }
 };
 
+export const generateStopTheFireCategories = async (config: GameConfig): Promise<string[]> => {
+  const external = await tryExternalApi<{ categories: string[] }>({ action: 'stop-the-fire-categories', config });
+  if (external?.categories) return external.categories;
+
+  const ai = getClient();
+
+  const systemInstruction = `You are an expert classroom game designer.
+Create a list of short, attainable categories for a Scattergories-style word game.
+Categories must be easy for most people to answer without specialist knowledge.
+Avoid niche trivia, advanced academic topics, or obscure references.
+If files are provided, base the categories on the material in those files.
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON.
+2. STRICTLY escape all special characters in strings.
+3. NO unescaped newlines, tabs, or control characters inside string values.
+`;
+
+  const desiredCount = 100;
+  let prompt = `
+Create exactly ${desiredCount} categories for a classroom word game.
+Make them clear, short, and answerable.
+If a topic is provided, align the categories to that topic.
+Custom instructions: ${config.customInstructions || "None"}.
+Topic: ${config.topic || "General"}.
+
+Return JSON: { "categories": ["..."] }
+`;
+
+  try {
+    const parts: any[] = [];
+    if (config.files && config.files.length > 0) {
+      config.files.forEach(file => {
+        parts.push({
+          inlineData: {
+            mimeType: file.mimeType,
+            data: file.data
+          }
+        });
+      });
+      prompt = `IMPORTANT: Analyze the attached files and create categories based on their content.\n\n` + prompt;
+    }
+
+    parts.push({ text: prompt });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts },
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            categories: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["categories"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("No response from AI");
+
+    const data = JSON.parse(cleanJson(text));
+    if (!data?.categories || !Array.isArray(data.categories)) return [];
+
+    return data.categories
+      .map((c: any) => (typeof c === 'string' ? c.trim() : ''))
+      .filter(Boolean);
+  } catch (error) {
+    console.error("Error generating Stop the Fire categories:", error);
+    throw error;
+  }
+};
+
 const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
