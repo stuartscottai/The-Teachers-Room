@@ -1,5 +1,5 @@
 
-import { GeneratedGame, GeneratedWorksheet, UploadedFile } from "../types";
+import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile } from "../types";
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
 
@@ -374,11 +374,19 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
             if (Array.isArray(data)) return data[0]?.id;
             return data.id;
         };
+        const stopTheFireCategories =
+            game.config.type === GameType.STOP_THE_FIRE
+                ? (game.stopTheFireCategories || []).map((cat) => cat.trim()).filter(Boolean)
+                : [];
+        const configWithBank =
+            stopTheFireCategories.length > 0
+                ? { ...game.config, stopTheFireCategories }
+                : game.config;
         // Prepare payload with top-level is_public column
         const payload: any = {
             user_id: userId,
             title: game.title,
-            config: game.config,
+            config: configWithBank,
             questions: game.questions,
             jeopardy_board: game.jeopardyBoard,
             pub_quiz_rounds: game.pubQuizRounds,
@@ -431,6 +439,7 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
             pubQuizRounds: d.pub_quiz_rounds,
+            stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
             createdAt: d.created_at
         }));
     } catch (e) {
@@ -498,6 +507,7 @@ export const getCommunityGames = async (
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
             pubQuizRounds: d.pub_quiz_rounds,
+            stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
             createdAt: d.created_at
         }));
 
@@ -531,6 +541,7 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
             questions: data.questions,
             jeopardyBoard: data.jeopardy_board,
             pubQuizRounds: data.pub_quiz_rounds,
+            stopTheFireCategories: data.stop_the_fire_categories || data.config?.stopTheFireCategories,
             createdAt: data.created_at,
         };
     } catch (e) {

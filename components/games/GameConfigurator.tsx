@@ -197,6 +197,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     }, [mode, type]);
 
     const [manualCategories, setManualCategories] = useState<string[]>(Array(10).fill(''));
+    const [bulkManualInput, setBulkManualInput] = useState('');
 
     const [loading, setLoading] = useState(false);
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
@@ -492,6 +493,42 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <p className="text-sm text-slate-600 mt-1">
                                                         Enter the categories you want to use. These will be the only categories used in the game.
                                                     </p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white border border-slate-200 rounded-xl p-4">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Add multiple categories</label>
+                                                <textarea
+                                                    value={bulkManualInput}
+                                                    onChange={(e) => setBulkManualInput(e.target.value)}
+                                                    placeholder="Paste categories here, one per line."
+                                                    className="w-full min-h-[90px] p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-200 outline-none"
+                                                />
+                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const incoming = bulkManualInput
+                                                                .split(/\r?\n|,/)
+                                                                .map((cat) => cat.trim())
+                                                                .filter(Boolean);
+                                                            if (incoming.length === 0) return;
+                                                            setManualCategories((prev) => {
+                                                                const existing = prev.map((cat) => cat.trim()).filter(Boolean);
+                                                                const merged = [...existing];
+                                                                incoming.forEach((cat) => {
+                                                                    if (!merged.includes(cat)) merged.push(cat);
+                                                                });
+                                                                return merged.length ? merged : [''];
+                                                            });
+                                                            setBulkManualInput('');
+                                                        }}
+                                                        className="px-4 py-2 rounded-lg bg-orange-500 text-white font-bold text-sm hover:bg-orange-600"
+                                                    >
+                                                        Add to Bank
+                                                    </button>
+                                                    <span className="text-xs text-slate-400">
+                                                        One category per line. Duplicates are ignored.
+                                                    </span>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 max-h-64 overflow-y-auto pr-2">

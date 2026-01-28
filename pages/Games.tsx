@@ -42,6 +42,9 @@ const getGameStats = (game: GeneratedGame) => {
     } else if (type === GameType.SURVEY_SHOWDOWN) {
         const rounds = game.questions?.length || 0;
         stats.push({ label: 'Rounds', value: rounds, icon: <List size={12} /> });
+    } else if (type === GameType.STOP_THE_FIRE) {
+        const cats = game.stopTheFireCategories?.length || game.config.stopTheFireCategories?.length || 0;
+        stats.push({ label: 'Cats', value: cats, icon: <List size={12} /> });
     } else {
         const count = game.questions?.length || 0;
         stats.push({ label: 'Qs', value: count, icon: <HelpCircle size={12} /> });
