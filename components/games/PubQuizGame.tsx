@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
+import { resolveGameImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Clock, ArrowRight, RotateCcw, CheckCircle, XCircle, Plus, Minus, List, Trophy, RefreshCw, Play, Check, Edit2, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Star, X } from 'lucide-react';
 
 interface PubQuizGameProps {
@@ -75,6 +76,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     // Audio & Fullscreen
     const [isMuted, setIsMuted] = useState(options.muted);
+    const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -100,6 +102,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Font Sizer Helper
     const getQuestionFontSizeClass = (text: string) => {
@@ -147,6 +151,29 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    useEffect(() => {
+        if (!isImageZoomOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsImageZoomOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isImageZoomOpen]);
+
+    useEffect(() => {
+        if (!questionImageUrl && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [questionImageUrl, isImageZoomOpen]);
+
+    useEffect(() => {
+        if (isMobileViewport && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [isMobileViewport, isImageZoomOpen]);
 
     useLayoutEffect(() => {
         if (!hasOptions) return;
@@ -370,6 +397,22 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         } else {
             document.exitFullscreen();
             setIsFullscreen(false);
+        }
+    };
+
+    const openImageZoom = (event?: React.SyntheticEvent) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        if (questionImageUrl && !isMobileViewport) {
+            setIsImageZoomOpen(true);
+        }
+    };
+
+    const handleImageKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImageZoom(event);
         }
     };
 
@@ -873,7 +916,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] md:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
@@ -888,61 +931,169 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                                 {/* Body */}
                                 <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
-                                    <div className="flex flex-col flex-1 min-h-0">
-                                        <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
+                                    {questionImageUrl && hasOptions ? (
+                                        <div className="flex flex-col flex-1 min-h-0">
                                             <div
-                                                ref={questionTextRef}
-                                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                className={`flex flex-1 min-h-0 ${isMobileViewport ? 'flex-col' : 'flex-row'} gap-3 px-4 sm:px-6 md:px-8`}
+                                                style={isMobileViewport ? { flex: '2 1 0%' } : undefined}
                                             >
-                                                {currentQuestion.question}
-                                            </div>
-                                        </div>
-                                        {/* Options */}
-                                        {hasOptions && !isFlipped && (
-                                            <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
-                                                    {(() => {
-                                                        const longestText = currentQuestion.options!.reduce(
-                                                            (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
-                                                            ''
-                                                        );
-                                                        const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
-                                                        return currentQuestion.options!.map((opt, i) => {
-                                                            const optionLabel = String.fromCharCode(65 + i);
-                                                            const displayOpt = stripOptionPrefix(opt);
-                                                            return (
-                                                                <div
-                                                                    key={i}
-                                                                    style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                    className={`relative p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize}`}
-                                                                >
-                                                                    <span
-                                                                        aria-hidden="true"
-                                                                        data-option-label="true"
-                                                                        className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
-                                                                    >
-                                                                        {optionLabel}
-                                                                    </span>
-                                                                    <span
-                                                                        data-option-text="true"
-                                                                        className="w-full text-center sm:pl-12 md:pl-16"
-                                                                    >
-                                                                        {displayOpt}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        });
-                                                    })()}
+                                                <div className={isMobileViewport ? 'w-full h-32 sm:h-36 flex items-center justify-center flex-none' : 'flex-1 min-h-0 flex items-center justify-center'}>
+                                                    <img
+                                                        src={questionImageUrl}
+                                                        alt={questionImageAlt}
+                                                        onLoad={() => setResizeTick((prev) => prev + 1)}
+                                                        onClick={isMobileViewport ? undefined : openImageZoom}
+                                                        onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                                        role={isMobileViewport ? undefined : 'button'}
+                                                        tabIndex={isMobileViewport ? -1 : 0}
+                                                        title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                        className={`max-h-full w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                    />
                                                 </div>
                                                 <div
-                                                    ref={optionMeasureRef}
-                                                    aria-hidden="true"
-                                                    className="absolute -left-[9999px] -top-[9999px] invisible"
-                                                />
+                                                    ref={questionWrapRef}
+                                                    className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
+                                                >
+                                                    <div
+                                                        ref={questionTextRef}
+                                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                        className={`font-display font-bold text-slate-800 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    >
+                                                        {currentQuestion.question}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
+
+                                            {hasOptions && !isFlipped && (
+                                                <div
+                                                    className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
+                                                    style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
+                                                >
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                        {(() => {
+                                                            const longestText = currentQuestion.options!.reduce(
+                                                                (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
+                                                                ''
+                                                            );
+                                                            const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
+                                                            return currentQuestion.options!.map((opt, i) => {
+                                                                const optionLabel = String.fromCharCode(65 + i);
+                                                                const displayOpt = stripOptionPrefix(opt);
+                                                                return (
+                                                                    <div
+                                                                        key={i}
+                                                                        style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                        className={`relative p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize}`}
+                                                                    >
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            data-option-label="true"
+                                                                            className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
+                                                                        >
+                                                                            {optionLabel}
+                                                                        </span>
+                                                                        <span
+                                                                            data-option-text="true"
+                                                                            className="w-full text-center sm:pl-12 md:pl-16"
+                                                                        >
+                                                                            {displayOpt}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                    <div
+                                                        ref={optionMeasureRef}
+                                                        aria-hidden="true"
+                                                        className="absolute -left-[9999px] -top-[9999px] invisible"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : questionImageUrl ? (
+                                        <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-4 px-4 sm:px-6 md:px-8 text-center">
+                                            <img
+                                                src={questionImageUrl}
+                                                alt={questionImageAlt}
+                                                onLoad={() => setResizeTick((prev) => prev + 1)}
+                                                onClick={isMobileViewport ? undefined : openImageZoom}
+                                                onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                                role={isMobileViewport ? undefined : 'button'}
+                                                tabIndex={isMobileViewport ? -1 : 0}
+                                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                className={`max-h-44 sm:max-h-52 md:max-h-60 w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                            />
+                                            <div
+                                                ref={questionWrapRef}
+                                                className="w-full flex-1 min-h-0 flex items-center justify-center"
+                                            >
+                                                <div
+                                                    ref={questionTextRef}
+                                                    style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                >
+                                                    {currentQuestion.question}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col flex-1 min-h-0">
+                                            <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
+                                                <div
+                                                    ref={questionTextRef}
+                                                    style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                >
+                                                    {currentQuestion.question}
+                                                </div>
+                                            </div>
+                                            {/* Options */}
+                                            {hasOptions && !isFlipped && (
+                                                <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                        {(() => {
+                                                            const longestText = currentQuestion.options!.reduce(
+                                                                (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
+                                                                ''
+                                                            );
+                                                            const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
+                                                            return currentQuestion.options!.map((opt, i) => {
+                                                                const optionLabel = String.fromCharCode(65 + i);
+                                                                const displayOpt = stripOptionPrefix(opt);
+                                                                return (
+                                                                    <div
+                                                                        key={i}
+                                                                        style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                        className={`relative p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize}`}
+                                                                    >
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            data-option-label="true"
+                                                                            className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
+                                                                        >
+                                                                            {optionLabel}
+                                                                        </span>
+                                                                        <span
+                                                                            data-option-text="true"
+                                                                            className="w-full text-center sm:pl-12 md:pl-16"
+                                                                        >
+                                                                            {displayOpt}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                    <div
+                                                        ref={optionMeasureRef}
+                                                        aria-hidden="true"
+                                                        className="absolute -left-[9999px] -top-[9999px] invisible"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Footer */}
@@ -1025,6 +1176,49 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* IMAGE ZOOM */}
+            {isImageZoomOpen && questionImageUrl && (
+                <div
+                    className="fixed inset-0 z-[600] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+                    onClick={() => setIsImageZoomOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-visible"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setIsImageZoomOpen(false)}
+                            className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-black/80 transition-colors"
+                            aria-label="Close image"
+                        >
+                            X
+                        </button>
+                        <img
+                            src={questionImageUrl}
+                            alt={questionImageAlt}
+                            onClick={() => setIsImageZoomOpen(false)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    setIsImageZoomOpen(false);
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to close"
+                            style={{
+                                transform: 'scale(2)',
+                                transformOrigin: 'center',
+                                maxWidth: '25vw',
+                                maxHeight: 'calc((100vh - 4rem - env(safe-area-inset-top)) * 0.25)',
+                            }}
+                            className="rounded-2xl object-contain border border-white/10 shadow-2xl cursor-zoom-out"
+                        />
                     </div>
                 </div>
             )}

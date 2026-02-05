@@ -5,6 +5,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
+import { resolveGameImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Trophy, Target, FileQuestion, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface DartsGameProps {
@@ -495,6 +496,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     const [turnResult, setTurnResult] = useState<{ score: number, text: string } | null>(null);
     const [isMuted, setIsMuted] = useState(options.muted);
+    const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(0);
     const [isTimesUp, setIsTimesUp] = useState(false);
     const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
@@ -861,6 +863,22 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         }
     };
 
+    const openImageZoom = (event?: React.SyntheticEvent) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        if (questionImageUrl && !isMobileViewport) {
+            setIsImageZoomOpen(true);
+        }
+    };
+
+    const handleImageKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImageZoom(event);
+        }
+    };
+
     const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
         if (len < 30) return 'text-3xl sm:text-5xl md:text-7xl';
@@ -895,6 +913,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageAlt = currentQuestion?.image?.alt || '';
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -909,6 +929,29 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    useEffect(() => {
+        if (!isImageZoomOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsImageZoomOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isImageZoomOpen]);
+
+    useEffect(() => {
+        if (!questionImageUrl && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [questionImageUrl, isImageZoomOpen]);
+
+    useEffect(() => {
+        if (isMobileViewport && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [isMobileViewport, isImageZoomOpen]);
 
     useLayoutEffect(() => {
         if (!hasOptions) return;
@@ -1235,7 +1278,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             </div>
 
             {phase === 'question' && currentQuestion && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
@@ -1247,66 +1290,177 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 </div>
 
                                 <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
-                                    <div className="flex flex-col flex-1 min-h-0">
-                                        <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                    {questionImageUrl && hasOptions ? (
+                                        <div className="flex flex-col flex-1 min-h-0">
                                             <div
-                                                ref={questionTextRef}
-                                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                className={`flex flex-1 min-h-0 ${isMobileViewport ? 'flex-col' : 'flex-row'} gap-3 sm:gap-4 md:gap-6`}
+                                                style={isMobileViewport ? { flex: '2 1 0%' } : undefined}
                                             >
-                                                {currentQuestion.question}
-                                            </div>
-                                        </div>
-                                        {hasOptions && !isFlipped && (
-                                            <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
-                                                    {(() => {
-                                                        const longestText = currentQuestion.options!.reduce(
-                                                            (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
-                                                            ''
-                                                        );
-                                                        const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
-                                                        return currentQuestion.options!.map((opt, i) => {
-                                                            const optionLabel = String.fromCharCode(65 + i);
-                                                            const displayOpt = stripOptionPrefix(opt);
-                                                            return (
-                                                                <button 
-                                                                    key={i}
-                                                                    onClick={() => {
-                                                                        const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
-                                                                        const isCorrect = clean(opt) === clean(currentQuestion.answer);
-                                                                        setMcResult(isCorrect ? 'correct' : 'incorrect');
-                                                                        setIsFlipped(true);
-                                                                    }}
-                                                                    style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                    className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
-                                                                >
-                                                                    <span
-                                                                        aria-hidden="true"
-                                                                        data-option-label="true"
-                                                                        className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
-                                                                    >
-                                                                        {optionLabel}
-                                                                    </span>
-                                                                    <span
-                                                                        data-option-text="true"
-                                                                        className="w-full text-center sm:pl-12 md:pl-16"
-                                                                    >
-                                                                        {displayOpt}
-                                                                    </span>
-                                                                </button>
-                                                            );
-                                                        });
-                                                    })()}
+                                                <div className={isMobileViewport ? 'w-full h-32 sm:h-36 flex items-center justify-center flex-none' : 'flex-1 min-h-0 flex items-center justify-center'}>
+                                                    <img
+                                                        src={questionImageUrl}
+                                                        alt={questionImageAlt}
+                                                        onLoad={() => setResizeTick((prev) => prev + 1)}
+                                                        onClick={isMobileViewport ? undefined : openImageZoom}
+                                                        onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                                        role={isMobileViewport ? undefined : 'button'}
+                                                        tabIndex={isMobileViewport ? -1 : 0}
+                                                        title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                        className={`max-h-full w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                    />
                                                 </div>
                                                 <div
-                                                    ref={optionMeasureRef}
-                                                    aria-hidden="true"
-                                                    className="absolute -left-[9999px] -top-[9999px] invisible"
-                                                />
+                                                    ref={questionWrapRef}
+                                                    className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
+                                                >
+                                                    <div
+                                                        ref={questionTextRef}
+                                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                        className={`font-display font-bold text-slate-800 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    >
+                                                        {currentQuestion.question}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
+
+                                            {hasOptions && !isFlipped && (
+                                                <div
+                                                    className="w-full flex-1 min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
+                                                    style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
+                                                >
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                        {(() => {
+                                                            const longestText = currentQuestion.options!.reduce(
+                                                                (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
+                                                                ''
+                                                            );
+                                                            const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
+                                                            return currentQuestion.options!.map((opt, i) => {
+                                                                const optionLabel = String.fromCharCode(65 + i);
+                                                                const displayOpt = stripOptionPrefix(opt);
+                                                                return (
+                                                                    <button 
+                                                                        key={i}
+                                                                        onClick={() => {
+                                                                            const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
+                                                                            const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                            setMcResult(isCorrect ? 'correct' : 'incorrect');
+                                                                            setIsFlipped(true);
+                                                                        }}
+                                                                        style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                        className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                    >
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            data-option-label="true"
+                                                                            className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
+                                                                        >
+                                                                            {optionLabel}
+                                                                        </span>
+                                                                        <span
+                                                                            data-option-text="true"
+                                                                            className="w-full text-center sm:pl-12 md:pl-16"
+                                                                        >
+                                                                            {displayOpt}
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                    <div
+                                                        ref={optionMeasureRef}
+                                                        aria-hidden="true"
+                                                        className="absolute -left-[9999px] -top-[9999px] invisible"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : questionImageUrl ? (
+                                        <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-3 sm:gap-4 md:gap-6 text-center">
+                                            <img
+                                                src={questionImageUrl}
+                                                alt={questionImageAlt}
+                                                onLoad={() => setResizeTick((prev) => prev + 1)}
+                                                onClick={isMobileViewport ? undefined : openImageZoom}
+                                                onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                                role={isMobileViewport ? undefined : 'button'}
+                                                tabIndex={isMobileViewport ? -1 : 0}
+                                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                className={`max-h-40 sm:max-h-48 md:max-h-56 w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                            />
+                                            <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
+                                                <div
+                                                    ref={questionTextRef}
+                                                    style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                >
+                                                    {currentQuestion.question}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col flex-1 min-h-0">
+                                            <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                                <div
+                                                    ref={questionTextRef}
+                                                    style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                >
+                                                    {currentQuestion.question}
+                                                </div>
+                                            </div>
+                                            {hasOptions && !isFlipped && (
+                                                <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                        {(() => {
+                                                            const longestText = currentQuestion.options!.reduce(
+                                                                (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
+                                                                ''
+                                                            );
+                                                            const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(stripOptionPrefix(longestText));
+                                                            return currentQuestion.options!.map((opt, i) => {
+                                                                const optionLabel = String.fromCharCode(65 + i);
+                                                                const displayOpt = stripOptionPrefix(opt);
+                                                                return (
+                                                                    <button 
+                                                                        key={i}
+                                                                        onClick={() => {
+                                                                            const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
+                                                                            const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                            setMcResult(isCorrect ? 'correct' : 'incorrect');
+                                                                            setIsFlipped(true);
+                                                                        }}
+                                                                        style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
+                                                                        className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                    >
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            data-option-label="true"
+                                                                            className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60"
+                                                                        >
+                                                                            {optionLabel}
+                                                                        </span>
+                                                                        <span
+                                                                            data-option-text="true"
+                                                                            className="w-full text-center sm:pl-12 md:pl-16"
+                                                                        >
+                                                                            {displayOpt}
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                    <div
+                                                        ref={optionMeasureRef}
+                                                        aria-hidden="true"
+                                                        className="absolute -left-[9999px] -top-[9999px] invisible"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className={`h-[clamp(88px,14vh,120px)] flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative flex-shrink-0 z-50 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
@@ -1365,6 +1519,47 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {isImageZoomOpen && questionImageUrl && (
+                <div
+                    className="fixed inset-0 z-[600] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                    onClick={() => setIsImageZoomOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-visible"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsImageZoomOpen(false)}
+                            className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
+                            title="Close"
+                        >
+                            <XIcon size={18} />
+                        </button>
+                        <img
+                            src={questionImageUrl}
+                            alt={questionImageAlt}
+                            onClick={() => setIsImageZoomOpen(false)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setIsImageZoomOpen(false);
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to close"
+                            style={{
+                                transform: 'scale(2)',
+                                transformOrigin: 'center',
+                                maxWidth: '25vw',
+                                maxHeight: 'calc((100vh - 4rem - env(safe-area-inset-top)) * 0.25)'
+                            }}
+                            className="rounded-2xl object-contain border border-white/10 shadow-2xl cursor-zoom-out"
+                        />
                     </div>
                 </div>
             )}

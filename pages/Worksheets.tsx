@@ -9,7 +9,7 @@ import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCo
 import { optimizeImageForUpload } from '../utils/imageOptimize';
 import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
 import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
-import { blocksFromAi, blockToElementHtml, imageToHtml, sanitizeHtml } from '../components/worksheet/designer/designerHelpers';
+import { blocksFromAi, blockToElementHtml, gapFillToHtml, imageToHtml, sanitizeHtml, escapeHtml } from '../components/worksheet/designer/designerHelpers';
 import { WorksheetAiResultV1, WorksheetDesignerDocV1, WorksheetDesignerSettings, createEmptyDoc, tryParseDesignerDoc, WorksheetBlock, WorksheetDesignerPage, WorksheetPlacedElement, createId } from '../components/worksheet/designer/designerTypes';
 import { Avatar } from '../components/Avatar';
 import { StockImagePicker, StockImageSelection } from '../components/worksheet/StockImagePicker';
@@ -720,8 +720,9 @@ const WorksheetBuilder: React.FC<{
     generatedWs: GeneratedWorksheet | null,
     setGeneratedWs: React.Dispatch<React.SetStateAction<GeneratedWorksheet | null>>,
     onLoad: () => void,
-    onDirtyChange?: (dirty: boolean) => void
-}> = ({ config, setConfig, generatedWs, setGeneratedWs, onDirtyChange }) => {
+    onDirtyChange?: (dirty: boolean) => void,
+    onNewWorksheet?: () => boolean
+}> = ({ config, setConfig, generatedWs, setGeneratedWs, onDirtyChange, onNewWorksheet }) => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -741,6 +742,16 @@ const WorksheetBuilder: React.FC<{
     const [isMobile, setIsMobile] = useState(false);
     const [infoLayoutKey, setInfoLayoutKey] = useState<string | null>(null);
     const [autoLayoutKey, setAutoLayoutKey] = useState<string | null>(null);
+    const designerActionsRef = useRef<{
+        addManualBlock: (kind: 'text' | 'heading' | 'instruction' | 'note') => void;
+        regenerateSelected: (notes?: string) => Promise<void>;
+        appendActivities: (activities: ActivityConfig[]) => Promise<void>;
+    } | null>(null);
+    const [appendNotes, setAppendNotes] = useState('');
+    const [appendActivities, setAppendActivities] = useState<ActivityConfig[]>([]);
+    const [appendAddType, setAppendAddType] = useState<ActivityType>('multiple-choice');
+    const [appendLoading, setAppendLoading] = useState(false);
+    const hasGenerated = Boolean(generatedWs?.content?.trim());
 
     // --- NEW DESIGNER STATE ---
     const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
@@ -1516,6 +1527,70 @@ const WorksheetBuilder: React.FC<{
         setShowAddMenu(false);
     };
 
+    const addAppendActivity = (type: ActivityType) => {
+        const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(type);
+        const defaultCount =
+            type === 'wordsearch'
+                ? 10
+                : type === 'matching'
+                    ? 6
+                    : type === 'information-sheet'
+                        ? 4
+                        : type === 'table'
+                            ? 4
+                            : type === 'custom'
+                                ? 1
+                                : 5;
+        const defaultOptions =
+            type === 'multiple-choice'
+                ? { mcCount: 4 as const }
+                : type === 'wordsearch'
+                    ? { rows: 10, cols: 10, allowDiagonals: false }
+                    : type === 'word-formation'
+                        ? { embedInStory: true }
+                        : type === 'table'
+                            ? { rows: 4, cols: 3 }
+                            : undefined;
+        setAppendActivities((prev) => [
+            ...prev,
+            {
+                id: `append-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type,
+                count: defaultCount,
+                contextType: supportsContext ? 'sentences' : undefined,
+                options: defaultOptions,
+                customInstructions: '',
+            },
+        ]);
+    };
+
+    const updateAppendActivity = (id: string, patch: Partial<ActivityConfig>) => {
+        setAppendActivities((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    };
+
+    const updateAppendActivityCount = (id: string, count: number) => {
+        const nextCount = Math.max(1, Math.floor(count || 1));
+        updateAppendActivity(id, { count: nextCount });
+    };
+
+    const updateAppendActivityInstructions = (id: string, customInstructions: string) => {
+        updateAppendActivity(id, { customInstructions });
+    };
+
+    const updateAppendActivityContext = (id: string, contextType: 'sentences' | 'text') => {
+        updateAppendActivity(id, { contextType });
+    };
+
+    const updateAppendActivityOptions = (id: string, patch: Record<string, any>) => {
+        setAppendActivities((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, options: { ...(a.options || {}), ...patch } } : a))
+        );
+    };
+
+    const removeAppendActivity = (id: string) => {
+        setAppendActivities((prev) => prev.filter((a) => a.id !== id));
+    };
+
     const removeActivity = (id: string, e?: React.MouseEvent) => {
         if (e) { e.preventDefault(); e.stopPropagation(); }
         setConfig(prev => ({ ...prev, activities: prev.activities.filter(a => a.id !== id) }));
@@ -1797,7 +1872,88 @@ const WorksheetBuilder: React.FC<{
                 setConfig(hydratedConfig);
             }
 
-            const nextBlocks = blocksFromAi(ai, hydratedConfig);
+            const infoActivities = (hydratedConfig.activities || []).filter((a) => a.type === 'information-sheet');
+            const requestedInfoCount = infoActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+            const existingInfoSections = Array.isArray(ai?.infoSections) ? ai.infoSections : [];
+            if (requestedInfoCount > 0 && existingInfoSections.length < requestedInfoCount) {
+                const notesByIndex = infoActivities
+                    .flatMap((a) => Array(Math.max(1, a.count || 0)).fill(a.customInstructions || ''));
+                const topicText = hydratedConfig.topic || hydratedConfig.title || 'Information';
+                const fallbackSections = Array.from({ length: requestedInfoCount }, (_, idx) => {
+                    const note = (notesByIndex[idx] || '').trim();
+                    const title = note ? note.split('\n')[0].trim() : `${topicText} ${idx + 1}`;
+                    const bodyLines = note
+                        ? note.split('\n').map((line) => line.trim()).filter(Boolean)
+                        : [`Key points about ${topicText}.`];
+                    const bodyHtml = sanitizeHtml(
+                        bodyLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')
+                    );
+                    return { title, bodyHtml };
+                });
+                const merged = [...existingInfoSections];
+                for (let i = existingInfoSections.length; i < requestedInfoCount; i += 1) {
+                    merged.push(fallbackSections[i]);
+                }
+                ai.infoSections = merged;
+            }
+
+            let nextBlocks = blocksFromAi(ai, hydratedConfig);
+            const requestedInfoCountAfter = infoActivities.reduce((sum, a) => sum + (a.count || 0), 0);
+            if (requestedInfoCountAfter > 0) {
+                const infoTemplate = hydratedConfig.infoTemplate || 'classic';
+                const infoTheme = hydratedConfig.infoTheme || 'ocean';
+                const infoBlockStyles = {
+                    padding: '0px',
+                    backgroundColor: 'transparent',
+                    borderStyle: 'none',
+                    borderWidth: '0px',
+                    borderColor: 'transparent',
+                    borderRadius: '0px',
+                    boxShadow: 'none',
+                };
+                const buildInfoSectionHtml = (section: { title: string; bodyHtml: string }) => {
+                    const title = (section.title || '').trim();
+                    const titleHtml = title ? `<div class="ws-info-card__title">${escapeHtml(title)}</div>` : '';
+                    const bodyHtml = section.bodyHtml || `<p>${escapeHtml(hydratedConfig.topic || 'Information')}</p>`;
+                    return sanitizeHtml(
+                        `<div class="ws-info-card ws-info-card--${escapeHtml(infoTemplate)} ws-info-theme--${escapeHtml(infoTheme)}">${titleHtml}<div class="ws-info-card__body">${bodyHtml}</div></div>`
+                    );
+                };
+                const notesByIndex = infoActivities
+                    .flatMap((a) => Array(Math.max(1, a.count || 0)).fill(a.customInstructions || ''));
+                const topicText = hydratedConfig.topic || hydratedConfig.title || 'Information';
+                const fallbackSections = Array.isArray(ai?.infoSections) && ai.infoSections.length
+                    ? ai.infoSections
+                    : Array.from({ length: requestedInfoCountAfter }, (_, idx) => {
+                        const note = (notesByIndex[idx] || '').trim();
+                        const title = note ? note.split('\n')[0].trim() : `${topicText} ${idx + 1}`;
+                        const bodyLines = note
+                            ? note.split('\n').map((line) => line.trim()).filter(Boolean)
+                            : [`Key points about ${topicText}.`];
+                        const bodyHtml = sanitizeHtml(
+                            bodyLines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')
+                        );
+                        return { title, bodyHtml };
+                    });
+
+                const infoBlocks = fallbackSections.slice(0, requestedInfoCountAfter).map((section) => {
+                    const html = buildInfoSectionHtml(section);
+                    return {
+                        id: `info-${createId()}`,
+                        type: 'custom',
+                        title: section.title ? `Info: ${section.title}` : 'Information',
+                        payload: { html, kind: 'info-section', template: infoTemplate, theme: infoTheme, styles: infoBlockStyles },
+                        previewHtml: html,
+                    } as WorksheetBlock;
+                });
+
+                const withoutInfo = nextBlocks.filter(
+                    (b) => b?.payload?.kind !== 'info-section' && b?.payload?.kind !== 'info-header'
+                );
+                const headerish = withoutInfo.filter((b) => b.type === 'title' || b.type === 'header');
+                const rest = withoutInfo.filter((b) => b.type !== 'title' && b.type !== 'header');
+                nextBlocks = [...headerish, ...infoBlocks, ...rest];
+            }
             if (logoUrl) {
                 nextBlocks.unshift({
                     id: `logo-${createId()}`,
@@ -1822,8 +1978,14 @@ const WorksheetBuilder: React.FC<{
             setElements(nextDoc.elements);
             setDesignerSettings(nextDoc.settings || {});
             setSelectedElementId(null);
-            if (nextDoc.blocks.some((b) => b?.payload?.kind === 'info-section')) {
+            const hasInfoBlocks = nextDoc.blocks.some((b) => b?.payload?.kind === 'info-section');
+            const hasNonInfoBlocks = nextDoc.blocks.some(
+                (b) => b?.payload?.kind !== 'info-section' && b?.payload?.kind !== 'info-header'
+            );
+            if (hasInfoBlocks && !hasNonInfoBlocks) {
                 setInfoLayoutKey(createId());
+            } else {
+                setInfoLayoutKey(null);
             }
             setAutoLayoutKey(createId());
 
@@ -1847,6 +2009,256 @@ const WorksheetBuilder: React.FC<{
         } finally {
             setLoading(false);
         }
+    };
+
+    const requestAiBlocksForActivity = async (activity: ActivityConfig): Promise<WorksheetBlock[]> => {
+        const baseConfig: WorksheetConfig = {
+            ...config,
+            activities: [activity],
+            files: uploadedFiles,
+            generateAnswerKey: false,
+            includeHeader: false,
+        };
+
+        const hasBlockType = (blocks: WorksheetBlock[], type: WorksheetBlock['type']) =>
+            blocks.some((b) => b.type === type);
+
+        const ensureWordsearchGrid = (ai: WorksheetAiResultV1) => {
+            if (activity.type !== 'wordsearch') return;
+            const rows = activity.options?.rows ?? 10;
+            const cols = activity.options?.cols ?? 10;
+            const allowDiagonals = Boolean(activity.options?.allowDiagonals);
+            const first = Array.isArray(ai.wordSearch) ? ai.wordSearch[0] : undefined;
+            const wordsFromAi = Array.isArray(first?.words) ? first.words : [];
+            const gridFromAi = Array.isArray(first?.grid) ? first.grid : [];
+            const hasGrid = gridFromAi.length > 0 && Array.isArray(gridFromAi[0]) && gridFromAi[0].length > 0;
+
+            const extractWords = (text: string) => {
+                const raw = text
+                    .split(/\n|,|;|\u2022|\u2023|\u2013|-/g)
+                    .map((w) => w.trim())
+                    .filter(Boolean);
+                const unique = Array.from(new Set(raw));
+                return unique.filter((w) => w.length >= 2);
+            };
+
+            const fallbackWords =
+                wordsFromAi.length > 0
+                    ? wordsFromAi
+                    : extractWords(activity.customInstructions || '').slice(0, Math.max(0, activity.count || 0));
+
+            if (!hasGrid && fallbackWords.length > 0) {
+                ai.wordSearch = [generateWordSearchPuzzle(fallbackWords, rows, cols, allowDiagonals)];
+            }
+        };
+
+        const ensureGapFillItems = (ai: WorksheetAiResultV1) => {
+            if (activity.type !== 'gap-fill') return;
+            const gapItems = Array.isArray(ai.gapFill) ? ai.gapFill : [];
+            if (gapItems.length > 0) return;
+            const plainText = (value: string) =>
+                value
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            const pickWords = (sentence: string) => {
+                const words = sentence.split(/\s+/).map((w) => w.replace(/[^A-Za-z]/g, '')).filter(Boolean);
+                if (words.length === 0) return { sentence, answer: '' };
+                const sorted = [...words].sort((a, b) => b.length - a.length);
+                const answer = sorted[0];
+                const regex = new RegExp(`\\b${answer}\\b`, 'i');
+                const gapped = sentence.replace(regex, '_____');
+                return { sentence: gapped, answer };
+            };
+            const sourceText = plainText(String(ai.storyHtml || activity.customInstructions || ''));
+            const sentences = sourceText
+                .split(/(?<=[.!?])\s+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+            const count = Math.max(1, activity.count || 5);
+            const selected = (sentences.length ? sentences : [sourceText])
+                .filter(Boolean)
+                .slice(0, count);
+            const fallbackItems = selected.map((s) => pickWords(s));
+            if (fallbackItems.length > 0) {
+                ai.gapFill = fallbackItems;
+                if (activity.contextType === 'text' && !ai.storyHtml && sourceText) {
+                    ai.storyHtml = `<p>${sourceText}</p>`;
+                }
+            }
+        };
+
+        const buildGapFillBlock = (ai: WorksheetAiResultV1) => {
+            const clean = (value: string) =>
+                value
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            const sourceText = clean(String(ai.storyHtml || activity.customInstructions || ''));
+            const sentences = sourceText
+                .split(/(?<=[.!?])\s+/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+            const count = Math.max(1, activity.count || 5);
+            const items = (sentences.length ? sentences : Array.from({ length: count }, () => sourceText || '_____'))
+                .slice(0, count)
+                .map((sentence) => {
+                    const words = sentence
+                        .split(/\s+/)
+                        .map((w) => w.replace(/[^A-Za-z]/g, ''))
+                        .filter(Boolean);
+                    const sorted = [...words].sort((a, b) => b.length - a.length);
+                    const answer = sorted[0] || '';
+                    const regex = answer ? new RegExp(`\\b${answer}\\b`, 'i') : null;
+                    const gapped = regex ? sentence.replace(regex, '_____') : sentence || '_____';
+                    return { sentence: gapped, answer };
+                });
+            if (items.length === 0) return [] as WorksheetBlock[];
+            const wordBank = activity.options?.wordBank
+                ? Array.from(new Set(items.map((item) => item.answer).filter(Boolean)))
+                : undefined;
+            return [
+                {
+                    id: createId(),
+                    type: 'gap-fill',
+                    title: `Gap Fill (${items.length})`,
+                    payload: { items, ...(wordBank ? { wordBank } : {}) },
+                    previewHtml: gapFillToHtml(items, { wordBank }),
+                } as WorksheetBlock,
+            ];
+        };
+
+        const buildMcqBlock = () => {
+            const count = Math.max(1, activity.count || 5);
+            const optionCount = Math.max(2, Math.min(4, Math.round(activity.options?.mcCount ?? 4)));
+            const note = (activity.customInstructions || baseConfig.customInstructions || '').trim();
+            const stem = note ? note.split('\n')[0].trim() : (baseConfig.topic || 'Question');
+            const items = Array.from({ length: count }, (_, idx) => ({
+                q: `${stem} (${idx + 1})`,
+                options: ['Option A', 'Option B', 'Option C', 'Option D'].slice(0, optionCount),
+            }));
+            return [
+                {
+                    id: createId(),
+                    type: 'mcq',
+                    title: `MCQ (${items.length})`,
+                    payload: { items, optionLabelType: resolveMcqOptionLabelType(activity.customInstructions) },
+                    previewHtml: sanitizeHtml(
+                        `<div><div style="font-weight:700;margin-bottom:6px;">MCQ</div><div style="font-size:12px;opacity:.85;">${escapeHtml(
+                            items[0]?.q || 'Question'
+                        )}</div></div>`
+                    ),
+                } as WorksheetBlock,
+            ];
+        };
+
+        const ai = (await generateWorksheetContent(baseConfig)) as WorksheetAiResultV1;
+        ensureWordsearchGrid(ai);
+        ensureGapFillItems(ai);
+        if (baseConfig.title) ai.title = baseConfig.title;
+        let blocks = blocksFromAi(ai, baseConfig);
+
+        const missingGapFill =
+            activity.type === 'gap-fill' &&
+            !hasBlockType(blocks, 'gap-fill') &&
+            !(activity.contextType === 'text' && activity.options?.embedInStory && hasBlockType(blocks, 'story'));
+        const missingMcq = activity.type === 'multiple-choice' && !hasBlockType(blocks, 'mcq');
+
+        if (missingGapFill || missingMcq) {
+            const activityLabel = missingGapFill ? 'gapFill' : 'mcq';
+            const retryConfig: WorksheetConfig = {
+                ...baseConfig,
+                customInstructions: [
+                    baseConfig.customInstructions,
+                    activity.customInstructions,
+                    `CRITICAL: Return the ${activityLabel} array with ${activity.count || 5} items. Do not omit the ${activityLabel} field.`,
+                ]
+                    .filter(Boolean)
+                    .join('\n'),
+            };
+            const retryAi = (await generateWorksheetContent(retryConfig)) as WorksheetAiResultV1;
+            ensureWordsearchGrid(retryAi);
+            ensureGapFillItems(retryAi);
+            if (retryConfig.title) retryAi.title = retryConfig.title;
+            const retryBlocks = blocksFromAi(retryAi, retryConfig);
+            if (retryBlocks.length > 0) {
+                blocks = retryBlocks;
+            }
+        }
+
+        if (activity.type === 'gap-fill') {
+            const embeddedStory =
+                activity.contextType === 'text' && activity.options?.embedInStory && hasBlockType(blocks, 'story');
+            if (!embeddedStory && !hasBlockType(blocks, 'gap-fill')) {
+                const fallbackBlocks = buildGapFillBlock(ai);
+                if (fallbackBlocks.length > 0) {
+                    return fallbackBlocks;
+                }
+            }
+        }
+
+        if (blocks.length === 0 && activity.type === 'multiple-choice') {
+            return buildMcqBlock();
+        }
+
+        return blocks;
+    };
+
+    const handleAppendActivities = async () => {
+        if (!designerActionsRef.current) {
+            alert('Worksheet canvas is not ready yet. Please switch to the Canvas tab and try again.');
+            return;
+        }
+        if (appendActivities.length === 0) {
+            alert('Add at least one activity to append.');
+            return;
+        }
+        if (appendLoading) return;
+        setAppendLoading(true);
+        const activitiesToAppend = appendActivities.map((activity) => ({
+            ...activity,
+            customInstructions: activity.customInstructions || appendNotes,
+        }));
+        try {
+            await designerActionsRef.current.appendActivities(activitiesToAppend);
+            setAppendActivities([]);
+            setAppendNotes('');
+        } finally {
+            setAppendLoading(false);
+        }
+    };
+
+    const resetLocalWorksheet = () => {
+        const seed = createEmptyDoc();
+        setPages(seed.pages);
+        setBlocks([]);
+        setElements([]);
+        setDesignerSettings(seed.settings || {});
+        setSelectedElementId(null);
+        setUploadedFiles([]);
+        setLogoUrl(null);
+        setLogoStoragePath(null);
+        setLogoPos({ x: 20, y: 20 });
+        setLogoWidth(150);
+        setLogoHeight(90);
+        pendingLogoUploadRef.current = null;
+        setImagePickerSelection([]);
+        setImagePickerOpen(false);
+        setImagePickerTarget(null);
+        setAppendNotes('');
+        setAppendActivities([]);
+        setAppendAddType('multiple-choice');
+        setInfoLayoutKey(null);
+        setAutoLayoutKey(null);
+        setSaveStatus('idle');
+        setMobileTab('config');
+    };
+
+    const handleNewWorksheet = () => {
+        if (!onNewWorksheet) return;
+        const ok = onNewWorksheet();
+        if (!ok) return;
+        resetLocalWorksheet();
     };
 
     const getCurrentDocString = (docOverride?: WorksheetDesignerDocV1) => {
@@ -2131,6 +2543,347 @@ const WorksheetBuilder: React.FC<{
                 </div>
                 {!isSidebarCollapsed && (
                 <div className="p-6 space-y-6">
+                    {hasGenerated ? (
+                    <>
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-bold text-slate-700">Worksheet Actions</div>
+                        <button
+                            type="button"
+                            onClick={handleNewWorksheet}
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-slate-200 bg-white hover:bg-slate-50"
+                        >
+                            New Worksheet
+                        </button>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Design Template</label>
+                            <select
+                                value={config.infoTemplate || 'classic'}
+                                onChange={(e) => applyInfoTemplate(e.target.value as WorksheetConfig['infoTemplate'])}
+                                className="w-full p-2 rounded border border-slate-200 bg-white text-sm focus:ring-1 focus:ring-teal-400 outline-none"
+                            >
+                                {infoTemplateOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1">Layout Columns</label>
+                            <div className="flex bg-slate-100 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setConfig({ ...config, layout: 'single' });
+                                        setInfoLayoutKey(createId());
+                                    }}
+                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${
+                                        (config.layout || 'single') === 'single'
+                                            ? 'bg-white text-teal-600 shadow-sm'
+                                            : 'text-slate-500'
+                                    }`}
+                                >
+                                    1 Column
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setConfig({ ...config, layout: 'columns' });
+                                        setInfoLayoutKey(createId());
+                                    }}
+                                    className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${
+                                        (config.layout || 'single') === 'columns'
+                                            ? 'bg-white text-teal-600 shadow-sm'
+                                            : 'text-slate-500'
+                                    }`}
+                                >
+                                    2 Columns
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-[11px] font-bold text-slate-600 mb-2">Template Carousel</div>
+                            <div className="flex gap-3 overflow-x-auto pb-2">
+                                {infoTemplateOptions.map((option) => {
+                                    const isActive = (config.infoTemplate || 'classic') === option.value;
+                                    const gridClass =
+                                        option.cols === 3 ? 'grid-cols-3' : option.cols === 2 ? 'grid-cols-2' : 'grid-cols-1';
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => applyInfoTemplate(option.value)}
+                                            className="text-left shrink-0"
+                                            aria-label={`Use ${option.label} template`}
+                                        >
+                                            <div
+                                                className={`w-24 rounded-lg border bg-white ${
+                                                    isActive ? 'border-brand-blue ring-2 ring-brand-blue/30' : 'border-slate-200'
+                                                }`}
+                                            >
+                                                <div className={`h-2 rounded-t-lg ${option.headerClass}`} />
+                                                <div className={`px-1 pt-1 pb-2 grid ${gridClass} gap-1`}>
+                                                    {Array.from({ length: option.count }).map((_, i) => (
+                                                        <div key={i} className={`h-2 rounded ${option.cardClass}`} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className={`mt-1 text-[10px] font-bold ${isActive ? 'text-slate-800' : 'text-slate-500'} text-center`}>
+                                                {option.shortLabel}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-[11px] font-bold text-slate-600 mb-2">Theme Packs</div>
+                            <div className="flex gap-2 flex-wrap">
+                                {infoThemeOptions.map((theme) => {
+                                    const isActive = (config.infoTheme || 'ocean') === theme.value;
+                                    return (
+                                        <button
+                                            key={theme.value}
+                                            type="button"
+                                            onClick={() => applyInfoTheme(theme.value)}
+                                            className={`flex items-center gap-2 px-2 py-1 rounded-full border text-[10px] font-bold ${
+                                                isActive ? 'border-brand-blue text-slate-800' : 'border-slate-200 text-slate-500'
+                                            }`}
+                                        >
+                                            <span className={`w-4 h-4 rounded-full ${theme.swatch}`} />
+                                            {theme.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-slate-500">Shuffle to try a new mix of template + colors.</p>
+                            <button
+                                type="button"
+                                onClick={shuffleInfoStyle}
+                                className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-brand-blue text-white hover:bg-sky-600"
+                            >
+                                Shuffle Designs
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+                        <div className="text-xs font-bold text-slate-700">Add Elements</div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => designerActionsRef.current?.addManualBlock('text')}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50"
+                            >
+                                + Text
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => designerActionsRef.current?.addManualBlock('heading')}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50"
+                            >
+                                + Heading
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => designerActionsRef.current?.addManualBlock('instruction')}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50"
+                            >
+                                + Instruction
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => designerActionsRef.current?.addManualBlock('note')}
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50"
+                            >
+                                + Note
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mt-4 border-t border-slate-200 pt-4 space-y-3">
+                        <div className="text-xs font-bold text-slate-700">AI - Add New Activities</div>
+                        <div className="text-[10px] text-slate-500">Add one or more activities, then generate and append.</div>
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={appendAddType}
+                                onChange={(e) => setAppendAddType(e.target.value as ActivityType)}
+                                className="px-2 py-1 rounded border border-slate-200 bg-white text-[10px] font-bold text-slate-600"
+                            >
+                                {availableActivities.map((a) => (
+                                    <option key={a.type} value={a.type}>
+                                        {a.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => addAppendActivity(appendAddType)}
+                                className="px-2 py-1 rounded border border-slate-200 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-100"
+                            >
+                                + Activity
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setAppendActivities([])}
+                                className="text-[10px] text-slate-400 hover:text-red-500"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <div className="space-y-2">
+                            {appendActivities.map((act) => {
+                                const activityLabel = availableActivities.find((a) => a.type === act.type)?.label || act.type;
+                                const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(act.type);
+                                const showCount = !['table', 'custom'].includes(act.type);
+                                const countLabel =
+                                    act.type === 'wordsearch'
+                                        ? 'Words'
+                                        : act.type === 'information-sheet'
+                                            ? 'Sections'
+                                            : act.type === 'matching'
+                                                ? 'Pairs'
+                                                : 'Qty';
+                                const showGrid = ['wordsearch', 'table'].includes(act.type);
+                                const gridDefaults = act.type === 'wordsearch'
+                                    ? { rows: 10, cols: 10 }
+                                    : { rows: 4, cols: 3 };
+                                const gridRows = act.options?.rows ?? gridDefaults.rows;
+                                const gridCols = act.options?.cols ?? gridDefaults.cols;
+                                const mcCount = Math.min(4, Math.max(2, Math.round(act.options?.mcCount ?? 4)));
+                                return (
+                                    <div key={act.id} className="border border-slate-200 rounded p-2 bg-white space-y-2">
+                                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                                            <span>{activityLabel}</span>
+                                            <button onClick={() => removeAppendActivity(act.id)} className="text-slate-300 hover:text-red-500"><X size={12} /></button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {showCount && (
+                                                <div className="flex-1 min-w-[70px]">
+                                                    <label className="text-[9px] text-slate-500 font-bold uppercase block">{countLabel}</label>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={50}
+                                                        value={act.count}
+                                                        onChange={(e) => updateAppendActivityCount(act.id, Number(e.target.value))}
+                                                        className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                    />
+                                                </div>
+                                            )}
+                                            {act.type === 'multiple-choice' && (
+                                                <div className="flex-1 min-w-[60px]">
+                                                    <label className="text-[9px] text-slate-500 font-bold uppercase block">Opts</label>
+                                                    <select value={mcCount} onChange={(e) => updateAppendActivityOptions(act.id, { mcCount: parseInt(e.target.value, 10) })} className="w-full p-1 text-xs border border-slate-300 rounded outline-none">
+                                                        <option value={2}>2</option>
+                                                        <option value={3}>3</option>
+                                                        <option value={4}>4</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                            {showGrid && (
+                                                <>
+                                                    <div className="flex-1 min-w-[60px]">
+                                                        <label className="text-[9px] text-slate-500 font-bold uppercase block">Rows</label>
+                                                        <input
+                                                            type="number"
+                                                            min={2}
+                                                            max={30}
+                                                            value={gridRows}
+                                                            onChange={(e) => updateAppendActivityOptions(act.id, { rows: Number(e.target.value) })}
+                                                            className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 min-w-[60px]">
+                                                        <label className="text-[9px] text-slate-500 font-bold uppercase block">Cols</label>
+                                                        <input
+                                                            type="number"
+                                                            min={2}
+                                                            max={30}
+                                                            value={gridCols}
+                                                            onChange={(e) => updateAppendActivityOptions(act.id, { cols: Number(e.target.value) })}
+                                                            className="w-full p-1 text-xs border border-slate-300 rounded text-center outline-none"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                        {supportsContext && (
+                                            <div className="flex bg-slate-50 rounded border border-slate-200 overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'sentences' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`}
+                                                    onClick={() => updateAppendActivityContext(act.id, 'sentences')}
+                                                >
+                                                    Sentences
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`flex-1 text-[9px] py-0.5 ${act.contextType === 'text' ? 'bg-teal-100 text-teal-700 font-bold' : 'text-slate-500'}`}
+                                                    onClick={() => updateAppendActivityContext(act.id, 'text')}
+                                                >
+                                                    Story
+                                                </button>
+                                            </div>
+                                        )}
+                                        {act.type === 'gap-fill' && (
+                                            <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(act.options?.wordBank)}
+                                                    onChange={(e) => updateAppendActivityOptions(act.id, { wordBank: e.target.checked })}
+                                                />
+                                                Include word bank
+                                            </label>
+                                        )}
+                                        {act.type === 'wordsearch' && (
+                                            <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(act.options?.allowDiagonals)}
+                                                    onChange={(e) => updateAppendActivityOptions(act.id, { allowDiagonals: e.target.checked })}
+                                                />
+                                                Allow diagonals
+                                            </label>
+                                        )}
+                                        <div>
+                                            <label className="text-[9px] text-slate-500 font-bold uppercase block">Notes</label>
+                                            <textarea
+                                                value={act.customInstructions || ''}
+                                                onChange={(e) => updateAppendActivityInstructions(act.id, e.target.value)}
+                                                className="w-full p-1.5 text-[11px] border border-slate-300 rounded outline-none resize-none"
+                                                rows={2}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div>
+                            <label className="text-[9px] text-slate-500 font-bold uppercase block">Shared Notes (optional)</label>
+                            <textarea
+                                value={appendNotes}
+                                onChange={(e) => setAppendNotes(e.target.value)}
+                                className="w-full p-1.5 text-[11px] border border-slate-300 rounded outline-none resize-none"
+                                rows={2}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleAppendActivities}
+                            disabled={appendLoading}
+                            className={`w-full py-2 rounded-lg text-xs font-bold ${
+                                appendLoading
+                                    ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                                    : 'bg-teal-500 text-white hover:bg-teal-600'
+                            }`}
+                        >
+                            {appendLoading ? 'Generating...' : 'Generate & Append'}
+                        </button>
+                    </div>
+                    </>
+                    ) : (
+                    <>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-700 mb-1">Worksheet Title</label>
@@ -2423,7 +3176,7 @@ const WorksheetBuilder: React.FC<{
                             )}
                         </div>
 
-                        <div className="space-y-2 mt-3">
+                    <div className="space-y-2 mt-3">
                             {config.activities.map((act, index) => {
                                 const activityLabel = availableActivities.find(a => a.type === act.type)?.label || act.type;
                                 const supportsContext = ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(act.type);
@@ -2690,6 +3443,8 @@ const WorksheetBuilder: React.FC<{
                         <textarea value={config.customInstructions} onChange={(e) => setConfig({...config, customInstructions: e.target.value})} placeholder="E.g. vocabulary..." className="w-full p-2 rounded border border-slate-200 outline-none h-16 resize-none text-xs" />
                     </div>
                     <button onClick={handleGenerate} disabled={loading} className={`w-full py-3 rounded-xl font-bold shadow-md transition-all flex items-center justify-center text-white text-sm ${loading ? 'bg-slate-300 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600 hover:shadow-lg'}`}>{loading ? 'Creating...' : <><Sparkles size={16} className="mr-2" /> Generate</>}</button>
+                    </>
+                    )}
                 </div>
                 )}
             </div>
@@ -2714,7 +3469,7 @@ const WorksheetBuilder: React.FC<{
                     onConfirm={handleImagePickerConfirm}
                     onUpload={() => imageInputRef.current?.click()}
                 />
-                <WorksheetDesigner
+                    <WorksheetDesigner
                     pages={pages}
                     setPages={setPages}
                     blocks={blocks}
@@ -2738,6 +3493,13 @@ const WorksheetBuilder: React.FC<{
                     layoutMode={config.layout || 'single'}
                     infoLayoutKey={infoLayoutKey}
                     autoLayoutKey={autoLayoutKey}
+                    onRequestAiBlocks={requestAiBlocksForActivity}
+                    onAddActivityConfig={(activity) => {
+                        setConfig((prev) => ({ ...prev, activities: [...(prev.activities || []), activity] }));
+                    }}
+                    onRegisterActions={(actions) => {
+                        designerActionsRef.current = actions;
+                    }}
                 />
             </div>
         </div>
@@ -3197,6 +3959,13 @@ export const Worksheets: React.FC = () => {
         return window.confirm("You have unsaved work. If you leave, your changes will be lost. Continue?");
     }, [hasUnsavedChanges]);
 
+    const handleNewWorksheet = useCallback(() => {
+        if (!confirmLoseUnsaved()) return false;
+        resetCreateState();
+        setActiveTab('create');
+        return true;
+    }, [confirmLoseUnsaved, resetCreateState]);
+
     const handleTabChange = useCallback((nextTab: 'create' | 'library' | 'community') => {
         if (activeTab === nextTab) return;
 
@@ -3390,6 +4159,7 @@ export const Worksheets: React.FC = () => {
                             setGeneratedWs={setGeneratedWs}
                             onLoad={() => {}}
                             onDirtyChange={setHasUnsavedChanges}
+                            onNewWorksheet={handleNewWorksheet}
                         />
                     </div>
                 ) : (

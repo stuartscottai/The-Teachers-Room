@@ -138,10 +138,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     if (type === GameType.MILLIONAIRE) defaultCount = 15;
 
     const [config, setConfig] = useState<GameConfig>(() => {
-        if (initialConfig && initialConfig.type === type) {
-            return initialConfig;
-        }
-        return {
+        const defaults: GameConfig = {
             type,
             title: '',
             questionCount: defaultCount,
@@ -153,6 +150,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             isPublic: true, // Default to Public
             customInstructions: '',
             files: [],
+            includeImages: false,
+            imageMode: 'manual',
             // Jeopardy
             jeopardyCategories: 5,
             jeopardyCategoryNames: Array(5).fill(''),
@@ -166,7 +165,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 ? (mode === 'bank' ? 'bank' : mode === 'ai' ? 'ai' : 'manual')
                 : undefined
         };
+        if (initialConfig && initialConfig.type === type) {
+            return { ...defaults, ...initialConfig };
+        }
+        return defaults;
     });
+
+    const supportsQuestionImages = mode === 'ai' && ![GameType.STOP_THE_FIRE].includes(type);
+    const hasStockImageKey = Boolean(import.meta.env.VITE_PIXABAY_API_KEY);
     
     // Files state separate from config until generation for cleaner updates
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -940,6 +946,78 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 </div>
                                             )}
                                         </>
+                                    )}
+                                </div>
+                            )}
+
+                            {supportsQuestionImages && (
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-slate-800">Include images</label>
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Add a visual to each question card. You can still edit or replace images later in the editor.
+                                            </p>
+                                        </div>
+                                        <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(config.includeImages)}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setConfig({
+                                                        ...config,
+                                                        includeImages: checked,
+                                                        imageMode: checked ? (config.imageMode || 'auto') : 'manual',
+                                                    });
+                                                }}
+                                                className="h-4 w-4 text-brand-blue rounded border-slate-300"
+                                            />
+                                            Enable
+                                        </label>
+                                    </div>
+
+                                    {config.includeImages && (
+                                        <div className="mt-4 space-y-3">
+                                            <label className="flex items-start gap-3 text-sm text-slate-700">
+                                                <input
+                                                    type="radio"
+                                                    name="imageMode"
+                                                    value="auto"
+                                                    disabled={!hasStockImageKey}
+                                                    checked={(config.imageMode || 'auto') === 'auto'}
+                                                    onChange={() => setConfig({ ...config, imageMode: 'auto' })}
+                                                    className="mt-1 h-4 w-4 text-brand-blue border-slate-300"
+                                                />
+                                                <span>
+                                                    <span className="font-semibold text-slate-800">Auto-pick images</span>
+                                                    <span className="block text-xs text-slate-500">
+                                                        The AI will choose a suitable stock image for each question.
+                                                    </span>
+                                                </span>
+                                            </label>
+                                            <label className="flex items-start gap-3 text-sm text-slate-700">
+                                                <input
+                                                    type="radio"
+                                                    name="imageMode"
+                                                    value="manual"
+                                                    checked={(config.imageMode || 'manual') === 'manual'}
+                                                    onChange={() => setConfig({ ...config, imageMode: 'manual' })}
+                                                    className="mt-1 h-4 w-4 text-brand-blue border-slate-300"
+                                                />
+                                                <span>
+                                                    <span className="font-semibold text-slate-800">Pick later (manual)</span>
+                                                    <span className="block text-xs text-slate-500">
+                                                        Generate questions first, then choose images in the editor.
+                                                    </span>
+                                                </span>
+                                            </label>
+                                            {!hasStockImageKey && (
+                                                <p className="text-xs text-amber-600">
+                                                    Auto-pick requires VITE_PIXABAY_API_KEY in your .env.local.
+                                                </p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}

@@ -4,8 +4,9 @@ import { ChevronLeft, ChevronRight, ImagePlus } from 'lucide-react';
 import { BlocksTray } from './BlocksTray';
 import { PagesCanvas } from './PagesCanvas';
 import { CanvasToolbar } from './CanvasToolbar';
-import { blockFromElement, createElementFromBlock, escapeHtml, sanitizeHtml } from './designerHelpers';
+import { blockFromElement, blockToElementHtml, createElementFromBlock, escapeHtml, normalizeInfoBodyHtml, sanitizeHtml } from './designerHelpers';
 import { WorksheetBlock, WorksheetBlockType, WorksheetDesignerDocV1, WorksheetDesignerPage, WorksheetDesignerSettings, WorksheetPlacedElement, createId } from './designerTypes';
+import type { ActivityConfig } from '../../../types';
 
 export const WorksheetDesigner: React.FC<{
   pages: WorksheetDesignerPage[];
@@ -31,6 +32,13 @@ export const WorksheetDesigner: React.FC<{
   layoutMode?: 'single' | 'columns';
   infoLayoutKey?: string | null;
   autoLayoutKey?: string | null;
+  onRequestAiBlocks?: (activity: ActivityConfig) => Promise<WorksheetBlock[]>;
+  onAddActivityConfig?: (activity: ActivityConfig) => void;
+  onRegisterActions?: (actions: {
+    addManualBlock: (kind: 'text' | 'heading' | 'instruction' | 'note') => void;
+    regenerateSelected: (notes?: string) => Promise<void>;
+    appendActivities: (activities: ActivityConfig[]) => Promise<void>;
+  }) => void;
 }> = ({
   pages,
   setPages,
@@ -55,6 +63,9 @@ export const WorksheetDesigner: React.FC<{
   layoutMode = 'single',
   infoLayoutKey = null,
   autoLayoutKey = null,
+  onRequestAiBlocks,
+  onAddActivityConfig,
+  onRegisterActions,
 }) => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const printableRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +88,8 @@ export const WorksheetDesigner: React.FC<{
   const styleMenuRef = useRef<HTMLDivElement | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiRegenerateNotes, setAiRegenerateNotes] = useState('');
   const resolvedRightSidebarCollapsed =
     rightSidebarMode === 'collapsed' ? true : rightSidebarMode === 'expanded' ? false : isRightSidebarCollapsed;
   const canToggleRightSidebar = rightSidebarMode === 'auto';
@@ -345,6 +358,393 @@ export const WorksheetDesigner: React.FC<{
     () => (selectedElementId ? elements.find((e) => e.id === selectedElementId) ?? null : null),
     [elements, selectedElementId]
   );
+
+  const getPageMetrics = () => {
+    const pageInner = document.querySelector('.ws-page-inner') as HTMLElement | null;
+    const scale = Math.max(0.1, pageScale || 1);
+    const fallbackPageW = (210 / 25.4) * 96;
+    const fallbackPageH = (297 / 25.4) * 96;
+    const fallbackMarginPx = (marginMm / 25.4) * 96;
+    if (!pageInner) {
+      return {
+        originX: fallbackMarginPx,
+        originY: fallbackMarginPx,
+        contentWidth: fallbackPageW - fallbackMarginPx * 2,
+        contentHeight: fallbackPageH - fallbackMarginPx * 2,
+        pageInnerSize: { width: fallbackPageW - fallbackMarginPx * 2, height: fallbackPageH - fallbackMarginPx * 2 },
+      };
+    }
+    const rect = pageInner.getBoundingClientRect();
+    const styles = window.getComputedStyle(pageInner);
+    const padLeft = parseFloat(styles.paddingLeft || '0') || 0;
+    const padRight = parseFloat(styles.paddingRight || '0') || 0;
+    const padTop = parseFloat(styles.paddingTop || '0') || 0;
+    const padBottom = parseFloat(styles.paddingBottom || '0') || 0;
+    const pageWidth = rect.width / scale;
+    const pageHeight = rect.height / scale;
+    const contentWidth = Math.max(0, pageWidth - padLeft - padRight);
+    const contentHeight = Math.max(0, pageHeight - padTop - padBottom);
+    return {
+      originX: padLeft,
+      originY: padTop,
+      contentWidth,
+      contentHeight,
+      pageInnerSize: { width: contentWidth, height: contentHeight },
+    };
+  };
+
+  const placeElementsSequentially = (newBlocks: WorksheetBlock[], preferredPageId?: string) => {
+    if (newBlocks.length === 0) return;
+    const { originX, originY, contentHeight, pageInnerSize } = getPageMetrics();
+    const gap = 16;
+    const nextPages = pages.length ? [...pages] : [{ id: createId() }];
+    const basePageId = preferredPageId || nextPages[nextPages.length - 1]?.id;
+    let pageId = basePageId || nextPages[0].id;
+    let y = originY;
+    const samePageEls = elements.filter((el) => el.pageId === pageId);
+    if (selected && selected.pageId === pageId) {
+      y = Math.max(originY, selected.y + selected.h + gap);
+    } else if (samePageEls.length > 0) {
+      const maxY = Math.max(...samePageEls.map((el) => el.y + el.h));
+      y = Math.max(originY, maxY + gap);
+    }
+
+    const addedElements: WorksheetPlacedElement[] = [];
+    newBlocks.forEach((block) => {
+      let element = createElementFromBlock({
+        block,
+        pageId,
+        x: originX,
+        y,
+        pageInnerSize,
+      });
+      if (y + element.h > originY + contentHeight) {
+        pageId = createId();
+        nextPages.push({ id: pageId });
+        y = originY;
+        element = createElementFromBlock({
+          block,
+          pageId,
+          x: originX,
+          y,
+          pageInnerSize,
+        });
+      }
+      element = { ...element, pageId, x: originX, y };
+      addedElements.push(element);
+      y += element.h + gap;
+    });
+
+    if (addedElements.length === 0) return;
+    pushUndoSnapshot();
+    setPages(nextPages);
+    setElements((prev) => [...prev, ...addedElements]);
+    setSelectedElementId(addedElements[addedElements.length - 1]?.id || null);
+  };
+
+  const createManualBlock = (kind: 'text' | 'heading' | 'instruction' | 'note') => {
+    const html =
+      kind === 'heading'
+        ? '<h3>New heading</h3>'
+        : kind === 'instruction'
+          ? '<p><em>New instruction...</em></p>'
+          : kind === 'note'
+            ? '<div class="ws-info-card ws-info-card--minimal ws-info-theme--ocean"><div class="ws-info-card__title">Note</div><div class="ws-info-card__body"><p>Add your note here...</p></div></div>'
+            : '<p>New text...</p>';
+    const safeHtml = sanitizeHtml(html);
+    return {
+      id: createId(),
+      type: 'custom',
+      title: kind === 'heading' ? 'Heading' : kind === 'instruction' ? 'Instruction' : kind === 'note' ? 'Note' : 'Text',
+      payload: { html: safeHtml, kind: `manual-${kind}` },
+      previewHtml: safeHtml,
+    } as WorksheetBlock;
+  };
+
+  const addManualBlock = (kind: 'text' | 'heading' | 'instruction' | 'note') => {
+    const block = createManualBlock(kind);
+    placeElementsSequentially([block], selected?.pageId);
+  };
+
+  const inferCountFromHtml = (html: string, selector: string) => {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return doc.querySelectorAll(selector).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  const inferActivityFromSelected = () => {
+    if (!selected) return null;
+    const html = selected.html || '';
+    if (html.includes('ws-info-card')) {
+      return { type: 'information-sheet' as const, count: 1 };
+    }
+    const map: Record<string, ActivityConfig['type'] | null> = {
+      mcq: 'multiple-choice',
+      wordsearch: 'wordsearch',
+      'wordsearch-words': 'wordsearch',
+      matching: 'matching',
+      'gap-fill': 'gap-fill',
+      'sentence-transform': 'sentence-transform',
+      'word-formation': 'word-formation',
+      'open-ended': 'open-ended',
+      table: 'table',
+      custom: 'custom',
+    };
+    const type = map[selected.type] || null;
+    if (!type) return null;
+
+    let count = 1;
+    let options: ActivityConfig['options'] | undefined;
+    let contextType: ActivityConfig['contextType'] | undefined = undefined;
+
+    if (type === 'multiple-choice') {
+      count = inferCountFromHtml(html, '.ws-mcq > li') || 5;
+      options = { mcCount: 4 };
+    } else if (type === 'gap-fill') {
+      count = inferCountFromHtml(html, '.ws-gap-fill > li') || 5;
+      contextType = 'sentences';
+      options = { wordBank: false, embedInStory: false };
+    } else if (type === 'matching') {
+      count = inferCountFromHtml(html, '.ws-matching-table tbody tr') || 6;
+    } else if (type === 'sentence-transform') {
+      count = inferCountFromHtml(html, '.ws-sentence-transform > li') || 5;
+    } else if (type === 'word-formation') {
+      count = inferCountFromHtml(html, '.ws-word-formation > li') || 5;
+      contextType = 'sentences';
+    } else if (type === 'open-ended') {
+      count = inferCountFromHtml(html, '.ws-open-ended > li') || 5;
+      contextType = 'sentences';
+    } else if (type === 'wordsearch') {
+      const gridRows = inferCountFromHtml(html, '.ws-wordsearch-table tbody tr') || 10;
+      const gridCols = (() => {
+        try {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const row = doc.querySelector('.ws-wordsearch-table tbody tr');
+          return row ? row.querySelectorAll('td').length : 10;
+        } catch {
+          return 10;
+        }
+      })();
+      const wordsElement =
+        selected.type === 'wordsearch-words'
+          ? selected
+          : elements
+              .filter((el) => el.type === 'wordsearch-words')
+              .sort((a, b) => Math.abs(a.y - selected.y) - Math.abs(b.y - selected.y))[0];
+      const wordsCount =
+        wordsElement?.html ? inferCountFromHtml(wordsElement.html, '.ws-wordsearch-word-card') : 0;
+      count = wordsCount || 10;
+      options = { rows: gridRows, cols: gridCols, allowDiagonals: false };
+    } else if (type === 'table') {
+      const rows = inferCountFromHtml(html, 'tbody tr') || 4;
+      const cols = (() => {
+        try {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const row = doc.querySelector('tbody tr');
+          return row ? row.querySelectorAll('td, th').length : 3;
+        } catch {
+          return 3;
+        }
+      })();
+      options = { rows, cols };
+      count = rows;
+    }
+
+    return { type, count, options, contextType };
+  };
+
+  const applyRegeneratedBlocks = (newBlocks: WorksheetBlock[], target: WorksheetPlacedElement) => {
+    if (newBlocks.length === 0) return;
+    const blocksByType = new Map<string, WorksheetBlock[]>();
+    newBlocks.forEach((b) => {
+      const list = blocksByType.get(b.type) || [];
+      list.push(b);
+      blocksByType.set(b.type, list);
+    });
+    const updates: Record<string, WorksheetPlacedElement> = {};
+    const updateElement = (el: WorksheetPlacedElement, block: WorksheetBlock) => {
+      const html = blockToElementHtml(block);
+      const safeHtml = sanitizeHtml(String(html));
+      const measured = measureElementHeight(safeHtml, el.styles, el.w);
+      updates[el.id] = {
+        ...el,
+        html: safeHtml,
+        h: Math.max(50, measured || el.h),
+      };
+    };
+
+    if (target.type === 'wordsearch' || target.type === 'wordsearch-words') {
+      const wordsearchBlock = blocksByType.get('wordsearch')?.[0];
+      const wordsBlock = blocksByType.get('wordsearch-words')?.[0];
+      if (target.type === 'wordsearch' && wordsearchBlock) {
+        updateElement(target, wordsearchBlock);
+      }
+      if (target.type === 'wordsearch-words' && wordsBlock) {
+        updateElement(target, wordsBlock);
+      }
+      const other =
+        target.type === 'wordsearch'
+          ? elements
+              .filter((el) => el.type === 'wordsearch-words')
+              .sort((a, b) => Math.abs(a.y - target.y) - Math.abs(b.y - target.y))[0]
+          : elements
+              .filter((el) => el.type === 'wordsearch')
+              .sort((a, b) => Math.abs(a.y - target.y) - Math.abs(b.y - target.y))[0];
+      if (other && wordsBlock && target.type === 'wordsearch') {
+        updateElement(other, wordsBlock);
+      }
+      if (other && wordsearchBlock && target.type === 'wordsearch-words') {
+        updateElement(other, wordsearchBlock);
+      }
+    } else if (target.type === 'custom') {
+      const isInfoSection = typeof target.html === 'string' && target.html.includes('ws-info-card');
+      const isInfoHeader = typeof target.html === 'string' && target.html.includes('ws-info-header');
+      if (isInfoSection) {
+        const infoBlock = newBlocks.find((b) => b?.payload?.kind === 'info-section');
+        if (!infoBlock) {
+          window.alert('AI did not return an info section. Try regenerating with more detail.');
+          return;
+        }
+        const templateMatch = target.html.match(/ws-info-card--([a-z0-9-]+)/i);
+        const themeMatch = target.html.match(/ws-info-theme--([a-z0-9-]+)/i);
+        const template = templateMatch?.[1] || infoBlock.payload?.template || 'classic';
+        const theme = themeMatch?.[1] || infoBlock.payload?.theme || 'ocean';
+        const rawBody =
+          infoBlock.payload?.bodyHtml ||
+          infoBlock.payload?.html ||
+          infoBlock.previewHtml ||
+          infoBlock.title ||
+          '';
+        const bodyHtml = normalizeInfoBodyHtml(String(rawBody));
+        const inferredTitle =
+          typeof infoBlock.title === 'string' && infoBlock.title.startsWith('Info:')
+            ? infoBlock.title.replace(/^Info:\s*/i, '').trim()
+            : infoBlock.title || '';
+        const titleHtml = inferredTitle ? `<div class="ws-info-card__title">${escapeHtml(inferredTitle)}</div>` : '';
+        const rebuiltHtml = sanitizeHtml(
+          `<div class="ws-info-card ws-info-card--${escapeHtml(String(template))} ws-info-theme--${escapeHtml(String(theme))}">${titleHtml}<div class="ws-info-card__body">${
+            bodyHtml || '<p>Information</p>'
+          }</div></div>`
+        );
+        const rebuiltBlock: WorksheetBlock = {
+          ...infoBlock,
+          payload: { ...(infoBlock.payload || {}), html: rebuiltHtml, kind: 'info-section' },
+          previewHtml: rebuiltHtml,
+        };
+        const extractText = (html: string) => {
+          try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            return (doc.body?.textContent || '').replace(/\s+/g, ' ').trim();
+          } catch {
+            return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          }
+        };
+        const currentText = extractText(String(target.html || ''));
+        const nextHtml = String(rebuiltBlock.payload?.html || rebuiltBlock.previewHtml || '');
+        const nextText = extractText(nextHtml);
+        if (nextText.length < 40 || (currentText.length > 0 && nextText.length < currentText.length * 0.4)) {
+          window.alert('AI response was too short for this info section. Try regenerating with more detail.');
+          return;
+        }
+        updateElement(target, rebuiltBlock);
+      } else if (isInfoHeader) {
+        const headerBlock = newBlocks.find((b) => b?.payload?.kind === 'info-header');
+        if (headerBlock) {
+          updateElement(target, headerBlock);
+        } else {
+          window.alert('AI did not return an info header.');
+        }
+      } else {
+        const customBlock = blocksByType.get('custom')?.[0];
+        if (customBlock) updateElement(target, customBlock);
+      }
+    } else {
+      const block = blocksByType.get(target.type)?.[0];
+      if (block) updateElement(target, block);
+    }
+
+    if (Object.keys(updates).length === 0) return;
+    pushUndoSnapshot();
+    setElements((prev) => prev.map((el) => updates[el.id] || el));
+  };
+
+  const handleAiRegenerateSelected = async (notesOverride?: string) => {
+    if (!selected || !onRequestAiBlocks) return;
+    const inferred = inferActivityFromSelected();
+    if (!inferred) {
+      window.alert('This item cannot be regenerated yet.');
+      return;
+    }
+    if (selected.type === 'story') {
+      window.alert('Story blocks cannot be regenerated yet.');
+      return;
+    }
+    const baseNotes = (notesOverride ?? aiRegenerateNotes).trim();
+    const extraContext =
+      selected.type === 'custom' && typeof selected.html === 'string'
+        ? `\n\nUse and expand this existing content:\n${selected.html}`
+        : '';
+    const activity: ActivityConfig = {
+      id: `ai-${createId()}`,
+      type: inferred.type,
+      count: Math.max(1, inferred.count || 1),
+      contextType: inferred.contextType,
+      options: inferred.options,
+      customInstructions:
+        (baseNotes || 'Regenerate this activity with richer content.') +
+        (selected.type === 'custom'
+          ? '\n\nReturn a full info section with detailed examples and keep the same topic.'
+          : '') +
+        extraContext,
+    };
+    pushUndoSnapshot();
+    setAiBusy(true);
+    try {
+      const newBlocks = await onRequestAiBlocks(activity);
+      applyRegeneratedBlocks(newBlocks, selected);
+      setAiRegenerateNotes('');
+    } catch (err) {
+      console.error(err);
+      window.alert('Failed to regenerate this activity.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const appendAiActivities = async (activities: ActivityConfig[]) => {
+    if (!onRequestAiBlocks) return;
+    if (!activities.length) return;
+    setAiBusy(true);
+    try {
+      for (const activity of activities) {
+        const newBlocks = await onRequestAiBlocks(activity);
+        if (newBlocks.length > 0) {
+          placeElementsSequentially(newBlocks, selected?.pageId);
+        } else {
+          window.alert(`AI did not return content for ${activity.type}. Try adding more notes or adjusting the activity.`);
+        }
+        onAddActivityConfig?.(activity);
+      }
+      await performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+    } catch (err) {
+      console.error(err);
+      window.alert('Failed to add new activities.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!onRegisterActions) return;
+    onRegisterActions({
+      addManualBlock,
+      regenerateSelected: handleAiRegenerateSelected,
+      appendActivities: appendAiActivities,
+    });
+  }, [addManualBlock, appendAiActivities, handleAiRegenerateSelected, onRegisterActions]);
 
   const latestStateRef = useRef({ settings, pages, blocks, elements });
 
@@ -1299,10 +1699,10 @@ export const WorksheetDesigner: React.FC<{
     const columnsRequested =
       typeof opts?.columns === 'number' && Number.isFinite(opts.columns) ? Math.max(1, Math.round(opts.columns)) : 1;
     const columns = Math.min(2, Math.max(1, columnsRequested));
-    if (blocks.length === 0 && elements.length === 0) return;
+    if (blocks.length === 0 && elements.length === 0) return false;
     if (opts?.confirm) {
       const ok = window.confirm('This will reflow all placed elements and blocks. Continue?');
-      if (!ok) return;
+      if (!ok) return false;
     }
 
     if (document.fonts?.ready) {
@@ -1314,9 +1714,9 @@ export const WorksheetDesigner: React.FC<{
     }
 
     const pageInner = document.querySelector('.ws-page-inner') as HTMLElement | null;
-    if (!pageInner) return;
+    if (!pageInner) return false;
     const rect = pageInner.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
+    if (!rect.width || !rect.height) return false;
     const scale = Math.max(0.1, pageScale || 1);
     const styles = window.getComputedStyle(pageInner);
     const padLeft = parseFloat(styles.paddingLeft || '0') || 0;
@@ -1327,7 +1727,7 @@ export const WorksheetDesigner: React.FC<{
     const pageHeight = rect.height / scale;
     const contentWidth = Math.max(0, pageWidth - padLeft - padRight);
     const contentHeight = Math.max(0, pageHeight - padTop - padBottom);
-    if (!contentWidth || !contentHeight) return;
+    if (!contentWidth || !contentHeight) return false;
     const originX = padLeft;
     const originY = padTop;
     const maxY = originY + contentHeight;
@@ -1711,6 +2111,7 @@ export const WorksheetDesigner: React.FC<{
     if (overflowed) {
       window.alert('Some blocks are longer than a single page. They were capped to fit within the margins.');
     }
+    return true;
   };
 
   const suggestOptimalDistribution = async () => {
@@ -1721,30 +2122,40 @@ export const WorksheetDesigner: React.FC<{
     if (lastLayoutModeRef.current === layoutMode) return;
     lastLayoutModeRef.current = layoutMode;
     if (blocks.length === 0 && elements.length === 0) return;
-    const hasInfoBlocks = blocks.some(
-      (b) => b?.payload?.kind === 'info-section' || b?.payload?.kind === 'info-header'
-    );
     const hasInfoElements = elements.some(
       (el) => typeof el.html === 'string' && (el.html.includes('ws-info-card') || el.html.includes('ws-info-header'))
     );
-    if (hasInfoBlocks || hasInfoElements) return;
+    if (infoLayoutKey || hasInfoElements) return;
     void performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
   }, [layoutMode]);
 
   useEffect(() => {
     if (!autoLayoutKey) return;
     if (lastAutoLayoutKeyRef.current === autoLayoutKey) return;
-    lastAutoLayoutKeyRef.current = autoLayoutKey;
     if (blocks.length === 0) return;
-    const hasInfoBlocks = blocks.some(
-      (b) => b?.payload?.kind === 'info-section' || b?.payload?.kind === 'info-header'
-    );
     const hasInfoElements = elements.some(
       (el) => typeof el.html === 'string' && (el.html.includes('ws-info-card') || el.html.includes('ws-info-header'))
     );
-    if (hasInfoBlocks || hasInfoElements) return;
-    void performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
-  }, [autoLayoutKey, blocks, elements, layoutMode]);
+    if (infoLayoutKey || hasInfoElements) return;
+    let cancelled = false;
+    const attemptLayout = async (triesLeft: number) => {
+      const ok = await performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+      if (cancelled) return;
+      if (ok) {
+        lastAutoLayoutKeyRef.current = autoLayoutKey;
+        return;
+      }
+      if (triesLeft > 0) {
+        window.requestAnimationFrame(() => {
+          void attemptLayout(triesLeft - 1);
+        });
+      }
+    };
+    void attemptLayout(5);
+    return () => {
+      cancelled = true;
+    };
+  }, [autoLayoutKey, blocks, elements, layoutMode, infoLayoutKey]);
 
   const applyPendingPatch = (
     doc: WorksheetDesignerDocV1,
@@ -2036,6 +2447,10 @@ export const WorksheetDesigner: React.FC<{
             onPasteStyles={() => applyCopiedStylesTo(selected.id)}
             onPasteStylesAll={applyCopiedStylesToAll}
             canPasteStyles={Boolean(copiedStylesRef.current)}
+            aiRegenerateNotes={aiRegenerateNotes}
+            onAiRegenerateNotesChange={setAiRegenerateNotes}
+            onAiRegenerate={() => handleAiRegenerateSelected()}
+            aiRegenerateBusy={aiBusy}
           />
             </div>
           </div>
@@ -2267,6 +2682,7 @@ const DESIGNER_CSS = `
     position: relative;
     overflow: visible;
   }
+
 
   .ws-page-chrome {
     position: absolute;

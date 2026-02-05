@@ -41,6 +41,9 @@ export interface GameConfig {
   pubQuizRoundNames?: string[];
   // Stop the Fire specific
   stopTheFireMode?: 'manual' | 'bank' | 'ai';
+  // Optional AI image settings
+  includeImages?: boolean;
+  imageMode?: 'auto' | 'manual';
 }
 
 export type StopTheFireDifficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -100,6 +103,14 @@ export interface GeneratedQuestion {
   points: number;
   isBonus: boolean;
   category?: string;
+  image?: {
+    url: string;
+    storagePath?: string;
+    thumbUrl?: string;
+    source?: 'stock' | 'upload';
+    alt?: string;
+  };
+  imageKeywords?: string[];
   // New bonus types for hidden tiles
   bonusType?: 'none' | 'double' | 'bust' | 'steal'; 
   difficulty?: 'easy' | 'medium' | 'hard';

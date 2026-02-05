@@ -284,6 +284,43 @@ export const imageToHtml = (url: string, storagePath?: string, kind?: string): s
   );
 };
 
+export const normalizeInfoBodyHtml = (value: string): string => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  // If a full info card was passed, extract just the body contents.
+  if (/ws-info-card\b/.test(trimmed)) {
+    try {
+      const doc = new DOMParser().parseFromString(trimmed, 'text/html');
+      const body = doc.querySelector('.ws-info-card__body');
+      if (body) {
+        const inner = body.innerHTML.trim();
+        if (inner) return sanitizeHtml(inner);
+      }
+    } catch {
+      // fall through to normal parsing
+    }
+  }
+  if (/<(p|ul|ol|table|h3|h4|h5|div|br)\b/i.test(trimmed)) {
+    return sanitizeHtml(trimmed);
+  }
+  const lines = trimmed
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    return sanitizeHtml(`<p>${escapeHtml(trimmed)}</p>`);
+  }
+  const bulletLike = (line: string) => /^(?:[-*•]|\d+[\).\s])\s+/.test(line);
+  const bulletCount = lines.filter(bulletLike).length;
+  if (bulletCount >= Math.max(2, Math.ceil(lines.length * 0.4))) {
+    const items = lines
+      .map((line) => line.replace(/^(?:[-*•]|\d+[\).\s])\s+/, '').trim())
+      .filter(Boolean);
+    return sanitizeHtml(`<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`);
+  }
+  return sanitizeHtml(lines.map((line) => `<p>${escapeHtml(line)}</p>`).join(''));
+};
+
 export const blockToElementHtml = (block: WorksheetBlock): string => {
   if (block.type === 'title') {
     const text = String(block.payload?.text ?? block.payload?.title ?? block.title ?? '').trim();
@@ -414,7 +451,10 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
   const infoTemplate = config?.infoTemplate || 'classic';
   const infoTheme = config?.infoTheme || 'ocean';
   const infoSectionItems = Array.isArray(ai?.infoSections) ? ai.infoSections : [];
-  const hasInfoSections = infoSectionItems.length > 0;
+  const requestedInfoSectionCount = activities
+    .filter((a) => a.type === 'information-sheet')
+    .reduce((sum, a) => sum + (a.count || 0), 0);
+  const hasInfoSections = infoSectionItems.length > 0 || requestedInfoSectionCount > 0;
   const infoBlockStyles = {
     padding: '0px',
     backgroundColor: 'transparent',
@@ -443,7 +483,8 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
 
   const pushInfoSectionBlock = (section: any) => {
     const title = toPlainText(section?.title ?? '').trim();
-    const bodyHtml = String(section?.bodyHtml ?? '').trim();
+    const rawBody = String(section?.bodyHtml ?? '');
+    const bodyHtml = normalizeInfoBodyHtml(rawBody);
     const titleHtml = title ? `<div class="ws-info-card__title">${escapeHtml(title)}</div>` : '';
     const fallbackBody = `<p>${escapeHtml(title ? '' : 'Information')}</p>`;
     const html = sanitizeHtml(
@@ -464,6 +505,20 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
       payload: { html, kind: 'info-section', template: infoTemplate, theme: infoTheme, styles: infoBlockStyles },
       previewHtml: preview,
     });
+  };
+
+  const buildFallbackInfoSection = (note: string, index: number) => {
+    const fallbackTitle = note ? note.split('\n')[0].trim() : '';
+    const title = fallbackTitle || (config?.topic ? String(config.topic) : '') || `Information ${index + 1}`;
+    const bodyText =
+      note ||
+      (config?.topic
+        ? `Key points about ${String(config.topic)}.`
+        : 'Add your key information here.');
+    return {
+      title,
+      bodyHtml: normalizeInfoBodyHtml(bodyText),
+    };
   };
 
   const titleText = String(ai?.title ?? '').trim();
@@ -638,7 +693,8 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
           const wordBank = act.options?.wordBank
             ? Array.from(new Set(slice.map((item) => toPlainText(item?.answer || '')).filter(Boolean)))
             : undefined;
-          if (act.contextType === 'text' && act.options?.embedInStory) {
+          const hasStory = typeof ai?.storyHtml === 'string' && String(ai.storyHtml).trim().length > 0;
+          if (act.contextType === 'text' && act.options?.embedInStory && hasStory) {
             return;
           }
           const first = slice[0];
@@ -723,8 +779,13 @@ export const blocksFromAi = (ai: WorksheetAiResultV1, config?: WorksheetConfig):
       }
       if (act.type === 'information-sheet') {
         const slice = infoSectionItems.slice(infoSectionIndex, infoSectionIndex + count);
-        infoSectionIndex += slice.length;
-        if (slice.length > 0) {
+        infoSectionIndex += count;
+        if (count > 0) {
+          for (let i = 0; i < count; i += 1) {
+            const section = slice[i] || buildFallbackInfoSection(act.customInstructions || '', i);
+            pushInfoSectionBlock(section);
+          }
+        } else if (slice.length > 0) {
           slice.forEach(pushInfoSectionBlock);
         }
         return;

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
+import { resolveGameImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 
 interface MillionaireGameProps {
@@ -43,6 +44,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
     // Audio & Fullscreen
     const [isMuted, setIsMuted] = useState(options.muted);
+    const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,8 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Sanity check for questions
     const questions = game.questions || [];
     const currentQuestion = questions[currentLevel];
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Ensure options exist and find correct index
     const optionsList = currentQuestion?.options || ["A", "B", "C", "D"];
@@ -102,6 +106,29 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (!isImageZoomOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsImageZoomOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isImageZoomOpen]);
+
+    useEffect(() => {
+        if (!questionImageUrl && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [questionImageUrl, isImageZoomOpen]);
+
+    useEffect(() => {
+        if (isMobileViewport && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [isMobileViewport, isImageZoomOpen]);
 
     // Reset state per question
     useEffect(() => {
@@ -256,6 +283,22 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         } else {
             document.exitFullscreen();
             setIsFullscreen(false);
+        }
+    };
+
+    const openImageZoom = (event?: React.SyntheticEvent) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        if (questionImageUrl && !isMobileViewport) {
+            setIsImageZoomOpen(true);
+        }
+    };
+
+    const handleImageKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImageZoom(event);
         }
     };
 
@@ -518,20 +561,50 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     
                     {/* CENTER STAGE */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
-                        
+
+                        <div className="w-full max-w-6xl flex flex-col flex-1 min-h-0 gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
-                        <div className={`w-full max-w-6xl bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 mb-3 min-h-[18vh]' : 'p-6 md:p-10 mb-4 md:mb-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex-shrink-0 flex items-center justify-center overflow-hidden`}>
+                        <div
+                            className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-10 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
+                            style={isMobileViewport && questionImageUrl ? { flex: '2 1 0%' } : undefined}
+                        >
                             {/* Decorative side bars */}
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-r-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-l-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
-                            
-                            <h2 className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}>
-                                {currentQuestion?.question || "Loading..."}
-                            </h2>
+                            {questionImageUrl ? (
+                                <div className={`w-full flex ${isMobileViewport ? 'flex-col' : 'flex-row'} items-center justify-center gap-4`}>
+                                    <div className={isMobileViewport ? 'w-full h-28 sm:h-32 flex items-center justify-center flex-none' : 'flex-1 min-h-0 flex items-center justify-center'}>
+                                        <img
+                                            src={questionImageUrl}
+                                            alt={questionImageAlt}
+                                            onClick={isMobileViewport ? undefined : openImageZoom}
+                                            onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                            role={isMobileViewport ? undefined : 'button'}
+                                            tabIndex={isMobileViewport ? -1 : 0}
+                                            title={isMobileViewport ? undefined : 'Click to zoom'}
+                                            className={`max-h-full w-auto rounded-xl object-contain border border-indigo-300/40 bg-black/60 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                        />
+                                    </div>
+                                    <div className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}>
+                                        <h2 className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md w-full ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}>
+                                            {currentQuestion?.question || "Loading..."}
+                                        </h2>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="w-full flex flex-col items-center justify-center gap-3">
+                                    <h2 className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}>
+                                        {currentQuestion?.question || "Loading..."}
+                                    </h2>
+                                </div>
+                            )}
                         </div>
 
                         {/* OPTIONS GRID */}
-                        <div className={`grid grid-cols-2 md:grid-cols-2 ${isMobileViewport ? 'gap-3' : 'gap-4 md:gap-6'} w-full max-w-6xl relative z-20 flex-shrink-0`}>
+                        <div
+                            className={`grid grid-cols-2 md:grid-cols-2 ${isMobileViewport ? 'gap-3' : 'gap-4 md:gap-6'} w-full flex-1 min-h-0 relative z-20`}
+                            style={isMobileViewport && questionImageUrl ? { flex: '1 1 0%' } : undefined}
+                        >
                             {optionsList.map((opt, idx) => (
                                 <button 
                                     key={idx}
@@ -551,6 +624,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     <div className="absolute top-1/2 -right-6 w-6 h-0.5 bg-indigo-500/50 hidden md:block opacity-50"></div>
                                 </button>
                             ))}
+                        </div>
                         </div>
 
                         {/* WALK AWAY BUTTON - Preserved layout space to prevent shifting */}
@@ -626,6 +700,47 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     </div>
                 )}
             </div>
+
+            {isImageZoomOpen && questionImageUrl && (
+                <div
+                    className="fixed inset-0 z-[600] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                    onClick={() => setIsImageZoomOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-visible"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsImageZoomOpen(false)}
+                            className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
+                            title="Close"
+                        >
+                            <span className="text-lg font-bold leading-none">X</span>
+                        </button>
+                        <img
+                            src={questionImageUrl}
+                            alt={questionImageAlt}
+                            onClick={() => setIsImageZoomOpen(false)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setIsImageZoomOpen(false);
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to close"
+                            style={{
+                                transform: 'scale(2)',
+                                transformOrigin: 'center',
+                                maxWidth: '25vw',
+                                maxHeight: 'calc((100vh - 4rem - env(safe-area-inset-top)) * 0.25)'
+                            }}
+                            className="rounded-2xl object-contain border border-white/10 shadow-2xl cursor-zoom-out"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* LIFELINE OVERLAYS (MODALS) */}
             

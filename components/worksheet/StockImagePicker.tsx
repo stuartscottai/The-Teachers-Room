@@ -52,6 +52,13 @@ export const StockImagePicker: React.FC<{
 
   useEffect(() => {
     if (!isOpen) return;
+    const trimmed = initialQuery.trim();
+    if (!trimmed) return;
+    runSearch();
+  }, [initialQuery, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -76,7 +83,7 @@ export const StockImagePicker: React.FC<{
     setLoading(true);
     setError(null);
     try {
-      const data = await searchStockImages(trimmed, { page: 1, perPage: 24, signal: controller.signal });
+      const data = await searchStockImages(trimmed, { page: 1, perPage: 24, signal: controller.signal, strict: true });
       setResults(data.items);
       setTotalHits(data.totalHits);
       setPage(1);
@@ -98,7 +105,7 @@ export const StockImagePicker: React.FC<{
     setLoading(true);
     setError(null);
     try {
-      const data = await searchStockImages(trimmed, { page: nextPage, perPage: 24, signal: controller.signal });
+      const data = await searchStockImages(trimmed, { page: nextPage, perPage: 24, signal: controller.signal, strict: true });
       setResults((prev) => [...prev, ...data.items]);
       setTotalHits(data.totalHits);
       setPage(nextPage);

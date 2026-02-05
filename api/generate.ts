@@ -383,10 +383,11 @@ export default async function handler(req: any, res: any) {
        const sentenceTransformActivities = activities.filter((a: any) => a.type === 'sentence-transform');
        const wordFormationActivities = activities.filter((a: any) => a.type === 'word-formation');
        const openEndedActivities = activities.filter((a: any) => a.type === 'open-ended');
+       const infoSheetActivities = activities.filter((a: any) => a.type === 'information-sheet');
        const customActivities = activities.filter((a: any) => a.type === 'custom');
        const tableActivities = activities.filter((a: any) => a.type === 'table');
        const wantsStory = activities.some(
-         (a: any) => ['gap-fill', 'word-formation', 'multiple-choice'].includes(a.type) && a.contextType === 'text'
+         (a: any) => ['gap-fill', 'word-formation', 'multiple-choice', 'open-ended'].includes(a.type) && a.contextType === 'text'
        );
        const wantsMcq = mcqActivities.length > 0;
        const wantsWordSearch = wordSearchActivities.length > 0;
@@ -395,9 +396,10 @@ export default async function handler(req: any, res: any) {
        const wantsSentenceTransform = sentenceTransformActivities.length > 0;
        const wantsWordFormation = wordFormationActivities.length > 0;
        const wantsOpenEnded = openEndedActivities.length > 0;
+       const wantsInfoSheet = infoSheetActivities.length > 0;
        const wantsCustom = customActivities.length > 0;
        const wantsTable = tableActivities.length > 0;
-       const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.length > 0;
+       const wantsAnswerKey = Boolean(config.generateAnswerKey) && activities.some((a: any) => a.type !== 'information-sheet');
 
        const mcqCount = mcqActivities.reduce((sum: number, a: any) => sum + (a.count || 0), 0);
        const wordSearchCount = wordSearchActivities.length;
@@ -432,6 +434,7 @@ export default async function handler(req: any, res: any) {
 
        const orderedActivities = activities.filter((a: any) =>
          [
+           'information-sheet',
            'multiple-choice',
            'wordsearch',
            'matching',
@@ -594,6 +597,18 @@ export default async function handler(req: any, res: any) {
            const spec = getGridSpec(tableActivities[0], { rows: 4, cols: 3 });
            requestedBlocks.push(`  Use exactly ${spec.rows} body rows and ${spec.cols} columns (headers length must equal columns).`);
          }
+       }
+       if (wantsInfoSheet) {
+         const infoCount = infoSheetActivities.reduce((sum: number, a: any) => sum + (a.count || 0), 0);
+         requestedBlocks.push(
+           `- infoSections: ${infoCount} information sections with title + bodyHtml (safe HTML). Keep sections in the same order as listed below.`
+         );
+         requestedBlocks.push(
+           '  Information Sheet groups (count + notes):\n' +
+             infoSheetActivities
+               .map((a: any) => `  - ${a.count || 0} sections${formatActivityNotes(a.customInstructions)}`)
+               .join('\n')
+         );
        }
        if (wantsAnswerKey) {
          requestedBlocks.push(
@@ -803,6 +818,21 @@ RULES:
                           }
                         }
                       : {}),
+                    ...(wantsInfoSheet
+                      ? {
+                          infoSections: {
+                            type: Type.ARRAY,
+                            items: {
+                              type: Type.OBJECT,
+                              properties: {
+                                title: { type: Type.STRING },
+                                bodyHtml: { type: Type.STRING }
+                              },
+                              required: ["title", "bodyHtml"]
+                            }
+                          }
+                        }
+                      : {}),
                     ...(wantsAnswerKey ? { answerKeyHtml: { type: Type.STRING } } : {})
                 },
                 required: [
@@ -816,6 +846,7 @@ RULES:
                   ...(wantsWordFormation ? ["wordFormation"] : []),
                   ...(wantsOpenEnded ? ["openEnded"] : []),
                   ...(wantsCustom ? ["custom"] : []),
+                  ...(wantsInfoSheet ? ["infoSections"] : []),
                   ...(wantsTable ? ["table"] : []),
                   ...(wantsAnswerKey ? ["answerKeyHtml"] : [])
                 ]
@@ -825,6 +856,71 @@ RULES:
 
        const text = response.text;
        const result = JSON.parse(cleanJson(text || "{}"));
+
+       const coerceArray = (value: any) => (Array.isArray(value) ? value : []);
+       const escapeHtml = (value: string) =>
+         value
+           .replace(/&/g, "&amp;")
+           .replace(/</g, "&lt;")
+           .replace(/>/g, "&gt;");
+       const fallbackInfoText = (notes: string) => {
+         const trimmed = (notes || '').trim();
+         if (!trimmed) return "<p>Information to be added.</p>";
+         return `<p>${escapeHtml(trimmed).replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>")}</p>`;
+       };
+
+       if (wantsStory && typeof result.storyHtml !== "string") {
+         const fromNotes = activities.map((a: any) => a.customInstructions).filter(Boolean).join("\n");
+         result.storyHtml = fallbackInfoText(fromNotes);
+       }
+       if (wantsMcq) {
+         result.mcq = coerceArray(result.mcq);
+         if (result.mcq.length === 0 && mcqCount > 0) {
+           result.mcq = Array.from({ length: mcqCount }, (_, idx) => ({
+             q: `Question ${idx + 1}`,
+             options: ["Option A", "Option B", "Option C", "Option D"].slice(0, clampMcCount(mcqActivities[0]?.options?.mcCount))
+           }));
+         }
+       }
+       if (wantsGapFill) {
+         result.gapFill = coerceArray(result.gapFill);
+         if (result.gapFill.length === 0 && gapFillCount > 0) {
+           result.gapFill = Array.from({ length: gapFillCount }, () => ({
+             sentence: "_____",
+             answer: ""
+           }));
+         }
+       }
+       if (wantsWordSearch) {
+         result.wordSearch = coerceArray(result.wordSearch);
+       }
+       if (wantsMatching) {
+         result.matching = coerceArray(result.matching);
+       }
+       if (wantsSentenceTransform) {
+         result.sentenceTransform = coerceArray(result.sentenceTransform);
+       }
+       if (wantsWordFormation) {
+         result.wordFormation = coerceArray(result.wordFormation);
+       }
+       if (wantsOpenEnded) {
+         result.openEnded = coerceArray(result.openEnded);
+       }
+       if (wantsCustom) {
+         result.custom = coerceArray(result.custom);
+       }
+       if (wantsInfoSheet) {
+         result.infoSections = coerceArray(result.infoSections);
+         if (result.infoSections.length === 0) {
+           const notes = infoSheetActivities.map((a: any) => a.customInstructions).filter(Boolean).join("\n");
+           result.infoSections = [
+             {
+               title: "Information",
+               bodyHtml: fallbackInfoText(notes)
+             }
+           ];
+         }
+       }
        
        return res.status(200).json(result);
     }

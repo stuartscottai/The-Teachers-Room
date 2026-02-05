@@ -62,6 +62,10 @@ export const CanvasToolbar: React.FC<{
   onPasteStyles?: () => void;
   onPasteStylesAll?: () => void;
   canPasteStyles?: boolean;
+  aiRegenerateNotes?: string;
+  onAiRegenerateNotesChange?: (value: string) => void;
+  onAiRegenerate?: () => void;
+  aiRegenerateBusy?: boolean;
 }> = ({
   selected,
   editing,
@@ -81,6 +85,10 @@ export const CanvasToolbar: React.FC<{
   onPasteStyles,
   onPasteStylesAll,
   canPasteStyles,
+  aiRegenerateNotes,
+  onAiRegenerateNotesChange,
+  onAiRegenerate,
+  aiRegenerateBusy,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -339,6 +347,31 @@ export const CanvasToolbar: React.FC<{
               title="Shadow intensity"
               aria-label="Shadow intensity"
             />
+
+            {onAiRegenerate && onAiRegenerateNotesChange ? (
+              <div className="w-full mt-2 border-t border-slate-200 pt-2">
+                <div className="text-[10px] font-extrabold text-slate-600 mb-1">AI Regenerate</div>
+                <textarea
+                  value={aiRegenerateNotes || ''}
+                  onChange={(e) => onAiRegenerateNotesChange(e.target.value)}
+                  placeholder="Describe how you want this block updated..."
+                  className="w-full p-2 rounded-xl border border-slate-200 text-[11px] text-slate-700 resize-none"
+                  rows={2}
+                />
+                <button
+                  type="button"
+                  onClick={onAiRegenerate}
+                  disabled={aiRegenerateBusy}
+                  className={`mt-2 w-full px-3 py-2 rounded-xl text-xs font-extrabold border ${
+                    aiRegenerateBusy
+                      ? 'bg-slate-200 text-slate-500 border-slate-200 cursor-not-allowed'
+                      : 'bg-slate-800 text-white border-slate-800 hover:bg-slate-700'
+                  }`}
+                >
+                  {aiRegenerateBusy ? 'Regenerating...' : 'Regenerate Block'}
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

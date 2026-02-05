@@ -1,9 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GameType, GeneratedGame } from '../../types';
+import { GameType, GeneratedGame, GeneratedQuestion } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 import { saveGameToLibrary } from '../../utils/gameUtils';
+import { optimizeImageForUpload } from '../../utils/imageOptimize';
+import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/gameAssetStorage';
+import { resolveGameImageUrl } from '../../utils/gameImage';
+import { getGameImageQuery } from '../../utils/gameAutoImages';
+import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
 import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 
 interface GameEditorProps {
@@ -12,6 +17,10 @@ interface GameEditorProps {
     onPlay: (g: GeneratedGame) => void;
     onBack: () => void;
 }
+
+type QuestionImageTarget =
+    | { scope: 'standard'; index: number }
+    | { scope: 'grouped'; groupIndex: number; questionIndex: number };
 
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onBack }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
@@ -25,6 +34,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [currentPage, setCurrentPage] = useState(1);
     const prevIsPublicRef = useRef(isPublic);
     const [bulkCategoryInput, setBulkCategoryInput] = useState('');
+
+    const [imagePickerOpen, setImagePickerOpen] = useState(false);
+    const [imagePickerTarget, setImagePickerTarget] = useState<QuestionImageTarget | null>(null);
+    const [imagePickerSelection, setImagePickerSelection] = useState<StockImageSelection[]>([]);
+    const [imagePickerQuery, setImagePickerQuery] = useState('');
+    const [imageUploadTarget, setImageUploadTarget] = useState<QuestionImageTarget | null>(null);
+    const imageInputRef = useRef<HTMLInputElement | null>(null);
     
     const { user } = useAuth();
     const { isDirty, setIsDirty, confirmAction } = useUnsavedChanges();
@@ -62,6 +78,72 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setHasEdits(true);
         setIsDirty(true);
     }, [isPublic, setIsDirty]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const refreshSignedUrls = async () => {
+            if (!user) return;
+
+            const paths = new Set<string>();
+            const collect = (q?: GeneratedQuestion | null) => {
+                const path = q?.image?.storagePath?.trim();
+                if (path) paths.add(path);
+            };
+
+            (editedGame.questions || []).forEach(collect);
+            (editedGame.jeopardyBoard || []).forEach((cat) => {
+                (cat?.questions || []).forEach(collect);
+            });
+            (editedGame.pubQuizRounds || []).forEach((round) => {
+                (round?.questions || []).forEach(collect);
+            });
+
+            if (!paths.size) return;
+
+            try {
+                const signed = await createSignedUrlsForGameAssets(Array.from(paths));
+                if (cancelled || signed.size === 0) return;
+
+                const applySigned = (q: GeneratedQuestion) => {
+                    const path = q.image?.storagePath;
+                    if (!path) return q;
+                    const signedUrl = signed.get(path);
+                    if (!signedUrl || signedUrl === q.image?.url) return q;
+                    return { ...q, image: { ...q.image, url: signedUrl, source: q.image?.source || 'upload' } };
+                };
+
+                setEditedGame((prev) => {
+                    const nextQuestions = (prev.questions || []).map(applySigned);
+                    const nextJeopardy = prev.jeopardyBoard
+                        ? prev.jeopardyBoard.map((cat) => ({
+                              ...cat,
+                              questions: (cat.questions || []).map(applySigned),
+                          }))
+                        : prev.jeopardyBoard;
+                    const nextPubQuiz = prev.pubQuizRounds
+                        ? prev.pubQuizRounds.map((round) => ({
+                              ...round,
+                              questions: (round.questions || []).map(applySigned),
+                          }))
+                        : prev.pubQuizRounds;
+
+                    return {
+                        ...prev,
+                        questions: nextQuestions,
+                        jeopardyBoard: nextJeopardy,
+                        pubQuizRounds: nextPubQuiz,
+                    };
+                });
+            } catch (err) {
+                console.warn('Failed to refresh game image URLs:', err);
+            }
+        };
+
+        void refreshSignedUrls();
+        return () => {
+            cancelled = true;
+        };
+    }, [editedGame.id, editedGame.createdAt, user]);
 
     const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
         if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
@@ -218,6 +300,116 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         } catch (error) {
             alert(`Copy failed. Share this link:\n${shareUrl}`);
         }
+    };
+
+    const openImagePicker = (target: QuestionImageTarget, question?: GeneratedQuestion | null) => {
+        setImagePickerTarget(target);
+        setImagePickerSelection([]);
+        const nextQuery = question ? getGameImageQuery(question, editedGame.config) : '';
+        setImagePickerQuery(nextQuery || editedGame.config.topic || '');
+        setImagePickerOpen(true);
+    };
+
+    const closeImagePicker = () => {
+        setImagePickerOpen(false);
+        setImagePickerTarget(null);
+    };
+
+    const updateQuestionImage = (target: QuestionImageTarget, image?: GeneratedQuestion['image'] | null) => {
+        handleChange((prev) => {
+            if (target.scope === 'standard') {
+                const newQuestions = [...prev.questions];
+                if (!newQuestions[target.index]) return prev;
+                newQuestions[target.index] = { ...newQuestions[target.index], image: image || undefined };
+                return { ...prev, questions: newQuestions };
+            }
+
+            const isJeopardy = prev.config.type === GameType.JEOPARDY;
+            const groups = isJeopardy ? [...(prev.jeopardyBoard || [])] : [...(prev.pubQuizRounds || [])];
+            const group = groups[target.groupIndex];
+            if (!group || !group.questions?.[target.questionIndex]) return prev;
+            const nextQuestions = [...group.questions];
+            nextQuestions[target.questionIndex] = { ...nextQuestions[target.questionIndex], image: image || undefined };
+            groups[target.groupIndex] = { ...group, questions: nextQuestions };
+
+            return isJeopardy ? { ...prev, jeopardyBoard: groups } : { ...prev, pubQuizRounds: groups };
+        });
+    };
+
+    const handleImagePickerConfirm = (selection: StockImageSelection[]) => {
+        const target = imagePickerTarget;
+        if (!target) {
+            closeImagePicker();
+            return;
+        }
+        const first = selection[0];
+        if (first) {
+            updateQuestionImage(target, {
+                url: first.url,
+                thumbUrl: first.thumbUrl,
+                source: 'stock',
+                alt: first.label,
+            });
+        }
+        closeImagePicker();
+    };
+
+    const handleImagePickerUpload = () => {
+        if (!imagePickerTarget) return;
+        setImageUploadTarget(imagePickerTarget);
+        imageInputRef.current?.click();
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const target = imageUploadTarget;
+        const file = e.target.files?.[0];
+        if (!target || !file) {
+            e.target.value = '';
+            return;
+        }
+
+        (async () => {
+            try {
+                if (user) {
+                    const optimized = await optimizeImageForUpload(file, { maxDimension: 1400, quality: 0.85, preferAlpha: true });
+                    const uploaded = await uploadGameAsset({
+                        userId: user.id,
+                        blob: optimized.blob,
+                        contentType: optimized.contentType,
+                        extension: optimized.extension,
+                        kind: 'question-image',
+                        gameId: editedGame.id,
+                    });
+                    updateQuestionImage(target, {
+                        url: uploaded.signedUrl,
+                        storagePath: uploaded.path,
+                        source: 'upload',
+                        alt: file.name,
+                    });
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const dataUrl = ev.target?.result as string;
+                        updateQuestionImage(target, {
+                            url: dataUrl,
+                            source: 'upload',
+                            alt: file.name,
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            } catch (err) {
+                console.error('Image upload failed:', err);
+                alert('Failed to upload image. Please try again.');
+            } finally {
+                setImageUploadTarget(null);
+                if (imagePickerOpen) {
+                    closeImagePicker();
+                }
+            }
+        })();
+
+        e.target.value = '';
     };
 
     const addQuestion = () => {
@@ -605,7 +797,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </div>
 
                                     <div className="space-y-6">
-                                        {groups[activeTab].questions.map((q, qIdx) => (
+                                        {groups[activeTab].questions.map((q, qIdx) => {
+                                            const imageUrl = resolveGameImageUrl(q.image?.url);
+                                            const imageAlt = q.image?.alt || 'Question image';
+                                            return (
                                             <div key={qIdx} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:border-sky-200 transition-colors">
                                                 <div className="flex items-center justify-between mb-4">
                                                     <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
@@ -675,6 +870,55 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     </div>
                                                 </div>
 
+                                                <div className="mt-4 pt-4 border-t border-slate-200">
+                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question Image (optional)</label>
+                                                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                                        <div className="w-full md:w-56">
+                                                            {imageUrl ? (
+                                                                <div className="relative w-full aspect-video bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                                                                    <img
+                                                                        src={imageUrl}
+                                                                        alt={imageAlt}
+                                                                        className="max-h-full max-w-full object-contain"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-full aspect-video bg-white border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-400 font-bold">
+                                                                    No image selected
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openImagePicker({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx }, q)}
+                                                                className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                                            >
+                                                                Pick from library
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setImageUploadTarget({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx });
+                                                                    imageInputRef.current?.click();
+                                                                }}
+                                                                className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                                            >
+                                                                Upload
+                                                            </button>
+                                                            {imageUrl && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateQuestionImage({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx }, null)}
+                                                                    className="px-3 py-2 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 {/* OPTIONS EDITOR */}
                                                 {q.options && q.options.length > 0 && (
                                                     <div className="mt-4 pt-4 border-t border-slate-200 animate-fade-in">
@@ -716,7 +960,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     </div>
                                                 )}
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 </div>
                             </div>
@@ -753,6 +997,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 <div className="space-y-6">
                                     {pagedQuestions.map((q, index) => {
                                         const questionIndex = pageStart + index;
+                                        const imageUrl = resolveGameImageUrl(q.image?.url);
+                                        const imageAlt = q.image?.alt || 'Question image';
                                         return (
                                         <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
                                             <button 
@@ -927,6 +1173,55 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 )}
                                             </div>
 
+                                            <div className="mt-4 pt-4 border-t border-slate-200">
+                                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question Image (optional)</label>
+                                                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                                    <div className="w-full md:w-56">
+                                                        {imageUrl ? (
+                                                            <div className="relative w-full aspect-video bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center">
+                                                                <img
+                                                                    src={imageUrl}
+                                                                    alt={imageAlt}
+                                                                    className="max-h-full max-w-full object-contain"
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-full aspect-video bg-white border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-400 font-bold">
+                                                                No image selected
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openImagePicker({ scope: 'standard', index: questionIndex }, q)}
+                                                            className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                                        >
+                                                            Pick from library
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setImageUploadTarget({ scope: 'standard', index: questionIndex });
+                                                                imageInputRef.current?.click();
+                                                            }}
+                                                            className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
+                                                        >
+                                                            Upload
+                                                        </button>
+                                                        {imageUrl && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => updateQuestionImage({ scope: 'standard', index: questionIndex }, null)}
+                                                                className="px-3 py-2 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             {/* OPTIONS EDITOR (MC) */}
                                             {q.options && q.options.length > 0 && !isSurvey && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 animate-fade-in">
@@ -1050,6 +1345,23 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                     </div>
                 </div>
             )}
+
+            <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+            />
+            <StockImagePicker
+                isOpen={imagePickerOpen}
+                mode="single"
+                initialQuery={imagePickerQuery}
+                initialSelection={imagePickerSelection}
+                onClose={closeImagePicker}
+                onConfirm={handleImagePickerConfirm}
+                onUpload={handleImagePickerUpload}
+            />
         </div>
     );
 };

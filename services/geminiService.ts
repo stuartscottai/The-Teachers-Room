@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType } from "../types";
+import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
+import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
@@ -219,6 +220,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
   
   Ensure questions are appropriate for a classroom setting.
+  If images are requested, include imageKeywords (1-2 concise keywords) for each question. 
+  Prefer the answer's concrete nouns/verbs when the question is generic (e.g., "Choose the correct sentence").
   `;
 
   let prompt = '';
@@ -239,6 +242,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       category: { type: Type.STRING },
       difficulty: { type: Type.STRING },
       bonusType: { type: Type.STRING },
+      imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
       // Survey specific
       surveyAnswers: {
         type: Type.ARRAY,
@@ -442,6 +446,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         `;
     }
 
+
     responseSchema = {
         type: Type.OBJECT,
         properties: {
@@ -450,6 +455,13 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         },
         required: ["title", "questions"]
       };
+  }
+
+  if (config.includeImages) {
+    prompt += `
+    IMPORTANT: Include imageKeywords (1-2 concise keywords) for EACH question.
+    If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from the ANSWER or options instead of the question text.
+    `;
   }
 
   try {
@@ -487,15 +499,50 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     const data = JSON.parse(cleanJson(text));
 
     enforceGameAnswerMatchesOptions(data);
+
+    const shouldAutoPickImages = Boolean(config.includeImages && config.imageMode === 'auto');
+    const imageCache = new Map<string, GeneratedQuestion['image'] | null>();
+
+    let questions = data.questions || [];
+    let jeopardyBoard = data.jeopardyBoard;
+    let pubQuizRounds = data.pubQuizRounds;
+
+    if (shouldAutoPickImages) {
+      if (Array.isArray(questions) && questions.length) {
+        questions = await autoPickImagesForQuestions(questions, config, imageCache);
+      }
+      if (Array.isArray(jeopardyBoard)) {
+        const nextBoard = [];
+        for (const category of jeopardyBoard) {
+          const catQuestions = Array.isArray(category?.questions) ? category.questions : [];
+          const updatedQuestions = catQuestions.length
+            ? await autoPickImagesForQuestions(catQuestions, config, imageCache)
+            : catQuestions;
+          nextBoard.push({ ...category, questions: updatedQuestions });
+        }
+        jeopardyBoard = nextBoard;
+      }
+      if (Array.isArray(pubQuizRounds)) {
+        const nextRounds = [];
+        for (const round of pubQuizRounds) {
+          const roundQuestions = Array.isArray(round?.questions) ? round.questions : [];
+          const updatedQuestions = roundQuestions.length
+            ? await autoPickImagesForQuestions(roundQuestions, config, imageCache)
+            : roundQuestions;
+          nextRounds.push({ ...round, questions: updatedQuestions });
+        }
+        pubQuizRounds = nextRounds;
+      }
+    }
     
     return {
       id: generateUUID(),
       createdAt: new Date().toISOString(),
       title: data.title || config.title,
       config: config,
-      questions: data.questions || [],
-      jeopardyBoard: data.jeopardyBoard,
-      pubQuizRounds: data.pubQuizRounds
+      questions,
+      jeopardyBoard,
+      pubQuizRounds
     };
   } catch (error) {
     console.error("Error generating game:", error);
@@ -1104,6 +1151,80 @@ If source files are attached, base requested content on those documents instead 
 
     // Clean and parse
     const result = JSON.parse(cleanJson(text)) as WorksheetAiParts;
+
+    const coerceArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    const fallbackInfoHtml = (textValue: string) => {
+      const trimmed = (textValue || "").trim();
+      if (!trimmed) return "<p>Information to be added.</p>";
+      return `<p>${escapeHtml(trimmed).replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>")}</p>`;
+    };
+
+    if (wantsStory && typeof (result as any).storyHtml !== "string") {
+      const storyNotes = activities.map((a) => a.customInstructions).filter(Boolean).join("\n");
+      (result as any).storyHtml = fallbackInfoHtml(storyNotes);
+    }
+
+    if (wantsMcq) {
+      (result as any).mcq = coerceArray((result as any).mcq);
+      if ((result as any).mcq.length === 0 && mcqCount > 0) {
+        const optionCount = clampMcCount(mcqActivities[0]?.options?.mcCount);
+        (result as any).mcq = Array.from({ length: mcqCount }, (_, idx) => ({
+          q: `Question ${idx + 1}`,
+          options: ["Option A", "Option B", "Option C", "Option D"].slice(0, optionCount)
+        }));
+      }
+    }
+
+    if (wantsGapFill) {
+      (result as any).gapFill = coerceArray((result as any).gapFill);
+      if ((result as any).gapFill.length === 0 && gapFillCount > 0) {
+        (result as any).gapFill = Array.from({ length: gapFillCount }, () => ({
+          sentence: "_____",
+          answer: ""
+        }));
+      }
+    }
+
+    if (wantsInfoSheet) {
+      (result as any).infoSections = coerceArray((result as any).infoSections);
+      if ((result as any).infoSections.length === 0 && infoSectionCount > 0) {
+        const infoNotes = infoSheetActivities
+          .map((a) => (a.customInstructions || "").trim())
+          .filter(Boolean)
+          .join("\n");
+        (result as any).infoSections = [
+          {
+            title: "Information",
+            bodyHtml: fallbackInfoHtml(infoNotes)
+          }
+        ];
+      }
+    }
+
+    if (wantsWordSearch) {
+      (result as any).wordSearch = coerceArray((result as any).wordSearch);
+    }
+    if (wantsMatching) {
+      (result as any).matching = coerceArray((result as any).matching);
+    }
+    if (wantsSentenceTransform) {
+      (result as any).sentenceTransform = coerceArray((result as any).sentenceTransform);
+    }
+    if (wantsWordFormation) {
+      (result as any).wordFormation = coerceArray((result as any).wordFormation);
+    }
+    if (wantsOpenEnded) {
+      (result as any).openEnded = coerceArray((result as any).openEnded);
+    }
+    if (wantsCustom) {
+      (result as any).custom = coerceArray((result as any).custom);
+    }
+
     return result;
   } catch (error) {
     console.error("Error generating worksheet:", error);

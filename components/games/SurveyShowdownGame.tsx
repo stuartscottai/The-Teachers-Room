@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
+import { resolveGameImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Trophy, RefreshCw, Plus, Minus, AlertTriangle } from 'lucide-react';
 
 interface SurveyShowdownGameProps {
@@ -131,6 +132,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [showStrikeOverlay, setShowStrikeOverlay] = useState(false);
     const [shakeInput, setShakeInput] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
+    const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -185,6 +187,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         return base;
     }, [game.questions, options.randomizeQuestions]);
     const currentQ = questions[currentRound];
+    const questionImageUrl = resolveGameImageUrl(currentQ?.image?.url);
+    const questionImageAlt = currentQ?.image?.alt || '';
     
     // Ensure surveyAnswers exists, pad if necessary to 8
     const answers = React.useMemo(() => {
@@ -227,6 +231,29 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         media.addEventListener('change', handleChange);
         return () => media.removeEventListener('change', handleChange);
     }, []);
+
+    useEffect(() => {
+        if (!isImageZoomOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsImageZoomOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isImageZoomOpen]);
+
+    useEffect(() => {
+        if (!questionImageUrl && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [questionImageUrl, isImageZoomOpen]);
+
+    useEffect(() => {
+        if (isMobileViewport && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [isMobileViewport, isImageZoomOpen]);
 
     // Enhanced matching logic checking both main text and alternates
     const checkMatch = (userInput: string, answer: SurveyAnswer): boolean => {
@@ -342,6 +369,22 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         } else {
             document.exitFullscreen();
             setIsFullscreen(false);
+        }
+    };
+
+    const openImageZoom = (event?: React.SyntheticEvent) => {
+        if (event) {
+            event.stopPropagation();
+        }
+        if (questionImageUrl && !isMobileViewport) {
+            setIsImageZoomOpen(true);
+        }
+    };
+
+    const handleImageKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openImageZoom(event);
         }
     };
 
@@ -619,9 +662,23 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 
                 {/* QUESTION DISPLAY */}
                 <div className="bg-blue-600 text-white px-8 py-3 rounded-2xl border-b-8 border-blue-800 shadow-2xl mb-4 text-center max-w-4xl w-full shrink-0 z-10">
-                    <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-normal break-words">
-                        {currentQ.question}
-                    </h2>
+                    <div className="flex flex-col items-center gap-3">
+                        {questionImageUrl && (
+                            <img
+                                src={questionImageUrl}
+                                alt={questionImageAlt}
+                                onClick={isMobileViewport ? undefined : openImageZoom}
+                                onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                role={isMobileViewport ? undefined : 'button'}
+                                tabIndex={isMobileViewport ? -1 : 0}
+                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                className={`max-h-36 sm:max-h-44 md:max-h-52 w-auto rounded-xl object-contain border border-blue-300/40 bg-blue-900/40 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                            />
+                        )}
+                        <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-normal break-words">
+                            {currentQ.question}
+                        </h2>
+                    </div>
                 </div>
 
                 {/* THE BOARD (Grid - 2 Columns for High -> Low flow) */}
@@ -680,6 +737,47 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     </div>
                 </div>
             </div>
+
+            {isImageZoomOpen && questionImageUrl && (
+                <div
+                    className="fixed inset-0 z-[600] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                    onClick={() => setIsImageZoomOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-visible"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsImageZoomOpen(false)}
+                            className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
+                            title="Close"
+                        >
+                            <span className="text-lg font-bold leading-none">X</span>
+                        </button>
+                        <img
+                            src={questionImageUrl}
+                            alt={questionImageAlt}
+                            onClick={() => setIsImageZoomOpen(false)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setIsImageZoomOpen(false);
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to close"
+                            style={{
+                                transform: 'scale(2)',
+                                transformOrigin: 'center',
+                                maxWidth: '25vw',
+                                maxHeight: 'calc((100vh - 4rem - env(safe-area-inset-top)) * 0.25)'
+                            }}
+                            className="rounded-2xl object-contain border border-white/10 shadow-2xl cursor-zoom-out"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* 3. FOOTER CONTROLS */}
             <div className="bg-slate-900 border-t-4 border-slate-800 p-4 shrink-0 z-30 shadow-2xl relative min-h-[100px] flex items-center">
