@@ -67,6 +67,7 @@ export interface GameRunOptions {
   enableBonuses: boolean;
   strictMode: boolean; // Can override config
   questionLimit?: number; // For Trivia: ensure divisible by players
+  triviaRandomPoints?: boolean; // Trivia-only runtime option
   teamNames?: string[]; // Optional custom team names
   muted: boolean; // Sound preference
   soundConfig?: {

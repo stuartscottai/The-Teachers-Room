@@ -78,8 +78,10 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const scorebarRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [scorebarHeight, setScorebarHeight] = useState(140);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const questionWrapRef = useRef<HTMLDivElement>(null);
     const questionTextRef = useRef<HTMLDivElement>(null);
@@ -327,6 +329,25 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             setRevealedReviewAnswers(Array(currentRound.questions.length).fill(false));
         }
     }, [phase, currentRound]);
+
+    useLayoutEffect(() => {
+        const el = scorebarRef.current;
+        if (!el) return;
+
+        const update = () => {
+            const h = Math.ceil(el.getBoundingClientRect().height);
+            if (h > 0) setScorebarHeight(h);
+        };
+
+        update();
+        const ro = new ResizeObserver(() => update());
+        ro.observe(el);
+        window.addEventListener('resize', update);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', update);
+        };
+    }, [phase, isFullscreen, options.players]);
 
     const startRound = (index: number) => {
         setCurrentRoundIndex(index);
@@ -619,12 +640,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         : phase === 'home'
             ? 'min-h-[calc(var(--app-vh,1vh)*100-4rem)]'
             : 'h-[calc(var(--app-vh,1vh)*100-4rem)]';
+    const navOffset = isFullscreen ? 0 : 64;
+    const questionOverlayTopStyle = { top: `calc(${navOffset + scorebarHeight}px + env(safe-area-inset-top))` };
 
     return (
         <div ref={containerRef} className={`bg-slate-800 flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div className="bg-white p-2 md:p-4 shrink-0 z-[250] shadow-md border-b border-slate-200 relative min-h-[70px] md:min-h-[140px]">
+            <div ref={scorebarRef} className="bg-white p-2 md:p-4 shrink-0 z-[250] shadow-md border-b border-slate-200 relative min-h-[70px] md:min-h-[140px]">
                 <div className="hidden md:flex justify-between items-center gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[140px]">
                         <button 
@@ -916,7 +939,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] md:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             

@@ -786,6 +786,10 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     }
 
 
+    const questionOverlayTopClass = isFullscreen
+        ? 'top-[calc(4.5rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))]'
+        : 'top-[calc(8.5rem+env(safe-area-inset-top))] sm:top-[calc(12.75rem+env(safe-area-inset-top))]';
+
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             <style>
@@ -977,7 +981,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
             {/* Active Card Modal - Z-Index 200 */}
             {activeQ && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 

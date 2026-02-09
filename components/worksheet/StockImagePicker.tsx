@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { searchStockImages, StockImageResult } from '../../services/stockImageService';
+import { toCoepSafeStockImageUrl } from '../../utils/stockImageUrl';
 
 export type StockImageSelection = {
   id: string;
@@ -34,11 +35,7 @@ export const StockImagePicker: React.FC<{
   const [page, setPage] = useState(1);
   const [totalHits, setTotalHits] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
-  const proxyUrl = (value: string) => {
-    if (!value) return '';
-    const cleaned = value.replace(/^https?:\/\//i, '');
-    return `https://images.weserv.nl/?url=${encodeURIComponent(cleaned)}`;
-  };
+  const proxyUrl = (value: string) => toCoepSafeStockImageUrl(value, !import.meta.env.DEV);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -221,8 +218,8 @@ export const StockImagePicker: React.FC<{
 
             {error && (
               <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-3">
-                {error === 'Missing VITE_PIXABAY_API_KEY'
-                  ? 'Add VITE_PIXABAY_API_KEY to your .env.local to enable stock search.'
+                {error.includes('PIXABAY_API_KEY')
+                  ? 'Stock image search is not configured. Set PIXABAY_API_KEY on the server (and/or VITE_PIXABAY_API_KEY for local fallback).'
                   : error}
               </div>
             )}
@@ -241,17 +238,12 @@ export const StockImagePicker: React.FC<{
                     title={item.alt}
                   >
                     <img
-                      src={item.thumbUrl}
+                      src={proxyUrl(item.thumbUrl || item.url)}
                       alt={item.alt}
                       loading="lazy"
                       onError={(e) => {
                         const img = e.currentTarget;
-                        if (img.dataset.fallback === '2') return;
-                        if (img.dataset.fallback === '1') {
-                          img.dataset.fallback = '2';
-                          img.src = proxyUrl(item.url || item.thumbUrl);
-                          return;
-                        }
+                        if (img.dataset.fallback === '1') return;
                         img.dataset.fallback = '1';
                         img.src = item.url || item.thumbUrl;
                       }}
@@ -304,16 +296,11 @@ export const StockImagePicker: React.FC<{
               {selected.map((item) => (
                 <div key={item.id} className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-lg">
                   <img
-                    src={item.thumbUrl}
+                    src={proxyUrl(item.thumbUrl || item.url)}
                     alt=""
                     onError={(e) => {
                       const img = e.currentTarget;
-                      if (img.dataset.fallback === '2') return;
-                      if (img.dataset.fallback === '1') {
-                        img.dataset.fallback = '2';
-                        img.src = proxyUrl(item.url || item.thumbUrl);
-                        return;
-                      }
+                      if (img.dataset.fallback === '1') return;
                       img.dataset.fallback = '1';
                       img.src = item.url || item.thumbUrl;
                     }}

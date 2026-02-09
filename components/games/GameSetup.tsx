@@ -34,6 +34,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     teamLives: 3, // Default lives
     bombDuration: 60,
     randomizeQuestions: true, // Default to random
+    triviaRandomPoints: false,
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
@@ -319,32 +320,59 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
                 {/* Trivia Specific: Grid Size Selection */}
                 {game.config.type === GameType.TRIVIA && (
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
-                            <Grid size={16} className="mr-2 text-brand-blue" /> Grid Size (Questions)
-                        </label>
-                        {validQuestionCounts.length > 0 ? (
-                            <select 
-                                value={options.questionLimit}
-                                onChange={(e) => setOptions({ ...options, questionLimit: Number(e.target.value) })}
-                                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
-                            >
-                                {validQuestionCounts.map(count => (
-                                    <option key={count} value={count}>
-                                        {count} Questions ({(count / options.players).toFixed(0)} turns each)
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <div className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded flex items-center">
-                                <AlertCircle size={14} className="mr-1" />
-                                Can't split {game.questions?.length} Qs evenly among {options.players} teams.
+                    <>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                                <Grid size={16} className="mr-2 text-brand-blue" /> Grid Size (Questions)
+                            </label>
+                            {validQuestionCounts.length > 0 ? (
+                                <select 
+                                    value={options.questionLimit}
+                                    onChange={(e) => setOptions({ ...options, questionLimit: Number(e.target.value) })}
+                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                                >
+                                    {validQuestionCounts.map(count => (
+                                        <option key={count} value={count}>
+                                            {count} Questions ({(count / options.players).toFixed(0)} turns each)
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded flex items-center">
+                                    <AlertCircle size={14} className="mr-1" />
+                                    Can't split {game.questions?.length} Qs evenly among {options.players} teams.
+                                </div>
+                            )}
+                            <p className="text-[10px] text-slate-400 mt-1">
+                               * We enforce fairness: Total questions must be divisible by the number of teams.
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">
+                                Question Points
+                            </label>
+                            <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                                <button
+                                    onClick={() => setOptions({ ...options, triviaRandomPoints: false })}
+                                    className={`flex-1 py-2 text-xs font-bold transition-colors ${!options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                >
+                                    Use Saved Points
+                                </button>
+                                <button
+                                    onClick={() => setOptions({ ...options, triviaRandomPoints: true })}
+                                    className={`flex-1 py-2 text-xs font-bold transition-colors ${options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                >
+                                    Random 25/50/75/100
+                                </button>
                             </div>
-                        )}
-                        <p className="text-[10px] text-slate-400 mt-1">
-                           * We enforce fairness: Total questions must be divisible by the number of teams.
-                        </p>
-                    </div>
+                            <p className="text-[10px] text-slate-400 mt-1">
+                                {options.triviaRandomPoints
+                                    ? 'Each card gets a random value at game start.'
+                                    : 'Keep the points currently saved in this game.'}
+                            </p>
+                        </div>
+                    </>
                 )}
 
                 {/* Random Bonuses - Hidden for Pub Quiz, Time Bomb, and Survey Showdown */}

@@ -9,7 +9,7 @@ import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCo
 import { optimizeImageForUpload } from '../utils/imageOptimize';
 import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
 import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
-import { blocksFromAi, blockToElementHtml, gapFillToHtml, imageToHtml, sanitizeHtml, escapeHtml } from '../components/worksheet/designer/designerHelpers';
+import { blocksFromAi, blockToElementHtml, gapFillToHtml, imageToHtml, sanitizeHtml, escapeHtml, resolveMcqOptionLabelType } from '../components/worksheet/designer/designerHelpers';
 import { WorksheetAiResultV1, WorksheetDesignerDocV1, WorksheetDesignerSettings, createEmptyDoc, tryParseDesignerDoc, WorksheetBlock, WorksheetDesignerPage, WorksheetPlacedElement, createId } from '../components/worksheet/designer/designerTypes';
 import { Avatar } from '../components/Avatar';
 import { StockImagePicker, StockImageSelection } from '../components/worksheet/StockImagePicker';
@@ -1034,6 +1034,34 @@ const WorksheetBuilder: React.FC<{
         { type: 'custom', label: 'Custom' },
     ];
 
+    const GAP_FILL_EMBED_DISTRIBUTION_NOTE =
+        'Embedded-story gap-fill default: distribute blanks evenly across the full story (across paragraphs/sentences), and avoid clustering most blanks at the beginning.';
+
+    const appendInstructionOnce = (base: string | undefined, note: string): string => {
+        const current = (base || '').trim();
+        if (!current) return note;
+        const normalizedCurrent = current.toLowerCase();
+        const normalizedNote = note.toLowerCase();
+        if (normalizedCurrent.includes(normalizedNote)) return current;
+        return `${current}\n${note}`;
+    };
+
+    const normalizeActivityForAi = (activity: ActivityConfig): ActivityConfig => {
+        if (activity.type !== 'gap-fill' || activity.contextType !== 'text') return activity;
+        const embedInStory = activity.options?.embedInStory ?? true;
+        if (!embedInStory) return activity;
+        return {
+            ...activity,
+            options: { ...(activity.options || {}), embedInStory: true },
+            customInstructions: appendInstructionOnce(activity.customInstructions, GAP_FILL_EMBED_DISTRIBUTION_NOTE),
+        };
+    };
+
+    const normalizeConfigForAi = (value: WorksheetConfig): WorksheetConfig => ({
+        ...value,
+        activities: (value.activities || []).map((a) => normalizeActivityForAi(a)),
+    });
+
     // Sync visibility state from loaded config
     useEffect(() => {
         if (generatedWs?.config?.isPublic !== undefined) {
@@ -1578,7 +1606,16 @@ const WorksheetBuilder: React.FC<{
     };
 
     const updateAppendActivityContext = (id: string, contextType: 'sentences' | 'text') => {
-        updateAppendActivity(id, { contextType });
+        setAppendActivities((prev) =>
+            prev.map((a) => {
+                if (a.id !== id) return a;
+                const nextOptions = { ...(a.options || {}) } as Record<string, any>;
+                if ((a.type === 'gap-fill' || a.type === 'word-formation') && contextType === 'text' && nextOptions.embedInStory === undefined) {
+                    nextOptions.embedInStory = true;
+                }
+                return { ...a, contextType, options: nextOptions };
+            })
+        );
     };
 
     const updateAppendActivityOptions = (id: string, patch: Record<string, any>) => {
@@ -1742,40 +1779,129 @@ const WorksheetBuilder: React.FC<{
         onDirtyChange?.(true);
     };
 
-    const autoPickImagesForLabels = async (labels: string[], cache: Map<string, StockImageSelection | null>) => {
+    type AutoImagePickStats = {
+        requested: number;
+        picked: number;
+        failed: number;
+        failedLabels: string[];
+    };
+
+    const createAutoImagePickStats = (): AutoImagePickStats => ({
+        requested: 0,
+        picked: 0,
+        failed: 0,
+        failedLabels: [],
+    });
+
+    const mergeAutoImagePickStats = (...entries: AutoImagePickStats[]): AutoImagePickStats => {
+        const failedLabels = new Set<string>();
+        let requested = 0;
+        let picked = 0;
+        let failed = 0;
+        entries.forEach((entry) => {
+            requested += entry.requested || 0;
+            picked += entry.picked || 0;
+            failed += entry.failed || 0;
+            (entry.failedLabels || []).forEach((label) => {
+                const safe = String(label || '').trim();
+                if (safe) failedLabels.add(safe);
+            });
+        });
+        return { requested, picked, failed, failedLabels: Array.from(failedLabels) };
+    };
+
+    const normalizeImageLabelForSearch = (value: string): string =>
+        String(value || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/^\s*([A-Za-z]|\d{1,2})\s*[\)\.\-:]\s*/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    const reportAutoImagePickOutcome = (stats: AutoImagePickStats, context: string) => {
+        if (!stats.requested) return;
+        if (stats.failed <= 0) return;
+        const preview = stats.failedLabels.slice(0, 6).join(', ');
+        const suffix =
+            stats.failedLabels.length > 6 ? ` (+${stats.failedLabels.length - 6} more)` : '';
+        const missingLine = preview ? `\nMissing labels: ${preview}${suffix}` : '';
+        if (stats.picked <= 0) {
+            alert(
+                `Image auto-pick failed for ${context}: no images were found for ${stats.failed}/${stats.requested} labels.${missingLine}`
+            );
+            return;
+        }
+        alert(
+            `Image auto-pick completed with partial results for ${context}: ${stats.picked}/${stats.requested} labels matched.${missingLine}`
+        );
+    };
+
+    const autoPickImagesForLabels = async (
+        labels: string[],
+        cache: Map<string, StockImageSelection | null>
+    ): Promise<{ picks: StockImageSelection[]; stats: AutoImagePickStats }> => {
         const picks: StockImageSelection[] = [];
+        const failedLabels = new Set<string>();
+        let requested = 0;
+        let picked = 0;
+        let failed = 0;
+
         for (const raw of labels) {
-            const label = String(raw || '').trim();
+            const label = normalizeImageLabelForSearch(String(raw || ''));
             if (!label) continue;
+            requested += 1;
             const key = label.toLowerCase();
             if (cache.has(key)) {
                 const cached = cache.get(key);
-                if (cached) picks.push({ ...cached, label });
+                if (cached) {
+                    picks.push({ ...cached, label });
+                    picked += 1;
+                } else {
+                    failed += 1;
+                    failedLabels.add(label);
+                }
                 continue;
             }
             try {
-                const data = await searchStockImages(label, { page: 1, perPage: 6 });
+                const data = await searchStockImages(label, { page: 1, perPage: 6, strict: true });
                 const first = data.items[0];
                 if (first) {
-                    const picked = { id: first.id, url: first.url, thumbUrl: first.thumbUrl, label };
-                    cache.set(key, picked);
-                    picks.push(picked);
+                    const pickedImage = { id: first.id, url: first.url, thumbUrl: first.thumbUrl, label };
+                    cache.set(key, pickedImage);
+                    picks.push(pickedImage);
+                    picked += 1;
                 } else {
                     cache.set(key, null);
+                    failed += 1;
+                    failedLabels.add(label);
                 }
             } catch (err) {
                 console.warn('Image auto-pick failed for label:', label, err);
                 cache.set(key, null);
+                failed += 1;
+                failedLabels.add(label);
             }
         }
-        return picks;
+
+        return {
+            picks,
+            stats: {
+                requested,
+                picked,
+                failed,
+                failedLabels: Array.from(failedLabels),
+            },
+        };
     };
 
-    const applyAutoImageBanks = async (ai: WorksheetAiResultV1, sourceConfig: WorksheetConfig) => {
-        if (!import.meta.env.VITE_PIXABAY_API_KEY) {
-            return sourceConfig;
-        }
+    const applyAutoImageBanks = async (
+        ai: WorksheetAiResultV1,
+        sourceConfig: WorksheetConfig
+    ): Promise<{ config: WorksheetConfig; stats: AutoImagePickStats }> => {
+        const stats = createAutoImagePickStats();
         const activities = sourceConfig.activities || [];
+        if (activities.length === 0) {
+            return { config: sourceConfig, stats };
+        }
         const nextActivities = [...activities];
         const imageCache = new Map<string, StockImageSelection | null>();
         let wordSearchIndex = 0;
@@ -1796,7 +1922,13 @@ const WorksheetBuilder: React.FC<{
                 const puzzle = ai.wordSearch?.[wordSearchIndex];
                 wordSearchIndex += 1;
                 if (hasImageBank || !puzzle?.words?.length) continue;
-                const picks = await autoPickImagesForLabels(puzzle.words, imageCache);
+                const pickResult = await autoPickImagesForLabels(puzzle.words, imageCache);
+                const nextStats = mergeAutoImagePickStats(stats, pickResult.stats);
+                stats.requested = nextStats.requested;
+                stats.picked = nextStats.picked;
+                stats.failed = nextStats.failed;
+                stats.failedLabels = nextStats.failedLabels;
+                const picks = pickResult.picks;
                 if (picks.length) {
                     nextActivities[i] = {
                         ...act,
@@ -1812,8 +1944,16 @@ const WorksheetBuilder: React.FC<{
                 const slice = (ai.matching || []).slice(matchingIndex, matchingIndex + (act.count || 0));
                 matchingIndex += act.count || 0;
                 if (hasImageBank || slice.length === 0) continue;
-                const labels = slice.map((item) => String(item?.left || '').trim()).filter(Boolean);
-                const picks = await autoPickImagesForLabels(labels, imageCache);
+                const labels = slice
+                    .map((item) => normalizeImageLabelForSearch(String(item?.left || '')))
+                    .filter(Boolean);
+                const pickResult = await autoPickImagesForLabels(labels, imageCache);
+                const nextStats = mergeAutoImagePickStats(stats, pickResult.stats);
+                stats.requested = nextStats.requested;
+                stats.picked = nextStats.picked;
+                stats.failed = nextStats.failed;
+                stats.failedLabels = nextStats.failedLabels;
+                const picks = pickResult.picks;
                 if (picks.length) {
                     nextActivities[i] = {
                         ...act,
@@ -1826,8 +1966,8 @@ const WorksheetBuilder: React.FC<{
             }
         }
 
-        if (!changed) return sourceConfig;
-        return { ...sourceConfig, activities: nextActivities };
+        if (!changed) return { config: sourceConfig, stats };
+        return { config: { ...sourceConfig, activities: nextActivities }, stats };
     };
 
     // Drag & Drop
@@ -1862,15 +2002,17 @@ const WorksheetBuilder: React.FC<{
 
         setLoading(true);
         try {
-            const finalConfig = { ...config, files: uploadedFiles };
+            const finalConfig = normalizeConfigForAi({ ...config, files: uploadedFiles });
             const ai = (await generateWorksheetContent(finalConfig)) as WorksheetAiResultV1;
 
             if (finalConfig.title) ai.title = finalConfig.title;
 
-            const hydratedConfig = await applyAutoImageBanks(ai, finalConfig);
+            const autoImageResult = await applyAutoImageBanks(ai, finalConfig);
+            const hydratedConfig = autoImageResult.config;
             if (hydratedConfig !== finalConfig) {
                 setConfig(hydratedConfig);
             }
+            reportAutoImagePickOutcome(autoImageResult.stats, 'worksheet generation');
 
             const infoActivities = (hydratedConfig.activities || []).filter((a) => a.type === 'information-sheet');
             const requestedInfoCount = infoActivities.reduce((sum, a) => sum + (a.count || 0), 0);
@@ -1996,7 +2138,7 @@ const WorksheetBuilder: React.FC<{
                 content: JSON.stringify(nextDoc),
                 answerKey: ai.answerKeyHtml || null,
                 type: 'Designer',
-                config: finalConfig,
+                config: hydratedConfig,
             });
             setSaveStatus('idle');
             onDirtyChange?.(true);
@@ -2011,7 +2153,19 @@ const WorksheetBuilder: React.FC<{
         }
     };
 
-    const requestAiBlocksForActivity = async (activity: ActivityConfig): Promise<WorksheetBlock[]> => {
+    const requestAiBlocksForActivity = async (rawActivity: ActivityConfig): Promise<WorksheetBlock[]> => {
+        const activity: ActivityConfig = normalizeActivityForAi({
+            ...rawActivity,
+            options: {
+                ...(rawActivity.options || {}),
+                ...(
+                    (rawActivity.type === 'gap-fill' || rawActivity.type === 'word-formation') &&
+                    rawActivity.contextType === 'text'
+                        ? { embedInStory: rawActivity.options?.embedInStory ?? true }
+                        : {}
+                ),
+            },
+        });
         const baseConfig: WorksheetConfig = {
             ...config,
             activities: [activity],
@@ -2156,7 +2310,15 @@ const WorksheetBuilder: React.FC<{
         ensureWordsearchGrid(ai);
         ensureGapFillItems(ai);
         if (baseConfig.title) ai.title = baseConfig.title;
-        let blocks = blocksFromAi(ai, baseConfig);
+
+        let activeAi = ai;
+        let activeConfig = baseConfig;
+        let autoImageStats = createAutoImagePickStats();
+        const initialAutoImage = await applyAutoImageBanks(activeAi, activeConfig);
+        autoImageStats = mergeAutoImagePickStats(autoImageStats, initialAutoImage.stats);
+        activeConfig = initialAutoImage.config;
+
+        let blocks = blocksFromAi(activeAi, activeConfig);
 
         const missingGapFill =
             activity.type === 'gap-fill' &&
@@ -2180,8 +2342,14 @@ const WorksheetBuilder: React.FC<{
             ensureWordsearchGrid(retryAi);
             ensureGapFillItems(retryAi);
             if (retryConfig.title) retryAi.title = retryConfig.title;
-            const retryBlocks = blocksFromAi(retryAi, retryConfig);
+            let retryConfigForBlocks = retryConfig;
+            const retryAutoImage = await applyAutoImageBanks(retryAi, retryConfigForBlocks);
+            autoImageStats = mergeAutoImagePickStats(autoImageStats, retryAutoImage.stats);
+            retryConfigForBlocks = retryAutoImage.config;
+            const retryBlocks = blocksFromAi(retryAi, retryConfigForBlocks);
             if (retryBlocks.length > 0) {
+                activeAi = retryAi;
+                activeConfig = retryConfigForBlocks;
                 blocks = retryBlocks;
             }
         }
@@ -2190,17 +2358,20 @@ const WorksheetBuilder: React.FC<{
             const embeddedStory =
                 activity.contextType === 'text' && activity.options?.embedInStory && hasBlockType(blocks, 'story');
             if (!embeddedStory && !hasBlockType(blocks, 'gap-fill')) {
-                const fallbackBlocks = buildGapFillBlock(ai);
+                const fallbackBlocks = buildGapFillBlock(activeAi);
                 if (fallbackBlocks.length > 0) {
+                    reportAutoImagePickOutcome(autoImageStats, `${activity.type} activity generation`);
                     return fallbackBlocks;
                 }
             }
         }
 
         if (blocks.length === 0 && activity.type === 'multiple-choice') {
+            reportAutoImagePickOutcome(autoImageStats, `${activity.type} activity generation`);
             return buildMcqBlock();
         }
 
+        reportAutoImagePickOutcome(autoImageStats, `${activity.type} activity generation`);
         return blocks;
     };
 
@@ -2827,23 +2998,65 @@ const WorksheetBuilder: React.FC<{
                                             </div>
                                         )}
                                         {act.type === 'gap-fill' && (
-                                            <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={Boolean(act.options?.wordBank)}
-                                                    onChange={(e) => updateAppendActivityOptions(act.id, { wordBank: e.target.checked })}
-                                                />
-                                                Include word bank
-                                            </label>
+                                            <div className="space-y-1">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.wordBank)}
+                                                        onChange={(e) => updateAppendActivityOptions(act.id, { wordBank: e.target.checked })}
+                                                    />
+                                                    Include word bank
+                                                </label>
+                                                {act.contextType === 'text' && (
+                                                    <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(act.options?.embedInStory ?? true)}
+                                                            onChange={(e) => updateAppendActivityOptions(act.id, { embedInStory: e.target.checked })}
+                                                        />
+                                                        Embed gaps in story
+                                                    </label>
+                                                )}
+                                            </div>
                                         )}
                                         {act.type === 'wordsearch' && (
+                                            <div className="space-y-1">
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.allowDiagonals)}
+                                                        onChange={(e) => updateAppendActivityOptions(act.id, { allowDiagonals: e.target.checked })}
+                                                    />
+                                                    Allow diagonals
+                                                </label>
+                                                <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={Boolean(act.options?.useImages)}
+                                                        onChange={(e) =>
+                                                            updateAppendActivityOptions(act.id, {
+                                                                useImages: e.target.checked,
+                                                                ...(e.target.checked ? {} : { imageBank: { items: [] } }),
+                                                            })
+                                                        }
+                                                    />
+                                                    Use image bank (auto-pick)
+                                                </label>
+                                            </div>
+                                        )}
+                                        {act.type === 'matching' && (
                                             <label className="flex items-center gap-2 text-[10px] text-slate-600 font-semibold">
                                                 <input
                                                     type="checkbox"
-                                                    checked={Boolean(act.options?.allowDiagonals)}
-                                                    onChange={(e) => updateAppendActivityOptions(act.id, { allowDiagonals: e.target.checked })}
+                                                    checked={Boolean(act.options?.useImages)}
+                                                    onChange={(e) =>
+                                                        updateAppendActivityOptions(act.id, {
+                                                            useImages: e.target.checked,
+                                                            ...(e.target.checked ? {} : { imageBank: { items: [] } }),
+                                                        })
+                                                    }
                                                 />
-                                                Allow diagonals
+                                                Use image bank (auto-pick)
                                             </label>
                                         )}
                                         <div>

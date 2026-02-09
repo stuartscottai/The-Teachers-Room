@@ -395,13 +395,15 @@ export const WorksheetDesigner: React.FC<{
 
   const placeElementsSequentially = (newBlocks: WorksheetBlock[], preferredPageId?: string) => {
     if (newBlocks.length === 0) return;
+    const currentPages = latestStateRef.current.pages;
+    const currentElements = latestStateRef.current.elements;
     const { originX, originY, contentHeight, pageInnerSize } = getPageMetrics();
     const gap = 16;
-    const nextPages = pages.length ? [...pages] : [{ id: createId() }];
+    const nextPages = currentPages.length ? [...currentPages] : [{ id: createId() }];
     const basePageId = preferredPageId || nextPages[nextPages.length - 1]?.id;
     let pageId = basePageId || nextPages[0].id;
     let y = originY;
-    const samePageEls = elements.filter((el) => el.pageId === pageId);
+    const samePageEls = currentElements.filter((el) => el.pageId === pageId);
     if (selected && selected.pageId === pageId) {
       y = Math.max(originY, selected.y + selected.h + gap);
     } else if (samePageEls.length > 0) {
@@ -437,8 +439,10 @@ export const WorksheetDesigner: React.FC<{
 
     if (addedElements.length === 0) return;
     pushUndoSnapshot();
+    const nextElements = [...currentElements, ...addedElements];
+    latestStateRef.current = { ...latestStateRef.current, pages: nextPages, elements: nextElements };
     setPages(nextPages);
-    setElements((prev) => [...prev, ...addedElements]);
+    setElements(nextElements);
     setSelectedElementId(addedElements[addedElements.length - 1]?.id || null);
   };
 
@@ -719,16 +723,20 @@ export const WorksheetDesigner: React.FC<{
     if (!activities.length) return;
     setAiBusy(true);
     try {
+      const blocksToAppend: WorksheetBlock[] = [];
       for (const activity of activities) {
         const newBlocks = await onRequestAiBlocks(activity);
         if (newBlocks.length > 0) {
-          placeElementsSequentially(newBlocks, selected?.pageId);
+          blocksToAppend.push(...newBlocks);
         } else {
           window.alert(`AI did not return content for ${activity.type}. Try adding more notes or adjusting the activity.`);
         }
         onAddActivityConfig?.(activity);
       }
-      await performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+      if (blocksToAppend.length > 0) {
+        placeElementsSequentially(blocksToAppend, selected?.pageId);
+        await performAutoLayout({ columns: layoutMode === 'columns' ? 2 : 1, confirm: false });
+      }
     } catch (err) {
       console.error(err);
       window.alert('Failed to add new activities.');
@@ -1699,7 +1707,11 @@ export const WorksheetDesigner: React.FC<{
     const columnsRequested =
       typeof opts?.columns === 'number' && Number.isFinite(opts.columns) ? Math.max(1, Math.round(opts.columns)) : 1;
     const columns = Math.min(2, Math.max(1, columnsRequested));
-    if (blocks.length === 0 && elements.length === 0) return false;
+    const currentState = latestStateRef.current;
+    const currentPages = currentState.pages;
+    const currentBlocks = currentState.blocks;
+    const currentElements = currentState.elements;
+    if (currentBlocks.length === 0 && currentElements.length === 0) return false;
     if (opts?.confirm) {
       const ok = window.confirm('This will reflow all placed elements and blocks. Continue?');
       if (!ok) return false;
@@ -1733,8 +1745,8 @@ export const WorksheetDesigner: React.FC<{
     const maxY = originY + contentHeight;
     pushUndoSnapshot();
 
-    const pageOrder = new Map(pages.map((p, idx) => [p.id, idx]));
-    const orderedElements = [...elements].sort((a, b) => {
+    const pageOrder = new Map(currentPages.map((p, idx) => [p.id, idx]));
+    const orderedElements = [...currentElements].sort((a, b) => {
       const pageA = pageOrder.get(a.pageId) ?? 0;
       const pageB = pageOrder.get(b.pageId) ?? 0;
       if (pageA !== pageB) return pageA - pageB;
@@ -1742,7 +1754,7 @@ export const WorksheetDesigner: React.FC<{
       return a.x - b.x;
     });
 
-    const orderedBlocks = [...orderedElements.map(blockFromElement), ...blocks];
+    const orderedBlocks = [...orderedElements.map(blockFromElement), ...currentBlocks];
     const isLogoBlock = (block: WorksheetBlock) => block.type === 'image' && block.payload?.kind === 'logo';
     const logoBlock = orderedBlocks.find(isLogoBlock) || null;
     const headerBlock = orderedBlocks.find((b) => b.type === 'header') || null;
@@ -1758,9 +1770,7 @@ export const WorksheetDesigner: React.FC<{
     const minHeight = 50;
     let overflowed = false;
 
-    const nextPages: WorksheetDesignerPage[] = [
-      { id: pages[0]?.id ?? createId() },
-    ];
+    const nextPages: WorksheetDesignerPage[] = [{ id: currentPages[0]?.id ?? createId() }];
     const nextElements: WorksheetPlacedElement[] = [];
     let pageIndex = 0;
     let cursorY = originY;
@@ -2105,6 +2115,7 @@ export const WorksheetDesigner: React.FC<{
     setPages(nextPages);
     setElements(nextElements);
     setBlocks([]);
+    latestStateRef.current = { ...latestStateRef.current, pages: nextPages, elements: nextElements, blocks: [] };
     setSelectedElementId(null);
     setEditingElementId(null);
 

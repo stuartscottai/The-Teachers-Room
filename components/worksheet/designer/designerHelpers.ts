@@ -68,7 +68,7 @@ const buildImageBankLookup = (items?: ImageBankItem[]) => {
   return lookup;
 };
 
-const resolveMcqOptionLabelType = (note?: string): 'A' | '1' => {
+export const resolveMcqOptionLabelType = (note?: string): 'A' | '1' => {
   const text = (note || '').toLowerCase();
   if (!text) return 'A';
   if (/(numbers?|numeric|digits?|1-4|1 to 4|1-3|1 to 3|1-2|1 to 2)/.test(text)) {

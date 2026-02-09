@@ -172,7 +172,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     });
 
     const supportsQuestionImages = mode === 'ai' && ![GameType.STOP_THE_FIRE].includes(type);
-    const hasStockImageKey = Boolean(import.meta.env.VITE_PIXABAY_API_KEY);
     
     // Files state separate from config until generation for cleaner updates
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -984,7 +983,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     type="radio"
                                                     name="imageMode"
                                                     value="auto"
-                                                    disabled={!hasStockImageKey}
                                                     checked={(config.imageMode || 'auto') === 'auto'}
                                                     onChange={() => setConfig({ ...config, imageMode: 'auto' })}
                                                     className="mt-1 h-4 w-4 text-brand-blue border-slate-300"
@@ -1012,11 +1010,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     </span>
                                                 </span>
                                             </label>
-                                            {!hasStockImageKey && (
-                                                <p className="text-xs text-amber-600">
-                                                    Auto-pick requires VITE_PIXABAY_API_KEY in your .env.local.
-                                                </p>
-                                            )}
                                         </div>
                                     )}
                                 </div>

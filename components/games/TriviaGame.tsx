@@ -233,6 +233,15 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         }
 
         let questionsCopy = pool.slice(0, validCount);
+
+        // Optional runtime mode: randomize card values without regenerating content
+        if (options.triviaRandomPoints) {
+            const randomValues = [25, 50, 75, 100] as const;
+            questionsCopy = questionsCopy.map((q: any) => ({
+                ...q,
+                points: randomValues[Math.floor(Math.random() * randomValues.length)]
+            }));
+        }
         
         // 2. Apply Chaos Mode (Bonuses) - 20%
         if (options.enableBonuses) {
@@ -255,7 +264,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             }
         }
         setGameQuestions(questionsCopy);
-    }, [game, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions]);
+    }, [game, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions, options.triviaRandomPoints]);
 
     // Calculate Optimal Grid Dimensions (Perfect Rectangles Priority)
     const gridStyle = useMemo(() => {
@@ -861,6 +870,10 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         );
     }
 
+    const questionOverlayTopClass = isFullscreen
+        ? 'top-[calc(4.5rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))]'
+        : 'top-[calc(8.5rem+env(safe-area-inset-top))] sm:top-[calc(12.75rem+env(safe-area-inset-top))]';
+
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
             <style>
@@ -1055,7 +1068,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 

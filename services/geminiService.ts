@@ -190,9 +190,64 @@ const generateUUID = () => {
     });
 };
 
+const hydrateGameAutoImages = async (
+  game: Pick<GeneratedGame, 'questions' | 'jeopardyBoard' | 'pubQuizRounds'>,
+  config: GameConfig
+) => {
+  const shouldAutoPickImages = Boolean(config.includeImages && config.imageMode === 'auto');
+  if (!shouldAutoPickImages) {
+    return {
+      questions: game.questions || [],
+      jeopardyBoard: game.jeopardyBoard,
+      pubQuizRounds: game.pubQuizRounds,
+    };
+  }
+
+  const imageCache = new Map<string, GeneratedQuestion['image'] | null>();
+  let questions = game.questions || [];
+  let jeopardyBoard = game.jeopardyBoard;
+  let pubQuizRounds = game.pubQuizRounds;
+
+  if (Array.isArray(questions) && questions.length) {
+    questions = await autoPickImagesForQuestions(questions, config, imageCache);
+  }
+  if (Array.isArray(jeopardyBoard)) {
+    const nextBoard = [];
+    for (const category of jeopardyBoard) {
+      const catQuestions = Array.isArray(category?.questions) ? category.questions : [];
+      const updatedQuestions = catQuestions.length
+        ? await autoPickImagesForQuestions(catQuestions, config, imageCache)
+        : catQuestions;
+      nextBoard.push({ ...category, questions: updatedQuestions });
+    }
+    jeopardyBoard = nextBoard;
+  }
+  if (Array.isArray(pubQuizRounds)) {
+    const nextRounds = [];
+    for (const round of pubQuizRounds) {
+      const roundQuestions = Array.isArray(round?.questions) ? round.questions : [];
+      const updatedQuestions = roundQuestions.length
+        ? await autoPickImagesForQuestions(roundQuestions, config, imageCache)
+        : roundQuestions;
+      nextRounds.push({ ...round, questions: updatedQuestions });
+    }
+    pubQuizRounds = nextRounds;
+  }
+
+  return { questions, jeopardyBoard, pubQuizRounds };
+};
+
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {
   const external = await tryExternalApi<GeneratedGame>({ action: 'game', config });
-  if (external) return external;
+  if (external) {
+    const hydrated = await hydrateGameAutoImages(external, config);
+    return {
+      ...external,
+      questions: hydrated.questions,
+      jeopardyBoard: hydrated.jeopardyBoard,
+      pubQuizRounds: hydrated.pubQuizRounds,
+    };
+  }
 
   // --- INTERNAL GOOGLE SDK PATH ---
   const ai = getClient();
@@ -220,8 +275,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
   
   Ensure questions are appropriate for a classroom setting.
-  If images are requested, include imageKeywords (1-2 concise keywords) for each question. 
-  Prefer the answer's concrete nouns/verbs when the question is generic (e.g., "Choose the correct sentence").
+  If images are requested, include imageKeywords (2-4 concise, concrete keywords) for each question. 
+  Prefer concrete objects/scenes over abstract terms. Avoid generic keywords like "education", "concept", "background".
+  If the question is generic (e.g., "Choose the correct sentence"), derive keywords from the answer/options.
   `;
 
   let prompt = '';
@@ -459,7 +515,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
   if (config.includeImages) {
     prompt += `
-    IMPORTANT: Include imageKeywords (1-2 concise keywords) for EACH question.
+    IMPORTANT: Include imageKeywords (2-4 concise, concrete keywords) for EACH question.
+    Use specific objects/scenes and avoid abstract tags (e.g., avoid "education", "concept", "background").
     If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from the ANSWER or options instead of the question text.
     `;
   }
@@ -500,49 +557,23 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
     enforceGameAnswerMatchesOptions(data);
 
-    const shouldAutoPickImages = Boolean(config.includeImages && config.imageMode === 'auto');
-    const imageCache = new Map<string, GeneratedQuestion['image'] | null>();
-
-    let questions = data.questions || [];
-    let jeopardyBoard = data.jeopardyBoard;
-    let pubQuizRounds = data.pubQuizRounds;
-
-    if (shouldAutoPickImages) {
-      if (Array.isArray(questions) && questions.length) {
-        questions = await autoPickImagesForQuestions(questions, config, imageCache);
-      }
-      if (Array.isArray(jeopardyBoard)) {
-        const nextBoard = [];
-        for (const category of jeopardyBoard) {
-          const catQuestions = Array.isArray(category?.questions) ? category.questions : [];
-          const updatedQuestions = catQuestions.length
-            ? await autoPickImagesForQuestions(catQuestions, config, imageCache)
-            : catQuestions;
-          nextBoard.push({ ...category, questions: updatedQuestions });
-        }
-        jeopardyBoard = nextBoard;
-      }
-      if (Array.isArray(pubQuizRounds)) {
-        const nextRounds = [];
-        for (const round of pubQuizRounds) {
-          const roundQuestions = Array.isArray(round?.questions) ? round.questions : [];
-          const updatedQuestions = roundQuestions.length
-            ? await autoPickImagesForQuestions(roundQuestions, config, imageCache)
-            : roundQuestions;
-          nextRounds.push({ ...round, questions: updatedQuestions });
-        }
-        pubQuizRounds = nextRounds;
-      }
-    }
+    const hydrated = await hydrateGameAutoImages(
+      {
+        questions: data.questions || [],
+        jeopardyBoard: data.jeopardyBoard,
+        pubQuizRounds: data.pubQuizRounds,
+      },
+      config
+    );
     
     return {
       id: generateUUID(),
       createdAt: new Date().toISOString(),
       title: data.title || config.title,
       config: config,
-      questions,
-      jeopardyBoard,
-      pubQuizRounds
+      questions: hydrated.questions,
+      jeopardyBoard: hydrated.jeopardyBoard,
+      pubQuizRounds: hydrated.pubQuizRounds
     };
   } catch (error) {
     console.error("Error generating game:", error);
@@ -577,6 +608,7 @@ RULES:
 14. table should match the requested activity types and fit on an A4 page when possible.
 15. infoSections items use { title, bodyHtml } with safe HTML in bodyHtml (use <p>, <strong>, <em>, <u>, <ul>, <ol>, <li>, <br>, <h3>).
 16. If Information Sheet Notes are provided in the prompt, follow them strictly for infoSections.
+17. If gap-fill is embedded in storyHtml, spread blanks across the full story (across paragraphs/sentences); do not cluster most blanks at the beginning.
 `;
 
   const activities = config.activities || [];
@@ -781,6 +813,9 @@ RULES:
           })
           .join('\n')
     );
+    requestedBlocks.push(
+      '  If context is story with embed enabled, distribute blanks across the entire story (multiple paragraphs/sentences), not mostly in the first paragraph.'
+    );
   }
   if (wantsSentenceTransform) {
     requestedBlocks.push(
@@ -903,7 +938,7 @@ Requested Blocks:
 ${requestedBlocks.join('\n')}
 
 ${gapFillEmbedInStory
-  ? 'Gap Fill embedded-story mode: storyHtml must include the gap-fill blanks (use "_____"). Still return gapFill items for answer keys, but do not repeat the questions inside the story.\n'
+  ? 'Gap Fill embedded-story mode: storyHtml must include the gap-fill blanks (use "_____"), with blanks distributed across the full story rather than front-loaded in paragraph one. Still return gapFill items for answer keys, but do not repeat the questions inside the story.\n'
   : ''}
 ${wordFormationEmbedInStory
   ? 'Word Formation embedded-story mode: storyHtml must include blanks with base words in brackets after each blank, e.g., "The _____ (decide)..." Still return wordFormation items for answer keys.\n'

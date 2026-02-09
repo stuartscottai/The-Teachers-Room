@@ -120,6 +120,9 @@ export default async function handler(req: any, res: any) {
       3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
       
       Ensure questions are appropriate for a classroom setting.
+      If images are requested, include imageKeywords (2-4 concise, concrete keywords) for each question.
+      Prefer concrete objects/scenes and avoid abstract terms like "education", "concept", "background".
+      If the question is generic (e.g., "Choose the correct sentence"), derive keywords from the answer/options.
       `;
 
       let prompt = '';
@@ -137,6 +140,7 @@ export default async function handler(req: any, res: any) {
           category: { type: Type.STRING },
           difficulty: { type: Type.STRING },
           bonusType: { type: Type.STRING },
+          imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
           surveyAnswers: {
             type: Type.ARRAY,
             items: {
@@ -334,6 +338,14 @@ export default async function handler(req: any, res: any) {
         };
       }
 
+      if (config.includeImages) {
+        prompt += `
+          IMPORTANT: Include imageKeywords (2-4 concise, concrete keywords) for EACH question.
+          Use specific objects/scenes and avoid abstract tags (e.g., avoid "education", "concept", "background").
+          If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from the ANSWER or options instead of the question text.
+        `;
+      }
+
       // Handle Files
       const parts: any[] = [];
       if (config.files && config.files.length > 0) {
@@ -409,6 +421,7 @@ export default async function handler(req: any, res: any) {
        const wordFormationCount = wordFormationActivities.reduce((sum: number, a: any) => sum + (a.count || 0), 0);
        const openEndedCount = openEndedActivities.reduce((sum: number, a: any) => sum + (a.count || 0), 0);
        const customCount = customActivities.length;
+       const gapFillEmbedInStory = gapFillActivities.some((a: any) => a.contextType === 'text' && a.options?.embedInStory);
        const formatActivityNotes = (note?: string) => {
          const trimmed = (note || '').trim();
          return trimmed ? ` notes: ${trimmed}` : '';
@@ -522,20 +535,23 @@ export default async function handler(req: any, res: any) {
          );
          requestedBlocks.push('  Matching is rendered as a 3-column table (left item, blank middle, right item). Provide left/right pairs only.');
        }
-       if (wantsGapFill) {
-         requestedBlocks.push(
-           `- gapFill: ${gapFillCount} gap-fill items. Keep items grouped and in the same order as listed below.`
-         );
+        if (wantsGapFill) {
+          requestedBlocks.push(
+            `- gapFill: ${gapFillCount} gap-fill items. Keep items grouped and in the same order as listed below.`
+          );
          requestedBlocks.push(
            '  Gap Fill groups (count + context):\n' +
              gapFillActivities
                .map((a: any) => {
                  const context = a.contextType === 'text' ? 'story' : 'sentences';
                  return `  - ${a.count || 0} items (${context})${formatActivityNotes(a.customInstructions)}`;
-               })
-               .join('\n')
-         );
-       }
+                })
+                .join('\n')
+          );
+          requestedBlocks.push(
+            '  If context is story with embed enabled, distribute blanks across the entire story (multiple paragraphs/sentences), not mostly in the first paragraph.'
+          );
+        }
        if (wantsSentenceTransform) {
          requestedBlocks.push(
            `- sentenceTransform: ${sentenceTransformCount} sentence transformation prompts. Keep items grouped and in the same order as listed below.`
@@ -631,6 +647,9 @@ ${activityOrder ? `Activities (in order):\n${activityOrder}\n` : ''}
 Requested Blocks:
 ${requestedBlocks.join('\n')}
 
+${gapFillEmbedInStory
+  ? 'Gap Fill embedded-story mode: storyHtml must include the gap-fill blanks (use "_____"), with blanks distributed across the full story rather than front-loaded in paragraph one.\n'
+  : ''}
 Only include fields for the requested blocks. Do not include extra fields.
 
 If source files are attached, base requested content on those documents instead of inventing unrelated facts.
@@ -655,6 +674,7 @@ RULES:
 12. custom items use { text }.
 13. answerKeyHtml (if requested) must be safe, simple HTML (use <div>, <h3>, <p>, <ol>, <ul>, <li>, <strong>, <em>, <br>).
 14. table should match the requested activity types and fit on an A4 page when possible.
+15. If gap-fill is embedded in storyHtml, spread blanks across the full story (across paragraphs/sentences); do not cluster most blanks at the beginning.
        `;
 
        // Handle Files
