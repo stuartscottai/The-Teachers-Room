@@ -756,36 +756,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Scoring Style</label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => setConfig({ ...config, wordWheelScoringMode: 'classic' })}
-                                                className={`text-left p-4 rounded-xl border transition-colors ${
-                                                    (config.wordWheelScoringMode || 'classic') === 'classic'
-                                                        ? 'border-brand-blue bg-sky-50'
-                                                        : 'border-slate-200 bg-white hover:border-slate-300'
-                                                }`}
-                                            >
-                                                <div className="text-sm font-bold text-slate-800">Classic</div>
-                                                <p className="text-xs text-slate-500 mt-1">Fixed points per correct answer.</p>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setConfig({ ...config, wordWheelScoringMode: 'speed-bonus' })}
-                                                className={`text-left p-4 rounded-xl border transition-colors ${
-                                                    config.wordWheelScoringMode === 'speed-bonus'
-                                                        ? 'border-brand-blue bg-sky-50'
-                                                        : 'border-slate-200 bg-white hover:border-slate-300'
-                                                }`}
-                                            >
-                                                <div className="text-sm font-bold text-slate-800">Speed Bonus</div>
-                                                <p className="text-xs text-slate-500 mt-1">Bonus points for faster correct answers.</p>
-                                            </button>
-                                        </div>
-                                    </div>
-
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letters</label>
