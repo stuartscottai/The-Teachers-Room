@@ -35,6 +35,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     bombDuration: 60,
     randomizeQuestions: true, // Default to random
     triviaRandomPoints: false,
+    wordWheelScoringMode: game.config.wordWheelScoringMode || 'classic',
+    wordWheelLetterRule: game.config.wordWheelLetterRule || 'contains-hard',
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
@@ -51,6 +53,12 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
   // Calculate valid question counts for Trivia (must be divisible by players)
   const [validQuestionCounts, setValidQuestionCounts] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (game.config.type !== GameType.WORD_WHEEL) return;
+    if (options.players <= 4) return;
+    setOptions(prev => ({ ...prev, players: 4 }));
+  }, [game.config.type, options.players]);
 
   // Update team names array when player count changes
   useEffect(() => {
@@ -100,7 +108,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
       }));
   };
 
-  const showRandomizeOption = ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE].includes(game.config.type);
+  const showRandomizeOption = ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.WORD_WHEEL].includes(game.config.type);
+  const playerOptions = game.config.type === GameType.WORD_WHEEL ? [1, 2, 3, 4] : [1, 2, 3, 4, 5, 6];
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -115,7 +124,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
             >
               <ArrowLeft size={16} className="mr-1" /> {backLabel}
             </button>
-            <h1 className="font-display text-3xl font-bold mb-2 leading-tight">{game.title}</h1>
+            <h1 className="font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-full line-clamp-2 break-words overflow-hidden mb-2">
+              {game.title}
+            </h1>
             <p className="text-sky-100 text-sm">{game.config.type}</p>
           </div>
           <div className="mt-8">
@@ -154,7 +165,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     <Users size={16} className="mr-2 text-brand-blue" /> Players / Teams
                   </label>
                   <div className="flex space-x-2">
-                    {[1, 2, 3, 4, 5, 6].map(num => (
+                    {playerOptions.map(num => (
                       <button
                         key={num}
                         onClick={() => setOptions({ ...options, players: num })}
@@ -375,8 +386,40 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     </>
                 )}
 
+                {game.config.type === GameType.WORD_WHEEL && (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <Zap size={16} className="mr-2 text-brand-blue" /> Scoring Mode
+                        </label>
+                        <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                            <button
+                                onClick={() => setOptions({ ...options, wordWheelScoringMode: 'classic' })}
+                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.wordWheelScoringMode !== 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            >
+                                Classic
+                            </button>
+                            <button
+                                onClick={() => setOptions({ ...options, wordWheelScoringMode: 'speed-bonus' })}
+                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.wordWheelScoringMode === 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            >
+                                Speed Bonus
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            {options.wordWheelScoringMode === 'speed-bonus'
+                                ? 'Correct answers get extra points based on remaining time.'
+                                : 'Each correct answer gives fixed points.'}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-2">
+                            Letter rule: {(options.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
+                                ? 'Q/V/X/Y/Z use contains; others start with the letter.'
+                                : 'All letters use starts with.'}
+                        </p>
+                    </div>
+                )}
+
                 {/* Random Bonuses - Hidden for Pub Quiz, Time Bomb, and Survey Showdown */}
-                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && (
+                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL && (
                     <div 
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all
                         ${options.enableBonuses 

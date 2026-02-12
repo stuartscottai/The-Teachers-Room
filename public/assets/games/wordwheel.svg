@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">Word Wheel game artwork</title>
+  <desc id="desc">Abstract classroom themed letter wheel with vibrant colors.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#fdba74"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="400" cy="300" r="210" fill="#0f172a" opacity="0.35"/>
+  <circle cx="400" cy="300" r="185" fill="none" stroke="url(#ring)" stroke-width="42"/>
+  <circle cx="400" cy="300" r="125" fill="#ffffff" opacity="0.95"/>
+
+  <g fill="#0f766e" font-family="Arial, sans-serif" font-weight="700" font-size="34" text-anchor="middle">
+    <text x="400" y="112">A</text>
+    <text x="525" y="148">F</text>
+    <text x="603" y="254">K</text>
+    <text x="585" y="390">P</text>
+    <text x="480" y="478">U</text>
+    <text x="332" y="486">Z</text>
+    <text x="210" y="412">E</text>
+    <text x="194" y="272">J</text>
+    <text x="276" y="154">O</text>
+  </g>
+
+  <g fill="#0f172a" font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="400" y="286" font-size="58" font-weight="800">WORD</text>
+    <text x="400" y="338" font-size="58" font-weight="800">WHEEL</text>
+  </g>
+</svg>

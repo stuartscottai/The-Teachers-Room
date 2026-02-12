@@ -296,7 +296,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [resizeTick, setResizeTick] = useState(0);
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
@@ -945,7 +945,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             </button>
                         )}
                         {!isMobileViewport && (
-                            <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] opacity-80">{game.title}</h1>
+                            <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 opacity-80 break-words overflow-hidden">{game.title}</h1>
                         )}
                     </div>
                     
@@ -1566,3 +1566,4 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         </div>
     );
 };
+

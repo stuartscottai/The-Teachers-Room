@@ -103,6 +103,70 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
   }
 };
 
+const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const normalizeWordWheelQuestions = (rawQuestions: any[]): GeneratedQuestion[] => {
+  const byLetter = new Map<string, GeneratedQuestion>();
+
+  const normalizeLetter = (value: any): string => {
+    const text = String(value || '').toUpperCase();
+    const first = text.replace(/[^A-Z]/g, '').slice(0, 1);
+    return first;
+  };
+
+  const normalizeAliases = (aliases: any, answer: string): string[] => {
+    if (!Array.isArray(aliases)) return [];
+    const answerNorm = answer.trim().toLowerCase();
+    const deduped = new Set<string>();
+    for (const entry of aliases) {
+      const value = String(entry || '').trim();
+      if (!value) continue;
+      if (value.toLowerCase() === answerNorm) continue;
+      deduped.add(value);
+      if (deduped.size >= 8) break;
+    }
+    return Array.from(deduped);
+  };
+
+  (rawQuestions || []).forEach((q: any, index) => {
+    if (!q) return;
+    const answer = String(q.answer || '').trim();
+    const fallbackLetter = normalizeLetter(answer);
+    const letter = normalizeLetter(q.letter) || WORD_WHEEL_LETTERS[index] || fallbackLetter || '';
+    if (!WORD_WHEEL_LETTERS.includes(letter)) return;
+    if (byLetter.has(letter)) return;
+
+    byLetter.set(letter, {
+      id: typeof q.id === 'number' ? q.id : index,
+      letter,
+      question: String(q.question || '').trim(),
+      answer,
+      answerAliases: normalizeAliases(q.answerAliases, answer),
+      points: Number.isFinite(q.points) && Number(q.points) > 0 ? Number(q.points) : 10,
+      isBonus: false,
+      imageKeywords: Array.isArray(q.imageKeywords)
+        ? q.imageKeywords.map((value: any) => String(value || '').trim()).filter(Boolean).slice(0, 6)
+        : undefined,
+    });
+  });
+
+  return WORD_WHEEL_LETTERS.map((letter, index) => {
+    const existing = byLetter.get(letter);
+    if (existing) {
+      return { ...existing, id: index, letter };
+    }
+    return {
+      id: index,
+      letter,
+      question: '',
+      answer: '',
+      answerAliases: [],
+      points: 10,
+      isBonus: false,
+    };
+  });
+};
+
 export const generateStopTheFireCategories = async (config: GameConfig): Promise<string[]> => {
   const external = await tryExternalApi<{ categories: string[] }>({ action: 'stop-the-fire-categories', config });
   if (external?.categories) return external.categories;
@@ -240,7 +304,18 @@ const hydrateGameAutoImages = async (
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {
   const external = await tryExternalApi<GeneratedGame>({ action: 'game', config });
   if (external) {
-    const hydrated = await hydrateGameAutoImages(external, config);
+    const normalizedExternalQuestions =
+      config.type === GameType.WORD_WHEEL
+        ? normalizeWordWheelQuestions(external.questions || [])
+        : (external.questions || []);
+    const hydrated = await hydrateGameAutoImages(
+      {
+        questions: normalizedExternalQuestions,
+        jeopardyBoard: external.jeopardyBoard,
+        pubQuizRounds: external.pubQuizRounds,
+      },
+      config
+    );
     return {
       ...external,
       questions: hydrated.questions,
@@ -258,6 +333,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const isMillionaire = config.type === GameType.MILLIONAIRE;
   const isTimeBomb = config.type === GameType.TIME_BOMB;
   const isSurvey = config.type === GameType.SURVEY_SHOWDOWN;
+  const isWordWheel = config.type === GameType.WORD_WHEEL;
+  const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
 
   const systemInstruction = `You are an expert educational content creator. 
   Create a structured game based on the following parameters.
@@ -298,6 +375,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       category: { type: Type.STRING },
       difficulty: { type: Type.STRING },
       bonusType: { type: Type.STRING },
+      letter: { type: Type.STRING },
+      answerAliases: { type: Type.ARRAY, items: { type: Type.STRING } },
       imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
       // Survey specific
       surveyAnswers: {
@@ -473,6 +552,37 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         required: ["title", "questions"]
       };
 
+  } else if (isWordWheel) {
+      const letterRuleInstruction =
+          wordWheelLetterRule === 'contains-hard'
+              ? 'For letters Q, V, X, Y, Z: the answer must CONTAIN the letter anywhere. For all other letters: the answer must START with the letter.'
+              : 'For every letter A-Z: the answer must START with the letter.';
+
+      prompt = `
+      Create a classroom "Word Wheel" game titled "${gameTitle}" about "${config.topic}".
+      Generate EXACTLY 26 clue entries, one for each English letter A-Z.
+
+      CRITICAL RULES:
+      1. Include a "letter" field for each entry using a single uppercase letter.
+      2. Cover each letter exactly once from A through Z.
+      3. "question" must be a concise clue (ideally <= 140 characters).
+      4. "answer" must be a single canonical answer and obey this letter rule: ${letterRuleInstruction}
+      5. Add "answerAliases" with 0-5 accepted alternatives/spellings where useful.
+      6. Use points=10 for every entry.
+      7. Do NOT include multiple-choice options for this game.
+
+      Custom Instructions: ${config.customInstructions || "None"}.
+      `;
+
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            questions: { type: Type.ARRAY, items: questionSchema }
+        },
+        required: ["title", "questions"]
+      };
+
   } else {
     // Standard Game
     const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
@@ -557,9 +667,11 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
     enforceGameAnswerMatchesOptions(data);
 
+    const normalizedQuestions = isWordWheel ? normalizeWordWheelQuestions(data.questions || []) : (data.questions || []);
+
     const hydrated = await hydrateGameAutoImages(
       {
-        questions: data.questions || [],
+        questions: normalizedQuestions,
         jeopardyBoard: data.jeopardyBoard,
         pubQuizRounds: data.pubQuizRounds,
       },
@@ -1290,6 +1402,7 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     6. Millionaire Maker (High stakes, 1 player or class consensus)
     7. Time Bomb (High pressure, pass the device, vocabulary/lists)
     8. Survey Showdown (Family Feud style, popular opinion, guessing)
+    9. Word Wheel (A-Z clue race, pass or play, team competition)
 
     BEHAVIOR:
     - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions (e.g. "What topic? What grade? Do they like competition?").
@@ -1338,7 +1451,9 @@ export const chatWithGameWizard = async (message: string, history: {role: string
                             jeopardyCategories: { type: Type.INTEGER },
                             jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
                             pubQuizRoundsCount: { type: Type.INTEGER },
-                            pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            wordWheelScoringMode: { type: Type.STRING },
+                            wordWheelLetterRule: { type: Type.STRING }
                         },
                         required: ["type", "title", "topic"]
                     }

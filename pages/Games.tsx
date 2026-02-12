@@ -17,6 +17,7 @@ import { MillionaireGame } from '../components/games/MillionaireGame';
 import { TimeBombGame } from '../components/games/TimeBombGame';
 import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { StopTheFireGame } from '../components/games/StopTheFireGame';
+import { WordWheelGame } from '../components/games/WordWheelGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
@@ -45,6 +46,9 @@ const getGameStats = (game: GeneratedGame) => {
     } else if (type === GameType.STOP_THE_FIRE) {
         const cats = game.stopTheFireCategories?.length || game.config.stopTheFireCategories?.length || 0;
         stats.push({ label: 'Cats', value: cats, icon: <List size={12} /> });
+    } else if (type === GameType.WORD_WHEEL) {
+        const count = game.questions?.length || 0;
+        stats.push({ label: 'Letters', value: count, icon: <RefreshCw size={12} /> });
     } else {
         const count = game.questions?.length || 0;
         stats.push({ label: 'Qs', value: count, icon: <HelpCircle size={12} /> });
@@ -129,6 +133,7 @@ const getIcon = (type: string) => {
         case GameType.TIME_BOMB: return <Timer size={18} />;
         case GameType.SURVEY_SHOWDOWN: return <List size={18} />;
         case GameType.STOP_THE_FIRE: return <Flame size={18} />;
+        case GameType.WORD_WHEEL: return <RefreshCw size={18} />;
         default: return <Dice5 size={18} />;
     }
 };
@@ -807,6 +812,13 @@ const GameHub: React.FC<{
             image: "/assets/games/stopthefire.svg",
             color: "bg-orange-600"
         },
+        { 
+            type: GameType.WORD_WHEEL, 
+            icon: <RefreshCw size={24} />, 
+            desc: "Letter-by-letter clue race with pass-or-play pressure.",
+            image: "/assets/games/wordwheel.svg",
+            color: "bg-teal-600"
+        },
     ];
 
     return (
@@ -1188,6 +1200,14 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.STOP_THE_FIRE ? (
                     <StopTheFireGame
+                        game={generatedGame}
+                        options={playOptions}
+                        onBack={handleGameEnd}
+                        onFinish={() => setStep('hub')}
+                        onReplay={handleReplay}
+                    />
+                ) : selectedType === GameType.WORD_WHEEL ? (
+                    <WordWheelGame
                         game={generatedGame}
                         options={playOptions}
                         onBack={handleGameEnd}

@@ -104,7 +104,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Font Sizer Helper
@@ -656,7 +656,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                         >
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
-                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                        <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">{game.title}</h1>
                     </div>
 
                     <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 h-full items-center">
@@ -1273,3 +1273,4 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         </div>
     );
 };
+

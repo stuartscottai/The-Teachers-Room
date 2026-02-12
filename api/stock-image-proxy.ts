@@ -13,6 +13,24 @@ const normalizeTargetUrl = (value: string): URL | null => {
   }
 };
 
+const fetchImage = async (target: URL): Promise<
+  | { ok: true; contentType: string; bytes: Buffer }
+  | { ok: false; status: number; error: string }
+> => {
+  const upstream = await fetch(target.toString(), { method: 'GET', redirect: 'follow' });
+  if (!upstream.ok) {
+    return { ok: false, status: upstream.status, error: `Image fetch failed (${upstream.status})` };
+  }
+
+  const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+  if (!contentType.toLowerCase().startsWith('image/')) {
+    return { ok: false, status: 415, error: 'Unsupported content type' };
+  }
+
+  const bytes = Buffer.from(await upstream.arrayBuffer());
+  return { ok: true, contentType, bytes };
+};
+
 export default async function handler(req: any, res: any) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -35,25 +53,33 @@ export default async function handler(req: any, res: any) {
     res.status(400).json({ error: 'Invalid image URL' });
     return;
   }
+  const requestedFallback = Array.isArray(req.query?.fallback) ? req.query.fallback[0] : req.query?.fallback;
+  const fallbackTarget = normalizeTargetUrl(String(requestedFallback || ''));
 
   try {
-    const upstream = await fetch(target.toString(), { method: 'GET', redirect: 'follow' });
-    if (!upstream.ok) {
-      res.status(upstream.status).json({ error: `Image fetch failed (${upstream.status})` });
+    const primary = await fetchImage(target);
+
+    if (!primary.ok && fallbackTarget) {
+      const fallback = await fetchImage(fallbackTarget);
+      if (fallback.ok) {
+        res.setHeader('Content-Type', fallback.contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=2592000');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('X-Stock-Image-Fallback', '1');
+        res.status(200).send(fallback.bytes);
+        return;
+      }
+    }
+
+    if (!primary.ok) {
+      res.status(primary.status).json({ error: primary.error });
       return;
     }
 
-    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-    if (!contentType.toLowerCase().startsWith('image/')) {
-      res.status(415).json({ error: 'Unsupported content type' });
-      return;
-    }
-
-    const bytes = Buffer.from(await upstream.arrayBuffer());
-    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Type', primary.contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=2592000');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.status(200).send(bytes);
+    res.status(200).send(primary.bytes);
   } catch (error: any) {
     console.error('Stock image proxy error:', error);
     res.status(500).json({ error: error?.message || 'Internal server error' });

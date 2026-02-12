@@ -85,6 +85,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [resizeTick, setResizeTick] = useState(0);
+    const categoryRowRef = useRef<HTMLDivElement>(null);
+    const [categoryFontSize, setCategoryFontSize] = useState<number | null>(null);
     const questionWrapRef = useRef<HTMLDivElement>(null);
     const questionTextRef = useRef<HTMLDivElement>(null);
     const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
@@ -104,7 +106,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
     const optionKey = activeQ?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url, activeQ?.image?.thumbUrl);
     const questionImageAlt = activeQ?.image?.alt || '';
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
     const isNegativeBonus = activeQ?.bonusType === 'bust';
@@ -462,15 +464,43 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
     const stripOptionPrefix = (value: string) => value.replace(/^[A-D]\)\s*/i, '').trim();
 
-    const getCategoryFontSizeClass = (text: string) => {
-        const words = text ? text.split(/\s+/).filter(Boolean) : [];
-        const longestWord = words.reduce((max, word) => Math.max(max, word.length), 0);
-        const totalLen = text ? text.length : 0;
-        if (longestWord >= 12 || totalLen > 28) return 'text-[8px] sm:text-xs md:text-lg';
-        if (longestWord >= 10 || totalLen > 22) return 'text-[9px] sm:text-sm md:text-xl';
-        if (longestWord >= 8 || totalLen > 16) return 'text-[10px] sm:text-base md:text-2xl';
-        return 'text-[11px] sm:text-lg md:text-3xl';
-    };
+    useLayoutEffect(() => {
+        const row = categoryRowRef.current;
+        if (!row || !gameBoard?.length) return;
+
+        const textEls = Array.from(row.querySelectorAll<HTMLElement>('[data-category-text="true"]'));
+        if (!textEls.length) return;
+        if (textEls.some((el) => el.clientWidth <= 0 || el.clientHeight <= 0)) return;
+
+        const minSize = isMobileViewport ? 12 : 16;
+        const maxSize = isMobileViewport ? 26 : (isFullscreen ? 60 : 48);
+        const precision = 0.5;
+
+        const doesFit = (size: number) => {
+            return textEls.every((el) => {
+                el.style.fontSize = `${size}px`;
+                el.style.lineHeight = '1.05';
+                return el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
+            });
+        };
+
+        let low = minSize;
+        let high = maxSize;
+        let best = minSize;
+
+        while (high - low > precision) {
+            const mid = (low + high) / 2;
+            if (doesFit(mid)) {
+                best = mid;
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        doesFit(best);
+        setCategoryFontSize(Math.floor(best * 10) / 10);
+    }, [gameBoard, isFullscreen, isMobileViewport, resizeTick]);
 
     useLayoutEffect(() => {
         if (!activeQ || isBonus || isFlipped) {
@@ -850,7 +880,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
-                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                        <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">
+                            {game.title}
+                        </h1>
                     </div>
 
                     {/* Scoreboard Cards */}
@@ -894,13 +926,18 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
             {/* Game Board Grid */}
             <div className="flex-grow flex flex-col min-h-0 p-3 sm:p-4">
-                <div 
+                <div
+                    ref={categoryRowRef}
                     className="grid gap-1 sm:gap-2 max-w-full mx-auto w-full mb-2"
                     style={{ gridTemplateColumns: `repeat(${gameBoard.length}, minmax(0, 1fr))` }}
                 >
                     {gameBoard.map((cat: any, idx: number) => (
-                        <div key={`cat-${idx}`} className="bg-brand-blue text-white p-1.5 sm:p-2 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[60px] sm:min-h-[100px] overflow-hidden">
-                            <h3 className={`font-display font-bold leading-tight break-normal hyphens-none whitespace-normal w-full ${getCategoryFontSizeClass(cat.name)}`}>
+                        <div key={`cat-${idx}`} className="bg-brand-blue text-white p-2 sm:p-3 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[74px] sm:min-h-[130px] overflow-hidden">
+                            <h3
+                                data-category-text="true"
+                                className="font-display font-bold leading-[1.05] whitespace-normal [overflow-wrap:anywhere] break-words w-full h-full flex items-center justify-center text-center overflow-hidden"
+                                style={categoryFontSize ? { fontSize: `${categoryFontSize}px` } : undefined}
+                            >
                                 {cat.name}
                             </h3>
                         </div>
@@ -1408,3 +1445,4 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         </div>
     );
 };
+

@@ -12,14 +12,57 @@ const parseUrl = (value: string): URL | null => {
 
 const isPixabayHost = (host: string): boolean => PIXABAY_HOST.test(host);
 
-export const extractPixabaySourceUrl = (value: string): string | null => {
+const coerceLikelyPixabayUrl = (value: string): string | null => {
   const raw = String(value || '').trim();
   if (!raw) return null;
+
+  if (/^\/?get\//i.test(raw)) {
+    const path = raw.startsWith('/') ? raw : `/${raw}`;
+    return `https://pixabay.com${path}`;
+  }
+
+  if (/^\/\/[^/]+/i.test(raw)) {
+    return normalizeHttps(`https:${raw}`);
+  }
+
+  if (/^(?:[a-z0-9-]+\.)*pixabay\.com\//i.test(raw)) {
+    return normalizeHttps(`https://${raw}`);
+  }
+
+  return null;
+};
+
+const decodeIfEncoded = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+export const extractPixabaySourceUrl = (value: string, depth = 0): string | null => {
+  if (depth > 4) return null;
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const hinted = coerceLikelyPixabayUrl(raw);
+  if (hinted) {
+    const hintedParsed = parseUrl(hinted);
+    if (hintedParsed && isPixabayHost(hintedParsed.hostname)) return hinted;
+  }
 
   const parsed = parseUrl(raw);
   if (!parsed) return null;
 
   if (parsed.pathname.startsWith('/api/stock-image-proxy')) {
+    const nestedParam = parsed.searchParams.get('url');
+    if (!nestedParam) return null;
+    const nested = extractPixabaySourceUrl(nestedParam, depth + 1);
+    if (nested) return nested;
+    const decodedNested = decodeIfEncoded(nestedParam);
+    if (decodedNested !== nestedParam) {
+      return extractPixabaySourceUrl(decodedNested, depth + 1);
+    }
     return null;
   }
 
@@ -33,17 +76,26 @@ export const extractPixabaySourceUrl = (value: string): string | null => {
   if (parsed.hostname.toLowerCase() === 'images.weserv.nl') {
     const nestedParam = parsed.searchParams.get('url');
     if (!nestedParam) return null;
-    const nestedRaw = /^https?:\/\//i.test(nestedParam) ? nestedParam : `https://${nestedParam}`;
-    const nested = parseUrl(nestedRaw);
-    if (!nested || !isPixabayHost(nested.hostname)) return null;
-    return normalizeHttps(nested.toString());
+    const nested = extractPixabaySourceUrl(nestedParam, depth + 1);
+    if (nested) return nested;
+    const decodedNested = decodeIfEncoded(nestedParam);
+    if (decodedNested !== nestedParam) {
+      return extractPixabaySourceUrl(decodedNested, depth + 1);
+    }
+    return null;
   }
 
   return null;
 };
 
-export const buildStockImageProxyPath = (pixabayUrl: string): string =>
-  `/api/stock-image-proxy?url=${encodeURIComponent(normalizeHttps(pixabayUrl))}`;
+export const buildStockImageProxyPath = (pixabayUrl: string, fallbackPixabayUrl?: string): string => {
+  const params = new URLSearchParams();
+  params.set('url', normalizeHttps(pixabayUrl));
+  if (fallbackPixabayUrl) {
+    params.set('fallback', normalizeHttps(fallbackPixabayUrl));
+  }
+  return `/api/stock-image-proxy?${params.toString()}`;
+};
 
 export const buildWeservProxyUrl = (pixabayUrl: string): string => {
   const normalized = normalizeHttps(pixabayUrl).replace(/^https?:\/\//i, '');
@@ -57,4 +109,3 @@ export const toCoepSafeStockImageUrl = (value: string, preferServerProxy: boolea
   if (!pixabaySource) return normalizeHttps(raw);
   return preferServerProxy ? buildStockImageProxyPath(pixabaySource) : buildWeservProxyUrl(pixabaySource);
 };
-

@@ -55,6 +55,67 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
   }
 };
 
+const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const normalizeWordWheelQuestions = (rawQuestions: any[]) => {
+  const byLetter = new Map<string, any>();
+
+  const normalizeLetter = (value: any) => {
+    const text = String(value || '').toUpperCase();
+    return text.replace(/[^A-Z]/g, '').slice(0, 1);
+  };
+
+  const normalizeAliases = (aliases: any, answer: string) => {
+    if (!Array.isArray(aliases)) return [];
+    const answerNorm = answer.trim().toLowerCase();
+    const unique = new Set<string>();
+    for (const alias of aliases) {
+      const value = String(alias || '').trim();
+      if (!value) continue;
+      if (value.toLowerCase() === answerNorm) continue;
+      unique.add(value);
+      if (unique.size >= 8) break;
+    }
+    return Array.from(unique);
+  };
+
+  (rawQuestions || []).forEach((q: any, index: number) => {
+    if (!q) return;
+    const answer = String(q.answer || '').trim();
+    const fallbackLetter = normalizeLetter(answer);
+    const letter = normalizeLetter(q.letter) || WORD_WHEEL_LETTERS[index] || fallbackLetter || '';
+    if (!WORD_WHEEL_LETTERS.includes(letter)) return;
+    if (byLetter.has(letter)) return;
+
+    byLetter.set(letter, {
+      id: typeof q.id === 'number' ? q.id : index,
+      letter,
+      question: String(q.question || '').trim(),
+      answer,
+      answerAliases: normalizeAliases(q.answerAliases, answer),
+      points: Number.isFinite(q.points) && Number(q.points) > 0 ? Number(q.points) : 10,
+      isBonus: false,
+      imageKeywords: Array.isArray(q.imageKeywords)
+        ? q.imageKeywords.map((entry: any) => String(entry || '').trim()).filter(Boolean).slice(0, 6)
+        : undefined
+    });
+  });
+
+  return WORD_WHEEL_LETTERS.map((letter, index) => {
+    const existing = byLetter.get(letter);
+    if (existing) return { ...existing, id: index, letter };
+    return {
+      id: index,
+      letter,
+      question: '',
+      answer: '',
+      answerAliases: [],
+      points: 10,
+      isBonus: false
+    };
+  });
+};
+
 export default async function handler(req: any, res: any) {
   // 1. Handle CORS manually for Vercel Node Functions
   // Allow requests from any Vercel preview URL or production domain
@@ -102,6 +163,8 @@ export default async function handler(req: any, res: any) {
       const isMillionaire = config.type === 'Millionaire Maker';
       const isTimeBomb = config.type === 'Time Bomb';
       const isSurvey = config.type === 'Survey Showdown';
+      const isWordWheel = config.type === 'Word Wheel';
+      const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
       const gameTitle = config.title || `My ${config.type} Game`;
       
       const systemInstruction = `You are an expert educational content creator. 
@@ -140,6 +203,8 @@ export default async function handler(req: any, res: any) {
           category: { type: Type.STRING },
           difficulty: { type: Type.STRING },
           bonusType: { type: Type.STRING },
+          letter: { type: Type.STRING },
+          answerAliases: { type: Type.ARRAY, items: { type: Type.STRING } },
           imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
           surveyAnswers: {
             type: Type.ARRAY,
@@ -302,6 +367,37 @@ export default async function handler(req: any, res: any) {
             required: ["title", "questions"]
           };
 
+      } else if (isWordWheel) {
+          const letterRuleInstruction =
+              wordWheelLetterRule === 'contains-hard'
+                  ? 'For letters Q, V, X, Y, Z: the answer must CONTAIN the letter anywhere. For all other letters: the answer must START with the letter.'
+                  : 'For every letter A-Z: the answer must START with the letter.';
+
+          prompt = `
+          Create a classroom "Word Wheel" game titled "${gameTitle}" about "${config.topic}".
+          Generate EXACTLY 26 clue entries, one for each English letter A-Z.
+
+          CRITICAL RULES:
+          1. Include a "letter" field for each entry using a single uppercase letter.
+          2. Cover each letter exactly once from A through Z.
+          3. "question" must be a concise clue (ideally <= 140 characters).
+          4. "answer" must be a single canonical answer and obey this letter rule: ${letterRuleInstruction}
+          5. Add "answerAliases" with 0-5 accepted alternatives/spellings where useful.
+          6. Use points=10 for every entry.
+          7. Do NOT include multiple-choice options for this game.
+
+          Custom Instructions: ${config.customInstructions || "None"}.
+          `;
+
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                questions: { type: Type.ARRAY, items: questionSchema }
+            },
+            required: ["title", "questions"]
+          };
+
       } else {
         // Standard Game
         const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
@@ -375,6 +471,9 @@ export default async function handler(req: any, res: any) {
       const data = JSON.parse(cleanJson(text || "{}"));
 
       enforceGameAnswerMatchesOptions(data);
+      if (isWordWheel) {
+        data.questions = normalizeWordWheelQuestions(data.questions || []);
+      }
       
       // Ensure ID exists for database
       data.id = randomUUID();
@@ -959,6 +1058,7 @@ RULES:
         6. Millionaire Maker (High stakes, 1 player or class consensus)
         7. Time Bomb (High pressure, pass the device, vocabulary/lists)
         8. Survey Showdown (Family Feud style, popular opinion, guessing)
+        9. Word Wheel (A-Z clue race, pass or play, team competition)
 
         BEHAVIOR:
         - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions.
@@ -1005,7 +1105,9 @@ RULES:
                                 jeopardyCategories: { type: Type.INTEGER },
                                 jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
                                 pubQuizRoundsCount: { type: Type.INTEGER },
-                                pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                wordWheelScoringMode: { type: Type.STRING },
+                                wordWheelLetterRule: { type: Type.STRING }
                             },
                             required: ["type", "title", "topic"]
                         }

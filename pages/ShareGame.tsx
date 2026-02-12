@@ -16,6 +16,7 @@ import { MillionaireGame } from '../components/games/MillionaireGame';
 import { TimeBombGame } from '../components/games/TimeBombGame';
 import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { StopTheFireGame } from '../components/games/StopTheFireGame';
+import { WordWheelGame } from '../components/games/WordWheelGame';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -267,6 +268,9 @@ export const ShareGame: React.FC = () => {
   }
   if (game.config.type === GameType.STOP_THE_FIRE) {
     return <StopTheFireGame key={playKey} {...commonProps} onBack={() => setStep('editor')} />;
+  }
+  if (game.config.type === GameType.WORD_WHEEL) {
+    return <WordWheelGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
   }
 
   return null;

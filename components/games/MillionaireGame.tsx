@@ -53,7 +53,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     // Sanity check for questions
     const questions = game.questions || [];
     const currentQuestion = questions[currentLevel];
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Ensure options exist and find correct index
@@ -845,3 +845,4 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         </div>
     );
 };
+

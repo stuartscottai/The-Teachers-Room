@@ -913,7 +913,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     useEffect(() => {
@@ -1125,7 +1125,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
-                        <h1 className="text-slate-100 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-95" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 6px rgba(255,255,255,0.35)' }}>{game.title}</h1>
+                        <h1 className="text-slate-100 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-95 break-words overflow-hidden" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 6px rgba(255,255,255,0.35)' }}>{game.title}</h1>
                         
                         <div className="hidden sm:flex items-center gap-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
@@ -1626,3 +1626,4 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         </div>
     );
 };
+

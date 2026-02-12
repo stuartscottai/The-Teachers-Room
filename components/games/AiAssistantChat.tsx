@@ -82,6 +82,16 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
             };
         }
 
+        if (config.type === GameType.WORD_WHEEL) {
+            return {
+                ...config,
+                questionCount: 26,
+                questionType: 'open' as const,
+                wordWheelScoringMode: config.wordWheelScoringMode || 'classic',
+                wordWheelLetterRule: config.wordWheelLetterRule || 'contains-hard'
+            };
+        }
+
         const desiredCount = Math.max(config.questionCount || 0, targetCount);
         return { ...config, questionCount: desiredCount };
     };

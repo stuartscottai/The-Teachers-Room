@@ -187,7 +187,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         return base;
     }, [game.questions, options.randomizeQuestions]);
     const currentQ = questions[currentRound];
-    const questionImageUrl = resolveGameImageUrl(currentQ?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQ?.image?.url, currentQ?.image?.thumbUrl);
     const questionImageAlt = currentQ?.image?.alt || '';
     
     // Ensure surveyAnswers exists, pad if necessary to 8
@@ -602,7 +602,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                             </button>
                         </div>
-                        <h1 className="font-display font-bold text-xl hidden md:block opacity-80 max-w-[200px] truncate">{game.title}</h1>
+                        <h1 className="text-slate-200 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">{game.title}</h1>
                     </div>
 
                     {/* TEAMS CENTER STAGE */}
@@ -966,3 +966,4 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         </div>
     );
 };
+

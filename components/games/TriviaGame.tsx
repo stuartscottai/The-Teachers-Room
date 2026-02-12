@@ -114,7 +114,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const optionKey = activeQ?.options?.join('|') || '';
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
     const isNegativeBonus = activeQ?.bonusType === 'bust';
-    const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url, activeQ?.image?.thumbUrl);
     const questionImageAlt = activeQ?.image?.alt || '';
     const bonusEffectText =
         activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
@@ -935,7 +935,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
-                        <h1 className="text-slate-800 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80">{game.title}</h1>
+                        <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">{game.title}</h1>
                     </div>
                     
                     {/* Scoreboard Cards */}
@@ -1479,3 +1479,4 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         </div>
     );
 };
+

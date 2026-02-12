@@ -6,6 +6,8 @@ import { processFile } from '../../utils/gameUtils';
 import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 
+const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void }> = ({ type, onBack, onModeSelect }) => {
     const isStopTheFire = type === GameType.STOP_THE_FIRE;
@@ -132,7 +134,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                          type === GameType.SNAKES_LADDERS ? 20 : 
                          type === GameType.TIME_BOMB ? 25 : 
                          type === GameType.SURVEY_SHOWDOWN ? 5 : 
-                         type === GameType.STOP_THE_FIRE ? 10 : 10;
+                         type === GameType.STOP_THE_FIRE ? 10 :
+                         type === GameType.WORD_WHEEL ? WORD_WHEEL_LETTERS.length : 10;
     
     // Millionaire requires exactly 15
     if (type === GameType.MILLIONAIRE) defaultCount = 15;
@@ -142,7 +145,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             type,
             title: '',
             questionCount: defaultCount,
-            questionType: type === GameType.MILLIONAIRE ? 'multiple-choice' : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE ? 'open' : 'mixed'),
+            questionType:
+                type === GameType.MILLIONAIRE
+                    ? 'multiple-choice'
+                    : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE || type === GameType.WORD_WHEEL ? 'open' : 'mixed'),
             mcOptionCount: 4, // Default to 4 options for multiple choice
             pointsMode: 'fixed',
             topic: '',
@@ -161,6 +167,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pubQuizRoundsCount: 3,
             pubQuizRoundNames: Array(3).fill(''),
             pubQuizQuestionsPerRound: 5,
+            wordWheelScoringMode: 'classic',
+            wordWheelLetterRule: 'contains-hard',
             stopTheFireMode: type === GameType.STOP_THE_FIRE
                 ? (mode === 'bank' ? 'bank' : mode === 'ai' ? 'ai' : 'manual')
                 : undefined
@@ -189,6 +197,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             });
         }
     }, [config.questionCount, type]);
+
+    useEffect(() => {
+        if (type !== GameType.WORD_WHEEL) return;
+        setConfig(prev => ({
+            ...prev,
+            questionCount: WORD_WHEEL_LETTERS.length,
+            questionType: 'open',
+            wordWheelScoringMode: prev.wordWheelScoringMode || 'classic',
+            wordWheelLetterRule: prev.wordWheelLetterRule || 'contains-hard'
+        }));
+    }, [type]);
     
     // Check if mode changed from saved config
     useEffect(() => {
@@ -378,17 +397,29 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 title: config.title,
                 config: config,
                 questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && type !== GameType.STOP_THE_FIRE) 
-                    ? Array.from({ length: config.questionCount }).map((_, i) => ({
-                        id: i,
-                        question: '',
-                        answer: '',
-                        points: 100,
-                        isBonus: false,
-                        difficulty: type === GameType.DARTS ? 'easy' : undefined,
-                        options: type === GameType.MILLIONAIRE ? ["", "", "", ""] : undefined,
-                        // Survey Init
-                        surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
-                    }))
+                    ? (
+                        type === GameType.WORD_WHEEL
+                            ? WORD_WHEEL_LETTERS.map((letter, i) => ({
+                                id: i,
+                                letter,
+                                question: '',
+                                answer: '',
+                                answerAliases: [],
+                                points: 10,
+                                isBonus: false,
+                            }))
+                            : Array.from({ length: config.questionCount }).map((_, i) => ({
+                                id: i,
+                                question: '',
+                                answer: '',
+                                points: 100,
+                                isBonus: false,
+                                difficulty: type === GameType.DARTS ? 'easy' : undefined,
+                                options: type === GameType.MILLIONAIRE ? ["", "", "", ""] : undefined,
+                                // Survey Init
+                                surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
+                            }))
+                    )
                     : [],
                 jeopardyBoard: type === GameType.JEOPARDY 
                     ? (config.jeopardyCategoryNames || []).map(name => ({
@@ -683,6 +714,98 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     />
                                                 </div>
                                             ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : type === GameType.WORD_WHEEL ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-4">
+                                        <h3 className="text-sm font-bold text-slate-800 mb-1">Word Wheel Structure</h3>
+                                        <p className="text-sm text-slate-600">
+                                            This mode uses an English A-Z wheel (26 clues), one clue per letter.
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Letter Rule</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, wordWheelLetterRule: 'contains-hard' })}
+                                                className={`text-left p-4 rounded-xl border transition-colors ${
+                                                    (config.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Contains for Q/V/X/Y/Z</div>
+                                                <p className="text-xs text-slate-500 mt-1">Hard letters use contains; all others start with the letter.</p>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, wordWheelLetterRule: 'starts-with' })}
+                                                className={`text-left p-4 rounded-xl border transition-colors ${
+                                                    config.wordWheelLetterRule === 'starts-with'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Starts with all letters</div>
+                                                <p className="text-xs text-slate-500 mt-1">Every answer must start with its assigned letter.</p>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Scoring Style</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, wordWheelScoringMode: 'classic' })}
+                                                className={`text-left p-4 rounded-xl border transition-colors ${
+                                                    (config.wordWheelScoringMode || 'classic') === 'classic'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Classic</div>
+                                                <p className="text-xs text-slate-500 mt-1">Fixed points per correct answer.</p>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, wordWheelScoringMode: 'speed-bonus' })}
+                                                className={`text-left p-4 rounded-xl border transition-colors ${
+                                                    config.wordWheelScoringMode === 'speed-bonus'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Speed Bonus</div>
+                                                <p className="text-xs text-slate-500 mt-1">Bonus points for faster correct answers.</p>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letters</label>
+                                            <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
+                                                26 (A-Z)
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Answer Format</label>
+                                            <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
+                                                Open response
+                                            </div>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letter Matching</label>
+                                            <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
+                                                {(config.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
+                                                    ? 'Q/V/X/Y/Z use contains; others start with the letter'
+                                                    : 'All letters use starts with'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -991,6 +1114,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <span className="font-semibold text-slate-800">Auto-pick images</span>
                                                     <span className="block text-xs text-slate-500">
                                                         The AI will choose a suitable stock image for each question.
+                                                    </span>
+                                                    <span className="mt-1 block text-[11px] text-amber-700">
+                                                        Auto-selected images are suggestions. Please review them and replace any that are not a good fit.
                                                     </span>
                                                 </span>
                                             </label>

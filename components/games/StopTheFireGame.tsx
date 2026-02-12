@@ -422,8 +422,11 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     <ArrowLeft size={18} className="mr-2" /> Back
                 </button>
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 text-orange-600 font-bold">
-                        <Flame size={18} /> {game.title}
+                    <div className="hidden sm:flex items-center gap-2 text-orange-600">
+                        <Flame size={18} />
+                        <h1 className="font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 break-words overflow-hidden">
+                            {game.title}
+                        </h1>
                     </div>
                     <button
                         onClick={() => setIsMuted((prev) => !prev)}

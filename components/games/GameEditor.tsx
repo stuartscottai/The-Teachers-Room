@@ -22,6 +22,28 @@ type QuestionImageTarget =
     | { scope: 'standard'; index: number }
     | { scope: 'grouped'; groupIndex: number; questionIndex: number };
 
+const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
+
+const getWordWheelRuleForLetter = (rule: 'starts-with' | 'contains-hard', letter: string) => {
+    if (rule === 'contains-hard' && WORD_WHEEL_CONTAINS_HARD.has(letter)) return 'contains';
+    return 'starts-with';
+};
+
+const normalizeWordWheelAnswer = (value: string) =>
+    String(value || '').toUpperCase().replace(/[^A-Z]/g, '');
+
+const answerMatchesWordWheelRule = (
+    answer: string,
+    letter: string,
+    rule: 'starts-with' | 'contains-hard'
+) => {
+    const cleanAnswer = normalizeWordWheelAnswer(answer);
+    if (!cleanAnswer || !letter) return true;
+    const relation = getWordWheelRuleForLetter(rule, letter);
+    return relation === 'contains' ? cleanAnswer.includes(letter) : cleanAnswer.startsWith(letter);
+};
+
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onBack }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [activeTab, setActiveTab] = useState<number>(0);
@@ -144,6 +166,43 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             cancelled = true;
         };
     }, [editedGame.id, editedGame.createdAt, user]);
+
+    useEffect(() => {
+        if (editedGame.config.type !== GameType.WORD_WHEEL) return;
+        setEditedGame((prev) => {
+            const byLetter = new Map<string, GeneratedQuestion>();
+            (prev.questions || []).forEach((question, index) => {
+                const explicit = (question.letter || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+                const fallback = (question.answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+                const letter = explicit || WORD_WHEEL_LETTERS[index] || fallback || '';
+                if (!WORD_WHEEL_LETTERS.includes(letter)) return;
+                if (byLetter.has(letter)) return;
+                byLetter.set(letter, question);
+            });
+
+            const nextQuestions: GeneratedQuestion[] = WORD_WHEEL_LETTERS.map((letter, index) => {
+                const existing = byLetter.get(letter);
+                return {
+                    id: index,
+                    letter,
+                    question: (existing?.question || '').trim(),
+                    answer: (existing?.answer || '').trim(),
+                    answerAliases: Array.isArray(existing?.answerAliases)
+                        ? existing!.answerAliases!.map((entry) => String(entry || '').trim()).filter(Boolean)
+                        : [],
+                    points: Number(existing?.points) > 0 ? Number(existing?.points) : 10,
+                    isBonus: false,
+                    image: existing?.image,
+                };
+            });
+
+            const currentSerialized = JSON.stringify((prev.questions || []).map((q) => ({ ...q, id: undefined })));
+            const nextSerialized = JSON.stringify(nextQuestions.map((q) => ({ ...q, id: undefined })));
+            if (currentSerialized === nextSerialized) return prev;
+
+            return { ...prev, questions: nextQuestions };
+        });
+    }, [editedGame.config.type]);
 
     const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
         if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
@@ -419,9 +478,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 ...prev.questions,
                 {
                     id: prev.questions.length,
+                    letter: prev.config.type === GameType.WORD_WHEEL ? (WORD_WHEEL_LETTERS[prev.questions.length] || '') : undefined,
                     question: '',
                     answer: '',
-                    points: 100,
+                    answerAliases: prev.config.type === GameType.WORD_WHEEL ? [] : undefined,
+                    points: prev.config.type === GameType.WORD_WHEEL ? 10 : 100,
                     isBonus: false,
                     difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined,
                     surveyAnswers: prev.config.type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
@@ -529,6 +590,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const groupLabel = editedGame.config.type === GameType.JEOPARDY ? "Category" : "Round";
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
     const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
+    const isWordWheel = editedGame.config.type === GameType.WORD_WHEEL;
 
     // For Darts, we hide the reserve questions in the editor view (but keep them in data)
     // The main questions are indices 0 to config.questionCount - 1
@@ -798,7 +860,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <div className="space-y-6">
                                         {groups[activeTab].questions.map((q, qIdx) => {
-                                            const imageUrl = resolveGameImageUrl(q.image?.url);
+                                            const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
                                             <div key={qIdx} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:border-sky-200 transition-colors">
@@ -997,22 +1059,34 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 <div className="space-y-6">
                                     {pagedQuestions.map((q, index) => {
                                         const questionIndex = pageStart + index;
-                                        const imageUrl = resolveGameImageUrl(q.image?.url);
+                                        const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
                                         const imageAlt = q.image?.alt || 'Question image';
+                                        const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex] || '').toUpperCase();
+                                        const wordWheelRule = (editedGame.config.wordWheelLetterRule || 'contains-hard') as 'starts-with' | 'contains-hard';
+                                        const wordWheelRelation = getWordWheelRuleForLetter(wordWheelRule, wordWheelLetter);
+                                        const answerFitsWordWheelRule = !isWordWheel || answerMatchesWordWheelRule(q.answer, wordWheelLetter, wordWheelRule);
                                         return (
                                         <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
-                                            <button 
-                                                onClick={() => removeQuestion(questionIndex)}
-                                                className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                                                title="Delete Question"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
+                                            {!isWordWheel && (
+                                                <button 
+                                                    onClick={() => removeQuestion(questionIndex)}
+                                                    className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
+                                                    title="Delete Question"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            )}
                                             <div className="flex items-center justify-between mb-4 pr-10">
                                                 <div className="flex items-center gap-2">
                                                     <span className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
                                                         {questionIndex + 1}
                                                     </span>
+
+                                                    {isWordWheel && (
+                                                        <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase ml-1">
+                                                            Letter {wordWheelLetter || '?'}
+                                                        </span>
+                                                    )}
                                                     
                                                     {/* Millionaire Label */}
                                                     {isMillionaire && (
@@ -1021,8 +1095,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         </span>
                                                     )}
 
-                                                    {/* Points Editor (Hidden for Darts, Millionaire, Survey) */}
-                                                    {editedGame.config.type !== GameType.DARTS && !isMillionaire && !isSurvey && (
+                                                    {/* Points Editor (Hidden for Darts, Millionaire, Survey, Word Wheel) */}
+                                                    {editedGame.config.type !== GameType.DARTS && !isMillionaire && !isSurvey && !isWordWheel && (
                                                         <div className="flex items-center ml-2 bg-white px-2 py-1 rounded border border-slate-200">
                                                             <Coins size={14} className="text-brand-yellow mr-2" />
                                                             <input 
@@ -1059,8 +1133,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 </div>
                                             </div>
 
-                                            {/* QUESTION TYPE TOGGLE BAR - Hidden for Millionaire and Survey */}
-                                            {!isMillionaire && !isSurvey && (
+                                            {/* QUESTION TYPE TOGGLE BAR - Hidden for Millionaire, Survey, and Word Wheel */}
+                                            {!isMillionaire && !isSurvey && !isWordWheel && (
                                                 <div className="flex flex-wrap items-center gap-4 mb-4 bg-slate-100 p-2 rounded-lg border border-slate-200">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
@@ -1126,6 +1200,16 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
                                                             placeholder="Type answer here..."
                                                         />
+                                                        {isWordWheel && wordWheelLetter && (
+                                                            <p className={`mt-2 text-xs font-semibold ${answerFitsWordWheelRule ? 'text-teal-700' : 'text-red-600'}`}>
+                                                                Rule for {wordWheelLetter}: {wordWheelRelation === 'contains' ? `answer should contain "${wordWheelLetter}"` : `answer should start with "${wordWheelLetter}"`}
+                                                            </p>
+                                                        )}
+                                                        {isWordWheel && wordWheelLetter && !answerFitsWordWheelRule && q.answer.trim() && (
+                                                            <p className="mt-1 text-xs text-red-500">
+                                                                Current answer does not match this letter rule.
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 )}
                                                 
@@ -1172,6 +1256,42 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     </div>
                                                 )}
                                             </div>
+
+                                            {isWordWheel && (
+                                                <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Letter</label>
+                                                        <input
+                                                            type="text"
+                                                            value={(q.letter || WORD_WHEEL_LETTERS[questionIndex] || '').toUpperCase()}
+                                                            onChange={(e) => handleChange(prev => {
+                                                                const newQuestions = [...prev.questions];
+                                                                newQuestions[questionIndex].letter = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+                                                                return { ...prev, questions: newQuestions };
+                                                            })}
+                                                            className="w-full p-3 rounded-lg border border-slate-300 text-sm uppercase tracking-wider font-bold focus:ring-2 focus:ring-teal-200 outline-none"
+                                                            maxLength={1}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Accepted Variants (comma separated)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={(q.answerAliases || []).join(', ')}
+                                                            onChange={(e) => handleChange(prev => {
+                                                                const newQuestions = [...prev.questions];
+                                                                newQuestions[questionIndex].answerAliases = e.target.value
+                                                                    .split(',')
+                                                                    .map((item) => item.trim())
+                                                                    .filter(Boolean);
+                                                                return { ...prev, questions: newQuestions };
+                                                            })}
+                                                            className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
+                                                            placeholder="e.g., automobile, car"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="mt-4 pt-4 border-t border-slate-200">
                                                 <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question Image (optional)</label>
@@ -1223,7 +1343,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             </div>
 
                                             {/* OPTIONS EDITOR (MC) */}
-                                            {q.options && q.options.length > 0 && !isSurvey && (
+                                            {q.options && q.options.length > 0 && !isSurvey && !isWordWheel && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 animate-fade-in">
                                                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Multiple Choice Options</label>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1274,12 +1394,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </button>
                                 </div>
                                 
-                                <button 
-                                    onClick={addQuestion}
-                                    className="mt-8 w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:border-sky-400 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer"
-                                >
-                                    <Plus size={20} className="mr-2" /> Add New Question Pair
-                                </button>
+                                {!isWordWheel && (
+                                    <button 
+                                        onClick={addQuestion}
+                                        className="mt-8 w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:border-sky-400 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer"
+                                    >
+                                        <Plus size={20} className="mr-2" /> Add New Question Pair
+                                    </button>
+                                )}
                             </div>
                         ))}
                 </div>
@@ -1365,3 +1487,4 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         </div>
     );
 };
+

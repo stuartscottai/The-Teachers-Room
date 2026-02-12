@@ -8,7 +8,8 @@ export enum GameType {
   MILLIONAIRE = 'Millionaire Maker',
   TIME_BOMB = 'Time Bomb',
   SURVEY_SHOWDOWN = 'Survey Showdown',
-  STOP_THE_FIRE = 'Stop the Fire!'
+  STOP_THE_FIRE = 'Stop the Fire!',
+  WORD_WHEEL = 'Word Wheel'
 }
 
 export interface UploadedFile {
@@ -39,8 +40,12 @@ export interface GameConfig {
   pubQuizRoundsCount?: number;
   pubQuizQuestionsPerRound?: number;
   pubQuizRoundNames?: string[];
+  // Word Wheel specific
+  wordWheelScoringMode?: 'classic' | 'speed-bonus';
+  wordWheelLetterRule?: 'starts-with' | 'contains-hard';
   // Stop the Fire specific
   stopTheFireMode?: 'manual' | 'bank' | 'ai';
+  stopTheFireCategories?: string[];
   // Optional AI image settings
   includeImages?: boolean;
   imageMode?: 'auto' | 'manual';
@@ -88,6 +93,9 @@ export interface GameRunOptions {
   // Stop the Fire specific (optional defaults)
   stopTheFireDifficulty?: StopTheFireDifficulty;
   stopTheFireCategoryCount?: number;
+  // Word Wheel
+  wordWheelScoringMode?: 'classic' | 'speed-bonus';
+  wordWheelLetterRule?: 'starts-with' | 'contains-hard';
 }
 
 export interface SurveyAnswer {
@@ -115,6 +123,9 @@ export interface GeneratedQuestion {
   // New bonus types for hidden tiles
   bonusType?: 'none' | 'double' | 'bust' | 'steal'; 
   difficulty?: 'easy' | 'medium' | 'hard';
+  // Word Wheel specific
+  letter?: string;
+  answerAliases?: string[];
   // Survey Showdown specific
   surveyAnswers?: SurveyAnswer[];
 }

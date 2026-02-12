@@ -75,7 +75,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const currentQuestion = questions[currentQuestionIndex];
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url);
+    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     const buildFusePath = (width: number, height: number) => {
@@ -683,7 +683,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
-                    <h1 className="text-slate-200 font-display font-bold text-lg truncate max-w-[200px] hidden md:block opacity-80 uppercase tracking-widest mt-1">{game.title}</h1>
+                    <h1 className="text-slate-200 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden mt-1">{game.title}</h1>
                 </div>
 
                 {/* Team Status Bar */}
@@ -1288,3 +1288,4 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         </div>
     );
 };
+
