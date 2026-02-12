@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, Bot, User, ArrowRight, Loader2, Mic } from 'lucide-react';
 import { GameConfig, GeneratedGame, GameType } from '../../types';
-import { chatWithGameWizard, generateGameContent } from '../../services/geminiService';
+import { chatWithGameWizard, generateGameContent, WizardSuggestion } from '../../services/geminiService';
 import { useDictation } from '../../utils/useDictation';
 
 interface AiAssistantChatProps {
@@ -14,7 +14,8 @@ interface Message {
     id: string;
     role: 'user' | 'ai';
     text: string;
-    suggestion?: GameConfig;
+    suggestion?: WizardSuggestion;
+    suggestions?: WizardSuggestion[];
 }
 
 export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGameGenerated }) => {
@@ -130,7 +131,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
                 text: response.message,
-                suggestion: response.suggestion
+                suggestion: response.suggestion,
+                suggestions: response.suggestions
             };
             
             setMessages(prev => [...prev, aiMsg]);
@@ -154,14 +156,19 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         });
     };
 
-    const handleCreateGame = async (config: GameConfig) => {
+    const handleCreateGame = async (suggestion: WizardSuggestion) => {
         setIsGenerating(true);
         try {
+            const { reason: _reason, ...configFromSuggestion } = suggestion as WizardSuggestion & { reason?: string };
+            const normalizedTopic = String(configFromSuggestion.topic || '').trim() || 'General';
+            const baseConfig = configFromSuggestion as GameConfig;
+
             // Default fallbacks if AI missed something
             const finalConfig = applyAiQuestionDefaults({
-                ...config,
-                questionCount: config.questionCount || MIN_AI_QUESTION_COUNT,
-                questionType: config.questionType || 'mixed',
+                ...baseConfig,
+                topic: normalizedTopic,
+                questionCount: baseConfig.questionCount || MIN_AI_QUESTION_COUNT,
+                questionType: baseConfig.questionType || 'mixed',
                 isAI: true
             });
             
@@ -207,31 +214,50 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                     {msg.text}
                                 </div>
                                 
-                                {/* Suggestion Card */}
-                                {msg.suggestion && (
-                                    <div className="mt-3 bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 shadow-md">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Sparkles size={16} className="text-indigo-500" />
-                                            <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">Recommendation</span>
+                                {/* Suggestion Cards */}
+                                {(() => {
+                                    const suggestionList = msg.suggestions?.length
+                                        ? msg.suggestions
+                                        : msg.suggestion
+                                          ? [msg.suggestion]
+                                          : [];
+
+                                    if (!suggestionList.length) return null;
+
+                                    return (
+                                        <div className="mt-3 space-y-3">
+                                            {suggestionList.map((suggestion, index) => (
+                                                <div key={`${msg.id}-${suggestion.type}-${index}`} className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 shadow-md">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Sparkles size={16} className="text-indigo-500" />
+                                                        <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
+                                                            {index === 0 ? 'Best Fit' : `Alternative ${index + 1}`}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="font-display font-bold text-lg text-slate-800 mb-1">{suggestion.title}</h4>
+                                                    <div className="flex gap-2 mb-2">
+                                                        <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-medium">{suggestion.type}</span>
+                                                        <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-medium truncate max-w-[150px]">{suggestion.topic}</span>
+                                                    </div>
+                                                    {suggestion.reason && (
+                                                        <p className="text-xs text-slate-600 mb-3">{suggestion.reason}</p>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleCreateGame(suggestion)}
+                                                        disabled={isGenerating}
+                                                        className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center"
+                                                    >
+                                                        {isGenerating ? (
+                                                            <><Loader2 size={16} className="animate-spin mr-2" /> Creating...</>
+                                                        ) : (
+                                                            <>Generate This Game <ArrowRight size={16} className="ml-2" /></>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <h4 className="font-display font-bold text-lg text-slate-800 mb-1">{msg.suggestion.title}</h4>
-                                        <div className="flex gap-2 mb-3">
-                                            <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-medium">{msg.suggestion.type}</span>
-                                            <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded font-medium truncate max-w-[150px]">{msg.suggestion.topic}</span>
-                                        </div>
-                                        <button 
-                                            onClick={() => handleCreateGame(msg.suggestion!)}
-                                            disabled={isGenerating}
-                                            className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center"
-                                        >
-                                            {isGenerating ? (
-                                                <><Loader2 size={16} className="animate-spin mr-2" /> Creating...</>
-                                            ) : (
-                                                <>Generate This Game <ArrowRight size={16} className="ml-2" /></>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
                             
                             {/* Avatar */}

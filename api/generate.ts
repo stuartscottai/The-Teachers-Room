@@ -1049,22 +1049,23 @@ RULES:
         const systemInstruction = `You are "The Teachers' Room AI Assistant", a friendly expert game consultant.
         Your goal is to help teachers choose the best game format for their specific class needs (Topic, Age, Learning Goal).
         
-        AVAILABLE GAME TYPES:
-        1. Jeopardy (Team strategy, review categories)
-        2. Trivia Quiz (Fast paced, general knowledge)
-        3. Pub Quiz (Rounds based, structured)
-        4. Snakes and Ladders (Fun, luck based, younger kids)
-        5. Darts (Accuracy + Knowledge, fun twist)
-        6. Millionaire Maker (High stakes, 1 player or class consensus)
-        7. Time Bomb (High pressure, pass the device, vocabulary/lists)
-        8. Survey Showdown (Family Feud style, popular opinion, guessing)
-        9. Word Wheel (A-Z clue race, pass or play, team competition)
+        AVAILABLE GAME TYPES AND BEST LEARNING FIT:
+        1. Jeopardy (category-based retrieval practice, revision across units, team reasoning)
+        2. Trivia Quiz (quick knowledge checks, mixed recall, broad coverage)
+        3. Pub Quiz (round-based progression, themed revision, cumulative practice)
+        4. Snakes and Ladders (low-pressure repetition, younger learners, engagement-first recall)
+        5. Darts (targeted challenge rounds, focused retrieval, motivation through competition)
+        6. Millionaire Maker (progressive difficulty, multiple-choice reasoning, exam confidence)
+        7. Time Bomb (rapid fluency drills, verbal recall, quick vocabulary/list retrieval)
+        8. Survey Showdown (prediction, discussion, social reasoning and speaking)
+        9. Word Wheel (A-Z clue race, excellent for definitions, glossary terms, key vocabulary and terminology recall)
 
         BEHAVIOR:
         - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions.
-        - If the user gives enough info, recommend a specific game type and explain why briefly.
-        - When you make a recommendation, populate the 'suggestion' field in the JSON response with a valid GameConfig.
-        - If no recommendation is ready yet, leave 'suggestion' null.
+        - If the user gives enough info, provide 2 or 3 ranked recommendations so the teacher can choose.
+        - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
+        - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
+        - If the user asks for definitions, vocabulary, glossary, terminology, or key terms, prioritize Word Wheel in the top 1-2 options.
         - Default to at least 25 questions unless the game format caps it (e.g. Millionaire Maker is always 15) or the user explicitly asks for a different count.
         - For Jeopardy or Pub Quiz, set rows/rounds so the total questions are at least 25 unless the user explicitly asks for fewer.
         
@@ -1102,6 +1103,7 @@ RULES:
                                 questionCount: { type: Type.INTEGER },
                                 questionType: { type: Type.STRING },
                                 customInstructions: { type: Type.STRING },
+                                reason: { type: Type.STRING },
                                 jeopardyCategories: { type: Type.INTEGER },
                                 jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
                                 pubQuizRoundsCount: { type: Type.INTEGER },
@@ -1110,6 +1112,28 @@ RULES:
                                 wordWheelLetterRule: { type: Type.STRING }
                             },
                             required: ["type", "title", "topic"]
+                        },
+                        suggestions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    type: { type: Type.STRING },
+                                    title: { type: Type.STRING },
+                                    topic: { type: Type.STRING },
+                                    questionCount: { type: Type.INTEGER },
+                                    questionType: { type: Type.STRING },
+                                    customInstructions: { type: Type.STRING },
+                                    reason: { type: Type.STRING },
+                                    jeopardyCategories: { type: Type.INTEGER },
+                                    jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                    pubQuizRoundsCount: { type: Type.INTEGER },
+                                    pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                    wordWheelScoringMode: { type: Type.STRING },
+                                    wordWheelLetterRule: { type: Type.STRING }
+                                },
+                                required: ["type", "title", "topic"]
+                            }
                         }
                     },
                     required: ["message"]

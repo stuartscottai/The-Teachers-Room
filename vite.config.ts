@@ -2,23 +2,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import os from 'os';
 import tailwindcss from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
-const getLocalNetworkHost = () => {
-  const nets = os.networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family === 'IPv4' && !net.internal) {
-        return net.address;
-      }
-    }
-  }
-  return undefined;
-};
-
-const hmrHost = process.env.VITE_HMR_HOST || getLocalNetworkHost();
+const hmrHost = process.env.VITE_HMR_HOST;
 
 export default defineConfig({
   plugins: [react()],

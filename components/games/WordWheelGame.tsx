@@ -738,43 +738,127 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     }, [cardState, activeIndex, currentTeam, phase, hasTimer, options.timerSeconds]);
 
     if (phase === 'gameover') {
+        const isTie = winners.length > 1;
+        const otherTeams = ranking.filter((team) => team.score < winnerScore);
+        const second = otherTeams[0];
+        const third = otherTeams[1];
+        const confettiCount = isMobileViewport ? 90 : 140;
+
         return (
-            <div className="fixed inset-0 z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-y-auto">
-                <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-                    <Trophy size={72} className="mx-auto text-brand-yellow mb-4" />
-                    <h1 className="font-display text-4xl md:text-6xl font-black mb-4">Word Wheel Complete</h1>
-                    <p className="text-lg text-cyan-100 mb-8">
-                        {winners.length > 1
-                            ? `Tie: ${winners.map((winner) => winner.name).join(' & ')}`
-                            : `Winner: ${winners[0]?.name || 'No winner'}`}
-                    </p>
+            <div
+                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+            >
+                <style>{`
+                    @keyframes wordwheel-confetti-fall {
+                        0% { transform: translateY(-12vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
+                        25% { transform: translateY(22vh) translateX(18px) rotate3d(1, 1, 1, 90deg); }
+                        50% { transform: translateY(52vh) translateX(-16px) rotate3d(1, 1, 1, 180deg); }
+                        75% { transform: translateY(78vh) translateX(18px) rotate3d(1, 1, 1, 270deg); }
+                        100% { transform: translateY(112vh) translateX(0) rotate3d(1, 1, 1, 360deg); opacity: 0; }
+                    }
+                    .wordwheel-confetti-piece {
+                        position: absolute;
+                        animation: wordwheel-confetti-fall 4s linear infinite;
+                        box-shadow: 1px 1px 2px rgba(0,0,0,0.22);
+                    }
+                `}</style>
 
-                    <div className="bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6 mb-8">
-                        <div className="space-y-3">
-                            {ranking.map((team, index) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">
-                                        {index + 1}. {team.name}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    {Array.from({ length: confettiCount }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="wordwheel-confetti-piece"
+                            style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * -20}%`,
+                                backgroundColor: ['#FACC15', '#0EA5E9', '#22C55E', '#FB923C', '#EC4899', '#FFFFFF'][Math.floor(Math.random() * 6)],
+                                width: `${Math.random() * 11 + 5}px`,
+                                height: `${Math.random() * 16 + 5}px`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                animationDuration: `${Math.random() * 2 + 3}s`,
+                                opacity: Math.random() + 0.45
+                            }}
+                        />
+                    ))}
+                </div>
+
+                <div className="relative z-10 w-full h-full overflow-y-auto">
+                    <div className="max-w-6xl mx-auto px-4 pt-16 sm:pt-20 pb-10 flex flex-col items-center text-center">
+                        <Trophy size={isMobileViewport ? 64 : 84} className="text-brand-yellow mb-4 animate-pulse drop-shadow-[0_6px_20px_rgba(250,204,21,0.38)]" />
+                        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-3">
+                            Word Wheel Complete
+                        </h1>
+                        <p className="text-cyan-100 text-base sm:text-xl mb-7">
+                            {isTie
+                                ? `Tie: ${winners.map((winner) => winner.name).join(' & ')}`
+                                : `Winner: ${winners[0]?.name || 'No winner'}`}
+                        </p>
+
+                        <div className="w-full max-w-5xl flex items-end justify-center gap-2 sm:gap-5 md:gap-8 mb-8">
+                            {second && (
+                                <div className="flex flex-col items-center w-[30%] sm:w-[26%] max-w-[220px]">
+                                    <div className="w-full rounded-t-xl h-20 sm:h-28 md:h-40 bg-gradient-to-b from-slate-300 to-slate-400 border-t-4 border-white/70 flex items-center justify-center shadow-xl">
+                                        <span className="text-4xl sm:text-6xl font-black text-slate-600/70">2</span>
                                     </div>
-                                    <div className="font-mono font-black text-xl">{team.score}</div>
+                                    <div className="w-full bg-white/95 rounded-b-xl px-2 py-2 border border-slate-200">
+                                        <div className="font-black text-slate-700 text-sm sm:text-lg truncate">{second.name}</div>
+                                        <div className="font-mono font-black text-slate-800 text-lg sm:text-2xl">{second.score}</div>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            )}
 
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <button
-                            onClick={onReplay}
-                            className="px-8 py-3 rounded-xl bg-brand-yellow text-slate-900 font-bold flex items-center justify-center"
-                        >
-                            <RefreshCw size={18} className="mr-2" /> Play Again
-                        </button>
-                        <button
-                            onClick={onFinish}
-                            className="px-8 py-3 rounded-xl bg-white text-slate-900 font-bold"
-                        >
-                            Exit to Game Hub
-                        </button>
+                            <div className="flex flex-col items-center w-[40%] sm:w-[34%] max-w-[300px] z-10">
+                                <div className="w-full rounded-t-2xl h-28 sm:h-36 md:h-52 bg-gradient-to-b from-brand-yellow to-amber-500 border-t-[6px] sm:border-t-8 border-yellow-200 flex items-center justify-center shadow-2xl shadow-yellow-500/20">
+                                    <span className="text-6xl sm:text-8xl font-black text-white/45">1</span>
+                                </div>
+                                <div className="w-full bg-white rounded-b-2xl px-2 py-2 sm:py-3 border-2 border-yellow-100">
+                                    <div className="font-black text-slate-800 text-sm sm:text-lg leading-tight truncate">
+                                        {isTie ? winners.map((winner) => winner.name).join(' & ') : (winners[0]?.name || 'Winner')}
+                                    </div>
+                                    <div className="font-mono font-black text-brand-yellow text-xl sm:text-4xl">{winnerScore}</div>
+                                </div>
+                            </div>
+
+                            {third && (
+                                <div className="flex flex-col items-center w-[30%] sm:w-[26%] max-w-[220px]">
+                                    <div className="w-full rounded-t-xl h-14 sm:h-20 md:h-28 bg-gradient-to-b from-orange-300 to-orange-400 border-t-4 border-orange-200/80 flex items-center justify-center shadow-xl">
+                                        <span className="text-3xl sm:text-5xl font-black text-orange-700/65">3</span>
+                                    </div>
+                                    <div className="w-full bg-white/95 rounded-b-xl px-2 py-2 border border-slate-200">
+                                        <div className="font-black text-orange-700 text-sm sm:text-lg truncate">{third.name}</div>
+                                        <div className="font-mono font-black text-orange-600 text-lg sm:text-2xl">{third.score}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8">
+                            <button
+                                onClick={onReplay}
+                                className="px-8 py-3 rounded-xl bg-brand-yellow text-slate-900 font-bold flex items-center justify-center hover:brightness-105 transition-all"
+                            >
+                                <RefreshCw size={18} className="mr-2" /> Play Again
+                            </button>
+                            <button
+                                onClick={onFinish}
+                                className="px-8 py-3 rounded-xl bg-white text-slate-900 font-bold hover:bg-slate-100 transition-all"
+                            >
+                                Exit to Game Hub
+                            </button>
+                        </div>
+
+                        <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                            <div className="space-y-3">
+                                {ranking.map((team, index) => (
+                                    <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                        <div className="font-bold">
+                                            {index + 1}. {team.name}
+                                        </div>
+                                        <div className="font-mono font-black text-xl">{team.score}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

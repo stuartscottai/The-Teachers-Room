@@ -3,6 +3,19 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 
+export type WizardSuggestion = Partial<GameConfig> & {
+  type: GameType;
+  title: string;
+  topic: string;
+  reason?: string;
+};
+
+export interface ChatWizardResponse {
+  message: string;
+  suggestion?: WizardSuggestion;
+  suggestions?: WizardSuggestion[];
+}
+
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
 const DEFAULT_EXTERNAL_API = '/api/generate';
@@ -60,6 +73,175 @@ const cleanJson = (text: string): string => {
     cleaned = cleaned.substring(firstOpen, lastClose + 1);
   }
   return cleaned.trim();
+};
+
+const WIZARD_REASON_BY_TYPE: Record<GameType, string> = {
+  [GameType.JEOPARDY]: 'Best for structured retrieval practice across curriculum categories and exam-style revision.',
+  [GameType.TRIVIA]: 'Great for fast mixed recall checks and broad topic coverage in one session.',
+  [GameType.PUB_QUIZ]: 'Useful for themed rounds and sequenced review across subtopics or units.',
+  [GameType.SNAKES_LADDERS]: 'Best for younger learners who need playful repetition and low-pressure recall.',
+  [GameType.DARTS]: 'Works well for focused challenge rounds where accuracy and quick recall are both rewarded.',
+  [GameType.MILLIONAIRE]: 'Strong for deliberate reasoning with multiple-choice progression and whole-class discussion.',
+  [GameType.TIME_BOMB]: 'Ideal for fluency, speed retrieval, and oral recall under light time pressure.',
+  [GameType.SURVEY_SHOWDOWN]: 'Best for prediction, speaking, and collaborative discussion around likely answers.',
+  [GameType.STOP_THE_FIRE]: 'Great for rapid lexical retrieval across categories with strong pace and engagement.',
+  [GameType.WORD_WHEEL]: 'Ideal for definitions, glossary terms, key vocabulary, and precise term recall.'
+};
+
+const WIZARD_TITLE_BY_TYPE: Record<GameType, string> = {
+  [GameType.JEOPARDY]: 'Category Review Challenge',
+  [GameType.TRIVIA]: 'Quick Knowledge Check',
+  [GameType.PUB_QUIZ]: 'Round-by-Round Revision',
+  [GameType.SNAKES_LADDERS]: 'Playful Recall Journey',
+  [GameType.DARTS]: 'Targeted Knowledge Throwdown',
+  [GameType.MILLIONAIRE]: 'High-Stakes Reasoning Run',
+  [GameType.TIME_BOMB]: 'Rapid Recall Relay',
+  [GameType.SURVEY_SHOWDOWN]: 'Prediction and Discussion Showdown',
+  [GameType.STOP_THE_FIRE]: 'Category Sprint Challenge',
+  [GameType.WORD_WHEEL]: 'A-Z Vocabulary Wheel'
+};
+
+const QUESTION_TYPES: NonNullable<GameConfig['questionType']>[] = ['multiple-choice', 'gap-fill', 'open', 'mixed', 'ai-decide'];
+
+const normalizeGameType = (value: unknown): GameType | null => {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return null;
+  return Object.values(GameType).find((type) => type.toLowerCase() === raw) || null;
+};
+
+const coerceTopicFromMessage = (message: string) => {
+  const cleaned = String(message || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return 'Classroom practice';
+  return cleaned.length > 90 ? `${cleaned.slice(0, 90).trim()}...` : cleaned;
+};
+
+const getKeywordRecommendationOrder = (message: string): GameType[] => {
+  const text = String(message || '').toLowerCase();
+
+  if (/\b(definition|definitions|define|vocab|vocabulary|glossary|terminology|key terms?)\b/.test(text)) {
+    return [GameType.WORD_WHEEL, GameType.TIME_BOMB, GameType.TRIVIA, GameType.JEOPARDY];
+  }
+  if (/\b(revision|review|exam|test prep|assessment|retrieval practice)\b/.test(text)) {
+    return [GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.TRIVIA, GameType.WORD_WHEEL];
+  }
+  if (/\b(speaking|oral|fluency|quickfire|fast|speed)\b/.test(text)) {
+    return [GameType.TIME_BOMB, GameType.WORD_WHEEL, GameType.PUB_QUIZ, GameType.TRIVIA];
+  }
+  if (/\b(opinion|survey|popular|guess|family feud)\b/.test(text)) {
+    return [GameType.SURVEY_SHOWDOWN, GameType.PUB_QUIZ, GameType.TRIVIA];
+  }
+  if (/\b(younger|kids|primary|elementary|fun)\b/.test(text)) {
+    return [GameType.SNAKES_LADDERS, GameType.TRIVIA, GameType.WORD_WHEEL];
+  }
+
+  return [GameType.TRIVIA, GameType.JEOPARDY, GameType.WORD_WHEEL, GameType.PUB_QUIZ];
+};
+
+const normalizeQuestionType = (value: unknown): GameConfig['questionType'] | undefined => {
+  const asString = String(value || '').trim() as GameConfig['questionType'];
+  return QUESTION_TYPES.includes(asString) ? asString : undefined;
+};
+
+const normalizeWizardSuggestion = (raw: any, topicFallback: string): WizardSuggestion | null => {
+  const type = normalizeGameType(raw?.type);
+  if (!type) return null;
+
+  const topic = String(raw?.topic || topicFallback || '').trim() || topicFallback;
+  const title = String(raw?.title || WIZARD_TITLE_BY_TYPE[type]).trim() || WIZARD_TITLE_BY_TYPE[type];
+  const reason = String(raw?.reason || '').trim() || WIZARD_REASON_BY_TYPE[type];
+  const questionType = normalizeQuestionType(raw?.questionType);
+
+  const scoringMode =
+    raw?.wordWheelScoringMode === 'speed-bonus' || raw?.wordWheelScoringMode === 'classic'
+      ? raw.wordWheelScoringMode
+      : undefined;
+  const letterRule =
+    raw?.wordWheelLetterRule === 'starts-with' || raw?.wordWheelLetterRule === 'contains-hard'
+      ? raw.wordWheelLetterRule
+      : undefined;
+
+  return {
+    type,
+    title,
+    topic,
+    reason,
+    questionCount: Number.isFinite(Number(raw?.questionCount)) ? Math.max(1, Number(raw.questionCount)) : undefined,
+    questionType,
+    customInstructions: typeof raw?.customInstructions === 'string' ? raw.customInstructions : undefined,
+    jeopardyCategories: Number.isFinite(Number(raw?.jeopardyCategories)) ? Number(raw.jeopardyCategories) : undefined,
+    jeopardyCategoryNames: Array.isArray(raw?.jeopardyCategoryNames) ? raw.jeopardyCategoryNames : undefined,
+    pubQuizRoundsCount: Number.isFinite(Number(raw?.pubQuizRoundsCount)) ? Number(raw.pubQuizRoundsCount) : undefined,
+    pubQuizRoundNames: Array.isArray(raw?.pubQuizRoundNames) ? raw.pubQuizRoundNames : undefined,
+    wordWheelScoringMode: scoringMode,
+    wordWheelLetterRule: letterRule
+  };
+};
+
+const fallbackSuggestionForType = (type: GameType, topic: string): WizardSuggestion => {
+  const isWordWheel = type === GameType.WORD_WHEEL;
+  const isMillionaire = type === GameType.MILLIONAIRE;
+  return {
+    type,
+    title: WIZARD_TITLE_BY_TYPE[type],
+    topic,
+    reason: WIZARD_REASON_BY_TYPE[type],
+    questionCount: isWordWheel ? 26 : isMillionaire ? 15 : 25,
+    questionType: isWordWheel ? 'open' : isMillionaire ? 'multiple-choice' : 'mixed',
+    ...(isWordWheel
+      ? {
+          wordWheelLetterRule: 'contains-hard' as const,
+          wordWheelScoringMode: 'classic' as const
+        }
+      : {})
+  };
+};
+
+const normalizeWizardResponse = (raw: any, userMessage: string): ChatWizardResponse => {
+  const fallbackTopic = coerceTopicFromMessage(userMessage);
+  const candidates: any[] = [];
+  if (raw?.suggestion) candidates.push(raw.suggestion);
+  if (Array.isArray(raw?.suggestions)) candidates.push(...raw.suggestions);
+
+  const suggestions: WizardSuggestion[] = [];
+  const seenTypes = new Set<GameType>();
+
+  for (const candidate of candidates) {
+    const normalized = normalizeWizardSuggestion(candidate, fallbackTopic);
+    if (!normalized) continue;
+    if (seenTypes.has(normalized.type)) continue;
+    suggestions.push(normalized);
+    seenTypes.add(normalized.type);
+    if (suggestions.length >= 3) break;
+  }
+
+  const keywordOrder = getKeywordRecommendationOrder(userMessage);
+  for (const type of keywordOrder) {
+    if (suggestions.length >= 3) break;
+    if (seenTypes.has(type)) continue;
+    suggestions.push(fallbackSuggestionForType(type, fallbackTopic));
+    seenTypes.add(type);
+  }
+
+  const universalFallback: GameType[] = [GameType.WORD_WHEEL, GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ];
+  for (const type of universalFallback) {
+    if (suggestions.length >= 3) break;
+    if (seenTypes.has(type)) continue;
+    suggestions.push(fallbackSuggestionForType(type, fallbackTopic));
+    seenTypes.add(type);
+  }
+
+  const safeMessage =
+    typeof raw?.message === 'string' && raw.message.trim().length
+      ? raw.message.trim()
+      : 'Here are a few game formats that fit your goal. Pick one and I can generate it immediately.';
+
+  return {
+    message: safeMessage,
+    suggestion: suggestions[0],
+    suggestions: suggestions.slice(0, 3)
+  };
 };
 
 const stripOptionPrefix = (value: string) => (value || '').replace(/^[A-D]\)\s*/i, '').trim();
@@ -1379,13 +1561,13 @@ If source files are attached, base requested content on those documents instead 
   }
 };
 
-export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<{message: string, suggestion?: GameConfig}> => {
-    const external = await tryExternalApi<{message: string, suggestion?: GameConfig}>({
+export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<ChatWizardResponse> => {
+    const external = await tryExternalApi<ChatWizardResponse>({
         action: 'chat_wizard',
         message,
         history
     });
-    if (external) return external;
+    if (external) return normalizeWizardResponse(external, message);
 
     // --- INTERNAL LOCAL PATH ---
     const ai = getClient();
@@ -1393,22 +1575,23 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     const systemInstruction = `You are "The Teachers' Room AI Assistant", a friendly expert game consultant.
     Your goal is to help teachers choose the best game format for their specific class needs (Topic, Age, Learning Goal).
     
-    AVAILABLE GAME TYPES:
-    1. Jeopardy (Team strategy, review categories)
-    2. Trivia Quiz (Fast paced, general knowledge)
-    3. Pub Quiz (Rounds based, structured)
-    4. Snakes and Ladders (Fun, luck based, younger kids)
-    5. Darts (Accuracy + Knowledge, fun twist)
-    6. Millionaire Maker (High stakes, 1 player or class consensus)
-    7. Time Bomb (High pressure, pass the device, vocabulary/lists)
-    8. Survey Showdown (Family Feud style, popular opinion, guessing)
-    9. Word Wheel (A-Z clue race, pass or play, team competition)
+    AVAILABLE GAME TYPES AND BEST LEARNING FIT:
+    1. Jeopardy (category-based retrieval practice, revision across units, team reasoning)
+    2. Trivia Quiz (quick knowledge checks, mixed recall, broad coverage)
+    3. Pub Quiz (round-based progression, themed revision, cumulative practice)
+    4. Snakes and Ladders (low-pressure repetition, younger learners, engagement-first recall)
+    5. Darts (targeted challenge rounds, focused retrieval, motivation through competition)
+    6. Millionaire Maker (progressive difficulty, multiple-choice reasoning, exam confidence)
+    7. Time Bomb (rapid fluency drills, verbal recall, quick vocabulary/list retrieval)
+    8. Survey Showdown (prediction, discussion, social reasoning and speaking)
+    9. Word Wheel (A-Z clue race, excellent for definitions, glossary terms, key vocabulary and terminology recall)
 
     BEHAVIOR:
     - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions (e.g. "What topic? What grade? Do they like competition?").
-    - If the user gives enough info, recommend a specific game type and explain why briefly.
-    - When you make a recommendation, populate the 'suggestion' field in the JSON response with a valid GameConfig.
-    - If no recommendation is ready yet, leave 'suggestion' null.
+    - If the user gives enough info, provide 2 or 3 ranked recommendations so the teacher can choose.
+    - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
+    - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
+    - If the user asks for definitions, vocabulary, glossary, terminology, or key terms, prioritize Word Wheel in the top 1-2 options.
     - Default to at least 25 questions unless the game format caps it (e.g. Millionaire Maker is always 15) or the user explicitly asks for a different count.
     - For Jeopardy or Pub Quiz, set rows/rounds so the total questions are at least 25 unless the user explicitly asks for fewer.
     
@@ -1447,6 +1630,7 @@ export const chatWithGameWizard = async (message: string, history: {role: string
                             questionCount: { type: Type.INTEGER },
                             questionType: { type: Type.STRING },
                             customInstructions: { type: Type.STRING },
+                            reason: { type: Type.STRING },
                             // Add extra config fields as optional
                             jeopardyCategories: { type: Type.INTEGER },
                             jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -1456,6 +1640,28 @@ export const chatWithGameWizard = async (message: string, history: {role: string
                             wordWheelLetterRule: { type: Type.STRING }
                         },
                         required: ["type", "title", "topic"]
+                    },
+                    suggestions: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                type: { type: Type.STRING },
+                                title: { type: Type.STRING },
+                                topic: { type: Type.STRING },
+                                questionCount: { type: Type.INTEGER },
+                                questionType: { type: Type.STRING },
+                                customInstructions: { type: Type.STRING },
+                                reason: { type: Type.STRING },
+                                jeopardyCategories: { type: Type.INTEGER },
+                                jeopardyCategoryNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                pubQuizRoundsCount: { type: Type.INTEGER },
+                                pubQuizRoundNames: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                wordWheelScoringMode: { type: Type.STRING },
+                                wordWheelLetterRule: { type: Type.STRING }
+                            },
+                            required: ["type", "title", "topic"]
+                        }
                     }
                 },
                 required: ["message"]
@@ -1464,9 +1670,14 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     });
 
     const text = response.text;
-    if (!text) return { message: "I'm having trouble connecting. Please try again." };
+    if (!text) {
+      return normalizeWizardResponse(
+        { message: "I'm having trouble connecting. Please try again." },
+        message
+      );
+    }
     
-    return JSON.parse(cleanJson(text));
+    return normalizeWizardResponse(JSON.parse(cleanJson(text)), message);
 };
 
 export const chatWithAI = async (message: string, history: string[]): Promise<string> => {
