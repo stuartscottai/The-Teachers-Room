@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     Clock,
     Edit2,
+    Flag,
     Maximize2,
     Minimize2,
     RefreshCw,
@@ -38,6 +39,7 @@ interface WheelEntry {
     points: number;
     status: WheelStatus;
     passedByTeams: number[];
+    revealedLetterIndices: number[];
     solvedBy?: number;
     image?: GeneratedQuestion['image'];
 }
@@ -54,8 +56,14 @@ interface RevealState {
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const CONTAINS_HARD_LETTERS = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 
-const getLetterRelation = (rule: 'starts-with' | 'contains-hard', letter: string) => {
-    if (rule === 'contains-hard' && CONTAINS_HARD_LETTERS.has(letter)) return 'contains';
+const normalizeRelationAnswer = (value: string) => String(value || '').toUpperCase().replace(/[^A-Z]/g, '');
+
+const getLetterRelation = (rule: 'starts-with' | 'contains-hard', letter: string, answer = '') => {
+    if (rule === 'contains-hard' && CONTAINS_HARD_LETTERS.has(letter)) {
+        const normalizedAnswer = normalizeRelationAnswer(answer);
+        if (normalizedAnswer.startsWith(letter)) return 'starts-with';
+        return 'contains';
+    }
     return 'starts-with';
 };
 
@@ -108,6 +116,118 @@ const hasBeenPassedByAllTeams = (entry: WheelEntry, teamCount: number) => {
     return unique.size >= teamCount;
 };
 
+const pickTeamForEntryTurn = (entry: WheelEntry | undefined, preferredTeam: number, teamCount: number) => {
+    if (teamCount <= 1) return 0;
+    if (!entry) return ((preferredTeam % teamCount) + teamCount) % teamCount;
+    if (entry.status !== 'passed') return ((preferredTeam % teamCount) + teamCount) % teamCount;
+    if (hasBeenPassedByAllTeams(entry, teamCount)) return ((preferredTeam % teamCount) + teamCount) % teamCount;
+
+    const passedSet = new Set(entry.passedByTeams || []);
+    for (let offset = 0; offset < teamCount; offset += 1) {
+        const candidate = (preferredTeam + offset + teamCount) % teamCount;
+        if (!passedSet.has(candidate)) return candidate;
+    }
+
+    return ((preferredTeam % teamCount) + teamCount) % teamCount;
+};
+
+const getRevealableAnswerIndices = (answer: string) =>
+    Array.from(answer || '')
+        .map((char, index) => ({ char, index }))
+        .filter(({ char }) => /[A-Za-z0-9]/.test(char))
+        .map(({ index }) => index);
+
+const getFirstRevealableIndex = (answer: string) => {
+    const revealable = getRevealableAnswerIndices(answer);
+    return revealable.length ? revealable[0] : -1;
+};
+
+const getBaselineHintIndices = (entry: WheelEntry) => {
+    const baseline = new Set<number>();
+    const firstIndex = getFirstRevealableIndex(entry.answer || '');
+    if (firstIndex >= 0) baseline.add(firstIndex);
+    return baseline;
+};
+
+const pickRandom = <T,>(items: T[], count: number) => {
+    if (count <= 0 || !items.length) return [];
+    const shuffled = [...items].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(count, shuffled.length));
+};
+
+const revealAnswerLetters = (entry: WheelEntry, ratio = 0.2, excludedIndices?: Set<number>) => {
+    const revealable = getRevealableAnswerIndices(entry.answer || '');
+    if (!revealable.length) return [];
+
+    const current = new Set(entry.revealedLetterIndices || []);
+    const excluded = excludedIndices || new Set<number>();
+    const hiddenRevealable = revealable.filter((index) => !current.has(index) && !excluded.has(index));
+    if (!hiddenRevealable.length) return Array.from(current).sort((a, b) => a - b);
+
+    // Baseline helper letters (like first letter) are excluded, and do not count toward the 20% reveal.
+    const revealCount = Math.max(1, Math.ceil(revealable.length * ratio));
+
+    const picks: number[] = [];
+    const primaryPicks = pickRandom(hiddenRevealable, revealCount);
+    primaryPicks.forEach((index) => picks.push(index));
+
+    picks.forEach((index) => current.add(index));
+
+    return Array.from(current).sort((a, b) => a - b);
+};
+
+const hasHiddenHintLetters = (entry: WheelEntry, excludedIndices?: Set<number>) => {
+    const revealable = getRevealableAnswerIndices(entry.answer || '');
+    if (!revealable.length) return false;
+    const revealed = new Set(entry.revealedLetterIndices || []);
+    const excluded = excludedIndices || new Set<number>();
+    return revealable.some((index) => !revealed.has(index) && !excluded.has(index));
+};
+
+const buildHintPreview = (entry: WheelEntry, alwaysRevealedIndices?: Set<number>) => {
+    const revealSet = new Set(entry.revealedLetterIndices || []);
+    if (alwaysRevealedIndices) {
+        alwaysRevealedIndices.forEach((index) => revealSet.add(index));
+    }
+    return Array.from(entry.answer || '')
+        .map((char, index) => {
+            if (!/[A-Za-z0-9]/.test(char)) return char;
+            return revealSet.has(index) ? char.toUpperCase() : '_';
+        })
+        .join(' ');
+};
+
+const getAnswerRevealTone = (status: WheelStatus) => {
+    if (status === 'solved') {
+        return {
+            label: 'Correct',
+            listRowClass: 'bg-emerald-500/15 border-emerald-300/45 hover:bg-emerald-500/25',
+            listAnswerClass: 'text-emerald-200',
+            badgeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-300/40',
+            modalAnswerClass: 'text-emerald-600',
+            modalBadgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        };
+    }
+    if (status === 'passed') {
+        return {
+            label: 'Passed',
+            listRowClass: 'bg-amber-500/15 border-amber-300/45 hover:bg-amber-500/25',
+            listAnswerClass: 'text-amber-100',
+            badgeClass: 'bg-amber-500/20 text-amber-100 border-amber-300/40',
+            modalAnswerClass: 'text-amber-600',
+            modalBadgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+        };
+    }
+    return {
+        label: 'Failed',
+        listRowClass: 'bg-rose-500/15 border-rose-300/45 hover:bg-rose-500/25',
+        listAnswerClass: 'text-rose-200',
+        badgeClass: 'bg-rose-500/20 text-rose-100 border-rose-300/40',
+        modalAnswerClass: 'text-rose-600',
+        modalBadgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
+    };
+};
+
 const buildEntries = (questions: GeneratedQuestion[]): WheelEntry[] => {
     const byLetter = new Map<string, GeneratedQuestion>();
 
@@ -138,6 +258,7 @@ const buildEntries = (questions: GeneratedQuestion[]): WheelEntry[] => {
             points: Number(source?.points) > 0 ? Number(source.points) : 10,
             status: playable ? 'pending' : 'missed',
             passedByTeams: [],
+            revealedLetterIndices: [],
             image: source?.image,
         };
     });
@@ -215,6 +336,7 @@ const WHEEL_SPIN_DELAY_MS = 180;
 const LETTER_POP_MS = 340;
 const WHEEL_SPIN_DURATION_MS = 760;
 const LETTER_PULSE_MS = 1700;
+const CLUE_PURCHASE_COST = 5;
 
 export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
     const teamCount = Math.max(1, Math.min(4, options.players || 1));
@@ -240,9 +362,13 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const [isMuted, setIsMuted] = useState(Boolean(options.muted));
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
     const [editScore, setEditScore] = useState(0);
+    const [teamCluesLeft, setTeamCluesLeft] = useState<number[]>(() => Array(teamCount).fill(3));
+    const [endGameRevealList, setEndGameRevealList] = useState<Array<{ letter: string; answer: string }>>([]);
+    const [reviewEntryId, setReviewEntryId] = useState<number | null>(null);
     const [timeLeft, setTimeLeft] = useState(options.timerSeconds > 0 ? options.timerSeconds : 0);
     const [cardState, setCardState] = useState<CardState>('hidden');
     const [isFlipped, setIsFlipped] = useState(false);
@@ -266,12 +392,13 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const spinTimeoutRef = useRef<number | null>(null);
     const spinFrameRef = useRef<number | null>(null);
     const popTimeoutRef = useRef<number | null>(null);
+    const scoresRef = useRef<number[]>(scores);
 
     const scoringMode = options.wordWheelScoringMode || game.config.wordWheelScoringMode || 'classic';
     const letterRule = options.wordWheelLetterRule || game.config.wordWheelLetterRule || 'contains-hard';
     const hasTimer = options.timerSeconds > 0;
     const activeEntry = activeIndex >= 0 ? entries[activeIndex] : null;
-    const activeRelation = activeEntry ? getLetterRelation(letterRule, activeEntry.letter) : 'starts-with';
+    const activeRelation = activeEntry ? getLetterRelation(letterRule, activeEntry.letter, activeEntry.answer) : 'starts-with';
     const activeRelationHeader = activeRelation === 'contains' ? 'Contains the letter' : 'Starts with the letter';
     const solvedCount = entries.filter((entry) => entry.status === 'solved').length;
     const cardOverlayTop = Math.max(0, headerHeight);
@@ -398,6 +525,10 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     }, []);
 
     useEffect(() => {
+        scoresRef.current = scores;
+    }, [scores]);
+
+    useEffect(() => {
         const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
         document.addEventListener('fullscreenchange', onFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -508,6 +639,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     useEffect(() => {
         if (phase !== 'play') return;
         if (activeIndex !== -1) return;
+        setEndGameRevealList([]);
+        setReviewEntryId(null);
         setPhase('gameover');
     }, [phase, activeIndex]);
 
@@ -626,8 +759,87 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
     const handlePass = (fromTimeout = false) => {
         if (!activeEntry) return;
-        if (!fromTimeout && hasBeenPassedByAllTeams(activeEntry, teamCount)) return;
+        const passBlocked = hasBeenPassedByAllTeams(activeEntry, teamCount);
+        if (!fromTimeout && passBlocked) return;
         resolveTurn(fromTimeout ? 'timeout' : 'passed');
+    };
+
+    const handleUseClue = () => {
+        if (phase !== 'play') return;
+        if (cardState !== 'question') return;
+        if (!activeEntry || activeIndex < 0) return;
+        if ((teamCluesLeft[currentTeam] || 0) <= 0) return;
+
+        const excludedIndices = getBaselineHintIndices(activeEntry);
+        const nextRevealed = revealAnswerLetters(activeEntry, 0.2, excludedIndices);
+        const currentRevealedLength = activeEntry.revealedLetterIndices?.length || 0;
+        if (nextRevealed.length <= currentRevealedLength) return;
+
+        setEntries((prev) =>
+            prev.map((entry, index) =>
+                index === activeIndex ? { ...entry, revealedLetterIndices: nextRevealed } : entry
+            )
+        );
+        setTeamCluesLeft((prev) => {
+            const next = [...prev];
+            next[currentTeam] = Math.max(0, (next[currentTeam] || 0) - 1);
+            return next;
+        });
+        playSound('select', isMuted, options.soundConfig?.select);
+    };
+
+    const handleBuyClue = () => {
+        if (phase !== 'play') return;
+        if (cardState !== 'question') return;
+        if (!activeEntry || activeIndex < 0) return;
+
+        const baseline = getBaselineHintIndices(activeEntry);
+        if (!hasHiddenHintLetters(activeEntry, baseline)) return;
+        const nextRevealed = revealAnswerLetters(activeEntry, 0.2, baseline);
+        const currentRevealedLength = activeEntry.revealedLetterIndices?.length || 0;
+        if (nextRevealed.length <= currentRevealedLength) return;
+
+        const currentScore = scoresRef.current[currentTeam] || 0;
+        if (currentScore <= 0 || currentScore < CLUE_PURCHASE_COST) return;
+
+        const nextScores = [...scoresRef.current];
+        nextScores[currentTeam] = currentScore - CLUE_PURCHASE_COST;
+        scoresRef.current = nextScores;
+        setScores(nextScores);
+
+        setEntries((prev) =>
+            prev.map((entry, index) =>
+                index === activeIndex ? { ...entry, revealedLetterIndices: nextRevealed } : entry
+            )
+        );
+
+        playSound('select', isMuted, options.soundConfig?.select);
+    };
+
+    const handleEndGameNow = () => {
+        if (phase !== 'play') return;
+
+        clearWheelMotionTimeouts();
+        const remaining = entries
+            .filter((entry) => (entry.status === 'pending' || entry.status === 'passed') && String(entry.answer || '').trim().length > 0)
+            .map((entry) => ({ letter: entry.letter, answer: entry.answer }));
+
+        setEndGameRevealList(remaining);
+        setEntries((prev) =>
+            prev.map((entry) =>
+                entry.status === 'pending'
+                    ? { ...entry, status: 'missed' as WheelStatus }
+                    : entry
+            )
+        );
+        setCardState('hidden');
+        setRevealState(null);
+        setIsFlipped(false);
+        setInput('');
+        setReviewEntryId(null);
+        setShowEndGameConfirm(false);
+        setPhase('gameover');
+        playSound('win', isMuted, options.soundConfig?.win);
     };
 
     const openEditTeam = (index: number) => {
@@ -685,12 +897,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         const nextIndex = findNextPlayableIndex(entries, activeIndex);
         if (nextIndex === -1) {
             clearWheelMotionTimeouts();
+            setEndGameRevealList([]);
+            setReviewEntryId(null);
             setPhase('gameover');
             playSound('win', isMuted, options.soundConfig?.win);
             return;
         }
 
-        const nextTeam = teamCount === 1 ? 0 : (currentTeam + 1) % teamCount;
+        const nextTeam = pickTeamForEntryTurn(entries[nextIndex], teamCount === 1 ? 0 : (currentTeam + 1) % teamCount, teamCount);
         clearWheelMotionTimeouts();
 
         spinTimeoutRef.current = window.setTimeout(() => {
@@ -743,6 +957,17 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         const second = otherTeams[0];
         const third = otherTeams[1];
         const confettiCount = isMobileViewport ? 90 : 140;
+        const revealableEntries = entries.filter(
+            (entry) => String(entry.answer || '').trim().length > 0 && String(entry.question || '').trim().length > 0
+        );
+        const selectedReviewEntry =
+            reviewEntryId === null ? null : revealableEntries.find((entry) => entry.id === reviewEntryId) || null;
+        const selectedReviewTone = selectedReviewEntry ? getAnswerRevealTone(selectedReviewEntry.status) : null;
+        const selectedReviewRelation = selectedReviewEntry
+            ? getLetterRelation(letterRule, selectedReviewEntry.letter, selectedReviewEntry.answer)
+            : 'starts-with';
+        const selectedReviewRelationHeader =
+            selectedReviewRelation === 'contains' ? 'Contains the letter' : 'Starts with the letter';
 
         return (
             <div
@@ -859,8 +1084,86 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 ))}
                             </div>
                         </div>
+
+                        <div className="w-full max-w-5xl mt-6 bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                            <h3 className="text-lg sm:text-2xl font-black">Revealed Answers</h3>
+                            <p className="text-xs sm:text-sm text-cyan-100/90 mt-1 mb-3">
+                                Click an answer to open its clue card context.
+                                {endGameRevealList.length > 0 ? ` (${endGameRevealList.length} unresolved clue${endGameRevealList.length === 1 ? '' : 's'} were revealed when ending early.)` : ''}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-left">
+                                {revealableEntries.map((entry) => {
+                                    const tone = getAnswerRevealTone(entry.status);
+                                    return (
+                                        <button
+                                            key={`reveal-${entry.id}`}
+                                            type="button"
+                                            onClick={() => setReviewEntryId(entry.id)}
+                                            className={`w-full rounded-xl border px-3 py-2 text-left transition-colors ${tone.listRowClass}`}
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <span className="font-black text-cyan-100 mr-2">{entry.letter}:</span>
+                                                    <span className={`font-black text-base sm:text-lg break-words ${tone.listAnswerClass}`}>
+                                                        {entry.answer}
+                                                    </span>
+                                                </div>
+                                                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wide ${tone.badgeClass}`}>
+                                                    {tone.label}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {selectedReviewEntry && selectedReviewTone && (
+                    <div className="fixed inset-0 z-[560] bg-black/55 backdrop-blur-sm p-4 flex items-center justify-center">
+                        <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+                            <div className="bg-brand-blue text-white p-4 sm:p-5 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-xs sm:text-xl md:text-2xl uppercase tracking-wide font-bold opacity-90 leading-none">
+                                        {selectedReviewRelationHeader}
+                                    </div>
+                                    <div className="text-4xl sm:text-6xl font-black leading-none mt-1">
+                                        {selectedReviewEntry.letter}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setReviewEntryId(null)}
+                                    className="shrink-0 rounded-lg bg-white/15 hover:bg-white/25 p-2 text-white"
+                                    aria-label="Close clue review"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="p-4 sm:p-6 md:p-7 space-y-4">
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="text-xs uppercase tracking-wide font-black text-slate-500">Question</div>
+                                    <p className="mt-2 text-slate-800 font-display font-bold text-xl sm:text-3xl leading-tight break-words whitespace-pre-wrap">
+                                        {selectedReviewEntry.question}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="text-xs uppercase tracking-wide font-black text-slate-500">Answer</div>
+                                        <span className={`rounded-full border px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wide ${selectedReviewTone.modalBadgeClass}`}>
+                                            {selectedReviewTone.label}
+                                        </span>
+                                    </div>
+                                    <p className={`mt-2 font-display font-black text-2xl sm:text-4xl leading-tight break-words whitespace-pre-wrap ${selectedReviewTone.modalAnswerClass}`}>
+                                        {selectedReviewEntry.answer}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -869,7 +1172,30 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const questionImageAlt = activeEntry?.image?.alt || 'Clue image';
     const timerProgress = hasTimer ? Math.max(0, Math.min(1, timeLeft / Math.max(options.timerSeconds, 1))) : 0;
     const cardPlayable = Boolean(activeEntry && activeEntry.question && activeEntry.answer);
-    const canPassCurrent = Boolean(activeEntry && !hasBeenPassedByAllTeams(activeEntry, teamCount));
+    const activeHintBaseline = activeEntry ? getBaselineHintIndices(activeEntry) : new Set<number>();
+    const currentTeamClues = teamCluesLeft[currentTeam] || 0;
+    const canPassCurrent = Boolean(
+        activeEntry &&
+        !hasBeenPassedByAllTeams(activeEntry, teamCount)
+    );
+    const canUseClueCurrent = Boolean(
+        activeEntry &&
+        cardState === 'question' &&
+        currentTeamClues > 0 &&
+        hasHiddenHintLetters(activeEntry, activeHintBaseline)
+    );
+    const canBuyClueCurrent = Boolean(
+        activeEntry &&
+        cardState === 'question' &&
+        (scores[currentTeam] || 0) > 0 &&
+        (scores[currentTeam] || 0) >= CLUE_PURCHASE_COST &&
+        hasHiddenHintLetters(activeEntry, activeHintBaseline)
+    );
+    const showBuyClueButton = currentTeamClues <= 0;
+    const cluePreview =
+        activeEntry && (activeEntry.revealedLetterIndices?.length || 0) > 0
+            ? buildHintPreview(activeEntry, activeHintBaseline)
+            : '';
     const openCardButtonLabel = isWheelSpinning ? 'Spinning...' : hasStartedWheel ? 'Continue' : 'Start';
 
     return (
@@ -900,6 +1226,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                             <ArrowLeft size={16} className="sm:mr-1" />
                             <span className="hidden sm:inline">Quit</span>
                         </button>
+                        <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className="w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-lg bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center"
+                            title="End game now"
+                        >
+                            <Flag size={16} className="sm:mr-1" />
+                            <span className="hidden sm:inline">End Game</span>
+                        </button>
                     </div>
 
                     <div className="flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
@@ -917,6 +1251,9 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                         {teamNames[index]}
                                     </div>
                                     <div className="font-mono font-black text-2xl sm:text-4xl">{score}</div>
+                                    <div className="text-[10px] sm:text-xs font-bold text-cyan-100/80 mt-0.5">
+                                        Clues: {teamCluesLeft[index] ?? 0}
+                                    </div>
                                     <div className="absolute top-1.5 right-1.5 rounded-full bg-slate-200/90 text-slate-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Edit2 size={10} />
                                     </div>
@@ -1056,7 +1393,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 <div className="bg-brand-blue text-white p-3 md:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
                                     <div className="font-black text-sm sm:text-xl truncate">{teamNames[currentTeam]}</div>
                                     <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 min-w-0 leading-none">
-                                        <div className="text-[10px] sm:text-xs md:text-sm font-bold uppercase tracking-wide opacity-90 whitespace-nowrap text-right">
+                                        <div className="text-[10px] sm:text-2xl md:text-[28px] font-bold uppercase tracking-wide opacity-90 whitespace-nowrap text-right leading-none">
                                             {activeRelationHeader}
                                         </div>
                                         <div className="font-black leading-[0.82] [font-size:clamp(2.4rem,8vw,5.6rem)]">
@@ -1065,11 +1402,21 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     </div>
                                     <div className="text-right justify-self-end">
                                         {hasTimer ? (
-                                            <div className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
-                                                <Clock size={16} className="mr-1" /> {timeLeft}s
-                                            </div>
+                                            <>
+                                                <div className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
+                                                    <Clock size={16} className="mr-1" /> {timeLeft}s
+                                                </div>
+                                                <div className="font-bold text-[10px] sm:text-sm uppercase tracking-wide opacity-90 mt-1">
+                                                    Clues {teamCluesLeft[currentTeam] ?? 0}
+                                                </div>
+                                            </>
                                         ) : (
-                                            <div className="font-bold text-xs sm:text-sm uppercase tracking-wide opacity-80">No Timer</div>
+                                            <>
+                                                <div className="font-bold text-xs sm:text-sm uppercase tracking-wide opacity-80">No Timer</div>
+                                                <div className="font-bold text-[10px] sm:text-sm uppercase tracking-wide opacity-90 mt-1">
+                                                    Clues {teamCluesLeft[currentTeam] ?? 0}
+                                                </div>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -1099,6 +1446,12 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                         >
                                             {activeEntry.question}
                                         </p>
+                                        {cluePreview && (
+                                            <div className="mt-4 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 w-full max-w-3xl">
+                                                <div className="text-[10px] sm:text-xs uppercase tracking-wide text-sky-700 font-bold mb-1">Clue reveal</div>
+                                                <div className="font-mono font-bold text-slate-800 text-base sm:text-2xl break-words">{cluePreview}</div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <form onSubmit={handleSubmit} className="border-t border-slate-200 p-3 sm:p-4 bg-slate-50">
@@ -1110,10 +1463,10 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             className="w-full p-3 sm:p-4 rounded-xl border border-slate-300 bg-white text-slate-900 text-lg sm:text-2xl font-bold outline-none focus:ring-2 focus:ring-brand-yellow"
                                             autoFocus
                                         />
-                                        <div className="grid grid-cols-2 gap-2 sm:gap-3 mt-3">
+                                        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
                                             <button
                                                 type="submit"
-                                                className="py-3 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-lg sm:text-2xl disabled:opacity-50"
+                                                className="py-3 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm sm:text-2xl disabled:opacity-50"
                                                 disabled={!input.trim()}
                                             >
                                                 Submit
@@ -1121,10 +1474,24 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             <button
                                                 type="button"
                                                 onClick={() => handlePass(false)}
-                                                className="py-3 sm:py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-lg sm:text-2xl disabled:opacity-45 disabled:cursor-not-allowed"
+                                                className="py-3 sm:py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm sm:text-2xl disabled:opacity-45 disabled:cursor-not-allowed"
                                                 disabled={!canPassCurrent}
                                             >
                                                 Pass
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={showBuyClueButton ? handleBuyClue : handleUseClue}
+                                                className={`py-3 sm:py-4 rounded-xl text-white font-black text-sm sm:text-xl disabled:opacity-45 disabled:cursor-not-allowed ${
+                                                    showBuyClueButton
+                                                        ? 'bg-slate-700 hover:bg-slate-600'
+                                                        : 'bg-sky-600 hover:bg-sky-500'
+                                                }`}
+                                                disabled={showBuyClueButton ? !canBuyClueCurrent : !canUseClueCurrent}
+                                            >
+                                                {showBuyClueButton
+                                                    ? `Buy Clue (-${CLUE_PURCHASE_COST})`
+                                                    : `Use Clue (${currentTeamClues})`}
                                             </button>
                                         </div>
                                     </form>
@@ -1217,6 +1584,36 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 className="py-2.5 rounded-lg bg-red-500 text-white font-bold hover:bg-red-600"
                             >
                                 Quit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showEndGameConfirm && (
+                <div className="fixed inset-0 z-[530] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
+                        <button
+                            onClick={() => setShowEndGameConfirm(false)}
+                            className="ml-auto mb-2 text-slate-400 hover:text-slate-600 block"
+                            aria-label="Close"
+                        >
+                            <X size={20} />
+                        </button>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">End game now?</h2>
+                        <p className="text-slate-500 text-sm mb-5">The game will stop immediately and all remaining answers will be revealed.</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => setShowEndGameConfirm(false)}
+                                className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleEndGameNow}
+                                className="py-2.5 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700"
+                            >
+                                End game now
                             </button>
                         </div>
                     </div>

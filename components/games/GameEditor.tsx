@@ -44,6 +44,14 @@ const answerMatchesWordWheelRule = (
     return relation === 'contains' ? cleanAnswer.includes(letter) : cleanAnswer.startsWith(letter);
 };
 
+const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: string) => {
+    if (!letter) return 'answer should match the assigned letter rule';
+    if (rule === 'contains-hard' && WORD_WHEEL_CONTAINS_HARD.has(letter)) {
+        return `answer should contain "${letter}" or start with "${letter}"`;
+    }
+    return `answer should start with "${letter}"`;
+};
+
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onBack }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [activeTab, setActiveTab] = useState<number>(0);
@@ -1063,7 +1071,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const imageAlt = q.image?.alt || 'Question image';
                                         const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex] || '').toUpperCase();
                                         const wordWheelRule = (editedGame.config.wordWheelLetterRule || 'contains-hard') as 'starts-with' | 'contains-hard';
-                                        const wordWheelRelation = getWordWheelRuleForLetter(wordWheelRule, wordWheelLetter);
+                                        const wordWheelRuleHint = getWordWheelRuleHint(wordWheelRule, wordWheelLetter);
                                         const answerFitsWordWheelRule = !isWordWheel || answerMatchesWordWheelRule(q.answer, wordWheelLetter, wordWheelRule);
                                         return (
                                         <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
@@ -1202,7 +1210,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         />
                                                         {isWordWheel && wordWheelLetter && (
                                                             <p className={`mt-2 text-xs font-semibold ${answerFitsWordWheelRule ? 'text-teal-700' : 'text-red-600'}`}>
-                                                                Rule for {wordWheelLetter}: {wordWheelRelation === 'contains' ? `answer should contain "${wordWheelLetter}"` : `answer should start with "${wordWheelLetter}"`}
+                                                                Rule for {wordWheelLetter}: {wordWheelRuleHint}
                                                             </p>
                                                         )}
                                                         {isWordWheel && wordWheelLetter && !answerFitsWordWheelRule && q.answer.trim() && (

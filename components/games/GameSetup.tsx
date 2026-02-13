@@ -412,7 +412,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         </p>
                         <p className="text-[10px] text-slate-500 mt-2">
                             Letter rule: {(options.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
-                                ? 'Q/V/X/Y/Z use contains; others start with the letter.'
+                                ? 'Q/V/X/Y/Z can contain or start with the letter (contains is preferred for challenge); others start with the letter.'
                                 : 'All letters use starts with.'}
                         </p>
                     </div>

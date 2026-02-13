@@ -738,8 +738,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                                 }`}
                                             >
-                                                <div className="text-sm font-bold text-slate-800">Contains for Q/V/X/Y/Z</div>
-                                                <p className="text-xs text-slate-500 mt-1">Hard letters use contains; all others start with the letter.</p>
+                                                <div className="text-sm font-bold text-slate-800">Flexible Q/V/X/Y/Z</div>
+                                                <p className="text-xs text-slate-500 mt-1">Hard letters can contain or start with the letter (contains preferred); all others start with the letter.</p>
                                             </button>
                                             <button
                                                 type="button"
@@ -773,7 +773,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letter Matching</label>
                                             <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
                                                 {(config.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
-                                                    ? 'Q/V/X/Y/Z use contains; others start with the letter'
+                                                    ? 'Q/V/X/Y/Z can contain or start with the letter (contains preferred); others start with the letter'
                                                     : 'All letters use starts with'}
                                             </div>
                                         </div>

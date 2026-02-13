@@ -286,8 +286,31 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
 };
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
+type WordWheelLetterRule = 'starts-with' | 'contains-hard';
 
-const normalizeWordWheelQuestions = (rawQuestions: any[]): GeneratedQuestion[] => {
+const normalizeWordWheelAnswer = (value: any) =>
+  String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '');
+
+const answerMatchesWordWheelRule = (
+  answer: string,
+  letter: string,
+  rule: WordWheelLetterRule
+) => {
+  const cleanAnswer = normalizeWordWheelAnswer(answer);
+  if (!cleanAnswer || !letter) return false;
+  if (rule === 'contains-hard' && WORD_WHEEL_CONTAINS_HARD.has(letter)) {
+    return cleanAnswer.includes(letter);
+  }
+  return cleanAnswer.startsWith(letter);
+};
+
+const normalizeWordWheelQuestions = (
+  rawQuestions: any[],
+  rule: WordWheelLetterRule = 'contains-hard'
+): GeneratedQuestion[] => {
   const byLetter = new Map<string, GeneratedQuestion>();
 
   const normalizeLetter = (value: any): string => {
@@ -317,13 +340,14 @@ const normalizeWordWheelQuestions = (rawQuestions: any[]): GeneratedQuestion[] =
     const letter = normalizeLetter(q.letter) || WORD_WHEEL_LETTERS[index] || fallbackLetter || '';
     if (!WORD_WHEEL_LETTERS.includes(letter)) return;
     if (byLetter.has(letter)) return;
+    const answerFitsRule = answerMatchesWordWheelRule(answer, letter, rule);
 
     byLetter.set(letter, {
       id: typeof q.id === 'number' ? q.id : index,
       letter,
-      question: String(q.question || '').trim(),
-      answer,
-      answerAliases: normalizeAliases(q.answerAliases, answer),
+      question: answerFitsRule ? String(q.question || '').trim() : '',
+      answer: answerFitsRule ? answer : '',
+      answerAliases: answerFitsRule ? normalizeAliases(q.answerAliases, answer) : [],
       points: Number.isFinite(q.points) && Number(q.points) > 0 ? Number(q.points) : 10,
       isBonus: false,
       imageKeywords: Array.isArray(q.imageKeywords)
@@ -488,7 +512,10 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   if (external) {
     const normalizedExternalQuestions =
       config.type === GameType.WORD_WHEEL
-        ? normalizeWordWheelQuestions(external.questions || [])
+        ? normalizeWordWheelQuestions(
+            external.questions || [],
+            (config.wordWheelLetterRule || 'contains-hard') as WordWheelLetterRule
+          )
         : (external.questions || []);
     const hydrated = await hydrateGameAutoImages(
       {
@@ -737,7 +764,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   } else if (isWordWheel) {
       const letterRuleInstruction =
           wordWheelLetterRule === 'contains-hard'
-              ? 'For letters Q, V, X, Y, Z: the answer must CONTAIN the letter anywhere. For all other letters: the answer must START with the letter.'
+              ? 'For letters Q, V, X, Y, Z: the answer may START with the letter OR CONTAIN it. Prefer CONTAINS only when it still gives a natural, age-appropriate word; STARTS WITH is fully valid. For all other letters: the answer must START with the letter.'
               : 'For every letter A-Z: the answer must START with the letter.';
 
       prompt = `
@@ -849,7 +876,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
     enforceGameAnswerMatchesOptions(data);
 
-    const normalizedQuestions = isWordWheel ? normalizeWordWheelQuestions(data.questions || []) : (data.questions || []);
+    const normalizedQuestions = isWordWheel
+      ? normalizeWordWheelQuestions(
+          data.questions || [],
+          (config.wordWheelLetterRule || 'contains-hard') as WordWheelLetterRule
+        )
+      : (data.questions || []);
 
     const hydrated = await hydrateGameAutoImages(
       {
