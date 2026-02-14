@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Trophy, RefreshCw, Plus, Minus, AlertTriangle } from 'lucide-react';
+import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Plus, Minus, AlertTriangle, Flag } from 'lucide-react';
 
 interface SurveyShowdownGameProps {
     game: GeneratedGame;
@@ -138,6 +139,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     
     const [phase, setPhase] = useState<'play' | 'gameover'>('play');
     
@@ -423,151 +425,38 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
     // --- GAME OVER SCREEN ---
     if (phase === 'gameover') {
-        const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-        const winnerIndices = scores.reduce<number[]>((acc, score, idx) => {
-            if (score === maxScore) acc.push(idx);
-            return acc;
-        }, []);
-        const winnerTitle = winnerIndices.length === 1 ? "Winning Team" : "Top Teams";
-        const winnerName = winnerIndices.length === 1
-            ? teamNames[winnerIndices[0]]
-            : winnerIndices.length > 1
-                ? winnerIndices.map(i => teamNames[i]).join(' & ')
-                : "No teams";
-        
-        if (isMobileViewport) {
-            const rankedTeams = scores
-                .map((score, index) => ({ name: teamNames[index], score, id: index }))
-                .sort((a, b) => b.score - a.score);
-
-            return (
-                <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 z-[300] flex flex-col items-center justify-center animate-fade-in text-white overflow-hidden">
-                    <style>
-                        {`
-                        @keyframes confetti-fall {
-                            0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
-                            100% { transform: translateY(110vh) translateX(20px) rotate3d(1, 1, 1, 360deg); opacity: 0; }
-                        }
-                        .confetti-piece {
-                            position: absolute;
-                            animation: confetti-fall 4s linear infinite;
-                            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-                        }
-                        `}
-                    </style>
-                    <div className="absolute inset-0 pointer-events-none">
-                        {Array.from({length: 100}).map((_, i) => (
-                            <div key={i} className="confetti-piece" style={{
-                                left: `${Math.random() * 100}%`,
-                                top: `${Math.random() * -20}%`,
-                                backgroundColor: ['#FACC15', '#0EA5E9', '#EC4899', '#FFF'][Math.floor(Math.random() * 4)],
-                                width: `${Math.random() * 10 + 5}px`,
-                                height: `${Math.random() * 15 + 5}px`,
-                                animationDelay: `${Math.random() * 5}s`,
-                                animationDuration: `${Math.random() * 2 + 3}s`
-                            }} />
-                        ))}
-                    </div>
-
-                    <div className="relative z-10 w-full h-full overflow-y-auto px-4 pt-24 pb-10 text-center">
-                        <div className="min-h-[75vh] flex flex-col items-center justify-center">
-                            <Trophy size={72} className="text-brand-yellow mb-4 animate-bounce drop-shadow-xl" />
-                            <h1 className="text-4xl font-black mb-2 tracking-widest uppercase text-shadow-lg">Game Over</h1>
-                            <div className="text-sm font-bold text-indigo-200 uppercase tracking-wider mb-2">{winnerTitle}</div>
-                            <div className="text-2xl font-display font-black text-white drop-shadow-md mb-4">{winnerName}</div>
-
-                            <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20 text-center shadow-2xl">
-                                <div className="text-xs font-bold text-indigo-200 uppercase tracking-wider mb-1">Top Score</div>
-                                <div className="text-3xl font-mono font-black text-brand-yellow">{maxScore}</div>
-                            </div>
-
-                            <div className="flex gap-3 mt-6">
-                                <button onClick={onReplay} className="px-6 py-3 bg-brand-yellow text-slate-900 rounded-full font-bold text-base shadow-lg">
-                                    Play Again
-                                </button>
-                                <button onClick={onFinish} className="px-6 py-3 bg-slate-800 text-white rounded-full font-bold text-base shadow-lg border border-slate-600">
-                                    Exit to Library
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-10 pt-6 border-t border-white/10">
-                            <h2 className="text-xs uppercase tracking-widest text-indigo-200 text-center mb-4">Full Standings</h2>
-                            <div className="space-y-3">
-                                {rankedTeams.map((team, idx) => (
-                                    <div key={team.id} className="bg-white/10 border border-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                        <div className="font-bold text-white">#{idx + 1} {team.name}</div>
-                                        <div className="font-mono font-bold text-white">{team.score}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
+        const ranking = scores
+            .map((score, index) => ({ index, score, name: teamNames[index] || `Team ${index + 1}` }))
+            .sort((a, b) => b.score - a.score);
+        const winnerScore = ranking.length ? ranking[0].score : 0;
+        const winners = ranking.filter((team) => team.score === winnerScore);
+        const winnerHeadline = winners.length > 1
+            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
+            : `WINNER: ${winners[0]?.name || 'No winner'}`;
 
         return (
-            <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 to-purple-900 z-[300] flex flex-col items-center justify-center animate-fade-in text-white overflow-hidden">
-                <style>
-                    {`
-                    @keyframes confetti-fall {
-                        0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
-                        100% { transform: translateY(110vh) translateX(20px) rotate3d(1, 1, 1, 360deg); opacity: 0; }
-                    }
-                    .confetti-piece {
-                        position: absolute;
-                        animation: confetti-fall 4s linear infinite;
-                        box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-                    }
-                    `}
-                </style>
-                <div className="absolute inset-0 pointer-events-none">
-                    {Array.from({length: 100}).map((_, i) => (
-                        <div key={i} className="confetti-piece" style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * -20}%`,
-                            backgroundColor: ['#FACC15', '#0EA5E9', '#EC4899', '#FFF'][Math.floor(Math.random() * 4)],
-                            width: `${Math.random() * 10 + 5}px`,
-                            height: `${Math.random() * 15 + 5}px`,
-                            animationDelay: `${Math.random() * 5}s`,
-                            animationDuration: `${Math.random() * 2 + 3}s`
-                        }} />
-                    ))}
-                </div>
-
-                <Trophy size={100} className="text-brand-yellow mb-6 animate-bounce drop-shadow-xl" />
-                <h1 className="text-6xl font-black mb-4 tracking-widest uppercase text-shadow-lg">GAME OVER</h1>
-                
-                <div className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 mb-12 text-center shadow-2xl">
-                    <h2 className="text-2xl font-bold text-indigo-200 mb-2 uppercase tracking-wider">{winnerTitle}</h2>
-                    <div className="text-5xl font-display font-black text-white drop-shadow-md mb-6">{winnerName}</div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {teamNames.map((name, idx) => (
-                            <div
-                                key={`${name}-${idx}`}
-                                className={`text-center p-4 rounded-2xl border ${
-                                    winnerIndices.includes(idx)
-                                        ? 'border-brand-yellow bg-white/10'
-                                        : 'border-white/10 bg-white/5'
-                                }`}
-                            >
-                                <p className="text-xs font-bold text-slate-400 uppercase">{name}</p>
-                                <p className="text-3xl font-mono font-bold text-brand-yellow">{scores[idx] ?? 0}</p>
-                            </div>
-                        ))}
+            <div
+                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+            >
+                <WinnerCeremonyHero
+                    winnerHeadline={winnerHeadline}
+                    subtitle="Final standings"
+                    ranking={ranking}
+                    isMobileViewport={isMobileViewport}
+                    onPlayAgain={onReplay}
+                    onExit={onFinish}
+                >
+                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                        <div className="space-y-3">
+                            {ranking.map((team, idx) => (
+                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                    <div className="font-bold">#{idx + 1} {team.name}</div>
+                                    <div className="font-mono font-black text-xl">{team.score}</div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
-
-                <div className="flex gap-4 relative z-50">
-                    <button onClick={onReplay} className="px-8 py-3 bg-brand-yellow text-slate-900 rounded-full font-bold text-xl hover:scale-105 transition-transform flex items-center shadow-lg">
-                        <RefreshCw size={24} className="mr-2" /> Play Again
-                    </button>
-                    <button onClick={onFinish} className="px-8 py-3 bg-slate-800 text-white rounded-full font-bold text-xl hover:bg-slate-700 transition-transform shadow-lg border-2 border-slate-600">
-                        Exit to Library
-                    </button>
-                </div>
+                </WinnerCeremonyHero>
             </div>
         );
     }
@@ -584,11 +473,25 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className="hidden sm:flex bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-white border border-rose-800"
+                            title="End game now"
+                        >
+                            <Flag size={16} className="mr-2" /> End Game
+                        </button>
+                        <button
                             onClick={() => setShowQuitConfirm(true)}
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
                             title="Quit"
                         >
                             <X size={18} />
+                        </button>
+                        <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
+                            title="End game now"
+                        >
+                            <Flag size={16} />
                         </button>
                         <div className="sm:hidden flex flex-col gap-1">
                             <button 
@@ -602,7 +505,6 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                             </button>
                         </div>
-                        <h1 className="text-slate-200 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">{game.title}</h1>
                     </div>
 
                     {/* TEAMS CENTER STAGE */}
@@ -946,6 +848,32 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
                                 Quit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showEndGameConfirm && (
+                <div className="fixed inset-0 z-[405] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
+                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setShowEndGameConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEndGameConfirm(false);
+                                    setPhase('gameover');
+                                }}
+                                className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
+                            >
+                                End game
                             </button>
                         </div>
                     </div>

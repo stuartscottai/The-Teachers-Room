@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, Trophy, RefreshCw, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull } from 'lucide-react';
+import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull, Flag } from 'lucide-react';
 
 interface TimeBombGameProps {
     game: GeneratedGame;
@@ -42,6 +43,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const containerRef = useRef<HTMLDivElement>(null);
     const timerRef = useRef<any>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [showExplosionModal, setShowExplosionModal] = useState(false);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -603,24 +605,46 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     }, [hasOptions, optionKey, gameState, isMobileViewport, resizeTick]);
 
     if (gameState === 'gameover') {
-        const winnerIndex = teamLives.findIndex(l => l > 0);
-        const winnerName = winnerIndex !== -1 ? teamNames[winnerIndex] : "Everyone Exploded!";
+        const ranking = teamLives
+            .map((lives, index) => ({
+                index,
+                score: lives,
+                name: teamNames[index] || `Team ${index + 1}`,
+            }))
+            .sort((a, b) => b.score - a.score);
+        const winnerScore = ranking.length ? ranking[0].score : 0;
+        const winners = ranking.filter((team) => team.score === winnerScore && team.score > 0);
+        const winnerHeadline = winners.length === 0
+            ? 'NO SURVIVOR'
+            : winners.length > 1
+                ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
+                : `WINNER: ${winners[0].name}`;
 
         return (
-            <div className="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center animate-fade-in">
-                <Trophy size={100} className="text-brand-yellow mb-6 animate-bounce" />
-                <h1 className="text-white text-6xl font-black mb-4">SURVIVOR!</h1>
-                <h2 className="text-brand-blue text-4xl font-display font-bold bg-white px-8 py-4 rounded-full mb-8 shadow-xl">
-                    {winnerName}
-                </h2>
-                <div className="flex gap-4">
-                    <button onClick={onReplay} className="px-8 py-3 bg-brand-yellow text-slate-900 rounded-xl font-bold hover:scale-105 transition-transform flex items-center">
-                        <RefreshCw className="mr-2" /> Play Again
-                    </button>
-                    <button onClick={onFinish} className="px-8 py-3 bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-600 transition-transform">
-                        Exit
-                    </button>
-                </div>
+            <div
+                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+            >
+                <WinnerCeremonyHero
+                    winnerHeadline={winnerHeadline}
+                    subtitle="Final survival standings"
+                    ranking={ranking}
+                    isMobileViewport={isMobileViewport}
+                    onPlayAgain={onReplay}
+                    onExit={onFinish}
+                >
+                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                        <div className="space-y-3">
+                            {ranking.map((team, idx) => (
+                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                    <div className="font-bold">#{idx + 1} {team.name}</div>
+                                    <div className="font-mono font-black text-xl">
+                                        {team.score} {team.score === 1 ? 'life' : 'lives'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </WinnerCeremonyHero>
             </div>
         );
     }
@@ -665,6 +689,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} />
                     </button>
+                    <button
+                        onClick={() => setShowEndGameConfirm(true)}
+                        className="text-white bg-rose-700 hover:bg-rose-600 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-rose-800"
+                        title="End game now"
+                    >
+                        <Flag size={14} />
+                    </button>
                     {gameState === 'play' && (
                         <button 
                             onClick={() => setIsPaused(!isPaused)} 
@@ -683,7 +714,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
-                    <h1 className="text-slate-200 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden mt-1">{game.title}</h1>
+                    <button
+                        onClick={() => setShowEndGameConfirm(true)}
+                        className="text-white bg-rose-700 hover:bg-rose-600 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-rose-800"
+                        title="End game now"
+                    >
+                        <Flag size={16} className="mr-2" /> End Game
+                    </button>
                 </div>
 
                 {/* Team Status Bar */}
@@ -1281,6 +1318,32 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                         <div className="flex space-x-4">
                             <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-lg hover:bg-slate-700">Cancel</button>
                             <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-500">Quit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showEndGameConfirm && (
+                <div className="fixed inset-0 z-[505] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-slate-900 border border-slate-700 text-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
+                        <p className="text-slate-400 mb-6">The game will stop and move to the winners screen.</p>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setShowEndGameConfirm(false)}
+                                className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-lg hover:bg-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEndGameConfirm(false);
+                                    setGameState('gameover');
+                                }}
+                                className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-500"
+                            >
+                                End game
+                            </button>
                         </div>
                     </div>
                 </div>

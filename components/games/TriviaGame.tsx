@@ -3,7 +3,8 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Trophy, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, Flag } from 'lucide-react';
 
 interface TriviaGameProps {
     game: GeneratedGame;
@@ -66,6 +67,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const [isFlipped, setIsFlipped] = useState(false);
     const [isGameOver, setIsGameOver] = useState(false);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     
     // Lock state to prevent double clicks/points
@@ -658,214 +660,39 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
     if (gameQuestions.length === 0) return <div className="text-slate-500 text-center p-8">Loading Game...</div>;
 
-    // Winner Screen with Podium
     if (isGameOver) {
-        // Calculate Winners
-        const maxScore = Math.max(...scores);
-        const winners = scores.map((s, i) => s === maxScore ? { name: teamNames[i], score: s, id: i } : null).filter(Boolean) as {name: string, score: number, id: number}[];
-        const isTie = winners.length > 1;
-
-        const rankedTeams = scores
-            .map((score, index) => ({ name: teamNames[index], score, id: index }))
+        const ranking = scores
+            .map((score, index) => ({ index, score, name: teamNames[index] || `Team ${index + 1}` }))
             .sort((a, b) => b.score - a.score);
-
-        // Rank others for 2nd/3rd
-        const otherTeams = scores
-            .map((score, index) => ({ name: teamNames[index], score, id: index }))
-            .filter(t => t.score < maxScore)
-            .sort((a, b) => b.score - a.score);
-        
-        const second = otherTeams[0];
-        const third = otherTeams[1];
-
-        if (isMobileViewport) {
-            return (
-                <div className="fixed inset-0 bg-gradient-to-br from-sky-50 to-indigo-100 z-[300] flex flex-col items-center justify-center overflow-hidden">
-                    {/* Realistic 3D Confetti CSS */}
-                    <style>
-                        {`
-                        @keyframes confetti-fall {
-                            0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
-                            25% { transform: translateY(25vh) translateX(20px) rotate3d(1, 1, 1, 90deg); }
-                            50% { transform: translateY(50vh) translateX(-20px) rotate3d(1, 1, 1, 180deg); }
-                            75% { transform: translateY(75vh) translateX(20px) rotate3d(1, 1, 1, 270deg); }
-                            100% { transform: translateY(110vh) translateX(0) rotate3d(1, 1, 1, 360deg); opacity: 0; }
-                        }
-                        .confetti-piece {
-                            position: absolute;
-                            animation: confetti-fall 4s linear infinite;
-                            box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-                        }
-                        `}
-                    </style>
-
-                    {/* Confetti Particles */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                        {Array.from({length: 150}).map((_, i) => (
-                            <div key={i} className="confetti-piece" style={{
-                                left: `${Math.random() * 100}%`,
-                                top: `${Math.random() * -20}%`,
-                                backgroundColor: ['#FACC15', '#0EA5E9', '#FB923C', '#22C55E', '#EC4899', '#FFF'][Math.floor(Math.random() * 6)],
-                                width: `${Math.random() * 12 + 6}px`,
-                                height: `${Math.random() * 18 + 6}px`,
-                                animationDelay: `${Math.random() * 5}s`,
-                                animationDuration: `${Math.random() * 2 + 3}s`,
-                                opacity: Math.random() + 0.5
-                            }} />
-                        ))}
-                    </div>
-
-                    <div className="relative z-10 w-full h-full overflow-y-auto px-4 pt-24 pb-10">
-                        <div className="min-h-[75vh] flex flex-col items-center justify-center text-center">
-                            <h1 className="font-display text-4xl font-black mb-4 text-slate-800 drop-shadow-xl tracking-widest uppercase" style={{ textShadow: '4px 4px 0px #fff' }}>
-                                {isTie ? "It's a Tie!" : "Winner!"}
-                            </h1>
-                            <Trophy size={72} className="text-brand-yellow mb-4 animate-pulse drop-shadow-xl" />
-                            <div className="text-brand-blue font-bold text-2xl mb-4">
-                                {winners.map(w => w.name).join(' & ')}
-                            </div>
-                            <div className="bg-white px-6 py-3 rounded-2xl text-brand-yellow font-mono text-3xl font-black border-2 border-yellow-100 shadow-lg">
-                                {maxScore}
-                            </div>
-
-                            <div className="flex gap-3 mt-6">
-                                <button 
-                                    onClick={onReplay} 
-                                    className="px-6 py-3 bg-brand-blue text-white rounded-full font-bold text-base shadow-lg"
-                                >
-                                    Play Again
-                                </button>
-                                <button 
-                                    onClick={onFinish} 
-                                    className="px-6 py-3 bg-white text-slate-800 rounded-full font-bold text-base shadow-lg border border-slate-100"
-                                >
-                                    Back to Library
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-10 pt-6 border-t border-white/60">
-                            <h2 className="text-xs uppercase tracking-widest text-slate-500 text-center mb-4">Full Standings</h2>
-                            <div className="space-y-3">
-                                {rankedTeams.map((team, idx) => (
-                                    <div key={team.id} className="bg-white/90 border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm">
-                                        <div className="font-bold text-slate-700">#{idx + 1} {team.name}</div>
-                                        <div className="font-mono font-bold text-slate-900">{team.score}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
+        const winnerScore = ranking.length ? ranking[0].score : 0;
+        const winners = ranking.filter((team) => team.score === winnerScore);
+        const winnerHeadline = winners.length > 1
+            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
+            : `WINNER: ${winners[0]?.name || 'No winner'}`;
 
         return (
-            <div className="fixed inset-0 bg-gradient-to-br from-sky-50 to-indigo-100 z-[300] flex flex-col items-center justify-center overflow-hidden">
-                {/* Realistic 3D Confetti CSS */}
-                <style>
-                    {`
-                    @keyframes confetti-fall {
-                        0% { transform: translateY(-10vh) translateX(0) rotate3d(1, 1, 1, 0deg); opacity: 1; }
-                        25% { transform: translateY(25vh) translateX(20px) rotate3d(1, 1, 1, 90deg); }
-                        50% { transform: translateY(50vh) translateX(-20px) rotate3d(1, 1, 1, 180deg); }
-                        75% { transform: translateY(75vh) translateX(20px) rotate3d(1, 1, 1, 270deg); }
-                        100% { transform: translateY(110vh) translateX(0) rotate3d(1, 1, 1, 360deg); opacity: 0; }
-                    }
-                    .confetti-piece {
-                        position: absolute;
-                        animation: confetti-fall 4s linear infinite;
-                        box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-                    }
-                    `}
-                </style>
-                
-                {/* Confetti Particles */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {Array.from({length: 150}).map((_, i) => (
-                        <div key={i} className="confetti-piece" style={{
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * -20}%`,
-                            backgroundColor: ['#FACC15', '#0EA5E9', '#FB923C', '#22C55E', '#EC4899', '#FFF'][Math.floor(Math.random() * 6)],
-                            width: `${Math.random() * 12 + 6}px`,
-                            height: `${Math.random() * 18 + 6}px`,
-                            animationDelay: `${Math.random() * 5}s`,
-                            animationDuration: `${Math.random() * 2 + 3}s`,
-                            opacity: Math.random() + 0.5
-                        }} />
-                    ))}
-                </div>
-                
-                <div className="relative z-10 w-full max-w-6xl px-4 flex flex-col items-center justify-start md:justify-center h-full overflow-hidden pt-36 md:pt-32 pb-12">
-                    <h1 className="font-display text-5xl md:text-7xl font-black mb-8 text-slate-800 drop-shadow-xl animate-fade-in tracking-widest uppercase text-center break-words w-full px-4" style={{ textShadow: '4px 4px 0px #fff' }}>
-                        {isTie ? "It's a Tie!" : "Winner!"}
-                    </h1>
-
-                    {/* PODIUM */}
-                    <div className="flex items-end justify-center gap-4 md:gap-8 mb-12 w-full max-w-4xl flex-wrap md:flex-nowrap flex-shrink-0">
-                        
-                        {/* 2ND PLACE */}
-                        {second && (
-                            <div className="flex flex-col items-center order-2 md:order-1 w-1/3 md:w-1/4 animate-[slide-up_1s_ease-out]">
-                                <div className="text-slate-600 font-bold text-xl md:text-2xl mb-2 text-center drop-shadow-sm truncate w-full">{second.name}</div>
-                                <div className="w-full h-24 md:h-48 bg-gradient-to-b from-slate-200 to-slate-300 rounded-t-xl flex items-center justify-center border-t-4 border-white/50 relative shadow-xl">
-                                     <span className="text-6xl md:text-7xl font-black text-slate-400 opacity-50">2</span>
+            <div
+                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+            >
+                <WinnerCeremonyHero
+                    winnerHeadline={winnerHeadline}
+                    subtitle="Final standings"
+                    ranking={ranking}
+                    isMobileViewport={isMobileViewport}
+                    onPlayAgain={onReplay}
+                    onExit={onFinish}
+                >
+                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                        <div className="space-y-3">
+                            {ranking.map((team, idx) => (
+                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                    <div className="font-bold">#{idx + 1} {team.name}</div>
+                                    <div className="font-mono font-black text-xl">{team.score}</div>
                                 </div>
-                                <div className="bg-white px-4 py-2 rounded-b-xl mt-2 text-slate-600 font-mono text-xl md:text-3xl font-bold border border-slate-200 min-w-[80px] text-center shadow-md">
-                                    {second.score}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 1ST PLACE (Winner or Tie) */}
-                        <div className="flex flex-col items-center order-1 md:order-2 w-full md:w-1/3 z-20 animate-[slide-up_0.8s_ease-out]">
-                             <Trophy size={80} className="text-brand-yellow mb-4 animate-pulse drop-shadow-xl" />
-                             
-                             <div className="flex flex-col items-center w-full">
-                                {winners.map((w, idx) => (
-                                    <div key={idx} className="text-brand-blue font-bold text-3xl md:text-5xl mb-2 text-center drop-shadow-sm w-full leading-tight">
-                                        {w.name} {idx < winners.length - 1 && <span className="text-slate-400 text-2xl">&</span>}
-                                    </div>
-                                ))}
-                             </div>
-
-                             <div className="w-full h-40 md:h-72 bg-gradient-to-b from-brand-yellow to-yellow-500 rounded-t-xl flex items-center justify-center border-t-8 border-yellow-200 relative shadow-2xl shadow-yellow-500/20 mt-4">
-                                 <span className="text-8xl md:text-9xl font-black text-white opacity-40">1</span>
-                             </div>
-                             <div className="bg-white px-6 py-3 rounded-b-2xl mt-2 text-brand-yellow font-mono text-4xl md:text-6xl font-black border-2 border-yellow-100 min-w-[120px] text-center shadow-lg">
-                                {maxScore}
-                             </div>
+                            ))}
                         </div>
-
-                        {/* 3RD PLACE */}
-                        {third && (
-                            <div className="flex flex-col items-center order-3 w-1/3 md:w-1/4 animate-[slide-up_1.2s_ease-out]">
-                                <div className="text-orange-800 font-bold text-xl md:text-2xl mb-2 text-center drop-shadow-sm truncate w-full">{third.name}</div>
-                                <div className="w-full h-16 md:h-36 bg-gradient-to-b from-orange-300 to-orange-400 rounded-t-xl flex items-center justify-center border-t-4 border-orange-200 relative shadow-xl">
-                                     <span className="text-5xl md:text-6xl font-black text-orange-800 opacity-30">3</span>
-                                </div>
-                                <div className="bg-white px-4 py-2 rounded-b-xl mt-2 text-orange-500 font-mono text-xl md:text-3xl font-bold border border-slate-200 min-w-[80px] text-center shadow-md">
-                                    {third.score}
-                                </div>
-                            </div>
-                        )}
                     </div>
-
-                    <div className="flex gap-4 mb-8 flex-shrink-0">
-                        <button 
-                            onClick={onReplay} 
-                            className="px-12 py-5 bg-brand-blue text-white rounded-full font-bold text-2xl hover:bg-sky-600 hover:scale-105 transition-all shadow-xl hover:shadow-2xl border-2 border-brand-blue flex items-center"
-                        >
-                            <RefreshCw size={24} className="mr-3" /> Play Again
-                        </button>
-                        <button 
-                            onClick={onFinish} 
-                            className="px-12 py-5 bg-white text-slate-800 rounded-full font-bold text-2xl hover:bg-slate-50 hover:scale-105 transition-all shadow-xl hover:shadow-2xl border-2 border-slate-100"
-                        >
-                            Back to Library
-                        </button>
-                    </div>
-                </div>
+                </WinnerCeremonyHero>
             </div>
         );
     }
@@ -922,11 +749,25 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className="hidden sm:flex text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
+                            title="End game now"
+                        >
+                            <Flag size={16} className="mr-2" /> End Game
+                        </button>
+                        <button
                             onClick={() => setShowQuitConfirm(true)}
                             className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                             title="Quit"
                         >
                             <X size={18} />
+                        </button>
+                        <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
+                            title="End game now"
+                        >
+                            <Flag size={16} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
@@ -935,7 +776,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
-                        <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 hidden md:block opacity-80 break-words overflow-hidden">{game.title}</h1>
                     </div>
                     
                     {/* Scoreboard Cards */}
@@ -1471,6 +1311,32 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
                                 Quit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showEndGameConfirm && (
+                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
+                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setShowEndGameConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEndGameConfirm(false);
+                                    setIsGameOver(true);
+                                }}
+                                className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
+                            >
+                                End game
                             </button>
                         </div>
                     </div>

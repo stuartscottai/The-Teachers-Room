@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, RefreshCw, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft, X } from 'lucide-react';
+import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft, X, Flag } from 'lucide-react';
 
 // --- 3D DICE COMPONENT ---
 const PIP_OFFSET = 0.505;
@@ -278,6 +279,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [bonusMap, setBonusMap] = useState<Record<number, number>>({});
 
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
+    const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -867,21 +869,42 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         : 0;
 
     if (phase === 'gameover') {
+        const ranking = positions
+            .map((position, index) => ({
+                index,
+                score: position + 1,
+                name: teamNames[index] || `Team ${index + 1}`,
+            }))
+            .sort((a, b) => b.score - a.score);
+        const winnerScore = ranking.length ? ranking[0].score : 0;
+        const winners = ranking.filter((team) => team.score === winnerScore);
+        const winnerHeadline = winners.length > 1
+            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
+            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+
         return (
-            <div className="fixed inset-0 bg-slate-900 z-[300] flex flex-col items-center justify-center animate-fade-in overflow-hidden px-6 text-center">
-                <Trophy size={100} className="text-brand-yellow mb-6 animate-bounce" />
-                <h1 className="text-white text-6xl font-black mb-4">WINNER!</h1>
-                <h2 className="text-brand-blue text-4xl font-display font-bold bg-white px-8 py-4 rounded-full mb-8 shadow-xl">
-                    {teamNames[currentTeamId]}
-                </h2>
-                <div className="flex gap-4">
-                    <button onClick={onReplay} className="px-8 py-3 bg-brand-yellow text-slate-900 rounded-xl font-bold hover:scale-105 transition-transform flex items-center">
-                        <RefreshCw className="mr-2" /> Play Again
-                    </button>
-                    <button onClick={onFinish} className="px-8 py-3 bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-600 transition-transform">
-                        Exit
-                    </button>
-                </div>
+            <div
+                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+            >
+                <WinnerCeremonyHero
+                    winnerHeadline={winnerHeadline}
+                    subtitle="Final board positions"
+                    ranking={ranking}
+                    isMobileViewport={isMobileViewport}
+                    onPlayAgain={onReplay}
+                    onExit={onFinish}
+                >
+                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
+                        <div className="space-y-3">
+                            {ranking.map((team, idx) => (
+                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
+                                    <div className="font-bold">#{idx + 1} {team.name}</div>
+                                    <div className="font-mono font-black text-xl">Square {team.score}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </WinnerCeremonyHero>
             </div>
         );
     }
@@ -936,6 +959,17 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             <ArrowLeft size={isMobileViewport ? 18 : 16} className={isMobileViewport ? '' : 'mr-2'} />
                             {!isMobileViewport && 'Quit'}
                         </button>
+                        <button
+                            onClick={() => setShowEndGameConfirm(true)}
+                            className={isMobileViewport
+                                ? 'w-9 h-9 rounded-xl bg-rose-700 text-white hover:bg-rose-600 border border-rose-800 flex items-center justify-center transition-colors'
+                                : 'text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800'
+                            }
+                            title="End game now"
+                        >
+                            <Flag size={isMobileViewport ? 18 : 16} className={isMobileViewport ? '' : 'mr-2'} />
+                            {!isMobileViewport && 'End Game'}
+                        </button>
                         {isMobileViewport && (
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
@@ -943,9 +977,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             >
                                 {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                             </button>
-                        )}
-                        {!isMobileViewport && (
-                            <h1 className="text-slate-800 font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-[clamp(320px,42vw,860px)] line-clamp-2 opacity-80 break-words overflow-hidden">{game.title}</h1>
                         )}
                     </div>
                     
@@ -1559,6 +1590,32 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         <div className="flex space-x-4">
                             <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200">Cancel</button>
                             <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">Quit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showEndGameConfirm && (
+                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
+                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <div className="flex space-x-4">
+                            <button
+                                onClick={() => setShowEndGameConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 text-slate-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEndGameConfirm(false);
+                                    setPhase('gameover');
+                                }}
+                                className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
+                            >
+                                End game
+                            </button>
                         </div>
                     </div>
                 </div>
