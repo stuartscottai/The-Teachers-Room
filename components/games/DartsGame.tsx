@@ -1134,6 +1134,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         );
     }
 
+    const questionOverlayTopClass = isFullscreen
+        ? 'top-[calc(4.5rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))]'
+        : 'top-[calc(8.5rem+env(safe-area-inset-top))] sm:top-[calc(12.75rem+env(safe-area-inset-top))]';
+
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
@@ -1322,7 +1326,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             </div>
 
             {phase === 'question' && currentQuestion && (
-                <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
@@ -1333,11 +1337,11 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                     <div className="font-bold text-sm sm:text-xl opacity-80 text-right">{lockedTarget?.points} Points</div>
                                 </div>
 
-                                <div className="bg-white flex-grow w-full flex flex-col p-3 sm:p-4 md:p-8 relative overflow-hidden z-0">
+                                <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {questionImageUrl && hasOptions ? (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div
-                                                className={`flex flex-1 min-h-0 ${isMobileViewport ? 'flex-col' : 'flex-row'} gap-3 sm:gap-4 md:gap-6`}
+                                                className={`flex flex-1 min-h-0 ${isMobileViewport ? 'flex-col' : 'flex-row'} gap-3 px-4 sm:px-6 md:px-8`}
                                                 style={isMobileViewport ? { flex: '2 1 0%' } : undefined}
                                             >
                                                 <div className={isMobileViewport ? 'w-full h-32 sm:h-36 flex items-center justify-center flex-none' : 'flex-1 min-h-0 flex items-center justify-center'}>
@@ -1369,10 +1373,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
                                             {hasOptions && !isFlipped && (
                                                 <div
-                                                    className="w-full flex-1 min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
+                                                    className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                     style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                 >
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1392,7 +1396,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                             setIsFlipped(true);
                                                                         }}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                        className={`relative p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -1421,7 +1425,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                             )}
                                         </div>
                                     ) : questionImageUrl ? (
-                                        <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-3 sm:gap-4 md:gap-6 text-center">
+                                        <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-4 px-4 sm:px-6 md:px-8 text-center">
                                             <img
                                                 src={questionImageUrl}
                                                 alt={questionImageAlt}
@@ -1445,7 +1449,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                         </div>
                                     ) : (
                                         <div className="flex flex-col flex-1 min-h-0">
-                                            <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex flex-col items-center justify-start overflow-hidden px-1 sm:px-0 mb-1 sm:mb-3">
+                                            <div
+                                                ref={questionWrapRef}
+                                                className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
+                                            >
                                                 <div
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -1455,8 +1462,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 </div>
                                             </div>
                                             {hasOptions && !isFlipped && (
-                                                <div className="w-full flex-1 min-h-0 mt-1 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 w-full h-full max-w-5xl auto-rows-fr">
+                                                <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
+                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1476,7 +1483,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                             setIsFlipped(true);
                                                                         }}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-2 sm:p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold text-slate-700 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center shadow-sm flex items-center justify-center min-h-[60px] sm:min-h-[80px] h-full ${uniformSize} whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                        className={`relative p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -1507,28 +1514,33 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                     )}
                                 </div>
 
-                                <div className={`h-[clamp(88px,14vh,120px)] flex flex-col px-3 sm:px-4 md:px-8 py-2 md:py-0 relative flex-shrink-0 z-50 transition-colors duration-300 ${isTimesUp ? 'bg-red-600' : 'bg-gradient-to-r from-brand-blue to-sky-500'}`}>
+                                <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                     {options.timerSeconds > 0 && (
-                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-black/10 flex items-center justify-start pointer-events-none">
+                                        <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
                                             {!isTimesUp && (
-                                                <div className="absolute inset-y-0 left-0 bg-white/20 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                                <div className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
                                             )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-white tracking-wider">
+                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
                                                 {isTimesUp ? "TIME'S UP!" : (
-                                                    <><Clock size={12} className="mr-1" /> {timeLeft}s</>
+                                                    <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                 )}
                                             </div>
                                         </div>
                                     )}
-                                    <div className="w-full flex-1 flex items-center justify-center py-3">
-                                        {!hasOptions && (
-                                            <button onClick={() => setIsFlipped(true)} className="bg-white text-brand-blue px-6 sm:px-10 py-2 rounded-full font-bold text-base sm:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-white">Check Answer</button>
-                                        )}
-                                    </div>
+                                    {!hasOptions && (
+                                        <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                            <button
+                                                onClick={() => setIsFlipped(true)}
+                                                className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center"
+                                            >
+                                                Check Answer
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
                                     <div className="font-bold text-sm sm:text-xl opacity-80">Answer</div>
                                     <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500" title="Flip Back"><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
