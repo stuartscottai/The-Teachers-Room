@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
 import { Avatar } from './Avatar';
+import { BrandName } from './BrandName';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
@@ -70,12 +71,12 @@ const Navbar: React.FC = () => {
               <div className="bg-brand-yellow p-2 rounded-full mr-2 shadow-sm">
                 <GraduationCap className="h-6 w-6 text-sky-900" />
               </div>
-              <span className="font-display font-bold text-xl text-slate-800">The Teachers' Room</span>
+              <BrandName className="font-display font-bold text-xl text-slate-800" />
             </SafeLink>
           </div>
           
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden xl:flex items-center space-x-1">
             {navItems.map((item) => (
               <SafeLink
                 key={item.name}
@@ -162,7 +163,7 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="flex items-center md:hidden">
+          <div className="flex items-center xl:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none"
@@ -175,7 +176,7 @@ const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-white border-t border-slate-100">
+        <div className="xl:hidden bg-white border-t border-slate-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <SafeLink
@@ -266,13 +267,13 @@ const Footer: React.FC = () => {
                 <div className="bg-brand-yellow p-2 rounded-full mr-2">
                   <GraduationCap className="h-5 w-5 text-slate-900" />
                 </div>
-                <span className="font-display font-bold text-lg text-white">The Teachers' Room</span>
+                <BrandName className="font-display font-bold text-lg text-white" />
              </div>
              <p className="text-xs text-slate-400">Making teaching easier, one game at a time.</p>
           </div>
         </div>
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-xs text-slate-500">© 2025 The Teachers' Room.</p>
+          <p className="text-xs text-slate-500">© 2025 <BrandName />.</p>
           <p className="text-xs text-slate-500 mt-2 md:mt-0">Designed and managed by 3P Machine digital.</p>
         </div>
       </div>

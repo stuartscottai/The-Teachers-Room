@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Share2 } from 'lucide-react';
 import { blogPosts } from '../data/blogPosts';
+import { BrandName } from '../components/BrandName';
 
 export const BlogPostPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export const BlogPostPage: React.FC = () => {
                         </Link>
                         <div className="flex items-center space-x-6 text-white/90 mb-4 text-sm md:text-base font-medium">
                             <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
-                            <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> The Teachers' Room Team</span>
+                            <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
                         </div>
                         <h1 className="text-4xl md:text-6xl font-display font-bold text-white leading-tight mb-4 shadow-black drop-shadow-lg">
                             {post.title}

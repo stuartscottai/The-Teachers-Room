@@ -208,16 +208,20 @@ export const Home: React.FC = () => {
         {/* Main Content */}
         <div className="relative z-20 text-center max-w-5xl mx-auto px-4 mt-10">
           
-          <h1 className="font-display text-6xl md:text-8xl font-black text-white mb-8 leading-tight drop-shadow-md">
-            <span className="inline-block transform -rotate-3 hover:rotate-0 transition-transform duration-300 text-sky-100 mr-4">The</span>
-            <span className="relative inline-block mr-4">
-                <span className="relative z-10">Teachers'</span>
+          <h1
+            translate="no"
+            lang="en"
+            className="notranslate font-display text-6xl md:text-8xl font-black text-white mb-8 leading-tight drop-shadow-md"
+          >
+            <span translate="no" lang="en" className="notranslate inline-block transform -rotate-3 hover:rotate-0 transition-transform duration-300 text-sky-100 mr-4">The</span>
+            <span translate="no" lang="en" className="notranslate relative inline-block mr-4">
+                <span translate="no" lang="en" className="notranslate relative z-10">Teachers'</span>
                 {/* Stylish highlight behind text */}
                 <svg className="absolute w-[110%] h-[60%] -bottom-2 -left-[5%] z-0 text-brand-accent opacity-90" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <path d="M0,50 Q50,100 100,50" stroke="currentColor" strokeWidth="80" fill="none" />
                 </svg>
             </span>
-            <span className="inline-block transform rotate-3 hover:rotate-0 transition-transform duration-300 text-sky-100">Room</span>
+            <span translate="no" lang="en" className="notranslate inline-block transform rotate-3 hover:rotate-0 transition-transform duration-300 text-sky-100">Room</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-sky-50 mb-12 font-medium max-w-3xl mx-auto leading-relaxed drop-shadow-sm">

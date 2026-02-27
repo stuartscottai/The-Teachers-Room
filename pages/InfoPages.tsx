@@ -1,22 +1,279 @@
 
 import React, { useState } from 'react';
-import { Check, AlertCircle, Send, Loader } from 'lucide-react';
+import { Check, AlertCircle, Send, Loader, ChevronDown } from 'lucide-react';
 import { sendContactMessage } from '../utils/gameUtils';
+import { BrandName } from '../components/BrandName';
 
 export const Info: React.FC = () => {
+  type SectionKey = 'story' | 'how-to' | 'prompt-guide' | 'faqs';
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    story: true,
+    'how-to': false,
+    'prompt-guide': false,
+    faqs: false,
+  });
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      question: 'Which game types are available right now?',
+      answer: 'You can create Snakes and Ladders, Trivia Quiz, Jeopardy, Pub Quiz, Darts, Millionaire Maker, Time Bomb, Survey Showdown, Stop the Fire!, and Word Wheel.'
+    },
+    {
+      question: 'Can I create a game manually without AI?',
+      answer: 'Yes. Most game modes let you choose Manual Creation and build from scratch in the editor. AI mode is for speed; manual mode is for full control.'
+    },
+    {
+      question: 'Can I upload a photo/PDF from my book and generate from that?',
+      answer: 'Yes. In Games and Worksheets, you can upload source files (up to 3 files, 4MB each). The AI then uses those files to build content instead of guessing from thin air.'
+    },
+    {
+      question: 'Do voice prompts work?',
+      answer: 'Yes for game creation: the AI instructions box in Games has a mic button, and the Game AI Assistant chat also supports dictation. Worksheet instructions are currently typed.'
+    },
+    {
+      question: 'How do images work in Games?',
+      answer: 'When you enable images and choose auto-pick, the system picks stock images based on AI-generated question/answer keywords. You cannot currently art-direct the image style in the prompt; you can replace images later in the game editor.'
+    },
+    {
+      question: 'Can I choose or upload my own game images?',
+      answer: 'Yes. In the game editor you can pick stock images manually or upload your own image per question.'
+    },
+    {
+      question: 'What is the worksheet image bank?',
+      answer: 'For Wordsearch and Matching activities, you can enable "Use image bank (auto-pick)" so images are matched to activity labels/words, then edit picks if needed.'
+    },
+    {
+      question: 'Can I edit everything after generation?',
+      answer: 'Absolutely. You can edit questions, answers, options, images, rounds, activity settings, layout, and design elements before class use.'
+    },
+    {
+      question: 'Can I add more worksheet activities after I already generated one?',
+      answer: 'Yes. In Worksheet Builder, use "AI - Add New Activities" and click Generate & Append to extend your worksheet without starting over.'
+    },
+    {
+      question: 'Why did my output feel generic or miss the point?',
+      answer: 'Usually the brief was too broad. Add level, age, objective, question count, topic boundaries, and any must-include language points.'
+    },
+    {
+      question: 'Can I save, reuse, and remix my best materials?',
+      answer: 'Yes. Save to My Library, copy from Community into your own version, and reuse your strongest prompt structures as templates.'
+    },
+    {
+      question: 'What should I do if generation fails or feels slow?',
+      answer: 'Try a shorter prompt, reduce activity/question count, or regenerate once. If it keeps failing, include your prompt + source context when contacting support.'
+    }
+  ];
+
+  const toggleSection = (section: SectionKey) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-20">
-      <h1 className="font-display text-4xl font-bold text-slate-800 mb-6">Our Story</h1>
-      <div className="prose prose-lg text-slate-600">
-        <p className="mb-6">
-          The Teachers' Room began in a small, cluttered staff room in 2023. Sarah, an ESL teacher overwhelmed by the sheer volume of lesson planning required for her diverse classes, realized that while she loved teaching, the administrative burden was stealing her joy.
+    <div className="max-w-5xl mx-auto px-4 py-20">
+      <div className="text-center mb-10">
+        <h1 className="font-display text-4xl font-bold text-slate-800 mb-3">Info Hub</h1>
+        <p className="text-slate-600 max-w-3xl mx-auto">
+          Explore how to get the best from <BrandName />, from quick setup tips to detailed prompt strategy and practical FAQs.
         </p>
-        <p className="mb-6">
-          She started experimenting with early AI models to generate gap-fill exercises. The results were promising but clunky. She teamed up with a developer friend, and together they refined the prompts and interface specifically for educational contexts.
-        </p>
-        <p>
-          Today, The Teachers' Room is a vibrant community where educators reclaim their weekends, share resources, and bring the joy back into the classroom with engaging, custom-built games and materials.
-        </p>
+      </div>
+
+      <div className="space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('story')}
+            className="w-full px-6 py-5 text-left flex items-center justify-between"
+            aria-expanded={openSections.story}
+            aria-controls="info-story"
+          >
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-800">Our Story</h2>
+              <p className="text-sm text-slate-500 mt-1">How <BrandName /> started and where we are today.</p>
+            </div>
+            <ChevronDown className={`text-slate-500 transition-transform ${openSections.story ? 'rotate-180' : ''}`} />
+          </button>
+          {openSections.story && (
+            <div id="info-story" className="px-6 pb-6 pt-1 border-t border-slate-100 prose prose-slate max-w-none">
+              <p>
+                I am Stuart, an ESL teacher in Valencia, and I have spent around 20 years teaching pretty much every level and age group you can imagine.
+                Over time, one thing became obvious: students come alive with games.
+                Energy goes up, speaking improves, and revision suddenly stops feeling like punishment.
+              </p>
+              <p>
+                The problem was prep time.
+                Building quality games from scratch took forever, and many ready-made resources never matched what I was actually teaching that day.
+                I wanted something flexible enough to follow real classroom life, not the other way around.
+              </p>
+              <p>
+                Dream scenario: you discover you have a surprise 15 minutes at the end of class, snap a quick photo of the coursebook page, upload it, and boom, instant game.
+                So that is what I built.
+                <BrandName /> grew from that exact moment: a slightly sleep-deprived teacher dream, a lot of trial and error, and a stubborn belief that teachers deserve tools as fast and adaptable as their classrooms.
+              </p>
+              <p>
+                The goal is simple: keep the joy, lose the admin drag, and make it easier to create engaging materials whenever inspiration (or panic) strikes.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('how-to')}
+            className="w-full px-6 py-5 text-left flex items-center justify-between"
+            aria-expanded={openSections['how-to']}
+            aria-controls="info-how-to"
+          >
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-800">How to Use the Site</h2>
+              <p className="text-sm text-slate-500 mt-1">The real workflow, with fewer headaches and more "nice, that actually worked".</p>
+            </div>
+            <ChevronDown className={`text-slate-500 transition-transform ${openSections['how-to'] ? 'rotate-180' : ''}`} />
+          </button>
+          {openSections['how-to'] && (
+            <div id="info-how-to" className="px-6 pb-6 pt-1 border-t border-slate-100 text-slate-600">
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 mt-4">
+                <h3 className="font-bold text-slate-800 mb-3">Games: from idea to classroom in minutes</h3>
+                <ol className="list-decimal pl-5 space-y-2 text-sm">
+                  <li>Open <strong>Games</strong> and pick a mode: Snakes & Ladders, Trivia, Jeopardy, Pub Quiz, Darts, Millionaire, Time Bomb, Survey Showdown, Stop the Fire, or Word Wheel.</li>
+                  <li>If you are not sure where to start, open the <strong>AI Assistant</strong>, explain your idea in plain English, and it will recommend suitable game types based on your class and goals.</li>
+                  <li>Choose <strong>Manual</strong> (build from scratch) or <strong>AI</strong> (instant first draft).</li>
+                  <li>In AI mode, add a topic and optional instructions. You can type or use the mic dictation button.</li>
+                  <li>Optional but powerful: upload source files (PDF/images, max 3 files, 4MB each) so AI uses your actual material.</li>
+                  <li>If you enable images, <strong>Auto-pick</strong> grabs stock visuals from question/answer keywords, or choose <strong>Pick later</strong> and add them manually in the editor.</li>
+                  <li>Generate, then polish in the editor: fix wording, change answers, replace images, save to library, and hit Play.</li>
+                </ol>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-4">
+                <h3 className="font-bold text-slate-800 mb-3">Worksheets: build once, remix forever</h3>
+                <ol className="list-decimal pl-5 space-y-2 text-sm">
+                  <li>Open <strong>Worksheets</strong> and set your topic, grade level, difficulty, and global instructions.</li>
+                  <li>Add activity blocks (Multiple Choice, Wordsearch, Matching, Gap Fill, Sentence Transform, Word Formation, Open Ended, Information Sheet, Table, Custom).</li>
+                  <li>Tune each activity: counts, grid sizes, story/sentence mode, notes, and options like word banks.</li>
+                  <li>For Wordsearch and Matching, you can enable <strong>Use image bank (auto-pick)</strong> and edit selected images afterward.</li>
+                  <li>Upload source files if needed (same limit: max 3 files, 4MB each) and click Generate.</li>
+                  <li>After generation, use templates/themes/layouts, add manual blocks, append new AI activities, then print/export/save.</li>
+                </ol>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('prompt-guide')}
+            className="w-full px-6 py-5 text-left flex items-center justify-between"
+            aria-expanded={openSections['prompt-guide']}
+            aria-controls="info-prompt-guide"
+          >
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-800">Prompt Guide</h2>
+              <p className="text-sm text-slate-500 mt-1">Friendly prompt coaching: less robot confusion, more classroom-ready wins.</p>
+            </div>
+            <ChevronDown className={`text-slate-500 transition-transform ${openSections['prompt-guide'] ? 'rotate-180' : ''}`} />
+          </button>
+          {openSections['prompt-guide'] && (
+            <div id="info-prompt-guide" className="px-6 pb-6 pt-1 border-t border-slate-100 text-slate-600">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
+                <h3 className="font-bold text-slate-800 mb-3">The Magic Prompt Recipe</h3>
+                <p className="text-sm mb-3">AI is clever, but not psychic. Give it these ingredients:</p>
+                <ul className="list-disc pl-5 space-y-2 text-sm">
+                  <li><strong>Who:</strong> age + level (for example, "A2 teens").</li>
+                  <li><strong>What:</strong> precise objective (for example, "past simple negatives").</li>
+                  <li><strong>Format:</strong> game type or worksheet activities + counts.</li>
+                  <li><strong>Boundaries:</strong> must include / must avoid.</li>
+                  <li><strong>Practical limits:</strong> class time, difficulty, tone.</li>
+                  <li><strong>Source anchor:</strong> if you uploaded files, explicitly tell AI to use them.</li>
+                </ul>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4">
+                <h3 className="font-bold text-slate-800 mb-2">Important Image Truth (so nobody gets surprised)</h3>
+                <p className="text-sm">
+                  In Games, image auto-pick uses question/answer keywords generated by AI. It does <strong>not</strong> currently take a separate art-direction prompt like
+                  "make it watercolor in Pixar style." If you need a very specific visual, generate first, then replace images manually in the editor.
+                </p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                  <h4 className="font-bold text-emerald-700 mb-2">Good Game Prompt</h4>
+                  <p className="text-sm leading-relaxed">
+                    "A2 ESL students (age 12-13). Use the attached book-page photo as the main source.
+                    Create a 15-question Trivia game for a 15-minute end-of-class review.
+                    Focus on food vocabulary + countable/uncountable nouns.
+                    Keep questions short, classroom-safe, and include 4 multiple-choice options."
+                  </p>
+                </div>
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+                  <h4 className="font-bold text-rose-700 mb-2">Weak Game Prompt</h4>
+                  <p className="text-sm leading-relaxed">
+                    "Make me a game from this."
+                  </p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                  <h4 className="font-bold text-emerald-700 mb-2">Good Worksheet Prompt</h4>
+                  <p className="text-sm leading-relaxed">
+                    "Grade 5 A2 worksheet on travel vocabulary.
+                    Activities: 8 gap-fill (with word bank), 6 matching pairs, 5 open-ended speaking prompts.
+                    Keep instructions simple, include answer key, and use friendly classroom tone."
+                  </p>
+                </div>
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+                  <h4 className="font-bold text-rose-700 mb-2">Weak Worksheet Prompt</h4>
+                  <p className="text-sm leading-relaxed">
+                    "Create a worksheet for my class."
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-100">
+          <button
+            type="button"
+            onClick={() => toggleSection('faqs')}
+            className="w-full px-6 py-5 text-left flex items-center justify-between"
+            aria-expanded={openSections.faqs}
+            aria-controls="info-faqs"
+          >
+            <div>
+              <h2 className="font-display text-2xl font-bold text-slate-800">FAQs</h2>
+              <p className="text-sm text-slate-500 mt-1">Common questions from teachers using games and worksheets every week.</p>
+            </div>
+            <ChevronDown className={`text-slate-500 transition-transform ${openSections.faqs ? 'rotate-180' : ''}`} />
+          </button>
+          {openSections.faqs && (
+            <div id="info-faqs" className="px-6 pb-6 pt-1 border-t border-slate-100">
+              <p className="text-sm text-slate-500 mt-4">Click each question to reveal its answer.</p>
+              <div className="mt-4 space-y-3">
+                {faqs.map((faq, index) => (
+                  <div key={faq.question} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq((prev) => (prev === index ? null : index))}
+                      className="w-full px-4 py-3 bg-slate-50 text-left flex items-center justify-between"
+                      aria-expanded={openFaq === index}
+                    >
+                      <span className="font-semibold text-slate-800 text-sm md:text-base">{faq.question}</span>
+                      <ChevronDown className={`text-slate-500 transition-transform flex-shrink-0 ml-3 ${openFaq === index ? 'rotate-180' : ''}`} size={18} />
+                    </button>
+                    {openFaq === index && (
+                      <div className="px-4 py-4 text-sm text-slate-600 bg-white border-t border-slate-100">
+                        {faq.answer}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
@@ -181,37 +438,314 @@ export const Contact: React.FC = () => {
               </form>
           )}
 
-          <div className="mt-8 text-center pt-6 border-t border-slate-100">
-             <p className="text-slate-500">Or email us directly at:</p>
-             <a href="mailto:info@theteachersroom.app" className="text-teal-600 font-bold hover:underline">info@theteachersroom.app</a>
-          </div>
        </div>
     </div>
   );
 };
 
 export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
+    const lastUpdated = 'February 27, 2026';
+
+    if (type === 'terms') {
+        return (
+            <div className="max-w-4xl mx-auto px-4 py-20 prose prose-slate">
+                <h1 className="font-display text-3xl font-bold text-slate-800">Terms of Service</h1>
+                <p className="text-slate-600">Last Updated: {lastUpdated}</p>
+
+                <p>
+                    Welcome to <BrandName />. We built this platform to make classroom prep faster, better, and less stressful.
+                    These Terms are the ground rules for using the site.
+                    By accessing or using <BrandName />, you agree to these Terms and our Privacy Policy.
+                </p>
+
+                <h3>1. Who Can Use the Service</h3>
+                <ul>
+                    <li>You must be 18 years of age or older to create an account or directly use the service.</li>
+                    <li>If you use the service for a school or company, you confirm you are allowed to accept these Terms on their behalf.</li>
+                    <li>The platform is designed for teachers/professional users. Students under 18 should not directly use the platform account features.</li>
+                </ul>
+
+                <h3>2. Accounts and Security</h3>
+                <ul>
+                    <li>You are responsible for keeping your login credentials secure.</li>
+                    <li>You are responsible for activity under your account unless required otherwise by law.</li>
+                    <li>Please provide accurate information and keep it up to date.</li>
+                    <li>We may suspend accounts that are compromised, abusive, or clearly fake.</li>
+                </ul>
+
+                <h3>3. What the Service Does</h3>
+                <p>
+                    <BrandName /> helps you create games and worksheets using manual tools and AI-assisted generation.
+                    Features may include saving content, publishing to community libraries, image search/selection, and optional voice dictation support.
+                </p>
+
+                <h3>4. Acceptable Use (Please Do Not Be a Villain)</h3>
+                <p>You agree not to:</p>
+                <ul>
+                    <li>Break any law, regulation, or third-party right.</li>
+                    <li>Upload or share content you do not have rights to use.</li>
+                    <li>Upload personal/sensitive student data without proper legal basis, notice, and consent where required.</li>
+                    <li>Use the service to create harmful, discriminatory, abusive, or illegal content.</li>
+                    <li>Attempt to reverse engineer, disrupt, scrape, overload, or bypass service protections.</li>
+                    <li>Upload malware, malicious code, or content that interferes with platform operation.</li>
+                </ul>
+
+                <h3>5. Your Content and Permissions</h3>
+                <ul>
+                    <li>You keep ownership of the content you create and upload.</li>
+                    <li>You grant us a worldwide, non-exclusive, royalty-free license to host, store, process, reproduce, and display that content to operate and improve the service.</li>
+                    <li>If you mark content as public/community, you allow us to display it and allow other users to view, copy, and remix it inside the platform.</li>
+                    <li>You confirm you have all rights and permissions needed for anything you upload.</li>
+                </ul>
+
+                <h3>6. AI Outputs and Teacher Responsibility</h3>
+                <ul>
+                    <li>AI can be impressive and occasionally confidently wrong. Please review all generated content before classroom use.</li>
+                    <li>You are responsible for checking factual accuracy, level appropriateness, and safety.</li>
+                    <li>We do not guarantee generated content is unique, error-free, or infringement-free.</li>
+                    <li>We may apply safety or quality controls to AI features at any time.</li>
+                </ul>
+
+                <h3>7. Third-Party Services</h3>
+                <p>
+                    Some features rely on third-party providers, including Supabase (auth/database/storage), Google Gemini API (AI generation),
+                    and Pixabay (stock image search). Your use of those integrated services may also be subject to their terms and policies.
+                </p>
+
+                <h3>8. Intellectual Property</h3>
+                <ul>
+                    <li>The platform software, design, branding, and non-user content are owned by us or our licensors.</li>
+                    <li>You may not copy, resell, or commercially exploit the platform itself except as expressly allowed in writing.</li>
+                    <li><BrandName /> and related marks may not be used in ways that suggest endorsement without permission.</li>
+                </ul>
+
+                <h3>9. Community Content Moderation</h3>
+                <p>
+                    We may review, hide, or remove public content that we reasonably believe violates these Terms, legal requirements,
+                    or the safety and quality standards of the platform.
+                </p>
+
+                <h3>10. Availability, Changes, and Experimental Features</h3>
+                <ul>
+                    <li>We may add, modify, pause, or remove features at any time.</li>
+                    <li>We do not guarantee uninterrupted availability or error-free operation.</li>
+                    <li>Some features may be marked as beta/experimental and may change quickly.</li>
+                </ul>
+
+                <h3>11. Paid Plans (Current or Future)</h3>
+                <p>
+                    If paid subscriptions, credits, or school plans are offered, additional pricing and billing terms may apply.
+                    Unless required by law, fees are non-refundable after service is delivered.
+                </p>
+
+                <h3>12. Suspension and Termination</h3>
+                <ul>
+                    <li>You may stop using the service at any time.</li>
+                    <li>We may suspend or terminate access for Terms violations, security risk, legal risk, or abuse.</li>
+                    <li>After termination, some data may remain in backups or where legally required.</li>
+                    <li>If you shared content publicly, copies/remixes created by others may remain available.</li>
+                </ul>
+
+                <h3>13. Disclaimers</h3>
+                <p>
+                    To the maximum extent permitted by law, the service is provided on an &quot;as is&quot; and &quot;as available&quot; basis.
+                    We disclaim all implied warranties, including merchantability, fitness for a particular purpose, and non-infringement.
+                </p>
+
+                <h3>14. Limitation of Liability</h3>
+                <p>
+                    To the maximum extent permitted by law, we are not liable for indirect, incidental, special, consequential,
+                    exemplary, or punitive damages, including loss of profits, revenue, data, goodwill, or business interruption.
+                    Our total liability for claims related to the service is limited to the amount you paid us for the service in the
+                    12 months before the event giving rise to liability (or EUR 0 if you used only free features).
+                </p>
+
+                <h3>15. Indemnity</h3>
+                <p>
+                    You agree to defend, indemnify, and hold us harmless from claims, liabilities, damages, losses, and costs
+                    arising from your content, your misuse of the service, or your violation of these Terms or third-party rights.
+                </p>
+
+                <h3>16. Governing Law and Disputes</h3>
+                <p>
+                    These Terms are governed by the laws of Spain, without regard to conflict-of-law rules.
+                    Courts located in Valencia, Spain will have exclusive jurisdiction, unless mandatory local consumer law says otherwise.
+                </p>
+
+                <h3>17. Changes to These Terms</h3>
+                <p>
+                    We may update these Terms from time to time.
+                    When we do, we will post the updated version with a new &quot;Last Updated&quot; date.
+                    Continued use of the service after an update means you accept the revised Terms.
+                </p>
+
+                <h3>18. Contact</h3>
+                <p>
+                    Questions about these Terms? Please contact us through the site Contact page.
+                </p>
+
+                <p className="text-sm text-slate-500">
+                    Friendly note: this policy is written to be understandable, but it is still a legal agreement.
+                </p>
+            </div>
+        );
+    }
+
     return (
-        <div className="max-w-4xl mx-auto px-4 py-20 prose">
-            <h1 className="font-display text-3xl font-bold text-slate-800 capitalize">{type === 'terms' ? 'Terms of Service' : 'Privacy Policy'}</h1>
-            <p className="text-slate-600">Last Updated: January 2025</p>
-            {type === 'terms' ? (
-                <>
-                    <p>Welcome to The Teachers' Room. By accessing this website, you agree to be bound by these Terms and Conditions of Use, all applicable laws and regulations.</p>
-                    <h3>1. Use License</h3>
-                    <p>Permission is granted to temporarily download one copy of the materials (information or software) on The Teachers' Room's website for personal, non-commercial transitory viewing only.</p>
-                    <h3>2. Content</h3>
-                    <p>User-generated content remains the property of the creator but The Teachers' Room reserves the right to display public content in the community section.</p>
-                </>
-            ) : (
-                 <>
-                    <p>Your privacy is important to us. It is The Teachers' Room's policy to respect your privacy regarding any information we may collect from you across our website.</p>
-                    <h3>1. Information We Collect</h3>
-                    <p>We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent.</p>
-                    <h3>2. Data Retention</h3>
-                    <p>We only retain collected information for as long as necessary to provide you with your requested service.</p>
-                </>
-            )}
+        <div className="max-w-4xl mx-auto px-4 py-20 prose prose-slate">
+            <h1 className="font-display text-3xl font-bold text-slate-800">Privacy Policy</h1>
+            <p className="text-slate-600">Last Updated: {lastUpdated}</p>
+
+            <p>
+                We care about privacy and classroom trust.
+                This policy explains what data we collect, why we collect it, how we use it, and what choices you have.
+                If anything is unclear, contact us and we will explain it in plain English.
+            </p>
+
+            <h3>1. What We Collect</h3>
+            <ul>
+                <li>
+                    <strong>Account data:</strong> name, email, authentication identifiers, and optional avatar/profile details.
+                </li>
+                <li>
+                    <strong>Content you create:</strong> games, worksheets, prompts, instructions, uploads, edits, and library items.
+                </li>
+                <li>
+                    <strong>Uploads:</strong> documents/images you attach for AI generation, plus worksheet/game assets you choose to store.
+                </li>
+                <li>
+                    <strong>Community visibility data:</strong> whether content is public or private, plus public author display fields.
+                </li>
+                <li>
+                    <strong>Contact messages:</strong> name, email, and message text sent through the Contact form.
+                </li>
+                <li>
+                    <strong>Technical data:</strong> basic logs, request metadata, and error diagnostics from the app and hosting stack.
+                </li>
+                <li>
+                    <strong>Browser-local data (guest mode):</strong> games/worksheets may be stored in your browser localStorage.
+                </li>
+                <li>
+                    <strong>Voice input (optional):</strong> if you use dictation, microphone audio is processed by browser speech recognition and/or local Whisper Web transcription, depending on availability.
+                </li>
+            </ul>
+
+            <h3>2. How We Use Data</h3>
+            <ul>
+                <li>To provide core features (account login, generation, editing, saving, sharing).</li>
+                <li>To generate AI-assisted content based on your prompts and uploaded source material.</li>
+                <li>To support community libraries and visibility settings.</li>
+                <li>To operate, secure, troubleshoot, and improve reliability and safety of the service.</li>
+                <li>To respond to support/contact requests and enforce legal terms.</li>
+            </ul>
+
+            <h3>3. Legal Bases (Where Applicable)</h3>
+            <p>Depending on your location, we process data under one or more of these legal bases:</p>
+            <ul>
+                <li>Performance of a contract (providing the service you asked for).</li>
+                <li>Legitimate interests (security, quality, abuse prevention, product operation).</li>
+                <li>Consent (for optional actions like voice features where required).</li>
+                <li>Legal obligations (compliance, dispute handling, lawful requests).</li>
+            </ul>
+
+            <h3>4. AI Providers and Gemini Data Handling</h3>
+            <p>
+                When you use AI features, prompts, uploaded source files, and related context are sent to Google Gemini API
+                (either through our server endpoint or direct client-side integration where configured).
+            </p>
+            <p>
+                Based on Google Gemini API documentation and terms currently published (including Google AI Studio terms effective December 18, 2025):
+            </p>
+            <ul>
+                <li>For Google &quot;Paid Services,&quot; Google states prompts/responses are not used to improve Google products.</li>
+                <li>For Google &quot;Unpaid Services,&quot; Google states prompts/responses may be used to improve its products and machine-learning technologies.</li>
+                <li>Google may retain logs for abuse and safety monitoring under its own policies.</li>
+            </ul>
+            <p>
+                Because provider plans and configuration can vary over time, do not submit highly sensitive personal data in prompts or uploads unless you are legally authorized and comfortable with provider-side processing terms.
+            </p>
+
+            <h3>5. Where Data Is Stored</h3>
+            <ul>
+                <li>Supabase is used for authentication, database storage, and file storage.</li>
+                <li>AI generation requests are processed through Google Gemini API.</li>
+                <li>Stock image search uses Pixabay via our API route/proxy.</li>
+                <li>Hosting/infrastructure providers may process request logs needed to run the site.</li>
+            </ul>
+
+            <h3>6. How Long We Keep Data</h3>
+            <ul>
+                <li>Account and saved content are kept while your account remains active, unless deleted earlier.</li>
+                <li>Guest localStorage content remains on your device until you delete it or clear browser data.</li>
+                <li>Public community content may remain visible until removed by you or moderation action.</li>
+                <li>Contact messages are retained as reasonably necessary for support and legal recordkeeping.</li>
+                <li>Operational logs may be retained for security, abuse prevention, and diagnostics.</li>
+            </ul>
+
+            <h3>7. Data Sharing</h3>
+            <p>We do not sell your personal data. We share data only when needed:</p>
+            <ul>
+                <li>With processors/service providers that run platform features (for example, Supabase, Google, Pixabay, hosting providers).</li>
+                <li>With other users only for content you intentionally mark as public/community.</li>
+                <li>When required by law, court order, or to protect rights, safety, and service integrity.</li>
+                <li>As part of a merger, acquisition, or business transfer (with notice where required).</li>
+            </ul>
+
+            <h3>8. Cookies and Similar Technologies</h3>
+            <ul>
+                <li>We use essential browser storage and auth/session mechanisms to keep the app working.</li>
+                <li>Guest-mode saved items use browser localStorage.</li>
+                <li>At the time of this policy update, we do not run third-party ad tracking networks in the app.</li>
+            </ul>
+
+            <h3>9. Your Rights and Choices</h3>
+            <p>Depending on your location, you may have rights to access, correct, delete, or export your personal data, and to object/restrict certain processing.</p>
+            <ul>
+                <li>You can update profile information from the Profile page.</li>
+                <li>You can delete saved content from your library.</li>
+                <li>You can contact us via the Contact page for privacy requests.</li>
+                <li>You may have the right to complain to your local data protection authority.</li>
+            </ul>
+
+            <h3>10. Student Data and School Use</h3>
+            <p>
+                If you use the service in a school context, you are responsible for ensuring you have a valid legal basis for any personal data you submit,
+                including appropriate notices/consents where required by law or school policy.
+            </p>
+
+            <h3>11. International Transfers</h3>
+            <p>
+                Your data may be processed in countries outside your own.
+                Where required, we rely on lawful transfer mechanisms and contractual safeguards provided by our service providers.
+            </p>
+
+            <h3>12. Security</h3>
+            <p>
+                We use reasonable technical and organizational measures to protect data.
+                No online service is perfectly secure, so we cannot guarantee absolute security.
+                Please use strong passwords and avoid sharing account access.
+            </p>
+
+            <h3>13. Children</h3>
+            <p>
+                The service is intended for adult educators and is not directed to users under 18.
+                If you believe someone under 18 has submitted personal information through direct account use, please contact us so we can review and remove it where appropriate.
+            </p>
+
+            <h3>14. Changes to This Policy</h3>
+            <p>
+                We may update this Privacy Policy as the service evolves or laws change.
+                Updated versions will be posted here with a revised &quot;Last Updated&quot; date.
+            </p>
+
+            <h3>15. Contact</h3>
+            <p>
+                For privacy questions or data requests, please contact us through the Contact page on the site.
+            </p>
+
+            <p className="text-sm text-slate-500">
+                Friendly note: this document is for transparency and legal clarity; it is not legal advice to you.
+            </p>
         </div>
     );
 };
