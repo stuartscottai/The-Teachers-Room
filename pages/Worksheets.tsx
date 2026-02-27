@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List, GraduationCap } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
-import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCommunityWorksheets, processFile } from '../utils/gameUtils';
+import { saveWorksheetToLibrary, getSavedWorksheets, deleteSavedWorksheet, getCommunityWorksheets, getSharedWorksheet, processFile } from '../utils/gameUtils';
 import { optimizeImageForUpload } from '../utils/imageOptimize';
 import { uploadWorksheetAsset, createSignedUrlForWorksheetAsset, resolveWorksheetHtmlAssetUrls } from '../utils/worksheetAssetStorage';
 import { WorksheetDesigner } from '../components/worksheet/designer/WorksheetDesigner';
@@ -4156,7 +4156,9 @@ const INITIAL_WORKSHEET_CONFIG: WorksheetConfig = {
 export const Worksheets: React.FC = () => {
     const location = useLocation();
     const { user } = useAuth();
+    const deepLinkedWorksheetRef = useRef<string | null>(null);
     const [activeTab, setActiveTab] = useState<'create' | 'library' | 'community'>('create');
+    const [isTourActive, setIsTourActive] = useState(false);
     const [config, setConfig] = useState<WorksheetConfig>(INITIAL_WORKSHEET_CONFIG);
     const [generatedWs, setGeneratedWs] = useState<GeneratedWorksheet | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -4191,10 +4193,21 @@ export const Worksheets: React.FC = () => {
     }, [activeTab, confirmLoseUnsaved, resetCreateState]);
 
     useEffect(() => {
+        if (location.state?.tour === 'worksheets') {
+            setActiveTab('create');
+            setIsTourActive(true);
+            return;
+        }
         if (location.state && location.state.tab) {
             setActiveTab(location.state.tab);
         }
     }, [location]);
+
+    useEffect(() => {
+        if (isTourActive && generatedWs) {
+            setIsTourActive(false);
+        }
+    }, [generatedWs, isTourActive]);
 
     useEffect(() => {
         const handler = (e: BeforeUnloadEvent) => {
@@ -4242,9 +4255,9 @@ export const Worksheets: React.FC = () => {
         return () => document.removeEventListener('click', handler, true);
     }, [activeTab, hasUnsavedChanges, confirmLoseUnsaved, resetCreateState]);
 
-    const handleLoad = async (ws: GeneratedWorksheet) => {
+    const handleLoad = async (ws: GeneratedWorksheet, loadSource?: 'community' | 'library') => {
         // Strip ID if loading from community to treat as template
-        const isCommunity = activeTab === 'community';
+        const isCommunity = loadSource ? loadSource === 'community' : activeTab === 'community';
 
         const nextIsPublic = isCommunity ? false : (ws.config?.isPublic ?? true);
 
@@ -4320,6 +4333,32 @@ export const Worksheets: React.FC = () => {
         setActiveTab('create');
     };
 
+    useEffect(() => {
+        const deepLinkedId = (location.state as any)?.openWorksheetId as string | undefined;
+        if (!deepLinkedId || deepLinkedWorksheetRef.current === deepLinkedId) return;
+
+        deepLinkedWorksheetRef.current = deepLinkedId;
+        let cancelled = false;
+
+        const loadDeepLinkedWorksheet = async () => {
+            const sharedWorksheet = await getSharedWorksheet(deepLinkedId);
+            if (cancelled) return;
+
+            if (!sharedWorksheet) {
+                setActiveTab('community');
+                return;
+            }
+
+            await handleLoad(sharedWorksheet, 'community');
+        };
+
+        void loadDeepLinkedWorksheet();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [location.state]);
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             {/* Header - EXACT MATCH of Games.tsx GameHub structure */}
@@ -4382,6 +4421,32 @@ export const Worksheets: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {isTourActive && activeTab === 'create' && (
+                <div className="fixed z-[180] bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 animate-slide-up">
+                    <button
+                        type="button"
+                        onClick={() => setIsTourActive(false)}
+                        className="absolute top-3 right-3 text-slate-400 hover:text-slate-700"
+                        aria-label="Close tour"
+                    >
+                        <X size={16} />
+                    </button>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow/30 text-slate-800 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide mb-2">
+                        <span className="inline-flex items-center justify-center bg-brand-yellow rounded-full p-1">
+                            <GraduationCap size={11} className="text-sky-900" />
+                        </span>
+                        Site Tour
+                    </div>
+                    <h3 className="font-display text-xl font-bold text-slate-800 pr-6">Worksheet Tour</h3>
+                    <p className="mt-1 text-sm text-slate-700">
+                        Set topic and level, add activities, then click <strong>Generate</strong>.
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                        Optional: upload a source file so AI follows your class material.
+                    </p>
+                </div>
+            )}
         </div>
     );
 };

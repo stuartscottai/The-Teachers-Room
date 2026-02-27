@@ -333,6 +333,7 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 // --- DATA ACCESS LAYER ---
 
 const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+let hasLoggedMissingPlayCountColumn = false;
 
 // Helper to retrieve local games (Guest Mode)
 export const getLocalGames = (): GeneratedGame[] => {
@@ -434,6 +435,7 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
             authorId: d.user_id,
             authorName: d.author_name,
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
+            playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
             // Sync isPublic from column to config object for consistency
             config: { ...d.config, isPublic: d.is_public },
             questions: d.questions,
@@ -503,6 +505,7 @@ export const getCommunityGames = async (
             authorId: d.user_id,
             authorName: d.author_name,
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
+            playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
             config: { ...d.config, isPublic: d.is_public },
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
@@ -515,6 +518,62 @@ export const getCommunityGames = async (
     } catch (e: any) {
         console.error("Community Fetch Error:", e);
         return { data: [], count: 0, error: e.message || "Failed to fetch games" };
+    }
+};
+
+export const getTrendingGames = async (
+    limit: number = 5
+): Promise<{ data: GeneratedGame[]; error: string | null; mode: 'plays' | 'fallback' }> => {
+    const mapGame = (d: any): GeneratedGame => ({
+        id: d.id,
+        title: d.title,
+        authorId: d.user_id,
+        authorName: d.author_name,
+        authorAvatar: d.author_avatar || d.config?.authorAvatar,
+        playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
+        config: { ...d.config, isPublic: d.is_public },
+        questions: d.questions,
+        jeopardyBoard: d.jeopardy_board,
+        pubQuizRounds: d.pub_quiz_rounds,
+        stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
+        createdAt: d.created_at
+    });
+
+    try {
+        const { data, error } = await supabase
+            .from('saved_games')
+            .select('*')
+            .eq('is_public', true)
+            .order('play_count', { ascending: false, nullsFirst: false })
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        return { data: (data || []).map(mapGame), error: null, mode: 'plays' };
+    } catch (e: any) {
+        try {
+            const { data, error } = await supabase
+                .from('saved_games')
+                .select('*')
+                .eq('is_public', true)
+                .order('created_at', { ascending: false })
+                .limit(200);
+
+            if (error) throw error;
+            const sorted = (data || [])
+                .sort((a: any, b: any) => {
+                    const aPlays = Number(a.play_count ?? a.config?.playCount ?? 0);
+                    const bPlays = Number(b.play_count ?? b.config?.playCount ?? 0);
+                    if (aPlays !== bPlays) return bPlays - aPlays;
+                    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+                })
+                .slice(0, limit);
+
+            return { data: sorted.map(mapGame), error: null, mode: 'fallback' };
+        } catch (fallbackError: any) {
+            console.error("Trending Fetch Error:", fallbackError);
+            return { data: [], error: fallbackError.message || "Failed to fetch trending games", mode: 'fallback' };
+        }
     }
 };
 
@@ -537,6 +596,7 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
             authorId: data.user_id,
             authorName: data.author_name,
             authorAvatar: data.author_avatar || data.config?.authorAvatar,
+            playCount: Number(data.play_count ?? data.config?.playCount ?? 0),
             config: { ...data.config, isPublic: data.is_public },
             questions: data.questions,
             jeopardyBoard: data.jeopardy_board,
@@ -547,6 +607,114 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
     } catch (e) {
         console.error("Shared Game Fetch Error:", e);
         return null;
+    }
+};
+
+export const getSharedWorksheet = async (id: string): Promise<GeneratedWorksheet | null> => {
+    if (!id) return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('saved_worksheets')
+            .select('*')
+            .eq('id', id)
+            .eq('is_public', true)
+            .single();
+
+        if (error || !data) return null;
+
+        return {
+            id: data.id,
+            title: data.title,
+            authorId: data.user_id,
+            authorName: data.author_name,
+            authorAvatar: data.author_avatar || data.config?.authorAvatar,
+            config: { ...data.config, isPublic: data.is_public },
+            content: data.content,
+            type: data.type,
+            createdAt: data.created_at
+        };
+    } catch (e) {
+        console.error("Shared Worksheet Fetch Error:", e);
+        return null;
+    }
+};
+
+export const recordGamePlay = async (gameId?: string): Promise<void> => {
+    if (!gameId || !isUUID(gameId)) return;
+
+    // Preferred path: atomic DB-side increment via RPC
+    const { error: rpcError } = await supabase.rpc('increment_game_play', { p_game_id: gameId });
+    if (!rpcError) return;
+
+    const rpcMessage = String((rpcError as any)?.message || '').toLowerCase();
+    const rpcCode = String((rpcError as any)?.code || '');
+    const isExpectedRpcFallback =
+        rpcMessage.includes('increment_game_play') ||
+        rpcMessage.includes('could not find the function') ||
+        rpcCode === 'PGRST202' ||
+        rpcCode === '42883';
+
+    if (!isExpectedRpcFallback) {
+        console.warn("RPC play tracking failed, using fallback updater:", rpcError);
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('saved_games')
+            .select('play_count')
+            .eq('id', gameId)
+            .eq('is_public', true)
+            .single();
+
+        if (error) {
+            // No row (e.g. private/non-existent game) should not fail the UI.
+            if ((error as any).code === 'PGRST116') return;
+            throw error;
+        }
+
+        const currentPlayCount = Number((data as any)?.play_count || 0);
+        const { error: updateError } = await supabase
+            .from('saved_games')
+            .update({ play_count: currentPlayCount + 1 })
+            .eq('id', gameId)
+            .eq('is_public', true);
+
+        if (updateError) throw updateError;
+    } catch (e: any) {
+        const message = String(e?.message || '');
+        if (message.toLowerCase().includes('play_count')) {
+            try {
+                const { data: configData, error: configReadError } = await supabase
+                    .from('saved_games')
+                    .select('config')
+                    .eq('id', gameId)
+                    .eq('is_public', true)
+                    .single();
+
+                if (configReadError) {
+                    if ((configReadError as any).code === 'PGRST116') return;
+                    throw configReadError;
+                }
+
+                const currentConfig = (configData as any)?.config || {};
+                const nextCount = Number(currentConfig.playCount || 0) + 1;
+                const { error: configUpdateError } = await supabase
+                    .from('saved_games')
+                    .update({ config: { ...currentConfig, playCount: nextCount } })
+                    .eq('id', gameId)
+                    .eq('is_public', true);
+
+                if (configUpdateError) throw configUpdateError;
+            } catch (fallbackError) {
+                if (!hasLoggedMissingPlayCountColumn) {
+                    console.warn("Play tracking fallback failed. Add saved_games.play_count for robust trending.");
+                    hasLoggedMissingPlayCountColumn = true;
+                }
+            }
+            return;
+        }
+        console.warn("Failed to record game play:", e);
     }
 };
 

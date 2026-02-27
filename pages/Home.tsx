@@ -1,9 +1,98 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
-import { getGlobalStats } from '../utils/gameUtils';
+import { GameType, GeneratedWorksheet } from '../types';
+import { getGlobalStats, getTrendingGames, getCommunityWorksheets } from '../utils/gameUtils';
+
+type HomeTrendingCard = {
+    id: string;
+    title: string;
+    plays: string;
+    image: string;
+    icon: React.ReactNode;
+    color: string;
+    href: string;
+};
+
+type HomeWorksheetItem = Pick<GeneratedWorksheet, 'id' | 'title' | 'createdAt' | 'authorName'>;
+
+const compactNumberFormatter = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+
+const formatPlayCount = (value: number) => compactNumberFormatter.format(Math.max(0, value));
+const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+const formatRelativeTime = (dateString?: string) => {
+    if (!dateString) return 'just now';
+    const then = new Date(dateString).getTime();
+    if (Number.isNaN(then)) return 'recently';
+
+    const elapsedMs = Date.now() - then;
+    const elapsedSeconds = Math.round(elapsedMs / 1000);
+
+    if (Math.abs(elapsedSeconds) < 60) return 'just now';
+
+    const ranges: Array<{ seconds: number; unit: Intl.RelativeTimeFormatUnit }> = [
+        { seconds: 31536000, unit: 'year' },
+        { seconds: 2592000, unit: 'month' },
+        { seconds: 604800, unit: 'week' },
+        { seconds: 86400, unit: 'day' },
+        { seconds: 3600, unit: 'hour' },
+        { seconds: 60, unit: 'minute' }
+    ];
+
+    for (const range of ranges) {
+        if (Math.abs(elapsedSeconds) >= range.seconds) {
+            const delta = Math.round(elapsedSeconds / range.seconds);
+            return relativeTimeFormatter.format(-delta, range.unit);
+        }
+    }
+
+    return 'just now';
+};
+
+const getGameVisual = (type?: GameType) => {
+    switch (type) {
+        case GameType.JEOPARDY:
+            return { image: '/assets/games/jeopardy.png', icon: <Grid size={40} />, color: 'bg-blue-500' };
+        case GameType.MILLIONAIRE:
+            return { image: '/assets/games/millionaire.png', icon: <DollarSign size={40} />, color: 'bg-indigo-600' };
+        case GameType.SURVEY_SHOWDOWN:
+            return { image: '/assets/games/survey.png', icon: <List size={40} />, color: 'bg-emerald-500' };
+        case GameType.TRIVIA:
+            return { image: '/assets/games/trivia.png', icon: <HelpCircle size={40} />, color: 'bg-purple-500' };
+        case GameType.PUB_QUIZ:
+            return { image: '/assets/games/pubquiz.png', icon: <Beer size={40} />, color: 'bg-slate-700' };
+        case GameType.DARTS:
+            return { image: '/assets/games/darts.png', icon: <Target size={40} />, color: 'bg-red-500' };
+        case GameType.TIME_BOMB:
+            return { image: '/assets/games/timebomb.png', icon: <Timer size={40} />, color: 'bg-rose-600' };
+        case GameType.STOP_THE_FIRE:
+            return { image: '/assets/games/stopthefire.png', icon: <Flame size={40} />, color: 'bg-orange-500' };
+        case GameType.WORD_WHEEL:
+            return { image: '/assets/games/wordwheel.png', icon: <RefreshCw size={40} />, color: 'bg-cyan-600' };
+        case GameType.SNAKES_LADDERS:
+            return { image: '/assets/games/snakesladders.png', icon: <Dice5 size={40} />, color: 'bg-teal-500' };
+        default:
+            return { image: '/assets/games/trivia.png', icon: <Trophy size={40} />, color: 'bg-sky-600' };
+    }
+};
+
+const FALLBACK_TRENDING_GAMES: HomeTrendingCard[] = [
+    { id: 'fallback-1', title: 'Jeopardy', plays: '0', href: '/games', ...getGameVisual(GameType.JEOPARDY) },
+    { id: 'fallback-2', title: 'Millionaire Maker', plays: '0', href: '/games', ...getGameVisual(GameType.MILLIONAIRE) },
+    { id: 'fallback-3', title: 'Survey Showdown', plays: '0', href: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
+    { id: 'fallback-4', title: 'Trivia Quiz', plays: '0', href: '/games', ...getGameVisual(GameType.TRIVIA) },
+    { id: 'fallback-5', title: 'Pub Quiz', plays: '0', href: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
+];
+
+const FALLBACK_WORKSHEETS: HomeWorksheetItem[] = [
+    { id: 'ws-fallback-1', title: 'Present Perfect Simple', authorName: 'Teacher 1' },
+    { id: 'ws-fallback-2', title: 'Photosynthesis Matching', authorName: 'Teacher 2' },
+    { id: 'ws-fallback-3', title: 'French Vocab Search', authorName: 'Teacher 3' }
+];
 
 // Simple Animated Counter Component
 const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) => {
@@ -43,11 +132,11 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
 };
 
 // Robust Card for Trending Games
-const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: string, icon: React.ReactNode, color: string } }> = ({ game }) => {
+const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
     const [hasError, setHasError] = useState(false);
 
     return (
-        <Link to="/games" className="group block h-full">
+        <Link to={game.href} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
                 <div className={`h-32 relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-slate-200'}`}>
                     <img 
@@ -73,7 +162,7 @@ const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: 
                 </div>
                 <div className="p-4 flex-grow">
                     <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{game.plays} plays this week</p>
+                    <p className="text-xs text-slate-400 mt-1">{game.plays} plays</p>
                 </div>
             </div>
         </Link>
@@ -81,59 +170,167 @@ const TrendingGameCard: React.FC<{ game: { title: string, plays: string, image: 
 };
 
 export const Home: React.FC = () => {
+  const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
   const [stats, setStats] = useState({ games: 0, worksheets: 0 });
+  const [trendingGames, setTrendingGames] = useState<HomeTrendingCard[]>(FALLBACK_TRENDING_GAMES);
+  const [freshWorksheets, setFreshWorksheets] = useState<HomeWorksheetItem[]>(FALLBACK_WORKSHEETS);
+  const [showTourInvite, setShowTourInvite] = useState(false);
+  const [dontShowTourAgain, setDontShowTourAgain] = useState(false);
+
+  const TOUR_HIDE_KEY = 'teachersRoomTourPromptDisabled';
+
+  const persistTourPreference = (hide: boolean) => {
+    try {
+      if (hide) {
+        localStorage.setItem(TOUR_HIDE_KEY, '1');
+      } else {
+        localStorage.removeItem(TOUR_HIDE_KEY);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
-    
-    // Fetch global stats
-    getGlobalStats().then(data => setStats(data));
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    let isUnmounted = false;
+
+    const refreshHomeFeed = async () => {
+      try {
+        const [statsData, trendingResult, worksheetsResult] = await Promise.all([
+          getGlobalStats(),
+          getTrendingGames(5),
+          getCommunityWorksheets(1, 3, '', 'all', 'newest')
+        ]);
+
+        if (isUnmounted) return;
+
+        setStats(statsData);
+
+        const mappedTrending = trendingResult.data.map((game, index) => {
+          const visuals = getGameVisual(game.config?.type);
+          return {
+            id: game.id || `trending-${index}`,
+            title: game.title || game.config?.type || 'Untitled game',
+            plays: formatPlayCount(Number(game.playCount || 0)),
+            href: isUUID(game.id) ? `/share/game/${game.id}` : '/games',
+            image: visuals.image,
+            icon: visuals.icon,
+            color: visuals.color
+          };
+        });
+
+        setTrendingGames(mappedTrending.length > 0 ? mappedTrending : FALLBACK_TRENDING_GAMES);
+
+        const mappedWorksheets: HomeWorksheetItem[] = worksheetsResult.data.map((worksheet) => ({
+          id: worksheet.id,
+          title: worksheet.title,
+          authorName: worksheet.authorName,
+          createdAt: worksheet.createdAt
+        }));
+
+        setFreshWorksheets(mappedWorksheets.length > 0 ? mappedWorksheets : FALLBACK_WORKSHEETS);
+      } catch (error) {
+        if (isUnmounted) return;
+        console.warn('Home feed refresh failed:', error);
+        setTrendingGames(FALLBACK_TRENDING_GAMES);
+        setFreshWorksheets(FALLBACK_WORKSHEETS);
+      }
+    };
+
+    void refreshHomeFeed();
+    const refreshInterval = window.setInterval(() => {
+      void refreshHomeFeed();
+    }, 120000);
+
+    try {
+      const disabled = localStorage.getItem(TOUR_HIDE_KEY) === '1';
+      setShowTourInvite(!disabled);
+    } catch {
+      setShowTourInvite(true);
+    }
+
+    return () => {
+      isUnmounted = true;
+      clearInterval(refreshInterval);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
-  const trendingGames = [
-      { 
-          title: 'Jeopardy', 
-          plays: '15.2k', 
-          image: '/assets/games/jeopardy.png', 
-          icon: <Grid size={40} />, 
-          color: 'bg-blue-500' 
-      },
-      { 
-          title: 'Millionaire Maker', 
-          plays: '12.8k', 
-          image: '/assets/games/millionaire.png', 
-          icon: <Trophy size={40} />, 
-          color: 'bg-indigo-600' 
-      },
-      { 
-          title: 'Survey Showdown', 
-          plays: '10.5k', 
-          image: '/assets/games/survey.png', 
-          icon: <List size={40} />, 
-          color: 'bg-emerald-500' 
-      },
-      { 
-          title: 'Trivia Quiz', 
-          plays: '9.3k', 
-          image: '/assets/games/trivia.png', 
-          icon: <HelpCircle size={40} />, 
-          color: 'bg-purple-500' 
-      },
-      { 
-          title: 'Pub Quiz', 
-          plays: '7.6k', 
-          image: '/assets/games/pubquiz.png', 
-          icon: <Beer size={40} />, 
-          color: 'bg-slate-700' 
-      }
-  ];
+  const handleSkipTour = () => {
+    persistTourPreference(dontShowTourAgain);
+    setShowTourInvite(false);
+  };
+
+  const startTour = (target: 'games' | 'worksheets') => {
+    persistTourPreference(dontShowTourAgain);
+    setShowTourInvite(false);
+    navigate(target === 'games' ? '/games' : '/worksheets', { state: { tour: target } });
+  };
 
   return (
     <div className="overflow-hidden">
+      {showTourInvite && (
+        <div className="fixed inset-0 z-[220] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 sm:p-7 relative animate-slide-up">
+            <button
+              type="button"
+              onClick={handleSkipTour}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors"
+              aria-label="Close tour popup"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-3 inline-flex items-center justify-center bg-brand-yellow p-2.5 rounded-full shadow-sm">
+              <GraduationCap size={20} className="text-sky-900" />
+            </div>
+            <h2 className="font-display text-3xl text-slate-800 mb-2">Take a quick tour?</h2>
+            <p className="text-slate-600 mb-5">
+              Pick where you want to start. We&apos;ll guide you step by step.
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => startTour('games')}
+                className="py-3 px-4 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
+              >
+                Games
+              </button>
+              <button
+                type="button"
+                onClick={() => startTour('worksheets')}
+                className="py-3 px-4 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 transition-colors"
+              >
+                Worksheets
+              </button>
+            </div>
+
+            <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={dontShowTourAgain}
+                onChange={(e) => setDontShowTourAgain(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-blue"
+              />
+              Don&apos;t show message again
+            </label>
+
+            <button
+              type="button"
+              onClick={handleSkipTour}
+              className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+            >
+              Skip tour
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section - Parallax Effect */}
       <section className="relative min-h-[85vh] flex items-center justify-center bg-brand-blue overflow-hidden">
         
@@ -275,9 +472,9 @@ export const Home: React.FC = () => {
             <h2 className="font-display text-3xl font-bold text-center text-slate-800 mb-12">
                 <span className="border-b-4 border-brand-yellow pb-2">Trending Games</span>
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                {trendingGames.map((game, idx) => (
-                    <TrendingGameCard key={idx} game={game} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                {trendingGames.map((game) => (
+                    <TrendingGameCard key={game.id} game={game} />
                 ))}
             </div>
         </div>
@@ -312,15 +509,21 @@ export const Home: React.FC = () => {
                 <span className="border-b-4 border-brand-blue pb-2">Fresh Worksheets</span>
             </h2>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                 {['Present Perfect Simple', 'Photosynthesis Matching', 'French Vocab Search'].map((ws, idx) => (
-                    <div key={idx} className="flex items-start space-x-4 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all border border-yellow-200 group">
+                 {freshWorksheets.map((ws, idx) => (
+                    <div key={ws.id || idx} className="flex items-start space-x-4 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all border border-yellow-200 group">
                         <div className="bg-sky-100 p-3 rounded-lg text-sky-600 group-hover:bg-brand-blue group-hover:text-white transition-colors">
                             <FileText size={24} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-800">{ws}</h3>
-                            <p className="text-sm text-slate-500 mb-2">Created 2 hours ago by Teacher{idx+1}</p>
-                            <Link to="/worksheets" className="text-sm font-semibold text-brand-blue hover:text-sky-800 flex items-center">
+                            <h3 className="font-bold text-slate-800">{ws.title}</h3>
+                            <p className="text-sm text-slate-500 mb-2">
+                              Created {formatRelativeTime(ws.createdAt)} by {ws.authorName || `Teacher ${idx + 1}`}
+                            </p>
+                            <Link
+                              to="/worksheets"
+                              state={isUUID(ws.id) ? { openWorksheetId: ws.id } : { tab: 'community' }}
+                              className="text-sm font-semibold text-brand-blue hover:text-sky-800 flex items-center"
+                            >
                                 View Resource <ArrowRight size={14} className="ml-1" />
                             </Link>
                         </div>

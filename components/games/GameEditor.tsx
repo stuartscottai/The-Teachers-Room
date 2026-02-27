@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { GameType, GeneratedGame, GeneratedQuestion } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
@@ -9,6 +10,7 @@ import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/game
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
+import { Avatar } from '../Avatar';
 import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 
 interface GameEditorProps {
@@ -222,9 +224,16 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return null;
         }
         setSaveStatus('saving');
-        const nextPublic = opts?.overrideIsPublic ?? isPublic;
+        const requestedPublic = opts?.overrideIsPublic ?? isPublic;
+        const publishLockedForRemix = Boolean(editedGame.sourceGameId && !hasEdits && requestedPublic);
+        const nextPublic = publishLockedForRemix ? false : requestedPublic;
         
         const shouldClearSourceId = hasEdits && Boolean(editedGame.sourceGameId);
+        const originalCreatorName = editedGame.config.originalCreatorName || editedGame.authorName || user.name || 'Teacher';
+        const originalCreatorId = editedGame.config.originalCreatorId || editedGame.authorId || user.id;
+        const originalCreatorAvatar =
+            editedGame.config.originalCreatorAvatar ?? editedGame.authorAvatar ?? editedGame.config.authorAvatar ?? user.avatar ?? null;
+        const includeEditedBy = !editedGame.sourceGameId || hasEdits;
 
         const cleanedStopTheFireCategories =
             editedGame.config.type === GameType.STOP_THE_FIRE
@@ -240,8 +249,19 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         // Ensure config is synced
         const finalGame = {
             ...editedGame,
+            authorId: user.id,
+            authorName: user.name,
             sourceGameId: shouldClearSourceId ? undefined : editedGame.sourceGameId,
-            config: { ...editedGame.config, isPublic: nextPublic, authorAvatar: user.avatar || null },
+            config: {
+                ...editedGame.config,
+                isPublic: nextPublic,
+                authorAvatar: user.avatar || null,
+                originalCreatorName,
+                originalCreatorId,
+                originalCreatorAvatar,
+                lastEditorName: includeEditedBy ? user.name : editedGame.config.lastEditorName,
+                lastEditorId: includeEditedBy ? user.id : editedGame.config.lastEditorId
+            },
             ...(cleanedStopTheFireCategories
                 ? { stopTheFireCategories: cleanedStopTheFireCategories }
                 : {})
@@ -253,10 +273,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         if (result.success) {
             const savedGame = { ...finalGame, id: result.id ?? finalGame.id };
             setSaveStatus('saved');
+            setIsPublic(nextPublic);
             setIsDirty(false);
             setHasEdits(false);
             setEditedGame(savedGame);
             onSave(savedGame);
+            if (publishLockedForRemix) {
+                alert("Remixed community games stay private until you make a content edit.");
+            }
             setTimeout(() => setSaveStatus('idle'), 2000);
             return savedGame;
         } else {
@@ -280,6 +304,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const handleVisibilityToggle = () => {
         if (!user) {
             alert("Guests cannot publish games to the community. Please log in to share your creation!");
+            return;
+        }
+        if (!isPublic && editedGame.sourceGameId && !hasEdits) {
+            alert("Make at least one edit before publishing a community game copy.");
             return;
         }
         setIsPublic(!isPublic);
@@ -599,6 +627,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
     const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
     const isWordWheel = editedGame.config.type === GameType.WORD_WHEEL;
+    const createdById = editedGame.config.originalCreatorId || editedGame.authorId;
+    const createdByName = editedGame.config.originalCreatorName || editedGame.authorName;
+    const createdByAvatar = editedGame.config.originalCreatorAvatar || editedGame.authorAvatar || editedGame.config.authorAvatar || null;
+    const editedByName = editedGame.config.lastEditorName;
+    const showEditedBy = Boolean(editedByName && createdByName && editedByName !== createdByName);
+    const showCreatorAttribution = Boolean(createdByName || editedByName || editedGame.sourceGameId);
+    const publicToggleLocked = Boolean(!isPublic && editedGame.sourceGameId && !hasEdits);
 
     // For Darts, we hide the reserve questions in the editor view (but keep them in data)
     // The main questions are indices 0 to config.questionCount - 1
@@ -642,16 +677,55 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                             </div>
                             
                             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <h1 className="font-display text-3xl font-bold text-slate-800 truncate w-full md:w-auto">
-                                    Editor: {editedGame.title} 
-                                    <span className="text-sm font-normal text-slate-500 ml-3 bg-slate-100 px-2 py-1 rounded-lg align-middle">
-                                        {editedGame.config.type}
-                                    </span>
-                                </h1>
+                                <div className="w-full md:w-auto">
+                                    <h1 className="font-display text-3xl font-bold text-slate-800 truncate">
+                                        Editor: {editedGame.title} 
+                                        <span className="text-sm font-normal text-slate-500 ml-3 bg-slate-100 px-2 py-1 rounded-lg align-middle">
+                                            {editedGame.config.type}
+                                        </span>
+                                    </h1>
+                                    {showCreatorAttribution && (
+                                        <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
+                                            <span>Originally created by</span>
+                                            <Avatar
+                                                name={createdByName || 'Unknown creator'}
+                                                src={createdByAvatar}
+                                                className="w-4 h-4"
+                                                textClassName="text-[7px]"
+                                            />
+                                            {createdByName ? (
+                                                <Link
+                                                    to="/games"
+                                                    state={
+                                                        createdById
+                                                            ? { view: 'community', creatorFilter: { id: createdById, name: createdByName } }
+                                                            : { view: 'community', searchQuery: createdByName }
+                                                    }
+                                                    className="font-bold text-slate-700 hover:text-brand-blue hover:underline"
+                                                    title={`View all games by ${createdByName}`}
+                                                >
+                                                    {createdByName}
+                                                </Link>
+                                            ) : (
+                                                <span className="font-bold text-slate-700">Unknown creator</span>
+                                            )}
+                                            {showEditedBy && (
+                                                <>
+                                                    <span>, edited by</span>
+                                                    <span className="font-bold text-slate-700">{editedByName}</span>
+                                                </>
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
                                 
                                 <div className="w-full md:w-auto items-center flex flex-row flex-wrap justify-start gap-2 sm:gap-3">
                                     {/* VISIBILITY TOGGLE */}
-                                    <div className={`flex items-center bg-slate-200 rounded-full cursor-pointer select-none p-0.5 sm:p-1 ${!user ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleVisibilityToggle}>
+                                    <div
+                                        className={`flex items-center bg-slate-200 rounded-full select-none p-0.5 sm:p-1 ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        onClick={handleVisibilityToggle}
+                                        title={publicToggleLocked ? 'Make at least one edit before setting this game to Public.' : undefined}
+                                    >
                                         <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
                                             <Lock size={12} className="mr-1" /> Private
                                         </div>

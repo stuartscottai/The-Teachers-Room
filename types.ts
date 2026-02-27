@@ -49,6 +49,12 @@ export interface GameConfig {
   // Optional AI image settings
   includeImages?: boolean;
   imageMode?: 'auto' | 'manual';
+  // Provenance metadata for remixes/copies
+  originalCreatorName?: string;
+  originalCreatorId?: string;
+  originalCreatorAvatar?: string | null;
+  lastEditorName?: string;
+  lastEditorId?: string;
 }
 
 export type StopTheFireDifficulty = 'beginner' | 'intermediate' | 'advanced';
@@ -138,6 +144,7 @@ export interface JeopardyCategory {
 export interface GeneratedGame {
   id?: string; // For saving
   createdAt?: string; // For saving
+  playCount?: number; // Optional metric for community/trending ranking
   title: string;
   authorId?: string; // User ID for community filtering
   authorName?: string; // Display name of creator

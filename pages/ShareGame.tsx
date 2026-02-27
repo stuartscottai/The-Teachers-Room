@@ -56,9 +56,16 @@ export const ShareGame: React.FC = () => {
         const safeGame: GeneratedGame = {
           ...shared,
           id: undefined,
-          authorName: undefined,
           sourceGameId: shared.id,
-          config: { ...shared.config, isPublic: false },
+          config: {
+            ...shared.config,
+            isPublic: false,
+            originalCreatorName: shared.config.originalCreatorName || shared.authorName || 'Teacher',
+            originalCreatorId: shared.config.originalCreatorId || shared.authorId,
+            originalCreatorAvatar: shared.config.originalCreatorAvatar || shared.authorAvatar || shared.config.authorAvatar || null,
+            lastEditorName: undefined,
+            lastEditorId: undefined,
+          },
         };
         setGame(safeGame);
         setStep('editor');

@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { getSavedGames, deleteSavedGame, getCommunityGames, getLocalGames } from '../utils/gameUtils';
+import { getSavedGames, deleteSavedGame, getCommunityGames, recordGamePlay } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -137,6 +137,33 @@ const getIcon = (type: string) => {
         default: return <Dice5 size={18} />;
     }
 };
+
+const TourPopup: React.FC<{
+    title: string;
+    text: string;
+    detail?: string;
+    onClose: () => void;
+}> = ({ title, text, detail, onClose }) => (
+    <div className="fixed z-[180] bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 animate-slide-up">
+        <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3 right-3 text-slate-400 hover:text-slate-700"
+            aria-label="Close tour"
+        >
+            <X size={16} />
+        </button>
+        <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow/30 text-slate-800 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide mb-2">
+            <span className="inline-flex items-center justify-center bg-brand-yellow rounded-full p-1">
+                <GraduationCap size={11} className="text-sky-900" />
+            </span>
+            Site Tour
+        </div>
+        <h3 className="font-display text-xl font-bold text-slate-800 pr-6">{title}</h3>
+        <p className="mt-1 text-sm text-slate-700">{text}</p>
+        {detail && <p className="mt-2 text-xs text-slate-500">{detail}</p>}
+    </div>
+);
 
 // --- PERSONAL LIBRARY COMPONENT ---
 const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> = ({ onLoadGame }) => {
@@ -415,7 +442,11 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 };
 
 // --- COMMUNITY LIBRARY COMPONENT ---
-const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> = ({ onLoadGame }) => {
+const CommunityLibrary: React.FC<{
+    onLoadGame: (game: GeneratedGame) => void;
+    initialAuthorFilter?: { id?: string; name: string } | null;
+    initialSearch?: string;
+}> = ({ onLoadGame, initialAuthorFilter, initialSearch }) => {
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchInput, setSearchInput] = useState('');
@@ -483,6 +514,29 @@ const CommunityLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> 
             setIsSearchAutoFilled(false);
         }
     };
+
+    useEffect(() => {
+        const seedName = initialAuthorFilter?.name?.trim();
+        const seedId = initialAuthorFilter?.id?.trim();
+        const seedSearch = (initialSearch || '').trim();
+
+        if (seedId && seedName) {
+            setAuthorFilter({ id: seedId, name: seedName });
+            setSearchInput(seedName);
+            setSearchQuery('');
+            setIsSearchAutoFilled(true);
+            setCurrentPage(1);
+            return;
+        }
+
+        if (seedSearch) {
+            setAuthorFilter(null);
+            setSearchInput(seedSearch);
+            setSearchQuery(seedSearch);
+            setIsSearchAutoFilled(false);
+            setCurrentPage(1);
+        }
+    }, [initialAuthorFilter?.id, initialAuthorFilter?.name, initialSearch]);
 
     const totalPages = Math.ceil(totalCount / itemsPerPage);
     const pageStart = (currentPage - 1) * itemsPerPage + 1;
@@ -738,8 +792,10 @@ const GameHub: React.FC<{
     initialTab?: 'create' | 'community' | 'library',
     onLoadCommunityGame: (game: GeneratedGame) => void,
     onLoadPersonalGame: (game: GeneratedGame) => void,
-    onOpenAiAssistant: () => void
-}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant }) => {
+    onOpenAiAssistant: () => void,
+    initialCommunityAuthorFilter?: { id?: string; name: string } | null,
+    initialCommunitySearch?: string
+}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant, initialCommunityAuthorFilter, initialCommunitySearch }) => {
     const [activeTab, setActiveTab] = useState<'create' | 'community' | 'library'>(initialTab);
     
     // Sync internal state with prop changes (e.g. from Nav link)
@@ -896,7 +952,11 @@ const GameHub: React.FC<{
             )}
 
             {activeTab === 'community' && (
-                <CommunityLibrary onLoadGame={onLoadCommunityGame} />
+                <CommunityLibrary
+                    onLoadGame={onLoadCommunityGame}
+                    initialAuthorFilter={initialCommunityAuthorFilter}
+                    initialSearch={initialCommunitySearch}
+                />
             )}
 
             {activeTab === 'library' && (
@@ -915,18 +975,62 @@ export const Games: React.FC = () => {
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
     const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub'>('hub');
     const [hubTab, setHubTab] = useState<'create' | 'community' | 'library'>('create');
+    const [communitySeedAuthorFilter, setCommunitySeedAuthorFilter] = useState<{ id?: string; name: string } | null>(null);
+    const [communitySeedSearch, setCommunitySeedSearch] = useState('');
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+    const [isTourActive, setIsTourActive] = useState(false);
 
     const location = useLocation();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
 
     useEffect(() => {
-        if (location.state && location.state.view === 'library') {
+        const navState: any = location.state || {};
+        if (navState?.tour) return;
+
+        if (navState?.view === 'library') {
             setIsDirty(false); 
+            setCommunitySeedAuthorFilter(null);
+            setCommunitySeedSearch('');
             setHubTab('library');
             setStep('hub');
+            return;
+        }
+
+        if (navState?.view === 'community') {
+            setIsDirty(false);
+            setIsAssistantOpen(false);
+            setHubTab('community');
+            setStep('hub');
+
+            const creator = navState.creatorFilter as { id?: string; name?: string } | undefined;
+            if (creator?.name) {
+                setCommunitySeedAuthorFilter({ id: creator.id, name: creator.name });
+                setCommunitySeedSearch('');
+                return;
+            }
+
+            const search = typeof navState.searchQuery === 'string' ? navState.searchQuery.trim() : '';
+            setCommunitySeedAuthorFilter(null);
+            setCommunitySeedSearch(search);
         }
     }, [location, setIsDirty]);
+
+    useEffect(() => {
+        if (location.state?.tour === 'games') {
+            setIsDirty(false);
+            setHubTab('create');
+            setStep('hub');
+            setIsAssistantOpen(false);
+            setIsTourActive(true);
+        }
+    }, [location.state, setIsDirty]);
+
+    useEffect(() => {
+        if (!isTourActive) return;
+        if (step !== 'hub' && step !== 'mode' && step !== 'config') {
+            setIsTourActive(false);
+        }
+    }, [isTourActive, step]);
 
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
@@ -947,6 +1051,12 @@ export const Games: React.FC = () => {
         setIsDirty(true);
     };
 
+    const trackStartedGame = (game?: GeneratedGame | null) => {
+        const gameIdToTrack = game?.sourceGameId || game?.id;
+        if (!gameIdToTrack) return;
+        void recordGamePlay(gameIdToTrack);
+    };
+
     const handleEditorSave = (updatedGame: GeneratedGame) => {
         setGeneratedGame(updatedGame);
     };
@@ -963,6 +1073,7 @@ export const Games: React.FC = () => {
                  strictMode: false,
                  muted: false
              });
+             trackStartedGame(updatedGame);
              setStep('play');
         } else if (updatedGame.config.type === GameType.STOP_THE_FIRE) {
              setPlayOptions({
@@ -974,6 +1085,7 @@ export const Games: React.FC = () => {
                  stopTheFireCategoryCount: 10,
                  stopTheFireDifficulty: 'beginner'
              });
+             trackStartedGame(updatedGame);
              setStep('play');
         } else if (updatedGame.config.type === GameType.SURVEY_SHOWDOWN) {
              setPlayOptions({
@@ -990,6 +1102,7 @@ export const Games: React.FC = () => {
     };
 
     const handleGameStart = (options: GameRunOptions) => {
+        trackStartedGame(generatedGame);
         setPlayOptions(options);
         setStep('play');
     };
@@ -1009,8 +1122,16 @@ export const Games: React.FC = () => {
         const safeGame = { 
             ...game, 
             id: undefined,
-            authorName: undefined, // Will be set to new user on save
-            config: { ...game.config, isPublic: false } 
+            sourceGameId: game.id,
+            config: {
+                ...game.config,
+                isPublic: false,
+                originalCreatorName: game.config.originalCreatorName || game.authorName || 'Teacher',
+                originalCreatorId: game.config.originalCreatorId || game.authorId,
+                originalCreatorAvatar: game.config.originalCreatorAvatar || game.authorAvatar || game.config.authorAvatar || null,
+                lastEditorName: undefined,
+                lastEditorId: undefined
+            } 
         };
         
         setGeneratedGame(safeGame);
@@ -1055,8 +1176,12 @@ export const Games: React.FC = () => {
         setIsDirty(false);
         if (selectedType === GameType.MILLIONAIRE) {
              setStep('editor'); 
-             setTimeout(() => setStep('play'), 50); 
+             setTimeout(() => {
+                trackStartedGame(generatedGame);
+                setStep('play');
+             }, 50); 
         } else if (selectedType === GameType.STOP_THE_FIRE) {
+             trackStartedGame(generatedGame);
              setStep('play');
         } else {
              setStep('setup');
@@ -1090,6 +1215,38 @@ export const Games: React.FC = () => {
         }
     }, [step]);
 
+    const getTourConfigCopy = () => {
+        if (creationMode === 'manual') {
+            if (selectedType === GameType.STOP_THE_FIRE) {
+                return {
+                    text: 'Configure your game: add a title and your categories, then click "Open Editor".',
+                    detail: 'Manual mode means you will type content yourself in the editor.'
+                };
+            }
+            return {
+                text: 'Configure your game basics, then click "Open Editor" to build questions manually.',
+                detail: 'Manual mode gives full control and usually needs less setup.'
+            };
+        }
+
+        if (creationMode === 'bank') {
+            return {
+                text: 'Configure the word-bank options shown, then continue to the editor.',
+                detail: 'Bank mode uses prebuilt categories, so setup is quick.'
+            };
+        }
+
+        const compactTypes = [GameType.MILLIONAIRE, GameType.WORD_WHEEL, GameType.SURVEY_SHOWDOWN, GameType.STOP_THE_FIRE];
+        const detail = compactTypes.includes(selectedType as GameType)
+            ? 'This game type needs fewer inputs. Fill the visible fields and click "Create Game".'
+            : 'Give your game a title, topic, question style, image options, AI instructions, then click "Create Game".';
+
+        return {
+            text: 'Configure your game for AI generation.',
+            detail
+        };
+    };
+
     return (
         <div className="min-h-screen bg-slate-50">
             {step === 'hub' && (
@@ -1099,6 +1256,8 @@ export const Games: React.FC = () => {
                     onLoadCommunityGame={handleLoadCommunityGame}
                     onLoadPersonalGame={handleLoadPersonalGame}
                     onOpenAiAssistant={() => setIsAssistantOpen(true)}
+                    initialCommunityAuthorFilter={communitySeedAuthorFilter}
+                    initialCommunitySearch={communitySeedSearch}
                 />
             )}
             
@@ -1237,6 +1396,31 @@ export const Games: React.FC = () => {
                 <AiAssistantChat 
                     onClose={() => setIsAssistantOpen(false)} 
                     onGameGenerated={handleAiGameGenerated} 
+                />
+            )}
+
+            {isTourActive && step === 'hub' && !isAssistantOpen && (
+                <TourPopup
+                    title="Step 1"
+                    text='To create a new game, choose a game card or use "Open AI Assistant". You can also browse existing games in the Community tab.'
+                    onClose={() => setIsTourActive(false)}
+                />
+            )}
+
+            {isTourActive && step === 'mode' && (
+                <TourPopup
+                    title="Step 2"
+                    text='Choose how to create your game: Manually or using AI Assistant.'
+                    onClose={() => setIsTourActive(false)}
+                />
+            )}
+
+            {isTourActive && step === 'config' && (
+                <TourPopup
+                    title="Step 3"
+                    text={getTourConfigCopy().text}
+                    detail={getTourConfigCopy().detail}
+                    onClose={() => setIsTourActive(false)}
                 />
             )}
         </div>
