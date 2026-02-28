@@ -285,6 +285,63 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
   }
 };
 
+const clampGameMcOptionCount = (config: GameConfig): number | null => {
+  if (config.type === GameType.MILLIONAIRE) return 4;
+  if (config.questionType !== 'multiple-choice') return null;
+  const parsed = Number(config.mcOptionCount);
+  if (!Number.isFinite(parsed)) return 4;
+  return Math.min(4, Math.max(2, Math.round(parsed)));
+};
+
+const enforceQuestionOptionCount = (question: any, targetCount: number) => {
+  if (!question || !Array.isArray(question.options)) return;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+
+  if (options.length <= targetCount) {
+    question.options = options;
+    return;
+  }
+
+  const answer = String(question.answer || '').trim();
+  const answerIndex = options.findIndex(
+    (opt: string) =>
+      opt === answer ||
+      normalizeOption(opt) === normalizeOption(answer) ||
+      normalizeOptionWithoutArticle(opt) === normalizeOptionWithoutArticle(answer)
+  );
+
+  if (answerIndex === -1 || answerIndex < targetCount) {
+    question.options = options.slice(0, targetCount);
+    return;
+  }
+
+  const trimmed = options.filter((_: string, index: number) => index !== answerIndex).slice(0, targetCount - 1);
+  trimmed.push(options[answerIndex]);
+  question.options = trimmed;
+};
+
+const enforceGameOptionCounts = (data: any, config: GameConfig) => {
+  if (!data) return;
+  const targetCount = clampGameMcOptionCount(config);
+  if (!targetCount) return;
+
+  const apply = (questions?: any[]) => {
+    if (!Array.isArray(questions)) return;
+    questions.forEach((question: any) => enforceQuestionOptionCount(question, targetCount));
+  };
+
+  apply(data.questions);
+  if (Array.isArray(data.pubQuizRounds)) {
+    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
+  }
+  if (Array.isArray(data.jeopardyBoard)) {
+    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
+  }
+};
+
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 type WordWheelLetterRule = 'starts-with' | 'contains-hard';
@@ -510,6 +567,8 @@ const hydrateGameAutoImages = async (
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {
   const external = await tryExternalApi<GeneratedGame>({ action: 'game', config });
   if (external) {
+    enforceGameOptionCounts(external, config);
+    enforceGameAnswerMatchesOptions(external);
     const normalizedExternalQuestions =
       config.type === GameType.WORD_WHEEL
         ? normalizeWordWheelQuestions(
@@ -874,6 +933,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     
     const data = JSON.parse(cleanJson(text));
 
+    enforceGameOptionCounts(data, config);
     enforceGameAnswerMatchesOptions(data);
 
     const normalizedQuestions = isWordWheel

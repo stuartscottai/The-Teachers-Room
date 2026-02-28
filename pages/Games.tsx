@@ -62,27 +62,126 @@ const getGameStats = (game: GeneratedGame) => {
     return stats;
 };
 
+const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
+    [GameType.SNAKES_LADDERS]: [
+        "/assets/games/snakes.png",
+        "/assets/games/snakes1.png",
+        "/assets/games/snakes2.png"
+    ],
+    [GameType.TRIVIA]: [
+        "/assets/games/trivia.png",
+        "/assets/games/trivia1..png",
+        "/assets/games/trivia2.png"
+    ],
+    [GameType.JEOPARDY]: [
+        "/assets/games/jeopardy.png",
+        "/assets/games/jeopardy1.png",
+        "/assets/games/jeopardy2.png"
+    ],
+    [GameType.PUB_QUIZ]: [
+        "/assets/games/pubquiz.png",
+        "/assets/games/pubquiz1.png",
+        "/assets/games/pubquiz2.png"
+    ],
+    [GameType.DARTS]: [
+        "/assets/games/darts.png",
+        "/assets/games/darts1.png",
+        "/assets/games/darts2.png"
+    ],
+    [GameType.MILLIONAIRE]: [
+        "/assets/games/millionaire.png",
+        "/assets/games/millionaire1.png",
+        "/assets/games/millionaire2.png"
+    ],
+    [GameType.TIME_BOMB]: [
+        "/assets/games/timebomb.png",
+        "/assets/games/timebomb1.png",
+        "/assets/games/timebomb2.png"
+    ],
+    [GameType.SURVEY_SHOWDOWN]: [
+        "/assets/games/survey.png",
+        "/assets/games/survey1.png"
+    ],
+    [GameType.STOP_THE_FIRE]: [
+        "/assets/games/stopthefire.png",
+        "/assets/games/stopthefire1.png",
+        "/assets/games/stopthefire2.png"
+    ],
+    [GameType.WORD_WHEEL]: [
+        "/assets/games/wordwheel.png",
+        "/assets/games/wordwheel1.png",
+        "/assets/games/wordwheel2.png"
+    ]
+};
+
+const getGameThumbnails = (type: GameType) => gameThumbnailSets[type] ?? [];
+
 // Robust Card Component handles Image Errors Gracefully
 const GameCard: React.FC<{ 
-    game: { type: GameType, icon: React.ReactNode, desc: string, image: string, color: string }, 
+    game: { type: GameType, icon: React.ReactNode, desc: string, image: string, previewImages?: string[], color: string },
     onSelect: (type: GameType) => void 
 }> = ({ game, onSelect }) => {
     const [hasError, setHasError] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
+    const [visibleFrameIndex, setVisibleFrameIndex] = useState(0);
+    const previewImages = game.previewImages ?? [];
+    const previewCount = previewImages.length;
+    const frames = [
+        { src: game.image, isPreview: false },
+        ...previewImages.map(src => ({ src, isPreview: true }))
+    ];
+
+    useEffect(() => {
+        if (!isPreviewing || previewCount === 0) {
+            setVisibleFrameIndex(0);
+            return;
+        }
+
+        setVisibleFrameIndex(1);
+
+        const intervalId = window.setInterval(() => {
+            setVisibleFrameIndex(prev => {
+                if (prev <= 0 || prev >= previewCount) return 1;
+                return prev + 1;
+            });
+        }, 2000);
+
+        return () => window.clearInterval(intervalId);
+    }, [isPreviewing, previewCount]);
+
+    useEffect(() => {
+        setHasError(false);
+        setVisibleFrameIndex(0);
+    }, [game.image]);
+
+    const getImageClassName = (frameIsPreview: boolean, isVisible: boolean) =>
+        `${frameIsPreview ? 'absolute top-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2' : 'absolute inset-0 w-full h-full object-cover group-hover:scale-110'} transition-[opacity,transform] duration-[1200ms] ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`;
 
     return (
         <button 
             onClick={() => onSelect(game.type)}
+            onMouseEnter={() => setIsPreviewing(true)}
+            onMouseLeave={() => setIsPreviewing(false)}
+            onFocus={() => setIsPreviewing(true)}
+            onBlur={() => setIsPreviewing(false)}
             className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
-            <div className={`h-48 w-full relative overflow-hidden ${hasError ? game.color : 'bg-slate-100'}`}>
-                <img 
-                    crossOrigin="anonymous"
-                    src={game.image} 
-                    alt={game.type}
-                    className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 ${hasError ? 'hidden' : 'block'}`}
-                    onError={() => setHasError(true)}
-                />
+            <div className={`aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
+                {!hasError && frames.map((frame, index) => (
+                    <img
+                        key={`${game.type}-${frame.src}`}
+                        crossOrigin="anonymous"
+                        src={frame.src}
+                        alt={game.type}
+                        className={getImageClassName(frame.isPreview, index === visibleFrameIndex)}
+                        onError={() => {
+                            if (index === 0) {
+                                setHasError(true);
+                            }
+                        }}
+                    />
+                ))}
                 
                 {hasError && (
                     // Fallback State - Beautiful Gradient and Icon
@@ -809,70 +908,80 @@ const GameHub: React.FC<{
             type: GameType.SNAKES_LADDERS, 
             icon: <Dice5 size={24} />, 
             desc: "Classic board game fun with a learning twist.",
-            image: "/assets/games/snakes.png",
+            image: getGameThumbnails(GameType.SNAKES_LADDERS)[0],
+            previewImages: getGameThumbnails(GameType.SNAKES_LADDERS).slice(1),
             color: "bg-orange-500"
         },
         { 
             type: GameType.TRIVIA, 
             icon: <HelpCircle size={24} />, 
             desc: "Fast-paced questions to test knowledge.",
-            image: "/assets/games/trivia.png",
+            image: getGameThumbnails(GameType.TRIVIA)[0],
+            previewImages: getGameThumbnails(GameType.TRIVIA).slice(1),
             color: "bg-purple-600"
         },
         { 
             type: GameType.JEOPARDY, 
             icon: <Grid size={24} />, 
             desc: "Strategic team quiz based on categories.",
-            image: "/assets/games/jeopardy.png",
+            image: getGameThumbnails(GameType.JEOPARDY)[0],
+            previewImages: getGameThumbnails(GameType.JEOPARDY).slice(1),
             color: "bg-blue-600"
         },
         { 
             type: GameType.PUB_QUIZ, 
             icon: <Beer size={24} />, 
             desc: "Round-based quiz with manual scoring.",
-            image: "/assets/games/pubquiz.png",
+            image: getGameThumbnails(GameType.PUB_QUIZ)[0],
+            previewImages: getGameThumbnails(GameType.PUB_QUIZ).slice(1),
             color: "bg-slate-700"
         },
         { 
             type: GameType.DARTS, 
             icon: <Target size={24} />, 
             desc: "Hit the target by answering correctly.",
-            image: "/assets/games/darts.png",
+            image: getGameThumbnails(GameType.DARTS)[0],
+            previewImages: getGameThumbnails(GameType.DARTS).slice(1),
             color: "bg-red-600"
         },
         { 
             type: GameType.MILLIONAIRE, 
             icon: <DollarSign size={24} />, 
             desc: "Climb the ladder to win big.",
-            image: "/assets/games/millionaire.png",
+            image: getGameThumbnails(GameType.MILLIONAIRE)[0],
+            previewImages: getGameThumbnails(GameType.MILLIONAIRE).slice(1),
             color: "bg-indigo-700"
         },
         { 
             type: GameType.TIME_BOMB, 
             icon: <Timer size={24} />, 
             desc: "Pass the bomb before time runs out!",
-            image: "/assets/games/timebomb.png",
+            image: getGameThumbnails(GameType.TIME_BOMB)[0],
+            previewImages: getGameThumbnails(GameType.TIME_BOMB).slice(1),
             color: "bg-slate-900"
         },
         { 
             type: GameType.SURVEY_SHOWDOWN, 
             icon: <List size={24} />, 
             desc: "Guess top answers in this survey game!",
-            image: "/assets/games/survey.png",
+            image: getGameThumbnails(GameType.SURVEY_SHOWDOWN)[0],
+            previewImages: getGameThumbnails(GameType.SURVEY_SHOWDOWN).slice(1),
             color: "bg-emerald-600"
         },
         { 
             type: GameType.STOP_THE_FIRE, 
             icon: <Flame size={24} />, 
             desc: "Fast word race inspired by Scattergories.",
-            image: "/assets/games/stopthefire.svg",
+            image: getGameThumbnails(GameType.STOP_THE_FIRE)[0],
+            previewImages: getGameThumbnails(GameType.STOP_THE_FIRE).slice(1),
             color: "bg-orange-600"
         },
         { 
             type: GameType.WORD_WHEEL, 
             icon: <RefreshCw size={24} />, 
             desc: "Letter-by-letter clue race with pass-or-play pressure.",
-            image: "/assets/games/wordwheel.svg",
+            image: getGameThumbnails(GameType.WORD_WHEEL)[0],
+            previewImages: getGameThumbnails(GameType.WORD_WHEEL).slice(1),
             color: "bg-teal-600"
         },
     ];

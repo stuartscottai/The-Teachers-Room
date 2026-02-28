@@ -306,13 +306,15 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const getOptionClass = (index: number) => {
         if (hiddenOptions.includes(index)) return "invisible";
         
-        let base = "relative flex items-center w-full border-2 rounded-full transition-all duration-200 font-bold text-left group overflow-hidden focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ";
+        let base = "relative flex items-center w-full min-h-[5.5rem] md:min-h-[6.5rem] border-2 rounded-full transition-all duration-200 font-bold text-left group overflow-hidden focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 ";
         
         // Responsive Sizing based on Fullscreen
         if (isMobileViewport) {
-            base += "p-3 text-sm sm:text-xl";
+            base += "px-4 py-3 text-sm sm:text-xl";
         } else {
-            base += isFullscreen ? "p-6 md:p-8 text-3xl md:text-5xl" : "p-4 md:p-6 text-xl md:text-3xl";
+            base += isFullscreen
+                ? "min-h-[6rem] md:min-h-[7rem] px-6 py-4 md:px-8 md:py-5 text-3xl md:text-5xl"
+                : "px-5 py-4 md:px-7 md:py-5 text-xl md:text-3xl";
         }
         
         if (gameState === 'reveal' || gameState === 'result') {
@@ -562,7 +564,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     {/* CENTER STAGE */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
 
-                        <div className="w-full max-w-6xl flex flex-col flex-1 min-h-0 gap-3 md:gap-6">
+                        <div className="w-full max-w-6xl flex flex-col gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
                         <div
                             className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-10 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
@@ -602,7 +604,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
                         {/* OPTIONS GRID */}
                         <div
-                            className={`grid grid-cols-2 md:grid-cols-2 ${isMobileViewport ? 'gap-3' : 'gap-4 md:gap-6'} w-full flex-1 min-h-0 relative z-20`}
+                            className={`grid grid-cols-2 md:grid-cols-2 auto-rows-max content-start ${isMobileViewport ? 'gap-3' : 'gap-4 md:gap-6'} w-full relative z-20`}
                             style={isMobileViewport && questionImageUrl ? { flex: '1 1 0%' } : undefined}
                         >
                             {optionsList.map((opt, idx) => (

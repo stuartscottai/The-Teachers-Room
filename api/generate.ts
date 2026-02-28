@@ -55,6 +55,63 @@ const enforceGameAnswerMatchesOptions = (data: any) => {
   }
 };
 
+const clampGameMcOptionCount = (config: any): number | null => {
+  if (config?.type === 'Millionaire Maker') return 4;
+  if (config?.questionType !== 'multiple-choice') return null;
+  const parsed = Number(config?.mcOptionCount);
+  if (!Number.isFinite(parsed)) return 4;
+  return Math.min(4, Math.max(2, Math.round(parsed)));
+};
+
+const enforceQuestionOptionCount = (question: any, targetCount: number) => {
+  if (!question || !Array.isArray(question.options)) return;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+
+  if (options.length <= targetCount) {
+    question.options = options;
+    return;
+  }
+
+  const answer = String(question.answer || '').trim();
+  const answerIndex = options.findIndex(
+    (opt: string) =>
+      opt === answer ||
+      normalizeOption(opt) === normalizeOption(answer) ||
+      normalizeOptionWithoutArticle(opt) === normalizeOptionWithoutArticle(answer)
+  );
+
+  if (answerIndex === -1 || answerIndex < targetCount) {
+    question.options = options.slice(0, targetCount);
+    return;
+  }
+
+  const trimmed = options.filter((_: string, index: number) => index !== answerIndex).slice(0, targetCount - 1);
+  trimmed.push(options[answerIndex]);
+  question.options = trimmed;
+};
+
+const enforceGameOptionCounts = (data: any, config: any) => {
+  if (!data) return;
+  const targetCount = clampGameMcOptionCount(config);
+  if (!targetCount) return;
+
+  const apply = (questions?: any[]) => {
+    if (!Array.isArray(questions)) return;
+    questions.forEach((question: any) => enforceQuestionOptionCount(question, targetCount));
+  };
+
+  apply(data.questions);
+  if (Array.isArray(data.pubQuizRounds)) {
+    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
+  }
+  if (Array.isArray(data.jeopardyBoard)) {
+    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
+  }
+};
+
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 
@@ -256,13 +313,16 @@ export default async function handler(req: any, res: any) {
         const qTypeInstruction = config.questionType === 'ai-decide' 
             ? "Mix of question types suitable for the category (some open, some multiple choice, etc)" 
             : config.questionType;
+        const mcInstruction = config.questionType === 'multiple-choice'
+            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+            : '';
 
         prompt = `
           Create a Jeopardy game with the title "${gameTitle}".
           The game must have exactly ${categories.length} categories.
           The category names are: ${JSON.stringify(categories)}.
           For EACH category, create exactly ${rows} questions with increasing difficulty (e.g. 100, 200, 300, 400, 500).
-          Question Style: ${qTypeInstruction}.
+          Question Style: ${qTypeInstruction}.${mcInstruction}
           Strict Mode: ${config.strictMode ? "Answers must be phrased as questions (What is...)" : "Standard answers"}.
           Custom Instructions: ${config.customInstructions || "None"}.
         `;
@@ -291,13 +351,16 @@ export default async function handler(req: any, res: any) {
         const questionsPerRound = config.pubQuizQuestionsPerRound || 5;
         const roundNames = config.pubQuizRoundNames || ["Round 1", "Round 2", "Round 3"];
         const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats" : config.questionType;
+        const mcInstruction = config.questionType === 'multiple-choice'
+            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+            : '';
 
         prompt = `
           Create a Pub Quiz game titled "${gameTitle}".
           The game must have exactly ${roundCount} rounds.
           The round names are: ${JSON.stringify(roundNames)}.
           For EACH round, create exactly ${questionsPerRound} questions.
-          Question Style: ${qTypeInstruction}.
+          Question Style: ${qTypeInstruction}.${mcInstruction}
           Custom Instructions: ${config.customInstructions || "None"}.
         `;
 
@@ -347,6 +410,9 @@ export default async function handler(req: any, res: any) {
 
       } else if (isDarts) {
           const qTypeInstruction = config.questionType === 'ai-decide' ? "Mixed formats" : config.questionType;
+          const mcInstruction = config.questionType === 'multiple-choice'
+              ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+              : '';
           const requestedCount = (config.questionCount || 15) + 10;
           
           prompt = `
@@ -357,7 +423,7 @@ export default async function handler(req: any, res: any) {
           - 33% labeled 'medium'
           - 33% labeled 'hard'
           
-          Question Style: ${qTypeInstruction}.
+          Question Style: ${qTypeInstruction}.${mcInstruction}
           Custom Instructions: ${config.customInstructions || "None"}.
           `;
 
@@ -427,6 +493,9 @@ export default async function handler(req: any, res: any) {
       } else {
         // Standard Game
         const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
+        const mcInstruction = config.questionType === 'multiple-choice'
+            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
+            : '';
         
         // Points Logic
         let pointsInstruction = "Assign 100 points to every question.";
@@ -437,7 +506,7 @@ export default async function handler(req: any, res: any) {
         prompt = `
           Create a ${config.type} game titled "${gameTitle}" about "${config.topic}".
           Number of questions: ${config.questionCount}.
-          Question Type: ${qTypeInstruction}.
+          Question Type: ${qTypeInstruction}.${mcInstruction}
           Points Strategy: ${pointsInstruction}.
           Includes Bonus Questions: false.
           Custom Instructions: ${config.customInstructions || "None"}.
@@ -496,6 +565,7 @@ export default async function handler(req: any, res: any) {
       const text = response.text;
       const data = JSON.parse(cleanJson(text || "{}"));
 
+      enforceGameOptionCounts(data, config);
       enforceGameAnswerMatchesOptions(data);
       if (isWordWheel) {
         data.questions = normalizeWordWheelQuestions(data.questions || [], wordWheelLetterRule as WordWheelLetterRule);

@@ -676,16 +676,18 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 )}
                             </div>
                             
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <div className="w-full md:w-auto">
-                                    <h1 className="font-display text-3xl font-bold text-slate-800 truncate">
-                                        Editor: {editedGame.title} 
-                                        <span className="text-sm font-normal text-slate-500 ml-3 bg-slate-100 px-2 py-1 rounded-lg align-middle">
+                            <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <h1 className="font-display text-3xl font-bold text-slate-800 truncate">
+                                            Editor: {editedGame.title}
+                                        </h1>
+                                        <span className="shrink-0 text-sm font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
                                             {editedGame.config.type}
                                         </span>
-                                    </h1>
+                                    </div>
                                     {showCreatorAttribution && (
-                                        <p className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
+                                        <div className="mt-2 text-xs text-slate-500 flex flex-wrap items-center gap-1.5">
                                             <span>Originally created by</span>
                                             <Avatar
                                                 name={createdByName || 'Unknown creator'}
@@ -715,53 +717,58 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     <span className="font-bold text-slate-700">{editedByName}</span>
                                                 </>
                                             )}
-                                        </p>
+                                        </div>
                                     )}
                                 </div>
                                 
-                                <div className="w-full md:w-auto items-center flex flex-row flex-wrap justify-start gap-2 sm:gap-3">
+                                <div className="w-full lg:w-auto shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
                                     {/* VISIBILITY TOGGLE */}
                                     <div
-                                        className={`flex items-center bg-slate-200 rounded-full select-none p-0.5 sm:p-1 ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`shrink-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-9 w-[136px] ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={handleVisibilityToggle}
                                         title={publicToggleLocked ? 'Make at least one edit before setting this game to Public.' : undefined}
                                     >
-                                        <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
-                                            <Lock size={12} className="mr-1" /> Private
+                                        <div className={`flex-1 flex items-center justify-center rounded-full font-bold transition-all px-2 py-1.5 text-[9px] ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
+                                            <Lock size={9} className="mr-1" /> Pvt
                                         </div>
-                                        <div className={`flex items-center rounded-full font-bold transition-all px-2 py-1 text-[11px] sm:px-3 sm:py-1.5 sm:text-xs ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
-                                            <Globe size={12} className="mr-1" /> Public
+                                        <div className={`flex-1 flex items-center justify-center rounded-full font-bold transition-all px-2 py-1.5 text-[9px] ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
+                                            <Globe size={9} className="mr-1" /> Pub
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={handleShare}
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-0 sm:px-5 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[130px] ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        title="Copy share link"
+                                        className={`shrink-0 h-9 w-[136px] bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-1.5 cursor-pointer rounded-xl text-[11px] ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title="Share game"
+                                        aria-label="Share game"
                                     >
-                                        <Share2 size={18} className="mr-2" /> Share
+                                        <Share2 size={12} />
+                                        <span>Share</span>
                                     </button>
 
                                     <button 
                                         onClick={handleSave} 
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`font-bold flex items-center justify-center transition-all shadow-sm border cursor-pointer flex-none sm:flex-1 md:flex-none px-3 py-2 rounded-lg text-xs min-w-0 sm:px-6 sm:py-3 sm:rounded-xl sm:text-base sm:min-w-[140px]
+                                        className={`shrink-0 h-9 w-[136px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm border cursor-pointer rounded-xl text-[11px]
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
                                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'} ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title={isStopTheFireBank ? 'Save disabled' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save game'}
+                                        aria-label={isStopTheFireBank ? 'Save disabled' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save game'}
                                     >
-                                        {saveStatus === 'saving' && <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-400 border-t-transparent mr-2"></div>}
-                                        {saveStatus === 'saved' && <Check size={18} className="mr-2" />}
-                                        {saveStatus === 'idle' && <Save size={18} className="mr-2" />}
-                                        
-                                        {isStopTheFireBank ? 'Save Disabled' : (saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : 'Save Game')}
+                                        {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-400 border-t-transparent"></div>}
+                                        {saveStatus === 'saved' && <Check size={12} />}
+                                        {saveStatus === 'idle' && <Save size={12} />}
+                                        <span>{isStopTheFireBank ? 'Save Off' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}</span>
                                     </button>
                                     <button 
                                         onClick={handlePlay} 
-                                        className="bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer flex-none sm:flex-1 md:flex-none px-4 py-2 rounded-lg text-xs sm:px-8 sm:py-3 sm:rounded-xl sm:text-base min-w-0"
+                                        className="shrink-0 h-9 w-[136px] bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center gap-1.5 hover:scale-105 transition-transform cursor-pointer rounded-xl text-[11px] whitespace-nowrap"
+                                        title="Play game"
+                                        aria-label="Play game"
                                     >
-                                        <Play size={18} className="mr-2" /> Play
+                                        <Play size={12} /> <span>Play</span>
                                     </button>
                                 </div>
                             </div>
