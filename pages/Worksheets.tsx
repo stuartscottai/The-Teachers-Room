@@ -4066,7 +4066,7 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                                 <span className="text-slate-400 text-xs flex items-center"><Globe size={12} className="mr-1" /> Community</span>
                             </div>
                             <h3 className="font-display font-bold text-lg text-slate-800 mb-1 truncate" title={ws.title}>{ws.title}</h3>
-                            <p className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
+                            <div className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
                                 <span>By</span>
                                 <Avatar
                                     name={ws.authorName || 'Teacher'}
@@ -4089,7 +4089,7 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                                 ) : (
                                     <span className="truncate">{ws.authorName || 'Teacher'}</span>
                                 )}
-                            </p>
+                            </div>
                             
                             <div className="pt-4 border-t border-slate-50 flex justify-between items-center mt-2">
                                 <button className="text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded hover:bg-teal-100 transition-colors flex items-center">
@@ -4157,8 +4157,11 @@ export const Worksheets: React.FC = () => {
     const location = useLocation();
     const { user } = useAuth();
     const deepLinkedWorksheetRef = useRef<string | null>(null);
+    const tourPopupRef = useRef<HTMLDivElement | null>(null);
     const [activeTab, setActiveTab] = useState<'create' | 'library' | 'community'>('create');
     const [isTourActive, setIsTourActive] = useState(false);
+    const [isMobileTourViewport, setIsMobileTourViewport] = useState(false);
+    const [tourPopupHeight, setTourPopupHeight] = useState(0);
     const [config, setConfig] = useState<WorksheetConfig>(INITIAL_WORKSHEET_CONFIG);
     const [generatedWs, setGeneratedWs] = useState<GeneratedWorksheet | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -4208,6 +4211,49 @@ export const Worksheets: React.FC = () => {
             setIsTourActive(false);
         }
     }, [generatedWs, isTourActive]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const updateViewport = () => setIsMobileTourViewport(media.matches);
+        updateViewport();
+
+        if (media.addEventListener) {
+            media.addEventListener('change', updateViewport);
+        } else {
+            media.addListener(updateViewport);
+        }
+
+        return () => {
+            if (media.removeEventListener) {
+                media.removeEventListener('change', updateViewport);
+            } else {
+                media.removeListener(updateViewport);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const isVisible = isTourActive && activeTab === 'create';
+        if (!isVisible) {
+            setTourPopupHeight(0);
+            return;
+        }
+
+        const node = tourPopupRef.current;
+        if (!node) return;
+
+        const measure = () => setTourPopupHeight(node.offsetHeight);
+        measure();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', measure);
+            return () => window.removeEventListener('resize', measure);
+        }
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [activeTab, isTourActive]);
 
     useEffect(() => {
         const handler = (e: BeforeUnloadEvent) => {
@@ -4396,6 +4442,10 @@ export const Worksheets: React.FC = () => {
                 </div>
             </div>
 
+            {isMobileTourViewport && isTourActive && activeTab === 'create' && tourPopupHeight > 0 && (
+                <div className="sm:hidden shrink-0" style={{ height: `${tourPopupHeight + 12}px` }} aria-hidden />
+            )}
+
             {/* Content Area - Naturally expanding */}
             <div
                 className={`flex flex-col w-full pb-8 ${
@@ -4423,7 +4473,10 @@ export const Worksheets: React.FC = () => {
             </div>
 
             {isTourActive && activeTab === 'create' && (
-                <div className="fixed z-[180] bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 animate-slide-up">
+                <div
+                    ref={tourPopupRef}
+                    className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] max-h-[calc(100dvh-5.25rem)] sm:max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
+                >
                     <button
                         type="button"
                         onClick={() => setIsTourActive(false)}
@@ -4438,11 +4491,11 @@ export const Worksheets: React.FC = () => {
                         </span>
                         Site Tour
                     </div>
-                    <h3 className="font-display text-xl font-bold text-slate-800 pr-6">Worksheet Tour</h3>
-                    <p className="mt-1 text-sm text-slate-700">
+                    <h3 className="font-display text-lg sm:text-xl font-bold text-slate-800 pr-7">Worksheet Tour</h3>
+                    <p className="mt-1 text-[13px] sm:text-sm leading-relaxed text-slate-700 break-words">
                         Set topic and level, add activities, then click <strong>Generate</strong>.
                     </p>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-[11px] sm:text-xs leading-relaxed text-slate-500 break-words">
                         Optional: upload a source file so AI follows your class material.
                     </p>
                 </div>

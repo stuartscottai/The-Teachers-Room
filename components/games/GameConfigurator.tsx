@@ -118,9 +118,10 @@ interface GameConfiguratorProps {
     onBack: () => void;
     onProceed: (game: GeneratedGame) => void;
     initialConfig?: GameConfig;
+    mobileTopInset?: number;
 }
 
-export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed, initialConfig }) => {
+export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed, initialConfig, mobileTopInset = 0 }) => {
     // Lock body scroll when configurator is active
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -456,7 +457,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     return (
-        <div className="fixed inset-0 top-16 bg-slate-50 z-40 overflow-hidden flex flex-col">
+        <div
+            className="fixed inset-x-0 bottom-0 top-16 bg-slate-50 z-40 overflow-hidden flex flex-col transition-[top] duration-200"
+            style={mobileTopInset > 0 ? { top: `calc(4rem + ${mobileTopInset}px)` } : undefined}
+        >
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-3xl mx-auto px-4 py-12">
                     <button onClick={onBack} className="flex items-center text-slate-500 hover:text-sky-600 mb-8">

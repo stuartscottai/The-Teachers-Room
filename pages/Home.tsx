@@ -74,7 +74,7 @@ const getGameVisual = (type?: GameType) => {
         case GameType.WORD_WHEEL:
             return { image: '/assets/games/wordwheel.png', icon: <RefreshCw size={40} />, color: 'bg-cyan-600' };
         case GameType.SNAKES_LADDERS:
-            return { image: '/assets/games/snakesladders.png', icon: <Dice5 size={40} />, color: 'bg-teal-500' };
+            return { image: '/assets/games/snakes.png', icon: <Dice5 size={40} />, color: 'bg-teal-500' };
         default:
             return { image: '/assets/games/trivia.png', icon: <Trophy size={40} />, color: 'bg-sky-600' };
     }
@@ -138,7 +138,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
     return (
         <Link to={game.href} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
-                <div className={`h-32 relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-slate-200'}`}>
+                <div className={`aspect-[3/2] w-full relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-transparent'}`}>
                     <img 
                         src={game.image} 
                         alt={game.title} 
@@ -274,8 +274,8 @@ export const Home: React.FC = () => {
   return (
     <div className="overflow-hidden">
       {showTourInvite && (
-        <div className="fixed inset-0 z-[220] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 sm:p-7 relative animate-slide-up">
+        <div className="fixed inset-0 z-[220] bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain bg-white rounded-[1.75rem] sm:rounded-3xl border border-slate-100 shadow-2xl p-5 sm:p-7 relative animate-slide-up">
             <button
               type="button"
               onClick={handleSkipTour}
@@ -288,8 +288,8 @@ export const Home: React.FC = () => {
             <div className="mb-3 inline-flex items-center justify-center bg-brand-yellow p-2.5 rounded-full shadow-sm">
               <GraduationCap size={20} className="text-sky-900" />
             </div>
-            <h2 className="font-display text-3xl text-slate-800 mb-2">Take a quick tour?</h2>
-            <p className="text-slate-600 mb-5">
+            <h2 className="font-display text-2xl sm:text-3xl text-slate-800 mb-2 pr-8">Take a quick tour?</h2>
+            <p className="text-sm sm:text-base text-slate-600 mb-5 leading-relaxed">
               Pick where you want to start. We&apos;ll guide you step by step.
             </p>
 
@@ -310,7 +310,7 @@ export const Home: React.FC = () => {
               </button>
             </div>
 
-            <label className="mt-4 flex items-start gap-2 text-sm text-slate-600">
+            <label className="mt-4 flex items-start gap-2 text-sm text-slate-600 leading-relaxed">
               <input
                 type="checkbox"
                 checked={dontShowTourAgain}

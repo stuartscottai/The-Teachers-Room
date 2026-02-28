@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
@@ -242,8 +242,33 @@ const TourPopup: React.FC<{
     text: string;
     detail?: string;
     onClose: () => void;
-}> = ({ title, text, detail, onClose }) => (
-    <div className="fixed z-[180] bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-6 sm:translate-x-0 w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 animate-slide-up">
+    onHeightChange?: (height: number) => void;
+}> = ({ title, text, detail, onClose, onHeightChange }) => {
+    const popupRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!onHeightChange) return;
+        const node = popupRef.current;
+        if (!node) return;
+
+        const measure = () => onHeightChange(node.offsetHeight);
+        measure();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', measure);
+            return () => window.removeEventListener('resize', measure);
+        }
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [detail, onHeightChange, text, title]);
+
+    return (
+    <div
+        ref={popupRef}
+        className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] max-h-[calc(100dvh-5.25rem)] sm:max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
+    >
         <button
             type="button"
             onClick={onClose}
@@ -258,11 +283,12 @@ const TourPopup: React.FC<{
             </span>
             Site Tour
         </div>
-        <h3 className="font-display text-xl font-bold text-slate-800 pr-6">{title}</h3>
-        <p className="mt-1 text-sm text-slate-700">{text}</p>
-        {detail && <p className="mt-2 text-xs text-slate-500">{detail}</p>}
+        <h3 className="font-display text-lg sm:text-xl font-bold text-slate-800 pr-7">{title}</h3>
+        <p className="mt-1 text-[13px] sm:text-sm leading-relaxed text-slate-700 break-words">{text}</p>
+        {detail && <p className="mt-2 text-[11px] sm:text-xs leading-relaxed text-slate-500 break-words">{detail}</p>}
     </div>
-);
+    );
+};
 
 // --- PERSONAL LIBRARY COMPONENT ---
 const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> = ({ onLoadGame }) => {
@@ -801,7 +827,7 @@ const CommunityLibrary: React.FC<{
                                 
                                 <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
                                 <p className="text-sm text-slate-500 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
-                                <p className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
+                                <div className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
                                     <span>By</span>
                                     <Avatar
                                         name={game.authorName || 'Teacher'}
@@ -821,7 +847,7 @@ const CommunityLibrary: React.FC<{
                                     ) : (
                                         <span className="truncate">{game.authorName || 'Teacher'}</span>
                                     )}
-                                </p>
+                                </div>
                                 
                                 {/* STATS BADGES */}
                                 <div className="flex flex-wrap gap-2 mb-4">
@@ -905,14 +931,6 @@ const GameHub: React.FC<{
     // Game Types Data
     const games = [
         { 
-            type: GameType.SNAKES_LADDERS, 
-            icon: <Dice5 size={24} />, 
-            desc: "Classic board game fun with a learning twist.",
-            image: getGameThumbnails(GameType.SNAKES_LADDERS)[0],
-            previewImages: getGameThumbnails(GameType.SNAKES_LADDERS).slice(1),
-            color: "bg-orange-500"
-        },
-        { 
             type: GameType.TRIVIA, 
             icon: <HelpCircle size={24} />, 
             desc: "Fast-paced questions to test knowledge.",
@@ -929,36 +947,28 @@ const GameHub: React.FC<{
             color: "bg-blue-600"
         },
         { 
-            type: GameType.PUB_QUIZ, 
-            icon: <Beer size={24} />, 
-            desc: "Round-based quiz with manual scoring.",
-            image: getGameThumbnails(GameType.PUB_QUIZ)[0],
-            previewImages: getGameThumbnails(GameType.PUB_QUIZ).slice(1),
-            color: "bg-slate-700"
-        },
-        { 
-            type: GameType.DARTS, 
-            icon: <Target size={24} />, 
-            desc: "Hit the target by answering correctly.",
-            image: getGameThumbnails(GameType.DARTS)[0],
-            previewImages: getGameThumbnails(GameType.DARTS).slice(1),
-            color: "bg-red-600"
-        },
-        { 
-            type: GameType.MILLIONAIRE, 
-            icon: <DollarSign size={24} />, 
-            desc: "Climb the ladder to win big.",
-            image: getGameThumbnails(GameType.MILLIONAIRE)[0],
-            previewImages: getGameThumbnails(GameType.MILLIONAIRE).slice(1),
-            color: "bg-indigo-700"
-        },
-        { 
             type: GameType.TIME_BOMB, 
             icon: <Timer size={24} />, 
             desc: "Pass the bomb before time runs out!",
             image: getGameThumbnails(GameType.TIME_BOMB)[0],
             previewImages: getGameThumbnails(GameType.TIME_BOMB).slice(1),
             color: "bg-slate-900"
+        },
+        { 
+            type: GameType.WORD_WHEEL, 
+            icon: <RefreshCw size={24} />, 
+            desc: "Letter-by-letter clue race with pass-or-play pressure.",
+            image: getGameThumbnails(GameType.WORD_WHEEL)[0],
+            previewImages: getGameThumbnails(GameType.WORD_WHEEL).slice(1),
+            color: "bg-teal-600"
+        },
+        { 
+            type: GameType.PUB_QUIZ, 
+            icon: <Beer size={24} />, 
+            desc: "Round-based quiz with manual scoring.",
+            image: getGameThumbnails(GameType.PUB_QUIZ)[0],
+            previewImages: getGameThumbnails(GameType.PUB_QUIZ).slice(1),
+            color: "bg-slate-700"
         },
         { 
             type: GameType.SURVEY_SHOWDOWN, 
@@ -977,12 +987,28 @@ const GameHub: React.FC<{
             color: "bg-orange-600"
         },
         { 
-            type: GameType.WORD_WHEEL, 
-            icon: <RefreshCw size={24} />, 
-            desc: "Letter-by-letter clue race with pass-or-play pressure.",
-            image: getGameThumbnails(GameType.WORD_WHEEL)[0],
-            previewImages: getGameThumbnails(GameType.WORD_WHEEL).slice(1),
-            color: "bg-teal-600"
+            type: GameType.MILLIONAIRE, 
+            icon: <DollarSign size={24} />, 
+            desc: "Climb the ladder to win big.",
+            image: getGameThumbnails(GameType.MILLIONAIRE)[0],
+            previewImages: getGameThumbnails(GameType.MILLIONAIRE).slice(1),
+            color: "bg-indigo-700"
+        },
+        { 
+            type: GameType.DARTS, 
+            icon: <Target size={24} />, 
+            desc: "Hit the target by answering correctly.",
+            image: getGameThumbnails(GameType.DARTS)[0],
+            previewImages: getGameThumbnails(GameType.DARTS).slice(1),
+            color: "bg-red-600"
+        },
+        { 
+            type: GameType.SNAKES_LADDERS, 
+            icon: <Dice5 size={24} />, 
+            desc: "Classic board game fun with a learning twist.",
+            image: getGameThumbnails(GameType.SNAKES_LADDERS)[0],
+            previewImages: getGameThumbnails(GameType.SNAKES_LADDERS).slice(1),
+            color: "bg-orange-500"
         },
     ];
 
@@ -1088,6 +1114,8 @@ export const Games: React.FC = () => {
     const [communitySeedSearch, setCommunitySeedSearch] = useState('');
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const [isTourActive, setIsTourActive] = useState(false);
+    const [isMobileTourViewport, setIsMobileTourViewport] = useState(false);
+    const [tourPopupHeight, setTourPopupHeight] = useState(0);
 
     const location = useLocation();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
@@ -1140,6 +1168,26 @@ export const Games: React.FC = () => {
             setIsTourActive(false);
         }
     }, [isTourActive, step]);
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 639px)');
+        const updateViewport = () => setIsMobileTourViewport(media.matches);
+        updateViewport();
+
+        if (media.addEventListener) {
+            media.addEventListener('change', updateViewport);
+        } else {
+            media.addListener(updateViewport);
+        }
+
+        return () => {
+            if (media.removeEventListener) {
+                media.removeEventListener('change', updateViewport);
+            } else {
+                media.removeListener(updateViewport);
+            }
+        };
+    }, []);
 
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
@@ -1356,8 +1404,16 @@ export const Games: React.FC = () => {
         };
     };
 
+    const isFloatingTourVisible =
+        isTourActive &&
+        ((step === 'hub' && !isAssistantOpen) || step === 'mode' || step === 'config');
+    const mobileTourSpacerHeight = isMobileTourViewport && isFloatingTourVisible ? tourPopupHeight + 12 : 0;
+
     return (
         <div className="min-h-screen bg-slate-50">
+            {mobileTourSpacerHeight > 0 && (
+                <div className="sm:hidden" style={{ height: `${mobileTourSpacerHeight}px` }} aria-hidden />
+            )}
             {step === 'hub' && (
                 <GameHub 
                     onSelect={handleSelect} 
@@ -1381,6 +1437,7 @@ export const Games: React.FC = () => {
                     onBack={handleBack} 
                     onProceed={handleConfigProceed} 
                     initialConfig={generatedGame?.config}
+                    mobileTopInset={isMobileTourViewport && isTourActive && step === 'config' ? mobileTourSpacerHeight : 0}
                 />
             )}
             
@@ -1513,6 +1570,7 @@ export const Games: React.FC = () => {
                     title="Step 1"
                     text='To create a new game, choose a game card or use "Open AI Assistant". You can also browse existing games in the Community tab.'
                     onClose={() => setIsTourActive(false)}
+                    onHeightChange={setTourPopupHeight}
                 />
             )}
 
@@ -1521,6 +1579,7 @@ export const Games: React.FC = () => {
                     title="Step 2"
                     text='Choose how to create your game: Manually or using AI Assistant.'
                     onClose={() => setIsTourActive(false)}
+                    onHeightChange={setTourPopupHeight}
                 />
             )}
 
@@ -1530,6 +1589,7 @@ export const Games: React.FC = () => {
                     text={getTourConfigCopy().text}
                     detail={getTourConfigCopy().detail}
                     onClose={() => setIsTourActive(false)}
+                    onHeightChange={setTourPopupHeight}
                 />
             )}
         </div>
