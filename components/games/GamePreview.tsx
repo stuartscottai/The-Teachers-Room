@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, Play, RotateCcw, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, RotateCcw, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
 import { resolveGameImageUrl } from '../../utils/gameImage';
@@ -15,28 +15,117 @@ type PreviewItem = {
   imageUrl?: string | null;
 };
 
-const cleanPreviewAnswerText = (value: string) =>
-  String(value || '').replace(/\s+\(\d+\)\s*$/, '').trim();
+const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
+  [GameType.TRIVIA]: '/assets/games/trivia.png',
+  [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
+  [GameType.TIME_BOMB]: '/assets/games/timebomb.png',
+  [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+  [GameType.PUB_QUIZ]: '/assets/games/pubquiz.png',
+  [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
+  [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
+  [GameType.MILLIONAIRE]: '/assets/games/millionaire.png',
+  [GameType.DARTS]: '/assets/games/darts.png',
+  [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
+};
 
-const buildAnswerSummary = (question: GeneratedQuestion) => {
+const PREVIEW_PAGE_THEME = {
+  pageBackground: '#f8fafc',
+  panelBackground: '#ffffff',
+  panelBorder: 'rgba(241, 245, 249, 1)',
+  panelShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
+  imageShellBackground: 'transparent',
+};
+
+const PREVIEW_SCORE_TAG_PATTERN = /\s*\((\d+)\)\s*$/;
+
+const stripPreviewScoreTag = (value: string) =>
+  String(value || '').replace(PREVIEW_SCORE_TAG_PATTERN, '').trim();
+
+const normalizePreviewValue = (value: string) =>
+  stripPreviewScoreTag(value)
+    .replace(/^[A-D]\.\s*/i, '')
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+const cleanPreviewAnswerText = (value: string) =>
+  String(value || '')
+    .split('|')
+    .map((segment) => stripPreviewScoreTag(segment))
+    .filter(Boolean)
+    .join(' | ');
+
+const buildMultipleChoiceAnswerSummary = (question: GeneratedQuestion) => {
+  const options = (question.options || []).map((option) => stripPreviewScoreTag(option)).filter(Boolean);
+  const rawAnswer = String(question.answer || '').trim();
+  const cleanedRawAnswer = stripPreviewScoreTag(rawAnswer);
+  const rawSegments = rawAnswer
+    .split('|')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const parsedSegments = rawSegments.map((segment) => {
+    const scoreMatch = segment.match(PREVIEW_SCORE_TAG_PATTERN);
+    return {
+      raw: segment,
+      clean: stripPreviewScoreTag(segment),
+      score: scoreMatch ? Number(scoreMatch[1]) : 0,
+    };
+  });
+  const answerSegments = parsedSegments.map((segment) => segment.clean).filter(Boolean);
+
+  if (options.length === 0) {
+    return cleanedRawAnswer || answerSegments[0] || 'No answer saved yet.';
+  }
+
+  const scoredMatch = parsedSegments
+    .filter((segment) => segment.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
+  if (scoredMatch?.clean) return scoredMatch.clean;
+
+  const rawAnswerMatch = options.find((option) => normalizePreviewValue(option) === normalizePreviewValue(cleanedRawAnswer));
+  if (rawAnswerMatch) return rawAnswerMatch;
+
+  const segmentMatch = answerSegments.find((segment) =>
+    options.some((option) => normalizePreviewValue(option) === normalizePreviewValue(segment))
+  );
+  if (segmentMatch) return segmentMatch;
+
+  return answerSegments[0] || cleanedRawAnswer || 'No answer saved yet.';
+};
+
+const buildAnswerSummary = (question: GeneratedQuestion, gameType?: GameType) => {
   const surveyAnswers = (question.surveyAnswers || []).filter((answer) => answer.text?.trim());
-  if (surveyAnswers.length > 0) {
+  if (gameType === GameType.SURVEY_SHOWDOWN && surveyAnswers.length > 0) {
     return surveyAnswers
       .slice(0, 8)
-      .map((answer) => `${answer.text}${answer.score ? ` (${answer.score})` : ''}`)
+      .map((answer) => `${stripPreviewScoreTag(answer.text)}${answer.score ? ` (${answer.score})` : ''}`)
       .join(' | ');
+  }
+
+  if (Array.isArray(question.options) && question.options.length > 0) {
+    return buildMultipleChoiceAnswerSummary(question);
   }
 
   return cleanPreviewAnswerText(question.answer?.trim() || '') || 'No answer saved yet.';
 };
 
-const buildStandardQuestionItem = (question: GeneratedQuestion, index: number): PreviewItem => ({
+const buildCompactOptionsText = (options?: string[]) =>
+  (options || [])
+    .slice(0, 4)
+    .map((option, index) => `${String.fromCharCode(65 + index)}. ${option}`)
+    .join(' | ');
+
+const buildStandardQuestionItem = (question: GeneratedQuestion, index: number, gameType?: GameType): PreviewItem => ({
   id: `std-${index}`,
-  title: `Question ${index + 1}`,
+  title:
+    gameType === GameType.WORD_WHEEL && question.letter
+      ? `Question ${index + 1} - ${question.letter}`
+      : `Question ${index + 1}`,
   points: question.points,
   prompt: question.question?.trim() || 'No prompt saved yet.',
-  answer: buildAnswerSummary(question),
-  options: (question.options || []).map((option) => option.trim()).filter(Boolean),
+  answer: buildAnswerSummary(question, gameType),
+  options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
   imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
 });
 
@@ -52,8 +141,8 @@ const buildGroupedItems = (
       points: question.points,
       group: group.name || (prefix === 'jeopardy' ? `Category ${groupIndex + 1}` : `Round ${groupIndex + 1}`),
       prompt: question.question?.trim() || 'No prompt saved yet.',
-      answer: buildAnswerSummary(question),
-      options: (question.options || []).map((option) => option.trim()).filter(Boolean),
+      answer: buildAnswerSummary(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
+      options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
       imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
     }))
   );
@@ -65,7 +154,7 @@ const buildStopTheFireItems = (game: GeneratedGame): PreviewItem[] => {
       id: `stf-${index}`,
       title: `Category ${index + 1}`,
       prompt: category,
-      answer: 'This category will be used to build a Stop the Fire round.',
+      answer: '',
     }));
   }
 
@@ -105,7 +194,7 @@ const buildPreviewItems = (game: GeneratedGame): PreviewItem[] => {
     return buildStopTheFireItems(game);
   }
 
-  return (game.questions || []).map(buildStandardQuestionItem);
+  return (game.questions || []).map((question, index) => buildStandardQuestionItem(question, index, game.config.type));
 };
 
 const buildPlayableGameFromSelection = (game: GeneratedGame, selectedIds: Set<string>, allItems: PreviewItem[]) => {
@@ -206,13 +295,21 @@ interface PreviewCardProps {
 }
 
 const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, onToggleSelect, onToggleFlip }) => (
-  <div className={`relative rounded-2xl border bg-white shadow-sm transition-all ${isSelected ? 'border-brand-blue shadow-md shadow-sky-100/60' : 'border-slate-200'}`}>
+  <div
+    className="relative rounded-[1.75rem] bg-white/80 backdrop-blur-sm transition-all"
+    style={{
+      border: `1px solid ${isSelected ? 'rgba(51, 65, 85, 0.24)' : 'rgba(203, 213, 225, 0.88)'}`,
+      boxShadow: isSelected
+        ? '0 0 0 1px rgba(30, 41, 59, 0.08), 0 18px 42px rgba(30, 58, 138, 0.18)'
+        : '0 14px 34px rgba(30, 58, 138, 0.12)',
+    }}
+  >
     <button
       type="button"
       onClick={onToggleSelect}
       className={`absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
         isSelected
-          ? 'border-brand-blue bg-sky-50 text-brand-blue'
+          ? 'border-slate-700 bg-slate-100 text-slate-700'
           : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
       }`}
       aria-label={isSelected ? 'Deselect item' : 'Select item'}
@@ -236,13 +333,17 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
     >
       <div className="grid">
         <div
-          className={`col-start-1 row-start-1 rounded-2xl bg-slate-50 p-4 transition-opacity duration-200 ${
+          className={`col-start-1 row-start-1 rounded-2xl p-4 transition-opacity duration-200 ${
             isFlipped ? 'invisible opacity-0 pointer-events-none' : 'visible opacity-100'
           }`}
+          style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.92) 100%)',
+            border: '1px solid rgba(203, 213, 225, 0.88)',
+          }}
         >
           <div className="mb-3">
             {item.group && (
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
                 {item.group}
               </div>
             )}
@@ -252,7 +353,14 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
               </h3>
               <div className="flex shrink-0 items-center gap-2">
                 {item.points ? (
-                  <span className="inline-flex min-w-[72px] items-center justify-center rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">
+                  <span
+                    className="inline-flex min-w-[72px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(241,245,249,0.96) 100%)',
+                      color: '#334155',
+                      boxShadow: 'inset 0 0 0 1px rgba(203, 213, 225, 0.95)',
+                    }}
+                  >
                     {item.points} pts
                   </span>
                 ) : null}
@@ -267,7 +375,7 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs leading-5 text-slate-500">
               {item.options.slice(0, 4).map((option, index) => (
                 <p key={`${item.id}-option-${index}`} className="break-words">
-                  <span className="font-bold text-slate-400">{String.fromCharCode(65 + index)}.</span> {option}
+                  <span className="font-bold text-slate-700">{String.fromCharCode(65 + index)}.</span> {option}
                 </p>
               ))}
             </div>
@@ -281,13 +389,18 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
         </div>
 
         <div
-          className={`col-start-1 row-start-1 rounded-2xl bg-brand-blue p-4 text-white transition-opacity duration-200 ${
+          className={`col-start-1 row-start-1 rounded-2xl p-4 text-white transition-opacity duration-200 ${
             isFlipped ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
           }`}
+          style={{
+            background: 'linear-gradient(180deg, rgba(71,85,105,0.96) 0%, rgba(51,65,85,0.94) 100%)',
+            border: '1px solid rgba(100, 116, 139, 0.62)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}
         >
           <div className="mb-3">
             {item.group && (
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-200">
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">
                 {item.group}
               </div>
             )}
@@ -297,31 +410,208 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
               </h3>
               <div className="flex shrink-0 items-center gap-2">
                 {item.points ? (
-                  <span className="inline-flex min-w-[72px] items-center justify-center rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-sky-100 border border-white/15">
+                  <span
+                    className="inline-flex min-w-[72px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold border"
+                    style={{
+                      background: 'rgba(255,255,255,0.10)',
+                      color: '#f8fafc',
+                      borderColor: 'rgba(255,255,255,0.14)',
+                    }}
+                  >
                     {item.points} pts
                   </span>
                 ) : null}
-                {item.imageUrl && <ImageIcon size={14} className="text-sky-200" />}
+                {item.imageUrl && <ImageIcon size={14} className="text-slate-200" />}
               </div>
             </div>
           </div>
 
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-200">Answer Side</div>
+          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">Answer</div>
           <p className="whitespace-pre-wrap break-words text-sm leading-6 text-white/95">{item.answer}</p>
         </div>
       </div>
 
-      <div className={`mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] ${
-        isFlipped
-          ? 'bg-brand-blue text-sky-100'
-          : 'border border-slate-200 bg-white text-slate-500'
-      }`}>
+      <div
+        className="mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.14em]"
+        style={
+          isFlipped
+            ? { background: 'rgba(51,65,85,0.96)', color: '#f8fafc' }
+            : { border: '1px solid rgba(203, 213, 225, 0.9)', background: '#fff', color: '#475569' }
+        }
+      >
         <RotateCcw size={13} />
         {isFlipped ? 'Click card to flip back' : 'Click card to show answer'}
       </div>
     </div>
   </div>
 );
+
+interface QuickViewTableProps {
+  items: PreviewItem[];
+  selectedIds: Set<string>;
+  onToggleSelect: (itemId: string) => void;
+}
+
+const QuickViewTable: React.FC<QuickViewTableProps> = ({ items, selectedIds, onToggleSelect }) => (
+  <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
+    <div className="hidden md:grid md:grid-cols-[48px_minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1fr)] md:items-center md:gap-x-3 md:bg-slate-50 md:px-4 md:py-3">
+      <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pick</div>
+      <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Question</div>
+      <div className="border-l border-slate-200 pl-4 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Options</div>
+      <div className="border-l border-slate-200 pl-4 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Answer</div>
+    </div>
+
+    {items.map((item, index) => {
+      const isSelected = selectedIds.has(item.id);
+      const optionsText = buildCompactOptionsText(item.options);
+
+      return (
+        <div
+          key={item.id}
+          onClick={() => onToggleSelect(item.id)}
+          className={`cursor-pointer transition-colors ${
+            index > 0 ? 'border-t border-slate-200' : ''
+          } ${isSelected ? 'bg-slate-50/90' : 'bg-white hover:bg-slate-50/60'}`}
+        >
+          <div className="grid grid-cols-[42px_minmax(0,1fr)] gap-x-3 gap-y-2 px-3 py-3 sm:px-4 md:grid-cols-[48px_minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1fr)] md:items-start md:gap-y-0">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSelect(item.id);
+              }}
+              className={`row-span-3 mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors md:row-span-1 ${
+                isSelected
+                  ? 'border-slate-700 bg-slate-100 text-slate-700'
+                  : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
+              }`}
+              aria-label={isSelected ? 'Deselect item' : 'Select item'}
+            >
+              {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+            </button>
+
+            <div className="min-w-0">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <h3
+                    className="font-display font-bold leading-tight text-slate-800"
+                    style={{ fontSize: 'clamp(13px, 0.85vw, 16px)' }}
+                  >
+                    {item.title}
+                  </h3>
+                {item.group && (
+                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                    {item.group}
+                  </span>
+                )}
+                {item.points ? (
+                  <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">
+                    {item.points} pts
+                  </span>
+                ) : null}
+                {item.imageUrl && <ImageIcon size={12} className="text-slate-400" />}
+              </div>
+              <p
+                className="break-words text-slate-600"
+                style={{ fontSize: 'clamp(11px, 0.78vw, 14px)', lineHeight: 1.4 }}
+                title={item.prompt}
+              >
+                {item.prompt}
+              </p>
+            </div>
+
+            <div className="min-w-0 md:border-l md:border-slate-200 md:pl-4 md:pt-0.5">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 md:hidden">Options</div>
+              <p
+                className="break-words text-slate-600"
+                style={{ fontSize: 'clamp(11px, 0.74vw, 13px)', lineHeight: 1.4 }}
+                title={optionsText || 'Open response'}
+              >
+                {optionsText || 'Open response'}
+              </p>
+            </div>
+
+            <div className="min-w-0 md:border-l md:border-slate-200 md:pl-4 md:pt-0.5">
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 md:hidden">Answer</div>
+              <p
+                className="break-words text-slate-700"
+                style={{ fontSize: 'clamp(11px, 0.74vw, 13px)', lineHeight: 1.4 }}
+                title={item.answer}
+              >
+                {item.answer}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+interface StopTheFireOverviewProps {
+  items: PreviewItem[];
+  selectedIds: Set<string>;
+  onToggleSelect: (itemId: string) => void;
+}
+
+const StopTheFireOverview: React.FC<StopTheFireOverviewProps> = ({ items, selectedIds, onToggleSelect }) => {
+  const splitIndex = Math.ceil(items.length / 2);
+  const itemColumns = [items.slice(0, splitIndex), items.slice(splitIndex)].filter((column) => column.length > 0);
+
+  const renderTableColumn = (columnItems: PreviewItem[], columnIndex: number) => (
+    <div key={`stop-the-fire-column-${columnIndex}`} className="overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white">
+      <div className="hidden grid-cols-[44px_minmax(0,1fr)] items-center gap-x-3 bg-slate-50 px-4 py-2.5 lg:grid">
+        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pick</div>
+        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Category</div>
+      </div>
+
+      {columnItems.map((item, index) => {
+        const isSelected = selectedIds.has(item.id);
+        return (
+          <div
+            key={item.id}
+            onClick={() => onToggleSelect(item.id)}
+            className={`cursor-pointer transition-colors ${
+              index > 0 ? 'border-t border-slate-200' : ''
+            } ${isSelected ? 'bg-slate-50/90' : 'bg-white hover:bg-slate-50/60'}`}
+          >
+            <div className="grid grid-cols-[38px_minmax(0,1fr)] gap-x-3 px-3 py-2.5 sm:px-4 lg:grid-cols-[44px_minmax(0,1fr)] lg:items-center">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleSelect(item.id);
+                }}
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors lg:h-8 lg:w-8 ${
+                  isSelected
+                    ? 'border-slate-700 bg-slate-100 text-slate-700'
+                    : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
+                }`}
+                aria-label={isSelected ? 'Deselect category' : 'Select category'}
+              >
+                {isSelected ? <CheckSquare size={14} className="lg:h-4 lg:w-4" /> : <Square size={14} className="lg:h-4 lg:w-4" />}
+              </button>
+
+              <div className="min-w-0">
+                <p className="break-words text-[13px] leading-5 text-slate-700 sm:text-sm lg:text-[15px]">{item.prompt}</p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        Choose all the categories you want to include in the game. You can customise the categories for each round on the next screen.
+      </div>
+      <div className="p-3 sm:p-4 lg:grid lg:grid-cols-2 lg:gap-4">
+        {itemColumns.map((columnItems, columnIndex) => renderTableColumn(columnItems, columnIndex))}
+      </div>
+    </div>
+  );
+};
 
 interface GamePreviewProps {
   game: GeneratedGame;
@@ -336,6 +626,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
 
   useEffect(() => {
     setSelectedIds(new Set(items.map((item) => item.id)));
@@ -375,23 +666,39 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const createdByAvatar = game.config.originalCreatorAvatar || game.authorAvatar || game.config.authorAvatar;
   const aiPrompt = game.config.customInstructions?.trim();
   const creationLabel = game.config.isAI ? 'Created using AI' : 'Created manually';
-  const instructionText = 'Click cards to flip. Tick cards to include.';
+  const isStopTheFireOverview = game.config.type === GameType.STOP_THE_FIRE;
+  const instructionText =
+    isStopTheFireOverview
+      ? 'Category Overview: tick categories to include, then play or edit.'
+      : viewMode === 'study'
+      ? 'Study Mode: click cards to flip. Tick cards to include.'
+      : 'Quick View: scan rows and tick questions to include.';
+  const backgroundImage = PREVIEW_BACKGROUND_IMAGES[game.config.type];
+  const pageTheme = PREVIEW_PAGE_THEME;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <button onClick={onBack} className="mb-6 flex items-center text-slate-500 hover:text-sky-600">
           <ArrowLeft size={18} className="mr-2" /> Back to {sourceLabel}
         </button>
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-          <div className="min-w-0">
+        <div
+          className="relative overflow-hidden rounded-[2rem] border p-6 shadow-sm sm:p-8"
+          style={{
+            background: pageTheme.panelBackground,
+            borderColor: pageTheme.panelBorder,
+            boxShadow: pageTheme.panelShadow,
+          }}
+        >
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]">
+            <div className="min-w-0">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-600">
                 {sourceIcon}
                 {sourceLabel}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase text-sky-700 border border-sky-100">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold uppercase text-slate-600">
                 {game.config.type}
               </span>
               {game.config.isAI ? (
@@ -399,17 +706,20 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   type="button"
                   onClick={() => aiPrompt && setIsPromptOpen(true)}
                   className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase border transition-colors ${
-                    aiPrompt
-                      ? 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:border-indigo-300 hover:bg-indigo-100 cursor-pointer'
-                      : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                    aiPrompt ? 'cursor-pointer' : ''
                   }`}
+                  style={{
+                    background: aiPrompt ? 'rgba(255,255,255,0.82)' : 'rgba(248,250,252,0.84)',
+                    color: '#475569',
+                    borderColor: aiPrompt ? 'rgba(148, 163, 184, 0.36)' : 'rgba(203, 213, 225, 0.9)',
+                  }}
                   title={aiPrompt ? 'Click to view AI prompt' : undefined}
                 >
                   <Sparkles size={13} />
                   {creationLabel}
                 </button>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-700 border border-slate-200">
+                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold uppercase text-slate-600">
                   <Edit3 size={13} />
                   {creationLabel}
                 </span>
@@ -417,8 +727,6 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             </div>
 
             <h1 className="font-display text-3xl font-bold text-slate-800 sm:text-4xl">{game.title}</h1>
-            <p className="mt-2 text-sm font-medium text-slate-500">{instructionText}</p>
-
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <div className="inline-flex items-center gap-2">
                 <Avatar
@@ -432,17 +740,17 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 </span>
               </div>
               <span className="hidden text-slate-300 sm:inline">|</span>
-              <span className="font-semibold text-slate-600">{items.length} preview card{items.length === 1 ? '' : 's'}</span>
+              <span className="font-semibold text-slate-600">{items.length} question{items.length === 1 ? '' : 's'}</span>
               <span className="hidden text-slate-300 sm:inline">|</span>
               <span className="font-semibold text-slate-600">{selectedCount} selected</span>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2">
+            <div className="mt-5 flex flex-wrap items-center gap-2 lg:flex-nowrap">
               <button
                 type="button"
                 onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}
                 disabled={items.length === 0 || allSelected}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/86 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <CheckSquare size={15} /> Select all
               </button>
@@ -457,7 +765,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               <button
                 type="button"
                 onClick={onEdit}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/86 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white"
               >
                 <Edit3 size={16} /> Edit game
               </button>
@@ -466,12 +774,71 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 onClick={handlePlay}
                 disabled={selectedCount === 0}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ boxShadow: '0 16px 30px rgba(250, 204, 21, 0.24)' }}
               >
                 <Play size={16} fill="currentColor" /> Play selected
               </button>
             </div>
           </div>
+
+            {backgroundImage ? (
+              <div className="relative hidden min-h-[240px] items-center justify-center overflow-hidden rounded-[1.75rem] lg:flex">
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: pageTheme.imageShellBackground,
+                  }}
+                />
+                <img
+                  src={backgroundImage}
+                  alt=""
+                  className="relative z-10 h-full w-full scale-[1.01] object-contain"
+                  style={{
+                    WebkitMaskImage:
+                      'radial-gradient(ellipse 72% 72% at center, rgba(0,0,0,1) 34%, rgba(0,0,0,0.96) 50%, rgba(0,0,0,0.72) 66%, rgba(0,0,0,0.28) 82%, transparent 96%)',
+                    maskImage:
+                      'radial-gradient(ellipse 72% 72% at center, rgba(0,0,0,1) 34%, rgba(0,0,0,0.96) 50%, rgba(0,0,0,0.72) 66%, rgba(0,0,0,0.28) 82%, transparent 96%)',
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0)_36%,rgba(255,255,255,0.08)_56%,rgba(255,255,255,0.36)_74%,rgba(255,255,255,0.84)_92%,rgba(255,255,255,1)_100%)]" />
+              </div>
+            ) : null}
+          </div>
         </div>
+
+        {!isStopTheFireOverview && (
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewMode('quick')}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                viewMode === 'quick'
+                  ? 'border-brand-blue bg-sky-50 text-brand-blue'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800'
+              }`}
+              aria-pressed={viewMode === 'quick'}
+            >
+              <List size={15} />
+              Quick View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('study')}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
+                viewMode === 'study'
+                  ? 'border-brand-blue bg-sky-50 text-brand-blue'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800'
+              }`}
+              aria-pressed={viewMode === 'study'}
+            >
+              <Layers size={15} />
+              Study Mode
+            </button>
+            <span className="max-w-full text-sm font-semibold text-slate-500">
+              {instructionText}
+            </span>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <div className="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
@@ -484,23 +851,31 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             </p>
           </div>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => (
-              <PreviewCard
-                key={item.id}
-                item={item}
-                isSelected={selectedIds.has(item.id)}
-                isFlipped={flippedIds.has(item.id)}
-                onToggleSelect={() => toggleSelected(item.id)}
-                onToggleFlip={() => toggleFlipped(item.id)}
-              />
-            ))}
+          <div className="mt-8">
+            {isStopTheFireOverview ? (
+              <StopTheFireOverview items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
+            ) : viewMode === 'study' ? (
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {items.map((item) => (
+                  <PreviewCard
+                    key={item.id}
+                    item={item}
+                    isSelected={selectedIds.has(item.id)}
+                    isFlipped={flippedIds.has(item.id)}
+                    onToggleSelect={() => toggleSelected(item.id)}
+                    onToggleFlip={() => toggleFlipped(item.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <QuickViewTable items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
+            )}
           </div>
         )}
 
         {isPromptOpen && aiPrompt && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+            <div className="relative w-full max-w-2xl rounded-3xl border border-white/75 bg-white/90 p-6 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-8">
               <button
                 type="button"
                 onClick={() => setIsPromptOpen(false)}
@@ -509,7 +884,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               >
                 <X size={18} />
               </button>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-700 border border-indigo-100">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">
                 <Sparkles size={13} />
                 AI Prompt
               </div>

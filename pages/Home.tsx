@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, To, useNavigate } from 'react-router-dom';
 import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
 import { GameType, GeneratedWorksheet } from '../types';
@@ -13,7 +13,7 @@ type HomeTrendingCard = {
     image: string;
     icon: React.ReactNode;
     color: string;
-    href: string;
+    to: To;
 };
 
 type HomeWorksheetItem = Pick<GeneratedWorksheet, 'id' | 'title' | 'createdAt' | 'authorName'>;
@@ -81,11 +81,11 @@ const getGameVisual = (type?: GameType) => {
 };
 
 const FALLBACK_TRENDING_GAMES: HomeTrendingCard[] = [
-    { id: 'fallback-1', title: 'Jeopardy', plays: '0', href: '/games', ...getGameVisual(GameType.JEOPARDY) },
-    { id: 'fallback-2', title: 'Millionaire Maker', plays: '0', href: '/games', ...getGameVisual(GameType.MILLIONAIRE) },
-    { id: 'fallback-3', title: 'Survey Showdown', plays: '0', href: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
-    { id: 'fallback-4', title: 'Trivia Quiz', plays: '0', href: '/games', ...getGameVisual(GameType.TRIVIA) },
-    { id: 'fallback-5', title: 'Pub Quiz', plays: '0', href: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
+    { id: 'fallback-1', title: 'Jeopardy', plays: '0', to: '/games', ...getGameVisual(GameType.JEOPARDY) },
+    { id: 'fallback-2', title: 'Millionaire Maker', plays: '0', to: '/games', ...getGameVisual(GameType.MILLIONAIRE) },
+    { id: 'fallback-3', title: 'Survey Showdown', plays: '0', to: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
+    { id: 'fallback-4', title: 'Trivia Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.TRIVIA) },
+    { id: 'fallback-5', title: 'Pub Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
 ];
 
 const FALLBACK_WORKSHEETS: HomeWorksheetItem[] = [
@@ -136,7 +136,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
     const [hasError, setHasError] = useState(false);
 
     return (
-        <Link to={game.href} className="group block h-full">
+        <Link to={game.to} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
                 <div className={`aspect-[3/2] w-full relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-transparent'}`}>
                     <img 
@@ -216,7 +216,9 @@ export const Home: React.FC = () => {
             id: game.id || `trending-${index}`,
             title: game.title || game.config?.type || 'Untitled game',
             plays: formatPlayCount(Number(game.playCount || 0)),
-            href: isUUID(game.id) ? `/share/game/${game.id}` : '/games',
+            to: isUUID(game.id)
+              ? { pathname: '/games', state: { view: 'community', previewGameId: game.id } }
+              : '/games',
             image: visuals.image,
             icon: visuals.icon,
             color: visuals.color

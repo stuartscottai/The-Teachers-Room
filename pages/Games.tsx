@@ -5,7 +5,7 @@ import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { getSavedGames, deleteSavedGame, getCommunityGames, recordGamePlay } from '../utils/gameUtils';
+import { getSavedGames, deleteSavedGame, getCommunityGames, getSharedGame, recordGamePlay } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -1161,6 +1161,50 @@ export const Games: React.FC = () => {
             setCommunitySeedSearch(search);
         }
     }, [location, setIsDirty]);
+
+    useEffect(() => {
+        const navState: any = location.state || {};
+        const previewGameId = typeof navState?.previewGameId === 'string' ? navState.previewGameId.trim() : '';
+        if (!previewGameId) return;
+
+        let isCancelled = false;
+
+        const openPreviewGame = async () => {
+            const shared = await getSharedGame(previewGameId);
+            if (isCancelled || !shared) return;
+
+            const safeGame: GeneratedGame = {
+                ...shared,
+                id: undefined,
+                sourceGameId: shared.id,
+                config: {
+                    ...shared.config,
+                    isPublic: false,
+                    originalCreatorName: shared.config.originalCreatorName || shared.authorName || 'Teacher',
+                    originalCreatorId: shared.config.originalCreatorId || shared.authorId,
+                    originalCreatorAvatar: shared.config.originalCreatorAvatar || shared.authorAvatar || shared.config.authorAvatar || null,
+                    lastEditorName: undefined,
+                    lastEditorId: undefined
+                }
+            };
+
+            setIsDirty(false);
+            setIsAssistantOpen(false);
+            setCommunitySeedAuthorFilter(null);
+            setCommunitySeedSearch('');
+            setGeneratedGame(safeGame);
+            setSessionGame(null);
+            setSelectedType(shared.config.type);
+            setHubTab('community');
+            setStep('preview');
+        };
+
+        void openPreviewGame();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [location.state, setIsDirty]);
 
     useEffect(() => {
         if (location.state?.tour === 'games') {
