@@ -9,9 +9,10 @@ import { useDictation } from '../../utils/useDictation';
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 // Mode Selector Sub-Component
-export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void }> = ({ type, onBack, onModeSelect }) => {
+export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void, mobileTopInset?: number }> = ({ type, onBack, onModeSelect, mobileTopInset = 0 }) => {
     const isStopTheFire = type === GameType.STOP_THE_FIRE;
     const [isCompactHeight, setIsCompactHeight] = useState(false);
+    const shouldOffsetForTour = mobileTopInset > 0;
     // Lock body scroll when modal is open
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -29,9 +30,18 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
 
     return (
         <div
-            className={`fixed inset-0 z-[100] flex ${isCompactHeight ? 'items-start overflow-y-auto pt-[calc(4rem+env(safe-area-inset-top))] pb-6' : 'items-center'} justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fade-in`}
+            className={`fixed inset-0 z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto pb-6' : 'items-center'} justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fade-in`}
+            style={(isCompactHeight || shouldOffsetForTour)
+                ? {
+                    paddingTop: shouldOffsetForTour
+                        ? `calc(4rem + env(safe-area-inset-top) + ${mobileTopInset}px)`
+                        : 'calc(4rem + env(safe-area-inset-top))'
+                  }
+                : undefined}
         >
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div
+                className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up"
+            >
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
@@ -458,10 +468,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     return (
         <div
-            className="fixed inset-x-0 bottom-0 top-16 bg-slate-50 z-40 overflow-hidden flex flex-col transition-[top] duration-200"
+            className="fixed inset-x-0 bottom-0 top-16 bg-slate-50 z-40 overflow-y-auto transition-[top] duration-200"
             style={mobileTopInset > 0 ? { top: `calc(4rem + ${mobileTopInset}px)` } : undefined}
         >
-            <div className="flex-1 overflow-y-auto">
+            <div>
                 <div className="max-w-3xl mx-auto px-4 py-12">
                     <button onClick={onBack} className="flex items-center text-slate-500 hover:text-sky-600 mb-8">
                         <ArrowLeft size={18} className="mr-2" /> Back

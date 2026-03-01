@@ -4443,7 +4443,7 @@ export const Worksheets: React.FC = () => {
             </div>
 
             {isMobileTourViewport && isTourActive && activeTab === 'create' && tourPopupHeight > 0 && (
-                <div className="sm:hidden shrink-0" style={{ height: `${tourPopupHeight + 12}px` }} aria-hidden />
+                <div className="sm:hidden shrink-0" style={{ height: `${tourPopupHeight + 20}px` }} aria-hidden />
             )}
 
             {/* Content Area - Naturally expanding */}
@@ -4475,7 +4475,7 @@ export const Worksheets: React.FC = () => {
             {isTourActive && activeTab === 'create' && (
                 <div
                     ref={tourPopupRef}
-                    className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] max-h-[calc(100dvh-5.25rem)] sm:max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
+                    className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
                 >
                     <button
                         type="button"

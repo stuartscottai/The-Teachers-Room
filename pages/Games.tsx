@@ -267,7 +267,7 @@ const TourPopup: React.FC<{
     return (
     <div
         ref={popupRef}
-        className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] max-h-[calc(100dvh-5.25rem)] sm:max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
+        className="fixed z-[180] left-3 right-3 top-[4.5rem] bottom-auto sm:left-auto sm:right-6 sm:top-auto sm:bottom-4 sm:w-[min(94vw,420px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3.5 sm:p-4 animate-slide-up"
     >
         <button
             type="button"
@@ -1407,7 +1407,7 @@ export const Games: React.FC = () => {
     const isFloatingTourVisible =
         isTourActive &&
         ((step === 'hub' && !isAssistantOpen) || step === 'mode' || step === 'config');
-    const mobileTourSpacerHeight = isMobileTourViewport && isFloatingTourVisible ? tourPopupHeight + 12 : 0;
+    const mobileTourSpacerHeight = isMobileTourViewport && isFloatingTourVisible ? tourPopupHeight + 20 : 0;
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -1427,7 +1427,12 @@ export const Games: React.FC = () => {
             )}
             
             {step === 'mode' && selectedType && (
-                <ModeSelector type={selectedType} onBack={() => setStep('hub')} onModeSelect={handleModeSelect} />
+                <ModeSelector
+                    type={selectedType}
+                    onBack={() => setStep('hub')}
+                    onModeSelect={handleModeSelect}
+                    mobileTopInset={isMobileTourViewport && isTourActive && step === 'mode' ? mobileTourSpacerHeight : 0}
+                />
             )}
 
             {step === 'config' && selectedType && (
