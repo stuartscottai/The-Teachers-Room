@@ -721,54 +721,59 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     )}
                                 </div>
                                 
-                                <div className="w-full lg:w-auto shrink-0 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 lg:pb-0">
+                                <div className="w-full shrink-0 grid grid-cols-4 gap-0.5 pb-1 sm:gap-1.5 lg:w-auto lg:flex lg:items-center lg:pb-0">
                                     {/* VISIBILITY TOGGLE */}
                                     <div
-                                        className={`shrink-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-9 w-[136px] ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`w-full min-w-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-10 lg:h-9 lg:w-[136px] ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={handleVisibilityToggle}
                                         title={publicToggleLocked ? 'Make at least one edit before setting this game to Public.' : undefined}
                                     >
-                                        <div className={`flex-1 flex items-center justify-center rounded-full font-bold transition-all px-2 py-1.5 text-[9px] ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
-                                            <Lock size={9} className="mr-1" /> Pvt
+                                        <div className={`flex-1 min-w-0 flex items-center justify-center rounded-full font-bold leading-none transition-all px-1 py-2 text-[10px] sm:px-2 sm:py-1.5 sm:text-[9px] ${!isPublic ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}>
+                                            <Lock size={10} className="mr-0.5 sm:mr-1 shrink-0" /> Pvt
                                         </div>
-                                        <div className={`flex-1 flex items-center justify-center rounded-full font-bold transition-all px-2 py-1.5 text-[9px] ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
-                                            <Globe size={9} className="mr-1" /> Pub
+                                        <div className={`flex-1 min-w-0 flex items-center justify-center rounded-full font-bold leading-none transition-all px-1 py-2 text-[10px] sm:px-2 sm:py-1.5 sm:text-[9px] ${isPublic ? 'bg-green-500 text-white shadow-sm' : 'text-slate-500'}`}>
+                                            <Globe size={10} className="mr-0.5 sm:mr-1 shrink-0" /> Pub
                                         </div>
                                     </div>
 
                                     <button
                                         onClick={handleShare}
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`shrink-0 h-9 w-[136px] bg-white text-slate-700 font-bold shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-1.5 cursor-pointer rounded-xl text-[11px] ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Share game"
                                         aria-label="Share game"
                                     >
-                                        <Share2 size={12} />
-                                        <span>Share</span>
+                                        <Share2 size={13} className="shrink-0 sm:hidden" />
+                                        <Share2 size={12} className="hidden shrink-0 sm:block" />
+                                        <span className="truncate">Share</span>
                                     </button>
 
                                     <button 
                                         onClick={handleSave} 
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`shrink-0 h-9 w-[136px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm border cursor-pointer rounded-xl text-[11px]
+                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] font-bold leading-none flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 transition-all shadow-sm border cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
                                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'} ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title={isStopTheFireBank ? 'Save disabled' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save game'}
                                         aria-label={isStopTheFireBank ? 'Save disabled' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save game'}
                                     >
-                                        {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-400 border-t-transparent"></div>}
-                                        {saveStatus === 'saved' && <Check size={12} />}
-                                        {saveStatus === 'idle' && <Save size={12} />}
-                                        <span>{isStopTheFireBank ? 'Save Off' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}</span>
+                                        {saveStatus === 'saving' && <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-400 border-t-transparent shrink-0"></div>}
+                                        {saveStatus === 'saved' && <Check size={13} className="shrink-0 sm:hidden" />}
+                                        {saveStatus === 'saved' && <Check size={12} className="hidden shrink-0 sm:block" />}
+                                        {saveStatus === 'idle' && <Save size={13} className="shrink-0 sm:hidden" />}
+                                        {saveStatus === 'idle' && <Save size={12} className="hidden shrink-0 sm:block" />}
+                                        <span className="truncate">{isStopTheFireBank ? 'Save Off' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}</span>
                                     </button>
                                     <button 
                                         onClick={handlePlay} 
-                                        className="shrink-0 h-9 w-[136px] bg-brand-yellow text-slate-900 font-bold shadow-md hover:bg-yellow-300 flex items-center justify-center gap-1.5 hover:scale-105 transition-transform cursor-pointer rounded-xl text-[11px] whitespace-nowrap"
+                                        className="w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-brand-yellow text-slate-900 font-bold leading-none shadow-md hover:bg-yellow-300 flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 hover:scale-105 transition-transform cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight"
                                         title="Play game"
                                         aria-label="Play game"
                                     >
-                                        <Play size={12} /> <span>Play</span>
+                                        <Play size={13} className="shrink-0 sm:hidden" />
+                                        <Play size={12} className="hidden shrink-0 sm:block" />
+                                        <span className="truncate">Play</span>
                                     </button>
                                 </div>
                             </div>

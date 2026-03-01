@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, X, Bot, User, ArrowRight, Loader2, Mic } from 'lucide-react';
+import { Send, X, User, ArrowRight, Loader2, Mic } from 'lucide-react';
 import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent, WizardSuggestion } from '../../services/geminiService';
 import { useDictation } from '../../utils/useDictation';
@@ -32,6 +32,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const scrollRef = useRef<HTMLDivElement>(null);
     const MIN_AI_QUESTION_COUNT = 25;
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
+    const assistantHeadSrc = '/assets/game_elements/aiassistanthead.png';
 
     const getUserRequestedQuestionCount = () => {
         const patterns = [
@@ -187,8 +188,13 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                 {/* Header */}
                 <div className="bg-brand-blue p-4 flex justify-between items-center text-white shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="bg-white/20 p-2 rounded-full">
-                            <Sparkles size={20} className="text-brand-yellow" />
+                        <div className="bg-white/20 h-11 w-11 rounded-full overflow-hidden shrink-0">
+                            <img
+                                src={assistantHeadSrc}
+                                alt=""
+                                aria-hidden="true"
+                                className="h-full w-full object-cover"
+                            />
                         </div>
                         <div>
                             <h3 className="font-bold text-lg leading-tight">AI Assistant</h3>
@@ -229,7 +235,12 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                             {suggestionList.map((suggestion, index) => (
                                                 <div key={`${msg.id}-${suggestion.type}-${index}`} className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 shadow-md">
                                                     <div className="flex items-center gap-2 mb-2">
-                                                        <Sparkles size={16} className="text-indigo-500" />
+                                                        <img
+                                                            src={assistantHeadSrc}
+                                                            alt=""
+                                                            aria-hidden="true"
+                                                            className="h-5 w-5 rounded-md object-cover"
+                                                        />
                                                         <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
                                                             {index === 0 ? 'Best Fit' : `Alternative ${index + 1}`}
                                                         </span>
@@ -261,17 +272,31 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             </div>
                             
                             {/* Avatar */}
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-auto mx-2 shadow-sm
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0 mt-auto mx-2 shadow-sm
                                 ${msg.role === 'user' ? 'bg-sky-100 order-2' : 'bg-indigo-100 order-1'}`}>
-                                {msg.role === 'user' ? <User size={14} className="text-sky-600" /> : <Bot size={14} className="text-indigo-600" />}
+                                {msg.role === 'user' ? (
+                                    <User size={14} className="text-sky-600" />
+                                ) : (
+                                    <img
+                                        src={assistantHeadSrc}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-full w-full object-cover"
+                                    />
+                                )}
                             </div>
                         </div>
                     ))}
                     
                     {isTyping && (
                         <div className="flex justify-start">
-                            <div className="bg-indigo-100 w-8 h-8 rounded-full flex items-center justify-center mr-2 order-1">
-                                <Bot size={14} className="text-indigo-600" />
+                            <div className="bg-indigo-100 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden mr-2 order-1">
+                                <img
+                                    src={assistantHeadSrc}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="h-full w-full object-cover"
+                                />
                             </div>
                             <div className="bg-white border border-slate-200 px-4 py-3 rounded-2xl rounded-bl-none text-slate-400 text-sm flex items-center order-2">
                                 <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce mr-1"></div>

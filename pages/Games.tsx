@@ -1060,9 +1060,6 @@ const GameHub: React.FC<{
                         <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
 
                         <div className="md:w-2/3 mb-8 md:mb-0 relative z-10">
-                            <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sky-100 text-xs font-bold uppercase tracking-wider mb-4 border border-white/20">
-                                <Sparkles size={12} className="mr-2 text-brand-yellow" /> AI Assistant
-                            </div>
                             <h3 className="font-display text-3xl font-bold text-white mb-4">
                                 Can't decide? Let AI help you.
                             </h3>
@@ -1073,13 +1070,23 @@ const GameHub: React.FC<{
                                 onClick={onOpenAiAssistant}
                                 className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center"
                             >
-                                <Sparkles size={20} className="mr-2" /> Open AI Assistant
+                                <img
+                                    src="/assets/game_elements/aiassistanthead.png"
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="mr-3 h-12 w-12 rounded-xl object-cover"
+                                />
+                                Open AI Assistant
                             </button>
                         </div>
                         <div className="md:w-1/3 flex justify-center relative z-10">
                              <div className="relative">
                                 <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
-                                <img src="https://picsum.photos/seed/robot/300/300" alt="AI Robot" crossOrigin="anonymous" className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-64 h-64 object-cover" />
+                                <img
+                                    src="/assets/game_elements/aiassistant.png"
+                                    alt="AI Assistant"
+                                    className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-72 h-72 md:w-80 md:h-80 object-cover"
+                                />
                              </div>
                         </div>
                     </div>
