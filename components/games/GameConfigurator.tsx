@@ -7,12 +7,26 @@ import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOf
 import { useDictation } from '../../utils/useDictation';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
+    [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
+    [GameType.TRIVIA]: '/assets/games/trivia.png',
+    [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
+    [GameType.DARTS]: '/assets/games/darts.png',
+    [GameType.PUB_QUIZ]: '/assets/games/pubquiz.png',
+    [GameType.MILLIONAIRE]: '/assets/games/millionaire.png',
+    [GameType.TIME_BOMB]: '/assets/games/timebomb.png',
+    [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
+    [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
+    [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+};
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void, mobileTopInset?: number }> = ({ type, onBack, onModeSelect, mobileTopInset = 0 }) => {
     const isStopTheFire = type === GameType.STOP_THE_FIRE;
     const [isCompactHeight, setIsCompactHeight] = useState(false);
+    const [showDialog, setShowDialog] = useState(false);
     const shouldOffsetForTour = mobileTopInset > 0;
+    const backdropImage = GAME_BACKDROP_IMAGES[type];
     // Lock body scroll when modal is open
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -28,9 +42,15 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
         return () => media.removeEventListener('change', handleChange);
     }, []);
 
+    useEffect(() => {
+        setShowDialog(false);
+        const timeoutId = window.setTimeout(() => setShowDialog(true), 500);
+        return () => window.clearTimeout(timeoutId);
+    }, [type]);
+
     return (
         <div
-            className={`fixed inset-0 z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto pb-6' : 'items-center'} justify-center bg-slate-900/50 backdrop-blur-sm px-4 animate-fade-in`}
+            className={`fixed inset-0 z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto pb-6' : 'items-center'} justify-center px-4 animate-fade-in`}
             style={(isCompactHeight || shouldOffsetForTour)
                 ? {
                     paddingTop: shouldOffsetForTour
@@ -39,8 +59,42 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                   }
                 : undefined}
         >
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 bg-slate-900" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_48%)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_58%)]" />
+                <div className="absolute inset-0 sm:hidden">
+                    <img
+                        src={backdropImage}
+                        alt=""
+                        aria-hidden="true"
+                        className="w-full h-full object-cover scale-110 blur-xl opacity-72"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/44" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-slate-900/28 via-transparent to-slate-950/38" />
+                </div>
+                <div className="absolute inset-0 hidden sm:flex items-center justify-center px-4 py-6">
+                    <div
+                        className="relative aspect-[3/2]"
+                        style={{ width: 'min(calc(100vw - 2rem), calc((100dvh - 2rem) * 1.5), 1280px)' }}
+                    >
+                        <img
+                            src={backdropImage}
+                            alt=""
+                            aria-hidden="true"
+                            className="w-full h-full object-contain opacity-92"
+                        />
+                        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-slate-900 via-slate-900/42 to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/42 to-transparent" />
+                        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-slate-900 via-slate-900/38 to-transparent" />
+                        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-slate-900 via-slate-900/38 to-transparent" />
+                    </div>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/16 via-transparent to-slate-950/26" />
+            </div>
+            {showDialog && (
             <div
-                className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up"
+                className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up border border-white/60"
             >
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
@@ -118,6 +172,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                     )}
                 </div>
             </div>
+            )}
         </div>
     );
 }
