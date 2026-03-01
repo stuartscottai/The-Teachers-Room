@@ -19,6 +19,7 @@ import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { StopTheFireGame } from '../components/games/StopTheFireGame';
 import { WordWheelGame } from '../components/games/WordWheelGame';
 import { GameEditor } from '../components/games/GameEditor';
+import { GamePreview } from '../components/games/GamePreview';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
@@ -863,9 +864,9 @@ const CommunityLibrary: React.FC<{
                                     <button 
                                         onClick={() => onLoadGame(game)}
                                         className="w-full px-3 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-lg font-bold hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center gap-2 text-sm"
-                                        title="Open in Editor"
+                                        title="Open Preview"
                                     >
-                                        <Play size={14} fill="currentColor" /> Play
+                                        <HelpCircle size={14} /> Preview
                                     </button>
                                 </div>
                             </div>
@@ -1110,12 +1111,14 @@ const GameHub: React.FC<{
 
 // MAIN COMPONENT
 export const Games: React.FC = () => {
-    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'editor' | 'setup' | 'play'>('hub');
+    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'editor' | 'setup' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
     const [generatedGame, setGeneratedGame] = useState<GeneratedGame | null>(null);
+    const [sessionGame, setSessionGame] = useState<GeneratedGame | null>(null);
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
-    const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub'>('hub');
+    const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub' | 'preview'>('hub');
+    const [playReturnStep, setPlayReturnStep] = useState<'editor' | 'preview'>('editor');
     const [hubTab, setHubTab] = useState<'create' | 'community' | 'library'>('create');
     const [communitySeedAuthorFilter, setCommunitySeedAuthorFilter] = useState<{ id?: string; name: string } | null>(null);
     const [communitySeedSearch, setCommunitySeedSearch] = useState('');
@@ -1199,6 +1202,7 @@ export const Games: React.FC = () => {
     const handleSelect = (type: GameType) => {
         setSelectedType(type);
         setGeneratedGame(null);
+        setSessionGame(null);
         // Enable mode selection for all games
         setStep('mode');
     };
@@ -1210,6 +1214,7 @@ export const Games: React.FC = () => {
 
     const handleConfigProceed = (game: GeneratedGame) => {
         setGeneratedGame(game);
+        setSessionGame(null);
         setEditorReturnStep('config');
         setStep('editor');
         setIsDirty(true);
@@ -1227,6 +1232,8 @@ export const Games: React.FC = () => {
 
     const handleEditorPlay = (updatedGame: GeneratedGame) => {
         setGeneratedGame(updatedGame);
+        setSessionGame(updatedGame);
+        setPlayReturnStep('editor');
         setIsDirty(false);
         
         if (updatedGame.config.type === GameType.MILLIONAIRE) {
@@ -1266,17 +1273,17 @@ export const Games: React.FC = () => {
     };
 
     const handleGameStart = (options: GameRunOptions) => {
-        trackStartedGame(generatedGame);
+        trackStartedGame(sessionGame || generatedGame);
         setPlayOptions(options);
         setStep('play');
     };
 
     const handleLoadPersonalGame = (game: GeneratedGame) => {
         setGeneratedGame(game);
+        setSessionGame(null);
         setSelectedType(game.config.type);
-        setEditorReturnStep('hub');
         setHubTab('library'); // Remember tab
-        setStep('editor');
+        setStep('preview');
         setIsDirty(false); 
     };
 
@@ -1299,11 +1306,59 @@ export const Games: React.FC = () => {
         };
         
         setGeneratedGame(safeGame);
+        setSessionGame(null);
         setSelectedType(game.config.type);
-        setEditorReturnStep('hub'); 
         setHubTab('community'); // Remember tab
+        setStep('preview');
+        setIsDirty(false);
+    };
+
+    const handlePreviewEdit = () => {
+        if (!generatedGame) return;
+        setEditorReturnStep('preview');
         setStep('editor');
-        setIsDirty(true); // Treated as new unsaved instance
+        setIsDirty(Boolean(generatedGame.sourceGameId));
+    };
+
+    const handlePreviewPlay = (gameToPlay: GeneratedGame) => {
+        setSessionGame(gameToPlay);
+        setPlayReturnStep('preview');
+        setIsDirty(false);
+
+        if (gameToPlay.config.type === GameType.MILLIONAIRE) {
+            setPlayOptions({
+                players: 1,
+                timerSeconds: 0,
+                enableBonuses: false,
+                strictMode: false,
+                muted: false
+            });
+            trackStartedGame(gameToPlay);
+            setStep('play');
+        } else if (gameToPlay.config.type === GameType.STOP_THE_FIRE) {
+            setPlayOptions({
+                players: 2,
+                timerSeconds: 60,
+                enableBonuses: false,
+                strictMode: false,
+                muted: false,
+                stopTheFireCategoryCount: 10,
+                stopTheFireDifficulty: 'beginner'
+            });
+            trackStartedGame(gameToPlay);
+            setStep('play');
+        } else if (gameToPlay.config.type === GameType.SURVEY_SHOWDOWN) {
+            setPlayOptions({
+                players: 2,
+                timerSeconds: 0,
+                enableBonuses: false,
+                strictMode: false,
+                muted: false
+            });
+            setStep('setup');
+        } else {
+            setStep('setup');
+        }
     };
 
     const handleBack = () => {
@@ -1313,9 +1368,11 @@ export const Games: React.FC = () => {
                 if (selectedType === GameType.MILLIONAIRE || selectedType === GameType.STOP_THE_FIRE) setStep('editor');
                 else setStep('setup');
             } else if (step === 'setup') {
-                setStep('editor');
+                setStep(playReturnStep);
             } else if (step === 'editor') {
                 setStep(editorReturnStep);
+            } else if (step === 'preview') {
+                setStep('hub');
             } else if (step === 'config') {
                 setStep('mode');
             } else if (step === 'mode') {
@@ -1333,19 +1390,20 @@ export const Games: React.FC = () => {
     };
 
     const handleGameEnd = () => {
-        setStep('editor'); 
+        setStep(playReturnStep); 
     };
 
     const handleReplay = () => {
         setIsDirty(false);
+        const replayGame = sessionGame || generatedGame;
         if (selectedType === GameType.MILLIONAIRE) {
-             setStep('editor'); 
+             setStep(playReturnStep); 
              setTimeout(() => {
-                trackStartedGame(generatedGame);
+                trackStartedGame(replayGame);
                 setStep('play');
              }, 50); 
         } else if (selectedType === GameType.STOP_THE_FIRE) {
-             trackStartedGame(generatedGame);
+             trackStartedGame(replayGame);
              setStep('play');
         } else {
              setStep('setup');
@@ -1356,6 +1414,7 @@ export const Games: React.FC = () => {
     const handleAiGameGenerated = (game: GeneratedGame) => {
         setIsAssistantOpen(false);
         setGeneratedGame(game);
+        setSessionGame(null);
         setSelectedType(game.config.type);
         setEditorReturnStep('hub');
         setStep('editor');
@@ -1432,6 +1491,16 @@ export const Games: React.FC = () => {
                     initialCommunitySearch={communitySeedSearch}
                 />
             )}
+
+            {step === 'preview' && generatedGame && (
+                <GamePreview
+                    game={generatedGame}
+                    source={hubTab === 'community' ? 'community' : 'library'}
+                    onBack={() => setStep('hub')}
+                    onEdit={handlePreviewEdit}
+                    onPlay={handlePreviewPlay}
+                />
+            )}
             
             {step === 'mode' && selectedType && (
                 <ModeSelector
@@ -1464,16 +1533,17 @@ export const Games: React.FC = () => {
 
             {step === 'setup' && generatedGame && (
                 <GameSetup 
-                    game={generatedGame}
-                    onBack={() => setStep('editor')}
+                    game={sessionGame || generatedGame}
+                    onBack={() => setStep(playReturnStep)}
                     onStart={handleGameStart}
+                    backLabel={playReturnStep === 'preview' ? 'Back to Preview' : 'Back to Editor'}
                 />
             )}
 
-            {step === 'play' && generatedGame && playOptions && (
+            {step === 'play' && (sessionGame || generatedGame) && playOptions && (
                 selectedType === GameType.JEOPARDY ? (
                     <JeopardyGame 
-                        game={generatedGame} 
+                        game={sessionGame || generatedGame!} 
                         options={playOptions}
                         onBack={handleGameEnd} 
                         onFinish={() => setStep('hub')} 
@@ -1481,7 +1551,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.TRIVIA ? (
                     <TriviaGame 
-                        game={generatedGame} 
+                        game={sessionGame || generatedGame!} 
                         options={playOptions}
                         onBack={handleGameEnd} 
                         onFinish={() => setStep('hub')} 
@@ -1489,7 +1559,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.PUB_QUIZ ? (
                     <PubQuizGame 
-                        game={generatedGame} 
+                        game={sessionGame || generatedGame!} 
                         options={playOptions}
                         onBack={handleGameEnd} 
                         onFinish={() => setStep('hub')} 
@@ -1497,7 +1567,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.DARTS ? (
                     <DartsGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1505,7 +1575,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.SNAKES_LADDERS ? (
                     <SnakesLaddersGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1513,7 +1583,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.MILLIONAIRE ? (
                     <MillionaireGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1521,7 +1591,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.TIME_BOMB ? (
                     <TimeBombGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1529,7 +1599,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.SURVEY_SHOWDOWN ? (
                     <SurveyShowdownGame
-                        game={generatedGame} 
+                        game={sessionGame || generatedGame!} 
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')} 
@@ -1537,7 +1607,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.STOP_THE_FIRE ? (
                     <StopTheFireGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1545,7 +1615,7 @@ export const Games: React.FC = () => {
                     />
                 ) : selectedType === GameType.WORD_WHEEL ? (
                     <WordWheelGame
-                        game={generatedGame}
+                        game={sessionGame || generatedGame!}
                         options={playOptions}
                         onBack={handleGameEnd}
                         onFinish={() => setStep('hub')}
@@ -1560,7 +1630,7 @@ export const Games: React.FC = () => {
                         </div>
                         <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
                             <div className="bg-slate-800 p-6 text-white">
-                                <h1 className="text-2xl font-display font-bold">{generatedGame.title}</h1>
+                                <h1 className="text-2xl font-display font-bold">{(sessionGame || generatedGame)!.title}</h1>
                             </div>
                             <div className="p-8 text-center text-slate-500">
                                 Standard game mode under construction.

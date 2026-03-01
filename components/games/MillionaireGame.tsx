@@ -52,6 +52,9 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
     // Sanity check for questions
     const questions = game.questions || [];
+    const ladder = MONEY_LADDER.slice(0, Math.min(Math.max(questions.length, 1), MONEY_LADDER.length));
+    const safetyNets = SAFETY_NETS.filter((index) => index < ladder.length);
+    const lastLevelIndex = ladder.length - 1;
     const currentQuestion = questions[currentLevel];
     const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -160,8 +163,8 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 // Correct
                 playSound('correct', isMuted);
                 setTimeout(() => {
-                    if (currentLevel === 14) {
-                        setWinnings(1000000);
+                    if (currentLevel === lastLevelIndex) {
+                        setWinnings(ladder[lastLevelIndex] || 0);
                         setGameState('result');
                         setIsGameOver(true);
                         playSound('win', isMuted);
@@ -174,11 +177,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 // Incorrect
                 playSound('incorrect', isMuted);
                 setTimeout(() => {
-                    // Calculate drop to safety net
-                    let safeAmount = 0;
-                    if (currentLevel > 9) safeAmount = 32000;
-                    else if (currentLevel > 4) safeAmount = 1000;
-                    
+                    const reachedSafetyNets = safetyNets.filter((index) => currentLevel > index);
+                    const safeAmount = reachedSafetyNets.length > 0
+                        ? ladder[reachedSafetyNets[reachedSafetyNets.length - 1]] || 0
+                        : 0;
+
                     setWinnings(safeAmount);
                     setGameState('result');
                     setIsGameOver(true);
@@ -190,7 +193,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const handleWalkAway = () => {
         if (isProcessing) return;
         setIsProcessing(true);
-        const currentAmount = currentLevel > 0 ? MONEY_LADDER[currentLevel - 1] : 0;
+        const currentAmount = currentLevel > 0 ? ladder[currentLevel - 1] || 0 : 0;
         setWinnings(currentAmount);
         setGameState('walkaway');
         setIsGameOver(true);
@@ -374,12 +377,12 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
     const mobileLadderVisibleCols = 5;
     const mobileLadderCenterIndex = Math.floor(mobileLadderVisibleCols / 2);
-    const mobileLadderMaxStart = Math.max(0, MONEY_LADDER.length - mobileLadderVisibleCols);
+    const mobileLadderMaxStart = Math.max(0, ladder.length - mobileLadderVisibleCols);
     const mobileLadderWindowStart = Math.min(
         mobileLadderMaxStart,
         Math.max(0, currentLevel - mobileLadderCenterIndex)
     );
-    const mobileLadderWindow = MONEY_LADDER.slice(
+    const mobileLadderWindow = ladder.slice(
         mobileLadderWindowStart,
         mobileLadderWindowStart + mobileLadderVisibleCols
     );
@@ -461,7 +464,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
                     <div className="bg-slate-800/90 backdrop-blur-xl p-16 rounded-[3rem] border-2 border-indigo-500/50 shadow-2xl max-w-4xl w-full animate-slide-up relative z-10">
                         <h2 className="text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight">
-                            {winnings === 1000000 ? "ULTIMATE CHAMPION!" : "GAME OVER"}
+                            {winnings === (ladder[lastLevelIndex] || 1000000) ? "ULTIMATE CHAMPION!" : "GAME OVER"}
                         </h2>
                         <p className="text-indigo-300 text-xl md:text-2xl mb-12 uppercase tracking-widest font-bold">
                             {gameState === 'walkaway' ? "You walked away with" : "You go home with"}
@@ -469,7 +472,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         
                         <div
                             className={`font-black text-yellow-400 mb-16 drop-shadow-xl font-mono leading-none max-w-full ${isMobileViewport ? 'text-[clamp(32px,10vw,72px)]' : 'text-7xl md:text-9xl'}`}
-                            style={{ animation: winnings === 1000000 ? 'pulse-gold 2s infinite' : 'none' }}
+                            style={{ animation: winnings === (ladder[lastLevelIndex] || 1000000) ? 'pulse-gold 2s infinite' : 'none' }}
                         >
                             ${winnings.toLocaleString()}
                         </div>
@@ -636,7 +639,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     onClick={handleWalkAway}
                                     className={`text-slate-400 hover:text-white font-bold uppercase tracking-widest border-2 border-slate-700 rounded-full hover:bg-slate-800 transition-colors bg-black/50 backdrop-blur-md ${isMobileViewport ? 'text-xs px-4 py-2' : 'text-lg px-8 py-3'}`}
                                 >
-                                    Walk Away: ${MONEY_LADDER[currentLevel-1].toLocaleString()}
+                                    Walk Away: ${(ladder[currentLevel-1] || 0).toLocaleString()}
                                 </button>
                             </div>
                         )}
@@ -645,11 +648,11 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     {/* MONEY LADDER (RIGHT SIDE) - Hide on mobile unless tall screen? */}
                     <div className={`hidden lg:flex w-64 xl:w-80 bg-black/40 border-l border-white/10 p-4 xl:p-6 flex-col justify-center backdrop-blur-sm z-30 shrink-0`}>
                         <div className="space-y-1 h-full flex flex-col justify-center">
-                            {[...MONEY_LADDER].reverse().map((amount, idx) => {
-                                const levelIndex = 14 - idx;
+                            {[...ladder].reverse().map((amount, idx) => {
+                                const levelIndex = ladder.length - 1 - idx;
                                 const isCurrent = levelIndex === currentLevel;
                                 const isCompleted = levelIndex < currentLevel;
-                                const isSafe = SAFETY_NETS.includes(levelIndex);
+                                const isSafe = safetyNets.includes(levelIndex);
                                 
                                 return (
                                     <div 
@@ -677,7 +680,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                 {mobileLadderWindow.map((amount, i) => {
                                     const globalIndex = mobileLadderWindowStart + i;
                                     const isCurrent = globalIndex === currentLevel;
-                                    const isSafe = SAFETY_NETS.includes(globalIndex);
+                                    const isSafe = safetyNets.includes(globalIndex);
                                     return (
                                         <div
                                             key={`${amount}-${globalIndex}`}
