@@ -4389,22 +4389,37 @@ export const Worksheets: React.FC = () => {
     };
 
     useEffect(() => {
-        const deepLinkedId = (location.state as any)?.openWorksheetId as string | undefined;
-        if (!deepLinkedId || deepLinkedWorksheetRef.current === deepLinkedId) return;
+        const navState = location.state as any;
+        const deepLinkedWorksheet = navState?.openWorksheet as GeneratedWorksheet | undefined;
+        const deepLinkedId = navState?.openWorksheetId as string | undefined;
+        const deepLinkedKey = deepLinkedWorksheet?.id || deepLinkedId || deepLinkedWorksheet?.title;
+        if ((!deepLinkedWorksheet && !deepLinkedId) || (deepLinkedKey && deepLinkedWorksheetRef.current === deepLinkedKey)) return;
 
-        deepLinkedWorksheetRef.current = deepLinkedId;
+        deepLinkedWorksheetRef.current = deepLinkedKey || '__worksheet_deeplink__';
         let cancelled = false;
 
         const loadDeepLinkedWorksheet = async () => {
-            const sharedWorksheet = await getSharedWorksheet(deepLinkedId);
-            if (cancelled) return;
+            try {
+                if (deepLinkedWorksheet) {
+                    await handleLoad(deepLinkedWorksheet, 'community');
+                    return;
+                }
 
-            if (!sharedWorksheet) {
-                setActiveTab('community');
-                return;
+                const sharedWorksheet = await getSharedWorksheet(deepLinkedId);
+                if (cancelled) return;
+
+                if (!sharedWorksheet) {
+                    setActiveTab('community');
+                    return;
+                }
+
+                await handleLoad(sharedWorksheet, 'community');
+            } catch (error) {
+                console.error('Worksheet deep-link load failed:', error);
+                if (!cancelled) {
+                    setActiveTab('community');
+                }
             }
-
-            await handleLoad(sharedWorksheet, 'community');
         };
 
         void loadDeepLinkedWorksheet();

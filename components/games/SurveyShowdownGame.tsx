@@ -461,20 +461,25 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         );
     }
 
+    const mobileUsesTwoRowHeader = isMobileViewport && teamNames.length >= 4;
+    const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
+    const mobileControlCount = 4;
+    const mobileUsesButtonGrid = mobileUsesTwoRowHeader && mobileControlCount >= 4;
+
     return (
         // MAIN CONTAINER: Fixed Height, No Scroll on Body
         <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER / SCOREBOARD (Increased Height to match Trivia) */}
-            <div className="bg-slate-800/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[56px] sm:min-h-[140px]">
-                <div className="flex w-full items-center gap-2 sm:gap-4">
-                    <div className="flex flex-col items-start gap-1 min-w-[52px]">
-                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
+            <div className={`bg-slate-800/90 backdrop-blur-md ${mobileUsesTwoRowHeader ? 'px-2 py-1.5' : 'p-2'} sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[70px] sm:min-h-[140px]`}>
+                <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+                    <div className={`${mobileUsesButtonGrid ? 'grid grid-cols-2' : 'flex'} min-w-fit shrink-0 gap-1.5 sm:flex sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesButtonGrid ? '' : mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
+                        <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="hidden sm:flex bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-white border border-rose-800"
+                            className="hidden sm:flex w-[140px] justify-center bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-white border border-rose-800"
                             title="End game now"
                         >
                             <Flag size={16} className="mr-2" /> End Game
@@ -484,31 +489,34 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
                             title="Quit"
                         >
-                            <X size={18} />
+                            <X size={17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
                             title="End game now"
                         >
-                            <Flag size={16} />
+                            <Flag size={14} />
                         </button>
-                        <div className="sm:hidden flex flex-col gap-1">
-                            <button 
-                                onClick={toggleHostMode} 
-                                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                                title="Host Mode (Click to Preview)"
-                            >
-                                <Shield size={18} />
-                            </button>
-                            <button onClick={() => setIsMuted(!isMuted)} className="w-9 h-9 flex items-center justify-center bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
-                                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                            </button>
-                        </div>
+                        <button 
+                            onClick={toggleHostMode} 
+                            className={`sm:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                            title="Host Mode (Click to Preview)"
+                        >
+                            <Shield size={17} />
+                        </button>
+                        <button onClick={() => setIsMuted(!isMuted)} className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 hover:bg-slate-600 transition-colors text-slate-300">
+                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                        </button>
                     </div>
 
                     {/* TEAMS CENTER STAGE */}
-                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center">
+                    <div
+                        className={isMobileViewport
+                            ? 'flex-1 self-start grid gap-1 items-start content-start'
+                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center'}
+                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
+                    >
                         {teamNames.map((name, idx) => {
                             const isActive = activeTeamIndex === idx;
                             const strikeCount = teamStrikes[idx] ?? 0;
@@ -517,7 +525,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 <button 
                                     key={`${name}-${idx}`}
                                     onClick={() => openEditTeam(idx)}
-                                    className={`flex flex-col items-center transition-all px-2 py-1 sm:px-4 sm:py-3 rounded-xl border-4 relative min-w-[100px] sm:min-w-[120px] cursor-pointer group
+                                    className={`flex flex-col items-center justify-center transition-all w-full min-w-0 px-2 py-1 sm:px-4 sm:py-3 rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative ${mobileUsesTwoRowHeader ? 'min-h-[52px]' : 'min-h-[52px]'} sm:min-w-[120px] cursor-pointer group
                                     ${isActive 
                                         ? 'border-brand-yellow bg-slate-700 ring-2 sm:ring-4 ring-yellow-300/30 sm:scale-110 z-10' 
                                         : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
@@ -525,13 +533,13 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     <div className="absolute -top-2 -right-2 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                         <Edit2 size={12} />
                                     </div>
-                                    <span className={`text-[10px] sm:text-sm font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
+                                    <span className={`text-[8px] sm:text-sm font-bold uppercase tracking-wider mb-0.5 truncate w-full text-center leading-none ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
                                         {name}
                                     </span>
-                                    <div className="text-xl sm:text-4xl font-black text-white font-mono leading-none mb-1">{teamScore}</div>
-                                    <div className="flex gap-1">
+                                    <div className={`font-black text-white font-mono leading-none ${mobileUsesTwoRowHeader ? 'text-base mb-0.5' : 'text-xl mb-1'} sm:text-4xl`}>{teamScore}</div>
+                                    <div className="flex gap-0.5">
                                         {[0, 1, 2].map(i => (
-                                            <div key={i} className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
+                                            <div key={i} className={`${mobileUsesTwoRowHeader ? 'w-1.5 h-1.5' : 'w-2 h-2'} sm:w-3 sm:h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
                                         ))}
                                     </div>
                                 </button>
@@ -539,22 +547,22 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                         })}
                     </div>
 
-                    <div className="hidden sm:flex gap-2 flex-col items-end">
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={toggleHostMode} 
-                                className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                                title="Host Mode (Click to Preview)"
-                            >
-                                <Shield size={20} />
-                            </button>
+                    <div className="hidden sm:flex gap-2 items-start">
+                        <button 
+                            onClick={toggleHostMode} 
+                            className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
+                            title="Host Mode (Click to Preview)"
+                        >
+                            <Shield size={20} />
+                        </button>
+                        <div className="flex flex-col gap-2 items-end">
                             <button onClick={() => setIsMuted(!isMuted)} className="p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
                                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                             </button>
+                            <button onClick={toggleFullscreen} className="p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-300">
+                                {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                            </button>
                         </div>
-                        <button onClick={toggleFullscreen} className="p-2 text-xs font-bold text-slate-500 hover:text-white flex items-center">
-                            {isFullscreen ? <><Minimize2 size={14} className="mr-1"/> Exit Full</> : <><Maximize2 size={14} className="mr-1"/> Fullscreen</>}
-                        </button>
                     </div>
                 </div>
             </div>

@@ -649,6 +649,11 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         );
     }
 
+    const mobileUsesTwoRowHeader = isMobileViewport && teamNames.length >= 4;
+    const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
+    const mobileControlCount = gameState === 'play' ? 4 : 3;
+    const mobileUsesButtonGrid = mobileUsesTwoRowHeader && mobileControlCount >= 4;
+
     return (
         <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             <style>{`
@@ -684,14 +689,14 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             `}</style>
             
             {/* 1. HEADER */}
-            <div className="bg-slate-900/90 backdrop-blur-md p-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between items-center min-h-[70px] sm:min-h-[140px] shadow-2xl relative overflow-visible">
-                <div className="flex flex-col items-start gap-1.5 min-w-[40px] sm:hidden">
-                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
-                        <ArrowLeft size={16} />
+            <div className={`bg-slate-900/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px] shadow-2xl relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+                <div className={`min-w-fit shrink-0 sm:hidden gap-1.5 ${mobileUsesButtonGrid ? 'grid grid-cols-2' : mobileUsesTwoRowHeader ? 'flex flex-col items-start' : 'flex flex-row items-center'}`}>
+                    <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-slate-400 hover:text-red-500 bg-slate-800 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                        <ArrowLeft size={17} />
                     </button>
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
-                        className="text-white bg-rose-700 hover:bg-rose-600 p-2 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-rose-800"
+                        className="w-9 h-9 text-white bg-rose-700 hover:bg-rose-600 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-rose-800"
                         title="End game now"
                     >
                         <Flag size={14} />
@@ -699,24 +704,24 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     {gameState === 'play' && (
                         <button 
                             onClick={() => setIsPaused(!isPaused)} 
-                            className={`text-slate-400 hover:text-white p-2 rounded-lg transition-colors border ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+                            className={`w-9 h-9 text-slate-400 hover:text-white rounded-lg transition-colors border flex items-center justify-center ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
                             title={isPaused ? "Resume" : "Pause"}
                         >
                             {isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
                         </button>
                     )}
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700">
-                        {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                    <button onClick={() => setIsMuted(!isMuted)} className="w-9 h-9 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 flex items-center justify-center">
+                        {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                     </button>
                 </div>
 
                 <div className="hidden sm:flex flex-col items-start gap-2 min-w-[140px]">
-                    <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                    <button onClick={() => setShowQuitConfirm(true)} className="w-[140px] justify-center text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
-                        className="text-white bg-rose-700 hover:bg-rose-600 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-rose-800"
+                        className="w-[140px] justify-center text-white bg-rose-700 hover:bg-rose-600 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-rose-800"
                         title="End game now"
                     >
                         <Flag size={16} className="mr-2" /> End Game
@@ -724,7 +729,12 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 </div>
 
                 {/* Team Status Bar */}
-                <div className="flex-1 grid grid-cols-3 auto-rows-fr gap-1.5 px-2 py-1 place-items-center sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:no-scrollbar sm:px-3 sm:py-2 sm:items-center">
+                <div
+                    className={isMobileViewport
+                        ? 'flex-1 grid gap-1.5 items-stretch px-1'
+                        : 'flex-1 sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:no-scrollbar sm:px-3 sm:py-2 sm:items-center'}
+                    style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
+                >
                     {teamNames.map((name, idx) => {
                         const isAlive = teamLives[idx] > 0;
                         const isActive = idx === activeTeamIndex;
@@ -732,13 +742,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <div 
                                 key={idx} 
                                 className={`
-                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all min-h-[clamp(36px,6vh,52px)] sm:min-h-[5rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center
+                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:min-h-[5rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center text-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
-                                      isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] scale-105 sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
+                                      isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
                                       'border-slate-700 bg-slate-800/80 text-slate-400'}
                                 `}
                             >
-                                <div className="text-[clamp(8px,2vw,11px)] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center break-words w-full">
+                                <div className="text-[10px] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center truncate w-full">
                                     {name}
                                 </div>
                                 <div className="flex gap-1">
@@ -759,7 +769,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     })}
                 </div>
 
-                <div className="hidden sm:flex items-center gap-2 min-w-[140px] justify-end">
+                <div className="hidden sm:flex flex-col items-end gap-2 min-w-[72px] justify-center">
                     {gameState === 'play' && (
                         <button 
                             onClick={() => setIsPaused(!isPaused)} 

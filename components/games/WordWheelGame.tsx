@@ -1151,6 +1151,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             ? buildHintPreview(activeEntry, activeHintBaseline, isMobileViewport ? '' : '\u2009')
             : '';
     const openCardButtonLabel = isWheelSpinning ? 'Spinning...' : hasStartedWheel ? 'Continue' : 'Start';
+    const mobileUsesTwoRowHeader = isMobileViewport && teamNames.length >= 4;
+    const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
 
     return (
         <div
@@ -1169,42 +1171,54 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     100% { transform: translate(-50%, -50%) scale(1); }
                 }
             `}</style>
-            <div ref={headerRef} className="bg-slate-800 border-b border-slate-700 p-2 sm:p-4 shrink-0">
-                <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="flex flex-col gap-1 shrink-0">
+            <div ref={headerRef} className={`bg-slate-800 border-b border-slate-700 p-2 sm:p-4 shrink-0 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`}>
+                <div className={`flex gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+                    <div className={`flex min-w-fit shrink-0 gap-1.5 sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center"
+                            className="w-9 h-9 sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center"
                             title="Quit"
                         >
-                            <ArrowLeft size={16} className="sm:mr-1" />
+                            <ArrowLeft size={17} className="sm:mr-2" />
                             <span className="hidden sm:inline">Quit</span>
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-lg bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center"
+                            className="w-9 h-9 sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center rounded-lg bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center"
                             title="End game now"
                         >
-                            <Flag size={16} className="sm:mr-1" />
+                            <Flag size={14} className="sm:mr-2" />
                             <span className="hidden sm:inline">End Game</span>
+                        </button>
+                        <button
+                            onClick={() => setIsMuted((prev) => !prev)}
+                            className="sm:hidden w-9 h-9 rounded-lg border border-slate-700 bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center"
+                            title={isMuted ? 'Unmute' : 'Mute'}
+                        >
+                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                         </button>
                     </div>
 
-                    <div className="flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+                    <div
+                        className={isMobileViewport
+                            ? 'flex-1 grid gap-1.5 items-stretch'
+                            : 'flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar px-1 sm:px-4 h-full'}
+                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
+                    >
                         {scores.map((score, index) => {
                             const active = currentTeam === index;
                             return (
                                 <button
                                     key={index}
                                     onClick={() => openEditTeam(index)}
-                                    className={`min-w-[110px] sm:min-w-[160px] rounded-xl border px-2 py-2 sm:px-4 sm:py-3 text-center transition-all ${
+                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} w-full min-w-0 px-2 py-1` : 'min-w-[110px] sm:min-w-[160px] px-2 py-2 sm:px-4 sm:py-3'} rounded-xl border text-center transition-all ${
                                         active ? 'bg-cyan-600/20 border-cyan-300 shadow-lg' : 'bg-slate-700/60 border-slate-600'
                                     } relative group`}
                                 >
-                                    <div className="text-[10px] sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate">
+                                    <div className="text-[10px] sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full">
                                         {teamNames[index]}
                                     </div>
-                                    <div className="font-mono font-black text-2xl sm:text-4xl">{score}</div>
+                                    <div className="font-mono font-black text-lg sm:text-4xl">{score}</div>
                                     <div className="text-[10px] sm:text-xs font-bold text-cyan-100/80 mt-0.5">
                                         Clues: {teamCluesLeft[index] ?? 0}
                                     </div>
@@ -1216,17 +1230,17 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         })}
                     </div>
 
-                    <div className="shrink-0 flex flex-col items-end justify-center gap-2 self-center">
+                    <div className="hidden sm:flex shrink-0 flex-col items-end justify-center min-w-[72px] gap-2 self-center">
                         <button
                             onClick={toggleFullscreen}
-                            className="hidden sm:flex w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 items-center justify-center"
+                            className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 items-center justify-center"
                             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                         >
                             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                         </button>
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
-                            className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center"
+                            className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 items-center justify-center"
                             title={isMuted ? 'Unmute' : 'Mute'}
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}

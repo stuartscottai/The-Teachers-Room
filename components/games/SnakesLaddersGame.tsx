@@ -948,34 +948,34 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             {/* HEADER */}
             <div className={`bg-white shrink-0 z-[50] shadow-sm flex items-center border-b border-slate-200 ${isMobileViewport ? 'h-[70px] px-2 py-2' : 'h-[140px] p-4'}`}>
                 <div className="flex items-center justify-between w-full gap-3">
-                    <div className={`flex ${isMobileViewport ? 'flex-row items-center gap-2' : 'items-center gap-2'}`}>
+                    <div className={`flex ${isMobileViewport ? 'flex-row items-center gap-1.5' : 'items-center gap-2'}`}>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className={isMobileViewport
-                                ? 'w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 flex items-center justify-center transition-colors'
-                                : 'text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200'
+                                ? 'w-9 h-9 rounded-lg bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 flex items-center justify-center transition-colors'
+                                : 'w-[140px] justify-center text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200'
                             }
                         >
-                            <ArrowLeft size={isMobileViewport ? 18 : 16} className={isMobileViewport ? '' : 'mr-2'} />
+                            <ArrowLeft size={isMobileViewport ? 17 : 16} className={isMobileViewport ? '' : 'mr-2'} />
                             {!isMobileViewport && 'Quit'}
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className={isMobileViewport
-                                ? 'w-9 h-9 rounded-xl bg-rose-700 text-white hover:bg-rose-600 border border-rose-800 flex items-center justify-center transition-colors'
-                                : 'text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800'
+                                ? 'w-9 h-9 rounded-lg bg-rose-700 text-white hover:bg-rose-600 border border-rose-800 flex items-center justify-center transition-colors'
+                                : 'w-[140px] justify-center text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800'
                             }
                             title="End game now"
                         >
-                            <Flag size={isMobileViewport ? 18 : 16} className={isMobileViewport ? '' : 'mr-2'} />
+                            <Flag size={isMobileViewport ? 14 : 16} className={isMobileViewport ? '' : 'mr-2'} />
                             {!isMobileViewport && 'End Game'}
                         </button>
                         {isMobileViewport && (
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
-                                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 hover:text-brand-blue hover:bg-sky-50 border border-slate-200 flex items-center justify-center transition-colors"
+                                className="w-9 h-9 rounded-lg bg-slate-100 text-slate-400 hover:text-brand-blue hover:bg-sky-50 border border-slate-200 flex items-center justify-center transition-colors"
                             >
-                                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                             </button>
                         )}
                     </div>
@@ -991,7 +991,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     </div>
 
                     {!isMobileViewport && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-2">
                             <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
                             <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-2 bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
                         </div>

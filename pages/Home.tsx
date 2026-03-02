@@ -14,9 +14,12 @@ type HomeTrendingCard = {
     icon: React.ReactNode;
     color: string;
     to: To;
+    state?: unknown;
 };
 
-type HomeWorksheetItem = Pick<GeneratedWorksheet, 'id' | 'title' | 'createdAt' | 'authorName'>;
+type HomeWorksheetItem = Pick<GeneratedWorksheet, 'id' | 'title' | 'createdAt' | 'authorName'> & {
+    worksheet: GeneratedWorksheet;
+};
 
 const compactNumberFormatter = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
 const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
@@ -136,7 +139,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
     const [hasError, setHasError] = useState(false);
 
     return (
-        <Link to={game.to} className="group block h-full">
+        <Link to={game.to} state={game.state} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
                 <div className={`aspect-[3/2] w-full relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-transparent'}`}>
                     <img 
@@ -216,9 +219,8 @@ export const Home: React.FC = () => {
             id: game.id || `trending-${index}`,
             title: game.title || game.config?.type || 'Untitled game',
             plays: formatPlayCount(Number(game.playCount || 0)),
-            to: isUUID(game.id)
-              ? { pathname: '/games', state: { view: 'community', previewGameId: game.id } }
-              : '/games',
+            to: '/games',
+            state: isUUID(game.id) ? { view: 'community', previewGameId: game.id } : undefined,
             image: visuals.image,
             icon: visuals.icon,
             color: visuals.color
@@ -231,7 +233,8 @@ export const Home: React.FC = () => {
           id: worksheet.id,
           title: worksheet.title,
           authorName: worksheet.authorName,
-          createdAt: worksheet.createdAt
+          createdAt: worksheet.createdAt,
+          worksheet
         }));
 
         setFreshWorksheets(mappedWorksheets.length > 0 ? mappedWorksheets : FALLBACK_WORKSHEETS);
@@ -523,7 +526,7 @@ export const Home: React.FC = () => {
                             </p>
                             <Link
                               to="/worksheets"
-                              state={isUUID(ws.id) ? { openWorksheetId: ws.id } : { tab: 'community' }}
+                              state={isUUID(ws.id) ? { openWorksheetId: ws.id, openWorksheet: ws.worksheet } : { tab: 'community' }}
                               className="text-sm font-semibold text-brand-blue hover:text-sky-800 flex items-center"
                             >
                                 View Resource <ArrowRight size={14} className="ml-1" />

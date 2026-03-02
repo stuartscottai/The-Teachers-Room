@@ -123,6 +123,10 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const timerProgress = options.timerSeconds > 0
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
+    const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
+    const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
+    const mobileScoreTextClass = scores.length >= 5 ? 'text-base' : 'text-lg';
+    const mobileTeamNameClass = scores.length >= 5 ? 'text-[9px]' : 'text-[10px]';
 
     // BODY SCROLL LOCK
     useEffect(() => {
@@ -474,7 +478,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         if (!textEls.length) return;
         if (textEls.some((el) => el.clientWidth <= 0 || el.clientHeight <= 0)) return;
 
-        const minSize = isMobileViewport ? 12 : 16;
+        const minSize = isMobileViewport ? 10 : 16;
         const maxSize = isMobileViewport ? 26 : (isFullscreen ? 60 : 48);
         const precision = 0.5;
 
@@ -645,8 +649,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
 
     const questionOverlayTopClass = isFullscreen
-        ? 'top-[calc(4.5rem+env(safe-area-inset-top))] sm:top-[calc(8.75rem+env(safe-area-inset-top))]'
-        : 'top-[calc(8.5rem+env(safe-area-inset-top))] sm:top-[calc(12.75rem+env(safe-area-inset-top))]';
+        ? `${mobileUsesTwoRowHeader ? 'top-[calc(8rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
+        : `${mobileUsesTwoRowHeader ? 'top-[calc(12rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
 
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
@@ -685,61 +689,66 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 `}
             </style>
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className="bg-white p-2 sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative min-h-[70px] sm:min-h-[140px]">
-                <div className="flex w-full items-center gap-3 sm:gap-4">
-                    <div className="flex flex-col items-start gap-2 min-w-[64px]">
+            <div className={`bg-white p-2 sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`}>
+                <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+                    <div className={`flex min-w-fit shrink-0 gap-1.5 sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 
                             onClick={() => setShowQuitConfirm(true)} 
-                            className="hidden sm:flex text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
+                            className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
                         >
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="hidden sm:flex text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
+                            className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
                             title="End game now"
                         >
                             <Flag size={16} className="mr-2" /> End Game
                         </button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                             title="Quit"
                         >
-                            <X size={18} />
+                            <X size={17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
+                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
                             title="End game now"
                         >
-                            <Flag size={16} />
+                            <Flag size={14} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
-                            className="sm:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
+                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
                             title={isMuted ? "Unmute" : "Mute"}
                         >
-                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                         </button>
                     </div>
 
                     {/* Scoreboard Cards */}
-                    <div className="flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center">
+                    <div
+                        className={isMobileViewport
+                            ? 'flex-1 grid gap-1.5 items-stretch'
+                            : 'flex-1 flex justify-start sm:justify-center gap-1 sm:gap-4 flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
+                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
+                    >
                         {scores.map((score, idx) => (
                             <button 
                                 key={idx} 
                                 onClick={() => openEditTeam(idx)}
-                                className={`px-2 py-1 sm:px-6 sm:py-3 rounded-xl text-center transition-all border-b-4 min-w-[86px] sm:min-w-[150px] relative group h-12 sm:h-28 flex flex-col justify-center items-center shadow-sm
+                                className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'shrink-0 px-1.5 py-1 sm:px-6 sm:py-3 sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm
                                     ${currentTeam === idx 
                                         ? 'bg-brand-blue border-sky-600 text-white shadow-lg ring-2 sm:ring-4 ring-sky-100 sm:scale-110 z-10' 
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                             >
-                                <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-[90px] sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
+                                <div className={`${mobileTeamNameClass} sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1`}>
                                     {teamNames[idx]}
                                     {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
                                 </div>
-                                <AnimatedScore score={score} className="text-lg sm:text-5xl" diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
+                                <AnimatedScore score={score} className={`${mobileScoreTextClass} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
                                 {/* Hover Edit Icon */}
                                 <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Edit2 size={12} />
@@ -748,7 +757,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         ))}
                     </div>
 
-                    <div className="hidden sm:flex items-center justify-end min-w-[140px] gap-2">
+                    <div className="hidden sm:flex flex-col items-end justify-center min-w-[72px] gap-2">
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
                             className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
@@ -774,7 +783,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         <div key={`cat-${idx}`} className="bg-brand-blue text-white p-2 sm:p-3 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[74px] sm:min-h-[130px] overflow-hidden">
                             <h3
                                 data-category-text="true"
-                                className="font-display font-bold leading-[1.05] whitespace-normal [overflow-wrap:anywhere] break-words w-full h-full flex items-center justify-center text-center overflow-hidden"
+                                className="flex h-full w-full items-center justify-center overflow-hidden px-1 text-center font-display font-bold leading-[1.02] tracking-[-0.03em] whitespace-normal break-normal [overflow-wrap:normal] [word-break:keep-all] hyphens-none"
                                 style={categoryFontSize ? { fontSize: `${categoryFontSize}px` } : undefined}
                             >
                                 {cat.name}
