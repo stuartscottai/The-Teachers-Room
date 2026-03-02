@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
+import { supabase } from "./supabase";
 
 export type WizardSuggestion = Partial<GameConfig> & {
   type: GameType;
@@ -20,35 +21,71 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
 const DEFAULT_EXTERNAL_API = '/api/generate';
 const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL;
+const LOCAL_DEV_EXTERNAL_API = 'https://the-teachers-room.vercel.app/api/generate';
 
-const tryExternalApi = async <T>(body: Record<string, any>): Promise<T | null> => {
-  // If VITE_GEMINI_API_KEY exists, skip external API and use direct client
-  if (apiKey) {
-    console.log('Using direct Gemini API with client-side key');
-    return null;
+const getGenerationApiUrl = () => {
+  if (externalApiUrl) return externalApiUrl;
+  if (import.meta.env.DEV) {
+    throw new Error(
+      `Set VITE_EXTERNAL_API_URL=${LOCAL_DEV_EXTERNAL_API} in .env.local so local generations use the hosted API.`
+    );
+  }
+  return DEFAULT_EXTERNAL_API;
+};
+
+const getRequiredAccessToken = async () => {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw new Error('Please log in to use AI generation.');
   }
 
-  // Only use external API if explicitly set or no API key available
-  const apiUrl = externalApiUrl || DEFAULT_EXTERNAL_API;
+  const accessToken = data.session?.access_token;
+  if (!accessToken) {
+    throw new Error('Please log in to use AI generation.');
+  }
+
+  return accessToken;
+};
+
+const getClientEnv = () => {
+  if (import.meta.env.DEV) return 'local-dev';
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+    return 'vercel';
+  }
+  return 'browser';
+};
+
+const tryExternalApi = async <T>(body: Record<string, any>): Promise<T> => {
+  const apiUrl = getGenerationApiUrl();
+  const accessToken = await getRequiredAccessToken();
 
   try {
-      console.log('Attempting external API call to:', apiUrl);
       const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify({
+            ...body,
+            clientEnv: getClientEnv()
+          })
       });
 
+      const payload = await response.json().catch(() => null);
       if (!response.ok) {
-          throw new Error(`External API Error: ${response.status} ${response.statusText}`);
+          const message =
+            payload && typeof payload.error === 'string'
+              ? payload.error
+              : `External API Error: ${response.status} ${response.statusText}`;
+          throw new Error(message);
       }
 
-      return await response.json();
+      return payload as T;
   } catch (error) {
       console.error("External API request failed", error);
-      return null;
+      if (error instanceof Error) throw error;
+      throw new Error("Unable to reach the generation service.");
   }
 };
 
@@ -1780,28 +1817,14 @@ export const chatWithAI = async (message: string, history: string[]): Promise<st
 
 export const generateBlogPost = async (title: string, subtitle: string): Promise<string> => {
   try {
-      const ai = getClient();
-      const prompt = `
-        Write a comprehensive, engaging blog post for teachers.
-        Title: "${title}"
-        Subtitle: "${subtitle}"
-        Target Audience: Teachers and Educators.
-        Tone: Professional, inspiring, and helpful.
-        Length: 500 words.
-        Format: HTML (use <h2>, <p>, <ul>, <li>). 
-        IMPORTANT: Return ONLY the raw HTML content. Do not include markdown code blocks (like \`\`\`html). Do not include <html> or <body> tags.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
+      const external = await tryExternalApi<{ html: string }>({
+        action: 'blog_post',
+        title,
+        subtitle
       });
-      
-      let text = response.text || '';
-      text = text.replace(/```html/g, '').replace(/```/g, '');
-      return text;
+      return typeof external?.html === 'string' ? external.html : '';
   } catch (error) {
       console.error("Error generating blog post:", error);
-      return "<p>Unable to generate article content. Please ensure you have a local API key for this feature or disable External API mode.</p>";
+      return "<p>Unable to generate article content. Please check that you are logged in and the hosted generation API is available.</p>";
   }
 };

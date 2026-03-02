@@ -4,6 +4,7 @@ import { Send, X, User, ArrowRight, Loader2, Mic } from 'lucide-react';
 import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent, WizardSuggestion } from '../../services/geminiService';
 import { useDictation } from '../../utils/useDictation';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AiAssistantChatProps {
     onClose: () => void;
@@ -19,6 +20,7 @@ interface Message {
 }
 
 export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGameGenerated }) => {
+    const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([
         { 
             id: 'init', 
@@ -116,6 +118,10 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const handleSend = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!input.trim()) return;
+        if (!user) {
+            alert("Please log in to use AI generation.");
+            return;
+        }
 
         const userMsg: Message = { id: Date.now().toString(), role: 'user', text: input };
         setMessages(prev => [...prev, userMsg]);
@@ -139,7 +145,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
             setMessages(prev => [...prev, aiMsg]);
         } catch (error) {
             console.error(error);
-            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'ai', text: "Sorry, I had trouble connecting. Please try again." }]);
+            const text = error instanceof Error ? error.message : "Sorry, I had trouble connecting. Please try again.";
+            setMessages(prev => [...prev, { id: Date.now().toString(), role: 'ai', text }]);
         } finally {
             setIsTyping(false);
         }
@@ -158,6 +165,10 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     };
 
     const handleCreateGame = async (suggestion: WizardSuggestion) => {
+        if (!user) {
+            alert("Please log in to use AI generation.");
+            return;
+        }
         setIsGenerating(true);
         try {
             const { reason: _reason, ...configFromSuggestion } = suggestion as WizardSuggestion & { reason?: string };
@@ -177,7 +188,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
             onGameGenerated(game);
         } catch (error) {
             console.error("Generation failed", error);
-            alert("Failed to generate the game. Please try again or create manually.");
+            alert(error instanceof Error ? error.message : "Failed to generate the game. Please try again or create manually.");
             setIsGenerating(false);
         }
     };

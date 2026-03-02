@@ -5,6 +5,7 @@ import { generateGameContent, generateStopTheFireCategories } from '../../servic
 import { processFile } from '../../utils/gameUtils';
 import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
+import { useAuth } from '../../contexts/AuthContext';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
@@ -187,6 +188,7 @@ interface GameConfiguratorProps {
 }
 
 export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed, initialConfig, mobileTopInset = 0 }) => {
+    const { user } = useAuth();
     // Lock body scroll when configurator is active
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -381,6 +383,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         
         // AI MODE
         if (mode === 'ai') {
+            if (!user) {
+                alert("Please log in to use AI generation.");
+                return;
+            }
             if (type === GameType.STOP_THE_FIRE) {
                 const hasSource = (config.topic && config.topic.trim()) || uploadedFiles.length > 0 || (config.customInstructions && config.customInstructions.trim());
                 if (!hasSource) {
@@ -403,7 +409,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     onProceed(aiGame);
                 } catch (err) {
                     console.error(err);
-                    alert("Failed to generate word bank. Please check API configuration.");
+                    alert(err instanceof Error ? err.message : "Failed to generate word bank. Please check API configuration.");
                 } finally {
                     setLoading(false);
                 }
@@ -442,7 +448,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 onProceed(gameData);
             } catch (err) {
                 console.error(err);
-                alert("Failed to generate game. Please check API configuration.");
+                alert(err instanceof Error ? err.message : "Failed to generate game. Please check API configuration.");
             } finally {
                 setLoading(false);
             }

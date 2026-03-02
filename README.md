@@ -10,18 +10,23 @@ View your app in AI Studio: https://ai.studio/apps/drive/1_wScMm1K3obxR1cj5TveAz
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
 2. Create an `.env.local` file in the project root (or update the existing one) and add:
    ```
-   # Point the browser at the hosted API (needed even when running on localhost)
+   # Point localhost at the hosted Vercel API so dev generations are logged too
    VITE_EXTERNAL_API_URL=https://the-teachers-room.vercel.app/api/generate
-
-   # Optional – only required if you plan on calling Gemini directly from the browser
-   VITE_GEMINI_API_KEY=your_gemini_key
    ```
 3. Run the app:
    `npm run dev`
+
+## Required Server Env Vars
+
+Set these in Vercel for authenticated server-side generation and usage logging:
+
+```
+GEMINI_API_KEY=your_gemini_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```

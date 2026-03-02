@@ -1,6 +1,223 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { randomUUID } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZWZnd2h5d2N1emZuYXd0eXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MzMxMDEsImV4cCI6MjA4MDEwOTEwMX0._ZxWGsoU-rN8Yuf_v_7zGrivk2GKgb6QHBbT3QgtrCk';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const LARGE_PROMPT_THRESHOLD = 200_000;
+const TOKEN_PRICING = {
+  inputStandard: 0.3,
+  inputLarge: 1.0,
+  audioInputStandard: 1.0,
+  audioInputLarge: 3.0,
+  outputStandard: 2.5,
+  outputLarge: 15.0
+};
+
+const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
+
+const supabaseAdminClient = SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  : null;
+
+const getHeaderValue = (value: unknown): string => {
+  if (Array.isArray(value)) return String(value[0] || '').trim();
+  return typeof value === 'string' ? value.trim() : '';
+};
+
+const getBearerToken = (req: any) => {
+  const authHeader = getHeaderValue(req.headers.authorization);
+  if (!authHeader) return '';
+  const [scheme, token] = authHeader.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return '';
+  return token.trim();
+};
+
+const getFileMeta = (files: any[] | undefined) =>
+  Array.isArray(files)
+    ? files.slice(0, 10).map((file: any) => ({
+        mimeType: typeof file?.mimeType === 'string' ? file.mimeType : null,
+        approxBytes: typeof file?.data === 'string' ? Math.round((file.data.length * 3) / 4) : null
+      }))
+    : [];
+
+const buildUsageMeta = (body: any) => {
+  const action = String(body?.action || '');
+  const config = body?.config || {};
+  const files = Array.isArray(config?.files) ? config.files : [];
+  const baseMeta = {
+    hasFiles: files.length > 0,
+    fileCount: files.length,
+    files: getFileMeta(files)
+  };
+
+  if (action === 'game') {
+    return {
+      ...baseMeta,
+      gameType: config?.type || null,
+      questionCount: Number.isFinite(Number(config?.questionCount)) ? Number(config.questionCount) : null,
+      questionType: config?.questionType || null,
+      includeImages: Boolean(config?.includeImages)
+    };
+  }
+
+  if (action === 'worksheet') {
+    const activities = Array.isArray(config?.activities) ? config.activities : [];
+    return {
+      ...baseMeta,
+      gradeLevel: config?.gradeLevel || null,
+      difficultyLevel: config?.difficultyLevel || null,
+      activityCount: activities.reduce((sum: number, activity: any) => sum + (Number(activity?.count) || 0), 0),
+      activityTypes: Array.from(new Set(activities.map((activity: any) => activity?.type).filter(Boolean)))
+    };
+  }
+
+  if (action === 'chat_wizard') {
+    return {
+      historyCount: Array.isArray(body?.history) ? body.history.length : 0,
+      messageLength: String(body?.message || '').length
+    };
+  }
+
+  if (action === 'stop-the-fire-categories') {
+    return {
+      ...baseMeta,
+      gameType: config?.type || null,
+      topicLength: String(config?.topic || '').length
+    };
+  }
+
+  if (action === 'blog_post') {
+    return {
+      titleLength: String(body?.title || '').length,
+      subtitleLength: String(body?.subtitle || '').length
+    };
+  }
+
+  return baseMeta;
+};
+
+const hasAudioFiles = (config: any) =>
+  Array.isArray(config?.files) && config.files.some((file: any) => typeof file?.mimeType === 'string' && file.mimeType.startsWith('audio/'));
+
+const countTokensSafe = async (ai: GoogleGenAI, model: string, contents: any) => {
+  try {
+    const response = await ai.models.countTokens({ model, contents });
+    return Number.isFinite(response?.totalTokens) ? Number(response.totalTokens) : 0;
+  } catch (error) {
+    console.error('Count tokens failed:', error);
+    return 0;
+  }
+};
+
+const estimateCostUsd = ({
+  promptTokens,
+  outputTokens,
+  thoughtsTokens,
+  hasAudioInput
+}: {
+  promptTokens: number;
+  outputTokens: number;
+  thoughtsTokens: number;
+  hasAudioInput: boolean;
+}) => {
+  const largePrompt = promptTokens > LARGE_PROMPT_THRESHOLD;
+  const inputRate = hasAudioInput
+    ? largePrompt
+      ? TOKEN_PRICING.audioInputLarge
+      : TOKEN_PRICING.audioInputStandard
+    : largePrompt
+      ? TOKEN_PRICING.inputLarge
+      : TOKEN_PRICING.inputStandard;
+  const outputRate = largePrompt ? TOKEN_PRICING.outputLarge : TOKEN_PRICING.outputStandard;
+  const billableOutputTokens = outputTokens + thoughtsTokens;
+
+  return Number(
+    (
+      (promptTokens / 1_000_000) * inputRate +
+      (billableOutputTokens / 1_000_000) * outputRate
+    ).toFixed(6)
+  );
+};
+
+const buildUsageSnapshot = async ({
+  ai,
+  model,
+  contents,
+  response,
+  config
+}: {
+  ai: GoogleGenAI;
+  model: string;
+  contents: any;
+  response: any;
+  config?: any;
+}) => {
+  const usage = response?.usageMetadata;
+  const responseText = typeof response?.text === 'string' ? response.text : '';
+  const promptTokens = Number.isFinite(usage?.promptTokenCount)
+    ? Number(usage.promptTokenCount)
+    : await countTokensSafe(ai, model, contents);
+  const outputTokens = Number.isFinite(usage?.candidatesTokenCount)
+    ? Number(usage.candidatesTokenCount)
+    : responseText
+      ? await countTokensSafe(ai, model, responseText)
+      : 0;
+  const thoughtsTokens = Number.isFinite(usage?.thoughtsTokenCount) ? Number(usage.thoughtsTokenCount) : 0;
+  const totalTokens = Number.isFinite(usage?.totalTokenCount)
+    ? Number(usage.totalTokenCount)
+    : promptTokens + outputTokens + thoughtsTokens;
+
+  return {
+    model,
+    promptTokens,
+    outputTokens,
+    thoughtsTokens,
+    totalTokens,
+    estimatedCostUsd: estimateCostUsd({
+      promptTokens,
+      outputTokens,
+      thoughtsTokens,
+      hasAudioInput: hasAudioFiles(config)
+    }),
+    responseId: typeof response?.responseId === 'string' ? response.responseId : null,
+    modelVersion: typeof response?.modelVersion === 'string' ? response.modelVersion : null
+  };
+};
+
+const authenticateRequestUser = async (req: any) => {
+  const token = getBearerToken(req);
+  if (!token) return null;
+
+  const { data, error } = await supabaseAuthClient.auth.getUser(token);
+  if (error || !data?.user) {
+    console.error('Supabase auth failed:', error);
+    return null;
+  }
+
+  return data.user;
+};
+
+const recordUsageEvent = async (payload: Record<string, any>) => {
+  if (!supabaseAdminClient) {
+    console.warn('SUPABASE_SERVICE_ROLE_KEY is missing. Skipping usage log insert.');
+    return;
+  }
+
+  const { error } = await supabaseAdminClient.from('generation_usage').insert(payload);
+  if (error) {
+    console.error('Failed to insert generation usage log:', error);
+  }
+};
 
 // Helper to clean JSON
 const cleanJson = (text: string): string => {
@@ -203,11 +420,18 @@ export default async function handler(req: any, res: any) {
   // 1. Handle CORS manually for Vercel Node Functions
   // Allow requests from any Vercel preview URL or production domain
   const origin = req.headers.origin || '*';
+  const requestStartedAt = Date.now();
+  let clientEnv = getHeaderValue(req.headers['x-client-env']) || null;
+  let requestBody: any = req.body || {};
+  let requestAction = String(requestBody?.action || '');
+  let authenticatedUser: any = null;
+  let usageSnapshot: any = null;
+  let usageLogged = false;
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, X-Client-Env'
   );
 
   // Handle preflight
@@ -220,23 +444,152 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const finalizeUsage = async (status: 'success' | 'error', errorMessage?: string) => {
+    if (usageLogged || !usageSnapshot || !authenticatedUser || !requestAction) return;
+    usageLogged = true;
+
+    await recordUsageEvent({
+      user_id: authenticatedUser.id,
+      user_email: authenticatedUser.email || null,
+      action: requestAction,
+      model: usageSnapshot.model || DEFAULT_MODEL,
+      status,
+      prompt_tokens: usageSnapshot.promptTokens || 0,
+      output_tokens: usageSnapshot.outputTokens || 0,
+      thoughts_tokens: usageSnapshot.thoughtsTokens || 0,
+      total_tokens: usageSnapshot.totalTokens || 0,
+      estimated_cost_usd: usageSnapshot.estimatedCostUsd || 0,
+      latency_ms: Date.now() - requestStartedAt,
+      client_env: clientEnv,
+      request_origin: typeof origin === 'string' ? origin : null,
+      response_id: usageSnapshot.responseId || null,
+      model_version: usageSnapshot.modelVersion || null,
+      error_message: errorMessage || null,
+      meta: buildUsageMeta(requestBody)
+    });
+  };
+
+  const sendJson = async (statusCode: number, payload: any) => {
+    if (statusCode >= 200 && statusCode < 300) {
+      await finalizeUsage('success');
+    } else {
+      const errorMessage = payload && typeof payload.error === 'string' ? payload.error : undefined;
+      await finalizeUsage('error', errorMessage);
+    }
+
+    return res.status(statusCode).json(payload);
+  };
+
   try {
+    requestBody = req.body || {};
+    requestAction = String(requestBody?.action || '');
+    if (typeof requestBody?.clientEnv === 'string' && requestBody.clientEnv.trim()) {
+      clientEnv = requestBody.clientEnv.trim();
+    }
+
+    authenticatedUser = await authenticateRequestUser(req);
+    if (!authenticatedUser) {
+      return sendJson(401, { error: 'Please log in to use AI generation.' });
+    }
+
     // 2. Initialize AI Client safely inside the request
     const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
     
     if (!apiKey) {
       console.error("Server Error: API_KEY or GEMINI_API_KEY environment variable is missing.");
-      return res.status(500).json({ 
+      return sendJson(500, { 
         error: "Server Configuration Error: API Key is missing. Please add API_KEY to Vercel Environment Variables." 
       });
     }
 
     const ai = new GoogleGenAI({ apiKey });
 
+    const generateTrackedContent = async (params: any, usageConfig?: any) => {
+      const response = await ai.models.generateContent(params);
+      usageSnapshot = await buildUsageSnapshot({
+        ai,
+        model: params?.model || DEFAULT_MODEL,
+        contents: params?.contents,
+        response,
+        config: usageConfig
+      });
+      return response;
+    };
+
     // Vercel parses JSON body automatically for Node functions
-    const { action, config, message, history } = req.body;
+    const { action, config, message, history, title, subtitle } = requestBody;
 
     console.log(`Processing action: ${action}`);
+
+    if (action === 'stop-the-fire-categories') {
+      const systemInstruction = `You are an expert classroom game designer.
+Create a list of short, attainable categories for a Scattergories-style word game.
+Categories must be easy for most people to answer without specialist knowledge.
+Avoid niche trivia, advanced academic topics, or obscure references.
+If files are provided, base the categories on the material in those files.
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON.
+2. STRICTLY escape all special characters in strings.
+3. NO unescaped newlines, tabs, or control characters inside string values.
+`;
+
+      const desiredCount = 100;
+      let prompt = `
+Create exactly ${desiredCount} categories for a classroom word game.
+Make them clear, short, and answerable.
+If a topic is provided, align the categories to that topic.
+Custom instructions: ${config?.customInstructions || "None"}.
+Topic: ${config?.topic || "General"}.
+
+Return JSON: { "categories": ["..."] }
+`;
+
+      const parts: any[] = [];
+      if (config?.files && config.files.length > 0) {
+        config.files.forEach((file: any) => {
+          parts.push({
+            inlineData: {
+              mimeType: file.mimeType,
+              data: file.data
+            }
+          });
+        });
+        prompt = `IMPORTANT: Analyze the attached files and create categories based on their content.\n\n` + prompt;
+      }
+
+      parts.push({ text: prompt });
+
+      const response = await generateTrackedContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts },
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              categories: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["categories"]
+          }
+        }
+      }, config);
+
+      const text = response.text;
+      if (!text) {
+        return sendJson(500, { error: 'No response from AI' });
+      }
+
+      const data = JSON.parse(cleanJson(text));
+      const categories = Array.isArray(data?.categories)
+        ? data.categories
+            .map((category: any) => (typeof category === 'string' ? category.trim() : ''))
+            .filter(Boolean)
+        : [];
+
+      return sendJson(200, { categories });
+    }
 
     // 3. Handle GAME Generation
     if (action === 'game') {
@@ -552,7 +905,7 @@ export default async function handler(req: any, res: any) {
       }
       parts.push({ text: prompt });
 
-      const response = await ai.models.generateContent({
+      const response = await generateTrackedContent({
         model: 'gemini-2.5-flash',
         contents: { parts },
         config: {
@@ -560,7 +913,7 @@ export default async function handler(req: any, res: any) {
           responseMimeType: "application/json",
           responseSchema: responseSchema
         }
-      });
+      }, config);
 
       const text = response.text;
       const data = JSON.parse(cleanJson(text || "{}"));
@@ -576,7 +929,7 @@ export default async function handler(req: any, res: any) {
       data.createdAt = new Date().toISOString();
       data.config = config; // Pass config back
 
-      return res.status(200).json(data);
+      return sendJson(200, data);
     }
 
     // 4. Handle WORKSHEET Generation
@@ -887,7 +1240,7 @@ RULES:
        }
        parts.push({ text: prompt });
 
-       const response = await ai.models.generateContent({
+       const response = await generateTrackedContent({
         model: 'gemini-2.5-flash',
         contents: { parts },
         config: {
@@ -1067,7 +1420,7 @@ RULES:
                 ]
             }
         }
-       });
+       }, config);
 
        const text = response.text;
        const result = JSON.parse(cleanJson(text || "{}"));
@@ -1137,7 +1490,7 @@ RULES:
          }
        }
        
-       return res.status(200).json(result);
+       return sendJson(200, result);
     }
 
     // 5. Handle WIZARD CHAT (Structured JSON Output)
@@ -1179,7 +1532,7 @@ RULES:
             parts: [{ text: message }]
         });
 
-        const response = await ai.models.generateContent({
+        const response = await generateTrackedContent({
             model: 'gemini-2.5-flash',
             contents: contents,
             config: {
@@ -1239,13 +1592,34 @@ RULES:
 
         const text = response.text;
         const data = JSON.parse(cleanJson(text || "{}"));
-        return res.status(200).json(data);
+        return sendJson(200, data);
     }
 
-    return res.status(400).json({ error: 'Invalid action' });
+    if (action === 'blog_post') {
+        const prompt = `
+        Write a comprehensive, engaging blog post for teachers.
+        Title: "${title || ''}"
+        Subtitle: "${subtitle || ''}"
+        Target Audience: Teachers and Educators.
+        Tone: Professional, inspiring, and helpful.
+        Length: 500 words.
+        Format: HTML (use <h2>, <p>, <ul>, <li>).
+        IMPORTANT: Return ONLY the raw HTML content. Do not include markdown code blocks (like \`\`\`html). Do not include <html> or <body> tags.
+      `;
+
+        const response = await generateTrackedContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt
+        });
+
+        const text = (response.text || '').replace(/```html/g, '').replace(/```/g, '');
+        return sendJson(200, { html: text });
+    }
+
+    return sendJson(400, { error: 'Invalid action' });
 
   } catch (error: any) {
     console.error("Generate API Error:", error);
-    return res.status(500).json({ error: error.message || "Internal Server Error" });
+    return sendJson(500, { error: error.message || "Internal Server Error" });
   }
 }

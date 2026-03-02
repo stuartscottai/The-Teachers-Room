@@ -1995,6 +1995,11 @@ const WorksheetBuilder: React.FC<{
             if (!ok) return;
         }
 
+        if (!user) {
+            alert("Please log in to use AI generation.");
+            return;
+        }
+
         if (!config.topic && uploadedFiles.length === 0) {
             alert("Please enter a topic or upload a source file!");
             return;
@@ -2147,13 +2152,17 @@ const WorksheetBuilder: React.FC<{
             }
         } catch (error) {
             console.error(error);
-            alert("Error generating worksheet.");
+            alert(error instanceof Error ? error.message : "Error generating worksheet.");
         } finally {
             setLoading(false);
         }
     };
 
     const requestAiBlocksForActivity = async (rawActivity: ActivityConfig): Promise<WorksheetBlock[]> => {
+        if (!user) {
+            throw new Error("Please log in to use AI generation.");
+        }
+
         const activity: ActivityConfig = normalizeActivityForAi({
             ...rawActivity,
             options: {
