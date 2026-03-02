@@ -284,8 +284,8 @@ export const Pricing: React.FC = () => {
     <div className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-16">
-          <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">Simple Pricing for Heroes</h1>
-          <p className="text-slate-600">Choose the plan that fits your classroom needs.</p>
+          <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">Pricing That Fits Your Teaching Needs</h1>
+          <p className="text-slate-600">Choose a plan built around how you create and teach.</p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
@@ -294,9 +294,9 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Starter</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['3 AI Games per month', '5 Worksheet generations', 'Access to Community Library', 'Standard Support'].map(item => (
+              {['Unlimited access to community library', 'Access to community worksheets', 'Unlimited manually generated games', 'Standard support'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
-                  <Check size={18} className="text-teal-500 mr-2" /> {item}
+                  <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>
               ))}
             </ul>
@@ -307,11 +307,11 @@ export const Pricing: React.FC = () => {
           <div className="bg-white p-8 rounded-2xl shadow-xl border-2 border-brand-yellow relative transform scale-105">
              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-yellow px-4 py-1 rounded-full text-xs font-bold text-slate-800 uppercase tracking-wide">Best Value</div>
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Pro</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-6">$12<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-4xl font-bold text-teal-600 mb-6">$9<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Unlimited AI Games', 'Unlimited Worksheets', 'Save to Private Library', 'Priority Support', 'Export to PDF/Word'].map(item => (
+              {['Unlimited AI generated games', 'Ai generated worksheets', 'Unlimited storage to private library', 'Priority support'].map(item => (
                 <li key={item} className="flex items-center text-slate-800 font-medium">
-                  <Check size={18} className="text-brand-accent mr-2" /> {item}
+                  <Check size={18} className="text-brand-accent mr-2 shrink-0" /> {item}
                 </li>
               ))}
             </ul>
@@ -321,11 +321,11 @@ export const Pricing: React.FC = () => {
            {/* School */}
            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-6">$99<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-4xl font-bold text-teal-600 mb-6">from $49<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['10 Teacher Accounts', 'Shared School Library', 'Admin Dashboard', 'Training Session', 'Custom Branding'].map(item => (
+              {['10 Teacher Accounts', 'Shared School Library', 'Admin Dashboard', 'Custom Branding'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
-                  <Check size={18} className="text-teal-500 mr-2" /> {item}
+                  <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>
               ))}
             </ul>
