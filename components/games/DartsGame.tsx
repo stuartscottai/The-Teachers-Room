@@ -1137,15 +1137,15 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
     const questionOverlayTopClass = isFullscreen
-        ? `${mobileUsesTwoRowHeader ? 'top-[calc(8rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
-        : `${mobileUsesTwoRowHeader ? 'top-[calc(12rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
+        ? `${mobileUsesTwoRowHeader ? 'top-[calc(7rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
+        : `${mobileUsesTwoRowHeader ? 'top-[calc(11rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
 
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
-            <div className={`p-2 sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`} style={chalkboardStyle}>
-                <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 gap-1.5 sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
+            <div className={`${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative sm:min-h-[140px]`} style={chalkboardStyle}>
+                <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
+                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center text-slate-100 hover:text-red-200 items-center text-sm bg-black/40 hover:bg-red-900/40 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-700">
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
@@ -1158,24 +1158,24 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                         </button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-black/40 text-slate-100 hover:text-red-200 hover:bg-red-900/40 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-700 bg-black/40 text-slate-100 hover:text-red-200 hover:bg-red-900/40 transition-colors`}
                             title="Quit"
                         >
-                            <XIcon size={17} />
+                            <XIcon size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
                             title="End game now"
                         >
-                            <Flag size={14} />
+                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button
                             onClick={() => setIsMuted(!isMuted)}
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-black/40 text-slate-100 hover:text-sky-200 hover:bg-black/60 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-700 bg-black/40 text-slate-100 hover:text-sky-200 hover:bg-black/60 transition-colors`}
                             title={isMuted ? "Unmute" : "Mute"}
                         >
-                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
                         <div className="hidden sm:flex items-center gap-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
@@ -1199,7 +1199,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     </div>
                     <div
                         className={isMobileViewport
-                            ? 'flex-1 grid gap-1.5 items-stretch'
+                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
                             : 'flex-1 flex justify-end sm:justify-center gap-3 sm:gap-6 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >

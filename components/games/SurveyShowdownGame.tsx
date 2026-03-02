@@ -465,6 +465,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
     const mobileControlCount = 4;
     const mobileUsesButtonGrid = mobileUsesTwoRowHeader && mobileControlCount >= 4;
+    const isCrowdedDesktopHeader = !isMobileViewport && teamNames.length >= 5;
 
     return (
         // MAIN CONTAINER: Fixed Height, No Scroll on Body
@@ -514,7 +515,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     <div
                         className={isMobileViewport
                             ? 'flex-1 self-start grid gap-1 items-start content-start'
-                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center'}
+                            : `flex-1 flex justify-end sm:justify-center gap-2 ${isCrowdedDesktopHeader ? 'sm:gap-2' : 'sm:gap-4'} flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center`}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {teamNames.map((name, idx) => {
@@ -525,21 +526,21 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 <button 
                                     key={`${name}-${idx}`}
                                     onClick={() => openEditTeam(idx)}
-                                    className={`flex flex-col items-center justify-center transition-all w-full min-w-0 px-2 py-1 sm:px-4 sm:py-3 rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative ${mobileUsesTwoRowHeader ? 'min-h-[52px]' : 'min-h-[52px]'} sm:min-w-[120px] cursor-pointer group
+                                    className={`flex flex-col items-center justify-center transition-all w-full min-w-0 px-2 py-1 ${isCrowdedDesktopHeader ? 'sm:px-3 sm:py-2' : 'sm:px-4 sm:py-3'} rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative min-h-[52px] ${isCrowdedDesktopHeader ? 'sm:min-w-[108px]' : 'sm:min-w-[120px]'} cursor-pointer group
                                     ${isActive 
-                                        ? 'border-brand-yellow bg-slate-700 ring-2 sm:ring-4 ring-yellow-300/30 sm:scale-110 z-10' 
+                                        ? `border-brand-yellow bg-slate-700 ring-2 ${isCrowdedDesktopHeader ? 'sm:ring-2' : 'sm:ring-4'} ring-yellow-300/30 ${isCrowdedDesktopHeader ? 'sm:scale-[1.03]' : 'sm:scale-110'} z-10` 
                                         : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
                                 >
-                                    <div className="absolute -top-2 -right-2 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <div className="absolute top-1 right-1 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                         <Edit2 size={12} />
                                     </div>
-                                    <span className={`text-[8px] sm:text-sm font-bold uppercase tracking-wider mb-0.5 truncate w-full text-center leading-none ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
+                                    <span className={`text-[8px] ${isCrowdedDesktopHeader ? 'sm:text-xs' : 'sm:text-sm'} font-bold uppercase tracking-wider mb-0.5 truncate w-full text-center leading-none ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
                                         {name}
                                     </span>
-                                    <div className={`font-black text-white font-mono leading-none ${mobileUsesTwoRowHeader ? 'text-base mb-0.5' : 'text-xl mb-1'} sm:text-4xl`}>{teamScore}</div>
+                                    <div className={`font-black text-white font-mono leading-none ${mobileUsesTwoRowHeader ? 'text-base mb-0.5' : 'text-xl mb-1'} ${isCrowdedDesktopHeader ? 'sm:text-3xl' : 'sm:text-4xl'}`}>{teamScore}</div>
                                     <div className="flex gap-0.5">
                                         {[0, 1, 2].map(i => (
-                                            <div key={i} className={`${mobileUsesTwoRowHeader ? 'w-1.5 h-1.5' : 'w-2 h-2'} sm:w-3 sm:h-3 rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
+                                            <div key={i} className={`${mobileUsesTwoRowHeader ? 'w-1.5 h-1.5' : 'w-2 h-2'} ${isCrowdedDesktopHeader ? 'sm:w-2.5 sm:h-2.5' : 'sm:w-3 sm:h-3'} rounded-full ${strikeCount > i ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-slate-900 border border-slate-600'}`}></div>
                                         ))}
                                     </div>
                                 </button>
@@ -568,7 +569,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             </div>
 
             {/* 2. MAIN BOARD AREA (Flex Grow, No Scroll) */}
-            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed overflow-hidden w-full relative">
+            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-950 overflow-hidden w-full relative">
                 
                 {/* QUESTION DISPLAY */}
                 <div className="bg-blue-600 text-white px-8 py-3 rounded-2xl border-b-8 border-blue-800 shadow-2xl mb-4 text-center max-w-4xl w-full shrink-0 z-10">

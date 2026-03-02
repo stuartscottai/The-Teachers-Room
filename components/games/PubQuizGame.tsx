@@ -501,7 +501,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         <div ref={containerRef} className={`bg-slate-800 flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div ref={scorebarRef} className={`bg-white p-2 sm:p-4 shrink-0 z-[250] shadow-md border-b border-slate-200 relative ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`}>
+            <div ref={scorebarRef} className={`bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-md border-b border-slate-200 relative sm:min-h-[140px]`}>
                 <div className="hidden sm:flex justify-between items-center gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[140px]">
                         <button 
@@ -551,32 +551,32 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     </div>
                 </div>
 
-                <div className={`flex sm:hidden gap-3 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
-                    <div className={`flex shrink-0 gap-1.5 ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
+                <div className={`flex sm:hidden ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 items-center'}`}>
+                    <div className={`flex shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 
                             onClick={() => setShowQuitConfirm(true)}
-                            className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-red-600 bg-slate-100 hover:bg-red-50 rounded-lg transition-colors border border-slate-200"
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-slate-400 hover:text-red-600 bg-slate-100 hover:bg-red-50 transition-colors border border-slate-200`}
                             title="Quit"
                         >
-                            <X size={17} />
+                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="w-9 h-9 flex items-center justify-center text-white bg-rose-700 hover:bg-rose-600 rounded-lg transition-colors border border-rose-800"
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-white bg-rose-700 hover:bg-rose-600 transition-colors border border-rose-800`}
                             title="End game now"
                         >
-                            <Flag size={14} />
+                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
-                            className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-brand-blue bg-slate-100 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200"
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-slate-400 hover:text-brand-blue bg-slate-100 hover:bg-sky-50 transition-colors border border-slate-200`}
                             title={isMuted ? "Unmute" : "Mute"}
                         >
-                             {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
                     </div>
                     <div
-                        className="flex-1 grid gap-1.5 items-stretch"
+                        className={`flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`}
                         style={{ gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` }}
                     >
                         {scores.map((score, idx) => (

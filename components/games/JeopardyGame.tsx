@@ -649,8 +649,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
 
     const questionOverlayTopClass = isFullscreen
-        ? `${mobileUsesTwoRowHeader ? 'top-[calc(8rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
-        : `${mobileUsesTwoRowHeader ? 'top-[calc(12rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
+        ? `${mobileUsesTwoRowHeader ? 'top-[calc(7rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
+        : `${mobileUsesTwoRowHeader ? 'top-[calc(11rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
 
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
@@ -689,9 +689,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 `}
             </style>
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className={`bg-white p-2 sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`}>
-                <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 gap-1.5 sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
+            <div className={`bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
+                <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
+                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 
                             onClick={() => setShowQuitConfirm(true)} 
                             className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
@@ -707,31 +707,31 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         </button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
                             title="Quit"
                         >
-                            <X size={17} />
+                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
                             title="End game now"
                         >
-                            <Flag size={14} />
+                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
-                            className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors`}
                             title={isMuted ? "Unmute" : "Mute"}
                         >
-                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
                     </div>
 
                     {/* Scoreboard Cards */}
                     <div
                         className={isMobileViewport
-                            ? 'flex-1 grid gap-1.5 items-stretch'
+                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
                             : 'flex-1 flex justify-start sm:justify-center gap-1 sm:gap-4 flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >

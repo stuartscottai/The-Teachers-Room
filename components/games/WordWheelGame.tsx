@@ -54,6 +54,7 @@ interface RevealState {
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const CONTAINS_HARD_LETTERS = new Set(['Q', 'V', 'X', 'Y', 'Z']);
+const MAX_TEAM_CLUES = 3;
 
 const normalizeRelationAnswer = (value: string) => String(value || '').toUpperCase().replace(/[^A-Z]/g, '');
 
@@ -369,7 +370,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
     const [editScore, setEditScore] = useState(0);
-    const [teamCluesLeft, setTeamCluesLeft] = useState<number[]>(() => Array(teamCount).fill(3));
+    const [teamCluesLeft, setTeamCluesLeft] = useState<number[]>(() => Array(teamCount).fill(MAX_TEAM_CLUES));
     const [endGameRevealList, setEndGameRevealList] = useState<Array<{ letter: string; answer: string }>>([]);
     const [reviewEntryId, setReviewEntryId] = useState<number | null>(null);
     const [timeLeft, setTimeLeft] = useState(options.timerSeconds > 0 ? options.timerSeconds : 0);
@@ -1171,37 +1172,37 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     100% { transform: translate(-50%, -50%) scale(1); }
                 }
             `}</style>
-            <div ref={headerRef} className={`bg-slate-800 border-b border-slate-700 p-2 sm:p-4 shrink-0 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px]`}>
-                <div className={`flex gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 gap-1.5 sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
+            <div ref={headerRef} className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[140px]`}>
+                <div className={`flex ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
+                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
-                            className="w-9 h-9 sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center"
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center`}
                             title="Quit"
                         >
-                            <ArrowLeft size={17} className="sm:mr-2" />
+                            <ArrowLeft size={mobileUsesTwoRowHeader ? 14 : 17} className="sm:mr-2" />
                             <span className="hidden sm:inline">Quit</span>
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="w-9 h-9 sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center rounded-lg bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center"
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center`}
                             title="End game now"
                         >
-                            <Flag size={14} className="sm:mr-2" />
+                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} className="sm:mr-2" />
                             <span className="hidden sm:inline">End Game</span>
                         </button>
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
-                            className="sm:hidden w-9 h-9 rounded-lg border border-slate-700 bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center"
+                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} border border-slate-700 bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center`}
                             title={isMuted ? 'Unmute' : 'Mute'}
                         >
-                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
                     </div>
 
                     <div
                         className={isMobileViewport
-                            ? 'flex-1 grid gap-1.5 items-stretch'
+                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
                             : 'flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar px-1 sm:px-4 h-full'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
@@ -1211,16 +1212,29 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 <button
                                     key={index}
                                     onClick={() => openEditTeam(index)}
-                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} w-full min-w-0 px-2 py-1` : 'min-w-[110px] sm:min-w-[160px] px-2 py-2 sm:px-4 sm:py-3'} rounded-xl border text-center transition-all ${
+                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[48px] py-0.5' : 'min-h-[52px] py-1'} w-full min-w-0 px-2 flex flex-col items-center justify-center overflow-hidden` : 'min-w-[110px] sm:min-w-[160px] px-2 py-2 sm:px-4 sm:py-3'} rounded-xl border text-center transition-all ${
                                         active ? 'bg-cyan-600/20 border-cyan-300 shadow-lg' : 'bg-slate-700/60 border-slate-600'
                                     } relative group`}
                                 >
-                                    <div className="text-[10px] sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full">
+                                    <div className={`${mobileUsesTwoRowHeader ? 'text-[9px] leading-none mb-0.5' : 'text-[10px] leading-tight'} sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full`}>
                                         {teamNames[index]}
                                     </div>
-                                    <div className="font-mono font-black text-lg sm:text-4xl">{score}</div>
-                                    <div className="text-[10px] sm:text-xs font-bold text-cyan-100/80 mt-0.5">
-                                        Clues: {teamCluesLeft[index] ?? 0}
+                                    <div className={`font-mono font-black leading-none ${mobileUsesTwoRowHeader ? 'text-sm' : 'text-lg'} sm:text-4xl`}>{score}</div>
+                                    <div className={`${mobileUsesTwoRowHeader ? 'mt-0.5 min-h-[6px]' : 'mt-0.5'} flex items-center justify-center gap-1`}>
+                                        {Array.from({ length: MAX_TEAM_CLUES }).map((_, clueIndex) => {
+                                            const cluesRemaining = teamCluesLeft[index] ?? 0;
+                                            const hasClue = clueIndex < cluesRemaining;
+                                            return (
+                                                <span
+                                                    key={clueIndex}
+                                                    className={`${mobileUsesTwoRowHeader ? 'w-1.5 h-1.5' : 'w-2 h-2'} sm:w-2.5 sm:h-2.5 rounded-full ${
+                                                        hasClue
+                                                            ? 'bg-cyan-100 shadow-[0_0_6px_rgba(207,250,254,0.75)]'
+                                                            : 'bg-slate-900/40 border border-cyan-100/35'
+                                                    }`}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                     <div className="absolute top-1.5 right-1.5 rounded-full bg-slate-200/90 text-slate-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Edit2 size={10} />
@@ -1233,14 +1247,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     <div className="hidden sm:flex shrink-0 flex-col items-end justify-center min-w-[72px] gap-2 self-center">
                         <button
                             onClick={toggleFullscreen}
-                            className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 items-center justify-center"
+                            className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
                             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                         >
                             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                         </button>
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
-                            className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-100 items-center justify-center"
+                            className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
                             title={isMuted ? 'Unmute' : 'Mute'}
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
