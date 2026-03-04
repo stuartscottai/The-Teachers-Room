@@ -5,7 +5,7 @@ import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { getSavedGames, deleteSavedGame, getCommunityGames, getSharedGame, recordGamePlay } from '../utils/gameUtils';
+import { deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -1111,6 +1111,7 @@ const GameHub: React.FC<{
 
 // MAIN COMPONENT
 export const Games: React.FC = () => {
+    const { user } = useAuth();
     const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'editor' | 'setup' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
@@ -1357,6 +1358,81 @@ export const Games: React.FC = () => {
         setIsDirty(false);
     };
 
+    const copyPreviewShareLink = async (gameId: string) => {
+        const shareUrl = getGameShareUrl(gameId);
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            alert('Share link copied!');
+        } catch (error) {
+            alert(`Copy failed. Share this link:\n${shareUrl}`);
+        }
+    };
+
+    const persistPreviewGame = async (gameToSave: GeneratedGame, opts?: { overrideIsPublic?: boolean }) => {
+        if (gameToSave.config.type === GameType.STOP_THE_FIRE && gameToSave.config.stopTheFireMode === 'bank') {
+            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            return null;
+        }
+
+        const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
+        const result = await saveGameToLibrary(nextGame, user?.id, user?.name);
+        if (!result.success) {
+            alert('Failed to save. Please try again.');
+            return null;
+        }
+
+        const savedGame = { ...nextGame, id: result.id ?? nextGame.id };
+        setGeneratedGame(savedGame);
+        setSessionGame(null);
+        return savedGame;
+    };
+
+    const handlePreviewSave = async () => {
+        if (!generatedGame) return;
+        const savedGame = await persistPreviewGame(generatedGame);
+        if (!savedGame) return;
+        alert(hubTab === 'community' ? 'Game saved to your library.' : 'Game saved.');
+    };
+
+    const handlePreviewShare = async () => {
+        if (!generatedGame) return;
+
+        if (generatedGame.config.type === GameType.STOP_THE_FIRE && generatedGame.config.stopTheFireMode === 'bank') {
+            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            return;
+        }
+
+        if (generatedGame.sourceGameId && isUUID(generatedGame.sourceGameId)) {
+            await copyPreviewShareLink(generatedGame.sourceGameId);
+            return;
+        }
+
+        if (!user) {
+            alert('Please log in to share games.');
+            return;
+        }
+
+        let shareGame = generatedGame;
+        if (!shareGame.config.isPublic) {
+            const confirmPublic = window.confirm('This game is private. Make it public to share?');
+            if (!confirmPublic) return;
+            const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
+            if (!savedGame) return;
+            shareGame = savedGame;
+        } else if (!isUUID(shareGame.id)) {
+            const savedGame = await persistPreviewGame(shareGame);
+            if (!savedGame) return;
+            shareGame = savedGame;
+        }
+
+        if (!shareGame.id || !isUUID(shareGame.id)) {
+            alert('Please save this game before sharing.');
+            return;
+        }
+
+        await copyPreviewShareLink(shareGame.id);
+    };
+
     const handlePreviewEdit = () => {
         if (!generatedGame) return;
         setEditorReturnStep('preview');
@@ -1543,6 +1619,8 @@ export const Games: React.FC = () => {
                     onBack={() => setStep('hub')}
                     onEdit={handlePreviewEdit}
                     onPlay={handlePreviewPlay}
+                    onSave={handlePreviewSave}
+                    onShare={handlePreviewShare}
                 />
             )}
             

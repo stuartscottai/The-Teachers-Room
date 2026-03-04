@@ -26,6 +26,7 @@ type QuestionImageTarget =
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
+const AI_PROMPT_MODAL_MAX_HEIGHT = 'min(75dvh, calc(100dvh - 2rem))';
 
 const getWordWheelRuleForLetter = (rule: 'starts-with' | 'contains-hard', letter: string) => {
     if (rule === 'contains-hard' && WORD_WHEEL_CONTAINS_HARD.has(letter)) return 'contains';
@@ -1510,52 +1511,59 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             {/* AI Prompt Info Modal */}
             {showAiPrompt && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up border border-indigo-100">
+                    <div
+                        className="relative flex max-w-lg w-full flex-col overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-2xl animate-slide-up"
+                        style={{ maxHeight: AI_PROMPT_MODAL_MAX_HEIGHT }}
+                    >
                         <button onClick={() => setShowAiPrompt(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                             <X size={24} />
                         </button>
-                        <div className="flex items-center mb-6">
-                            <div className="bg-indigo-100 p-3 rounded-full mr-4 text-indigo-600">
-                                <Sparkles size={24} />
+                        <div className="shrink-0 px-8 pt-8">
+                            <div className="mb-6 flex items-center pr-10">
+                                <div className="bg-indigo-100 p-3 rounded-full mr-4 text-indigo-600">
+                                    <Sparkles size={24} />
+                                </div>
+                                <h2 className="font-display text-2xl font-bold text-slate-800">AI Generation Info</h2>
                             </div>
-                            <h2 className="font-display text-2xl font-bold text-slate-800">AI Generation Info</h2>
                         </div>
-                        
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Original Topic</label>
-                                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
-                                    {editedGame.config.topic || "N/A (Jeopardy/Pub Quiz Mode)"}
-                                </div>
-                            </div>
-                            
-                            <div className="relative">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
-                                    Custom Instructions
-                                    <button 
-                                        onClick={handleCopyInstructions}
-                                        className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center"
-                                        title="Copy Instructions"
-                                    >
-                                        <Copy size={12} className="mr-1" /> Copy
-                                    </button>
-                                </label>
-                                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-sm min-h-[80px]">
-                                    {editedGame.config.customInstructions || <span className="italic text-slate-400">No custom instructions provided.</span>}
-                                </div>
-                                {showCopyToast && (
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1.5 animate-fade-in z-[110]">
-                                        <CheckCircle size={12} className="text-green-400" /> Instructions Copied!
-                                    </div>
-                                )}
-                            </div>
 
-                            <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
-                                <div className="flex items-center">
-                                    <FileText size={14} className="mr-1" />
-                                    <span>Questions: {editedGame.config.questionCount || 'Auto'}</span>
+                        <div className="min-h-0 overflow-y-auto px-8 pb-8">
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Original Topic</label>
+                                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
+                                        {editedGame.config.topic || "N/A (Jeopardy/Pub Quiz Mode)"}
+                                    </div>
                                 </div>
-                                <div className="uppercase font-bold tracking-wider">Generated by AI</div>
+
+                                <div className="relative">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                                        Custom Instructions
+                                        <button 
+                                            onClick={handleCopyInstructions}
+                                            className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center"
+                                            title="Copy Instructions"
+                                        >
+                                            <Copy size={12} className="mr-1" /> Copy
+                                        </button>
+                                    </label>
+                                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-sm min-h-[80px]">
+                                        {editedGame.config.customInstructions || <span className="italic text-slate-400">No custom instructions provided.</span>}
+                                    </div>
+                                    {showCopyToast && (
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1.5 animate-fade-in z-[110]">
+                                            <CheckCircle size={12} className="text-green-400" /> Instructions Copied!
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
+                                    <div className="flex items-center">
+                                        <FileText size={14} className="mr-1" />
+                                        <span>Questions: {editedGame.config.questionCount || 'Auto'}</span>
+                                    </div>
+                                    <div className="uppercase font-bold tracking-wider">Generated by AI</div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { getSharedGame } from '../utils/gameUtils';
+import { getGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, saveGameToLibrary } from '../utils/gameUtils';
 import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
+import { GamePreview } from '../components/games/GamePreview';
 import { GameEditor } from '../components/games/GameEditor';
 import { JeopardyGame } from '../components/games/JeopardyGame';
 import { TriviaGame } from '../components/games/TriviaGame';
@@ -27,7 +28,9 @@ export const ShareGame: React.FC = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [game, setGame] = useState<GeneratedGame | null>(null);
-  const [step, setStep] = useState<'editor' | 'setup' | 'play'>('editor');
+  const [sessionGame, setSessionGame] = useState<GeneratedGame | null>(null);
+  const [step, setStep] = useState<'preview' | 'editor' | 'setup' | 'play'>('preview');
+  const [playReturnStep, setPlayReturnStep] = useState<'editor' | 'preview'>('preview');
   const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
   const [playKey, setPlayKey] = useState(0);
 
@@ -68,7 +71,8 @@ export const ShareGame: React.FC = () => {
           },
         };
         setGame(safeGame);
-        setStep('editor');
+        setSessionGame(null);
+        setStep('preview');
         setLoadState('ready');
       })
       .catch(() => {
@@ -90,6 +94,123 @@ export const ShareGame: React.FC = () => {
   const handleGameStart = (options: GameRunOptions) => {
     setPlayOptions(options);
     setStep('play');
+  };
+
+  const copyPreviewShareLink = async (gameId: string) => {
+    const shareUrl = getGameShareUrl(gameId);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Share link copied!');
+    } catch (error) {
+      alert(`Copy failed. Share this link:\n${shareUrl}`);
+    }
+  };
+
+  const persistPreviewGame = async (gameToSave: GeneratedGame, opts?: { overrideIsPublic?: boolean }) => {
+    if (gameToSave.config.type === GameType.STOP_THE_FIRE && gameToSave.config.stopTheFireMode === 'bank') {
+      alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+      return null;
+    }
+
+    const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
+    const result = await saveGameToLibrary(nextGame, user?.id, user?.name);
+    if (!result.success) {
+      alert('Failed to save. Please try again.');
+      return null;
+    }
+
+    const savedGame = { ...nextGame, id: result.id ?? nextGame.id };
+    setGame(savedGame);
+    setSessionGame(null);
+    return savedGame;
+  };
+
+  const handlePreviewSave = async () => {
+    if (!game) return;
+    const savedGame = await persistPreviewGame(game);
+    if (!savedGame) return;
+    alert('Game saved to your library.');
+  };
+
+  const handlePreviewEdit = () => {
+    setSessionGame(null);
+    setStep('editor');
+  };
+
+  const handlePreviewPlay = (gameToPlay: GeneratedGame) => {
+    setSessionGame(gameToPlay);
+    setPlayReturnStep('preview');
+
+    if (gameToPlay.config.type === GameType.MILLIONAIRE) {
+      setPlayOptions({
+        players: 1,
+        timerSeconds: 0,
+        enableBonuses: false,
+        strictMode: false,
+        muted: false,
+      });
+      setStep('play');
+    } else if (gameToPlay.config.type === GameType.STOP_THE_FIRE) {
+      setPlayOptions({
+        players: 2,
+        timerSeconds: 60,
+        enableBonuses: false,
+        strictMode: false,
+        muted: false,
+        stopTheFireCategoryCount: 10,
+        stopTheFireDifficulty: 'beginner',
+      });
+      setStep('play');
+    } else if (gameToPlay.config.type === GameType.SURVEY_SHOWDOWN) {
+      setPlayOptions({
+        players: 2,
+        timerSeconds: 0,
+        enableBonuses: false,
+        strictMode: false,
+        muted: false,
+      });
+      setStep('setup');
+    } else {
+      setStep('setup');
+    }
+  };
+
+  const handleGameEnd = () => {
+    setStep(playReturnStep);
+  };
+
+  const handlePreviewShare = async () => {
+    if (!game) return;
+
+    if (game.config.type === GameType.STOP_THE_FIRE && game.config.stopTheFireMode === 'bank') {
+      alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+      return;
+    }
+
+    if (game.sourceGameId && isUUID(game.sourceGameId)) {
+      await copyPreviewShareLink(game.sourceGameId);
+      return;
+    }
+
+    let shareGame = game;
+    if (!shareGame.config.isPublic) {
+      const confirmPublic = window.confirm('This game is private. Make it public to share?');
+      if (!confirmPublic) return;
+      const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
+      if (!savedGame) return;
+      shareGame = savedGame;
+    } else if (!isUUID(shareGame.id)) {
+      const savedGame = await persistPreviewGame(shareGame);
+      if (!savedGame) return;
+      shareGame = savedGame;
+    }
+
+    if (!shareGame.id || !isUUID(shareGame.id)) {
+      alert('Please save this game before sharing.');
+      return;
+    }
+
+    await copyPreviewShareLink(shareGame.id);
   };
 
   const handleReplay = () => {
@@ -182,13 +303,33 @@ export const ShareGame: React.FC = () => {
     );
   }
 
+  if (step === 'preview' && game) {
+    return (
+      <GamePreview
+        game={game}
+        source="community"
+        onBack={() => navigate('/games')}
+        onEdit={handlePreviewEdit}
+        onPlay={handlePreviewPlay}
+        onSave={handlePreviewSave}
+        onShare={handlePreviewShare}
+        saveLabel="Save copy"
+      />
+    );
+  }
+
   if (step === 'editor' && game) {
     return (
       <GameEditor
         game={game}
-        onSave={(updated) => setGame(updated)}
+        onSave={(updated) => {
+          setGame(updated);
+          setSessionGame(null);
+        }}
         onPlay={(updated) => {
           setGame(updated);
+          setSessionGame(updated);
+          setPlayReturnStep('editor');
           if (updated.config.type === GameType.MILLIONAIRE) {
             setPlayOptions({
               players: 1,
@@ -222,62 +363,62 @@ export const ShareGame: React.FC = () => {
             setStep('setup');
           }
         }}
-        onBack={() => navigate('/games')}
+        onBack={() => setStep('preview')}
       />
     );
   }
 
-  if (step === 'setup') {
+  if (step === 'setup' && (sessionGame || game)) {
     return (
       <GameSetup
-        game={game}
-        onBack={() => setStep('editor')}
+        game={sessionGame || game!}
+        onBack={() => setStep(playReturnStep)}
         onStart={handleGameStart}
-        backLabel="Back to Editor"
+        backLabel={playReturnStep === 'preview' ? 'Back to Preview' : 'Back to Editor'}
       />
     );
   }
 
-  if (!playOptions) {
+  if (!playOptions || !(sessionGame || game)) {
     return null;
   }
 
   const commonProps = {
-    game,
+    game: sessionGame || game!,
     options: playOptions,
     onFinish: () => navigate('/games'),
     onReplay: handleReplay,
   };
 
   if (game.config.type === GameType.JEOPARDY) {
-    return <JeopardyGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <JeopardyGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.TRIVIA) {
-    return <TriviaGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <TriviaGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.PUB_QUIZ) {
-    return <PubQuizGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <PubQuizGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.DARTS) {
-    return <DartsGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <DartsGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.SNAKES_LADDERS) {
-    return <SnakesLaddersGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <SnakesLaddersGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.MILLIONAIRE) {
-    return <MillionaireGame key={playKey} {...commonProps} onBack={() => navigate('/games')} />;
+    return <MillionaireGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.TIME_BOMB) {
-    return <TimeBombGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <TimeBombGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.SURVEY_SHOWDOWN) {
-    return <SurveyShowdownGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <SurveyShowdownGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.STOP_THE_FIRE) {
-    return <StopTheFireGame key={playKey} {...commonProps} onBack={() => setStep('editor')} />;
+    return <StopTheFireGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
   if (game.config.type === GameType.WORD_WHEEL) {
-    return <WordWheelGame key={playKey} {...commonProps} onBack={() => setStep('setup')} />;
+    return <WordWheelGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
   }
 
   return null;

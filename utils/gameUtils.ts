@@ -1,5 +1,5 @@
 
-import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile } from "../types";
+import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile, User } from "../types";
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
 
@@ -332,8 +332,40 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 
 // --- DATA ACCESS LAYER ---
 
-const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+export const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 let hasLoggedMissingPlayCountColumn = false;
+
+export const getGameShareUrl = (id: string) => {
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+    return `${window.location.origin}${normalizedBase}#/share/game/${id}`;
+};
+
+export const prepareGameForLibrarySave = (
+    game: GeneratedGame,
+    user?: Pick<User, 'id' | 'name' | 'avatar'> | null,
+    overrideIsPublic?: boolean
+): GeneratedGame => {
+    const originalCreatorName = game.config.originalCreatorName || game.authorName || 'Teacher';
+    const originalCreatorId = game.config.originalCreatorId || game.authorId;
+    const originalCreatorAvatar = game.config.originalCreatorAvatar || game.authorAvatar || game.config.authorAvatar || null;
+    const authorAvatar = user?.avatar || game.authorAvatar || game.config.authorAvatar || null;
+
+    return {
+        ...game,
+        authorId: user?.id || game.authorId,
+        authorName: user?.name || game.authorName || originalCreatorName,
+        authorAvatar,
+        config: {
+            ...game.config,
+            isPublic: (overrideIsPublic ?? game.config.isPublic) || false,
+            authorAvatar,
+            originalCreatorName,
+            originalCreatorId,
+            originalCreatorAvatar
+        }
+    };
+};
 
 // Helper to retrieve local games (Guest Mode)
 export const getLocalGames = (): GeneratedGame[] => {

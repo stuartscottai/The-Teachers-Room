@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, RotateCcw, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, RotateCcw, Save, Share2, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
 import { resolveGameImageUrl } from '../../utils/gameImage';
@@ -35,6 +35,8 @@ const PREVIEW_PAGE_THEME = {
   panelShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
   imageShellBackground: 'transparent',
 };
+
+const AI_PROMPT_MODAL_MAX_HEIGHT = 'min(75dvh, calc(100dvh - 2rem))';
 
 const PREVIEW_SCORE_TAG_PATTERN = /\s*\((\d+)\)\s*$/;
 
@@ -619,9 +621,12 @@ interface GamePreviewProps {
   onBack: () => void;
   onPlay: (game: GeneratedGame) => void;
   onEdit: () => void;
+  onSave?: () => void | Promise<void>;
+  onShare?: () => void | Promise<void>;
+  saveLabel?: string;
 }
 
-export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onEdit }) => {
+export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onEdit, onSave, onShare, saveLabel }) => {
   const items = useMemo(() => buildPreviewItems(game), [game]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
@@ -675,6 +680,13 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
       : 'Quick View: scan rows and tick questions to include.';
   const backgroundImage = PREVIEW_BACKGROUND_IMAGES[game.config.type];
   const pageTheme = PREVIEW_PAGE_THEME;
+  const previewSaveLabel = saveLabel || (source === 'community' ? 'Save copy' : 'Save game');
+  const secondaryActionButtonClass =
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white/86 px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+  const selectActionButtonClass =
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+  const playActionButtonClass =
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
@@ -745,39 +757,75 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               <span className="font-semibold text-slate-600">{selectedCount} selected</span>
             </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-2 lg:flex-nowrap">
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}
-                disabled={items.length === 0 || allSelected}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/86 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <CheckSquare size={15} /> Select all
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set())}
-                disabled={selectedCount === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Square size={15} /> Clear
-              </button>
-              <button
-                type="button"
-                onClick={onEdit}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/86 px-4 py-2.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white"
-              >
-                <Edit3 size={16} /> Edit game
-              </button>
-              <button
-                type="button"
-                onClick={handlePlay}
-                disabled={selectedCount === 0}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-4 py-2.5 text-sm font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ boxShadow: '0 16px 30px rgba(250, 204, 21, 0.24)' }}
-              >
-                <Play size={16} fill="currentColor" /> Play selected
-              </button>
+            <div className="mt-5 space-y-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className={secondaryActionButtonClass}
+                  aria-label="Edit game"
+                  title="Edit game"
+                >
+                  <Edit3 size={16} />
+                  <span className="hidden sm:inline">Edit game</span>
+                </button>
+                {onSave && (
+                  <button
+                    type="button"
+                    onClick={() => void onSave()}
+                    className={secondaryActionButtonClass}
+                    aria-label={previewSaveLabel}
+                    title={previewSaveLabel}
+                  >
+                    <Save size={16} />
+                    <span className="hidden sm:inline">{previewSaveLabel}</span>
+                  </button>
+                )}
+                {onShare && (
+                  <button
+                    type="button"
+                    onClick={() => void onShare()}
+                    className={secondaryActionButtonClass}
+                    aria-label="Share"
+                    title="Share"
+                  >
+                    <Share2 size={16} />
+                    <span className="hidden sm:inline">Share</span>
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}
+                  disabled={items.length === 0 || allSelected}
+                  className={secondaryActionButtonClass}
+                >
+                  <CheckSquare size={15} />
+                  <span>Select all</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  disabled={selectedCount === 0}
+                  className={selectActionButtonClass}
+                >
+                  <Square size={15} />
+                  <span>Clear</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePlay}
+                  disabled={selectedCount === 0}
+                  className={playActionButtonClass}
+                  style={{ boxShadow: '0 16px 30px rgba(250, 204, 21, 0.24)' }}
+                  aria-label="Play selected"
+                  title="Play selected"
+                >
+                  <Play size={16} fill="currentColor" />
+                  <span className="hidden sm:inline">Play selected</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -875,7 +923,10 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
 
         {isPromptOpen && aiPrompt && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-2xl rounded-3xl border border-white/75 bg-white/90 p-6 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-8">
+            <div
+              className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/75 bg-white/90 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+              style={{ maxHeight: AI_PROMPT_MODAL_MAX_HEIGHT }}
+            >
               <button
                 type="button"
                 onClick={() => setIsPromptOpen(false)}
@@ -884,14 +935,18 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               >
                 <X size={18} />
               </button>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">
-                <Sparkles size={13} />
-                AI Prompt
+              <div className="shrink-0 px-6 pt-6 sm:px-8 sm:pt-8">
+                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">
+                  <Sparkles size={13} />
+                  AI Prompt
+                </div>
+                <h2 className="pr-10 font-display text-2xl font-bold text-slate-800">Prompt used to create this game</h2>
               </div>
-              <h2 className="font-display text-2xl font-bold text-slate-800">Prompt used to create this game</h2>
-              <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
-                {aiPrompt}
-              </p>
+              <div className="min-h-0 overflow-y-auto px-6 pb-6 pt-4 sm:px-8 sm:pb-8">
+                <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
+                  {aiPrompt}
+                </p>
+              </div>
             </div>
           </div>
         )}
