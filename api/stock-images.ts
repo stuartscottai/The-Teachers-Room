@@ -5,6 +5,8 @@ type PixabayHit = {
   webformatURL?: string;
   largeImageURL?: string;
   type?: 'photo' | 'illustration' | 'vector';
+  imageWidth?: number;
+  imageHeight?: number;
 };
 
 type PixabayResponse = {
@@ -29,8 +31,14 @@ const parsePositiveInt = (value: any, fallback: number, min: number, max: number
   return Math.max(min, Math.min(max, Math.floor(parsed)));
 };
 
+const parseOptionalDimension = (value: unknown): number | undefined => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.floor(parsed);
+};
+
 const strictSort = (
-  items: Array<{ id: string; url: string; thumbUrl: string; alt: string; kind: string; tags: string }>,
+  items: Array<{ id: string; url: string; thumbUrl: string; alt: string; kind: string; tags: string; width?: number; height?: number }>,
   query: string
 ) => {
   if (!items.length) return items;
@@ -61,10 +69,14 @@ const strictSort = (
       if (haystack.includes(token)) return acc + 1;
       return acc;
     }, 0);
+    const width = item.width || 0;
+    const height = item.height || 0;
+    const ratio = width > 0 && height > 0 ? width / height : 0;
+    const orientationScore = ratio >= 1.2 ? 1 : ratio > 0 && ratio < 0.95 ? -1 : 0;
     const primaryExact = primaryToken
       ? new RegExp(`\\b${primaryToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(haystack)
       : false;
-    return { item, score, primaryExact };
+    return { item, score: score + orientationScore, primaryExact };
   });
 
   const hasPrimaryExact = scored.some((entry) => entry.primaryExact);
@@ -81,6 +93,7 @@ export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Cache-Control', 'no-store');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -129,10 +142,12 @@ export default async function handler(req: any, res: any) {
       .map((item) => ({
         id: String(item.id),
         url: toProxyUrl(item.largeImageURL || item.webformatURL || item.previewURL),
-        thumbUrl: toProxyUrl(item.previewURL || item.webformatURL || item.largeImageURL),
+        thumbUrl: toProxyUrl(item.webformatURL || item.previewURL || item.largeImageURL),
         alt: (item.tags || query).split(',')[0]?.trim() || query,
         kind: item.type || 'photo',
         tags: item.tags || '',
+        width: parseOptionalDimension(item.imageWidth),
+        height: parseOptionalDimension(item.imageHeight),
       }))
       .filter((item) => item.url);
 

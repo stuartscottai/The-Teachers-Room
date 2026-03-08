@@ -34,7 +34,9 @@ export const StockImagePicker: React.FC<{
   const [selected, setSelected] = useState<StockImageSelection[]>(initialSelection);
   const [page, setPage] = useState(1);
   const [totalHits, setTotalHits] = useState(0);
+  const [activeQuery, setActiveQuery] = useState('');
   const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
   const proxyUrl = (value: string) => toCoepSafeStockImageUrl(value, !import.meta.env.DEV);
 
   useEffect(() => {
@@ -45,14 +47,28 @@ export const StockImagePicker: React.FC<{
     setError(null);
     setPage(1);
     setTotalHits(0);
+    setActiveQuery('');
   }, [initialQuery, initialSelection, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     const trimmed = initialQuery.trim();
     if (!trimmed) return;
-    runSearch();
+    runSearch(trimmed);
   }, [initialQuery, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) return;
+    requestSeqRef.current += 1;
+    abortRef.current?.abort();
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      requestSeqRef.current += 1;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -71,9 +87,11 @@ export const StockImagePicker: React.FC<{
     return map;
   }, [selected]);
 
-  const runSearch = async () => {
-    const trimmed = query.trim();
+  const runSearch = async (queryOverride?: string) => {
+    const trimmed = String(queryOverride ?? query).trim();
     if (!trimmed) return;
+    const requestId = requestSeqRef.current + 1;
+    requestSeqRef.current = requestId;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -81,21 +99,27 @@ export const StockImagePicker: React.FC<{
     setError(null);
     try {
       const data = await searchStockImages(trimmed, { page: 1, perPage: 24, signal: controller.signal, strict: true });
+      if (requestId !== requestSeqRef.current) return;
       setResults(data.items);
       setTotalHits(data.totalHits);
       setPage(1);
+      setActiveQuery(trimmed);
     } catch (err) {
+      if (requestId !== requestSeqRef.current) return;
       const message = err instanceof Error ? err.message : 'Search failed.';
       setError(message);
     } finally {
+      if (requestId !== requestSeqRef.current) return;
       setLoading(false);
     }
   };
 
   const loadMore = async () => {
-    const trimmed = query.trim();
+    const trimmed = (activeQuery || query).trim();
     if (!trimmed) return;
     const nextPage = page + 1;
+    const requestId = requestSeqRef.current + 1;
+    requestSeqRef.current = requestId;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -103,13 +127,17 @@ export const StockImagePicker: React.FC<{
     setError(null);
     try {
       const data = await searchStockImages(trimmed, { page: nextPage, perPage: 24, signal: controller.signal, strict: true });
+      if (requestId !== requestSeqRef.current) return;
       setResults((prev) => [...prev, ...data.items]);
       setTotalHits(data.totalHits);
       setPage(nextPage);
+      setActiveQuery(trimmed);
     } catch (err) {
+      if (requestId !== requestSeqRef.current) return;
       const message = err instanceof Error ? err.message : 'Search failed.';
       setError(message);
     } finally {
+      if (requestId !== requestSeqRef.current) return;
       setLoading(false);
     }
   };
@@ -200,7 +228,11 @@ export const StockImagePicker: React.FC<{
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') runSearch();
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      runSearch();
+                    }
                   }}
                   placeholder="Search images (e.g., animals, classroom, nouns)"
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm"
@@ -208,7 +240,7 @@ export const StockImagePicker: React.FC<{
               </div>
               <button
                 type="button"
-                onClick={runSearch}
+                onClick={() => runSearch()}
                 className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white"
                 disabled={loading}
               >

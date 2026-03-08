@@ -1302,7 +1302,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                         role={isMobileViewport ? undefined : 'button'}
                                                         tabIndex={isMobileViewport ? -1 : 0}
                                                         title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                        className={`max-h-full w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                        className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                     />
                                                 </div>
                                                 <div
@@ -1377,7 +1377,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 role={isMobileViewport ? undefined : 'button'}
                                                 tabIndex={isMobileViewport ? -1 : 0}
                                                 title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                className={`max-h-40 sm:max-h-48 md:max-h-56 w-auto rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                className={`h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                             />
                                             <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
                                                 <div

@@ -400,7 +400,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     const openImagePicker = (target: QuestionImageTarget, question?: GeneratedQuestion | null) => {
         setImagePickerTarget(target);
-        setImagePickerSelection([]);
+        const initialSelection: StockImageSelection[] = question?.image?.url
+            ? [{
+                id: question.image.url,
+                url: question.image.url,
+                thumbUrl: question.image.thumbUrl || question.image.url,
+                label: question.image.alt || '',
+            }]
+            : [];
+        setImagePickerSelection(initialSelection);
         const nextQuery = question ? getGameImageQuery(question, editedGame.config) : '';
         setImagePickerQuery(nextQuery || editedGame.config.topic || '');
         setImagePickerOpen(true);

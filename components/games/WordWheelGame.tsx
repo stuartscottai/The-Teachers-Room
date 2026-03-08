@@ -1418,7 +1418,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             <img
                                                 src={questionImageUrl}
                                                 alt={questionImageAlt}
-                                                className="mb-4 max-h-[30vh] w-auto rounded-lg border border-slate-200 bg-white object-contain"
+                                                className="mb-4 h-[30vh] w-full max-w-full rounded-lg border border-slate-200 bg-white object-contain"
                                             />
                                         )}
                                         <p

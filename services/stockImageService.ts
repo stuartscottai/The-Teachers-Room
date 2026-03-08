@@ -7,6 +7,8 @@ export type StockImageResult = {
   alt: string;
   kind?: 'photo' | 'illustration' | 'vector';
   tags?: string;
+  width?: number;
+  height?: number;
 };
 
 export type StockImageSearchResult = {
@@ -28,12 +30,20 @@ type PixabayApiPayload = {
     webformatURL?: string;
     largeImageURL?: string;
     type?: 'photo' | 'illustration' | 'vector';
+    imageWidth?: number;
+    imageHeight?: number;
   }>;
 };
 
 const normalizeUrl = (value: string | undefined) => {
   if (!value) return '';
   return value.replace(/^http:\/\//i, 'https://');
+};
+
+const normalizeDimension = (value: unknown): number | undefined => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.floor(parsed);
 };
 
 const preferServerProxy = () => !import.meta.env.DEV;
@@ -75,10 +85,14 @@ const orderStrict = (items: StockImageResult[], query: string): StockImageResult
       if (haystack.includes(token)) return acc + 1;
       return acc;
     }, 0);
+    const width = item.width || 0;
+    const height = item.height || 0;
+    const ratio = width > 0 && height > 0 ? width / height : 0;
+    const orientationScore = ratio >= 1.2 ? 1 : ratio > 0 && ratio < 0.95 ? -1 : 0;
     const primaryExact = primaryToken
       ? new RegExp(`\\b${primaryToken.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(haystack)
       : false;
-    return { item, score, primaryExact };
+    return { item, score: score + orientationScore, primaryExact };
   });
 
   const hasPrimaryExact = scored.some((entry) => entry.primaryExact);
@@ -100,10 +114,12 @@ const mapPixabayPayload = (
     .map((item) => ({
       id: String(item.id),
       url: normalizeUrl(item.largeImageURL || item.webformatURL || item.previewURL),
-      thumbUrl: normalizeUrl(item.previewURL || item.webformatURL || item.largeImageURL),
+      thumbUrl: normalizeUrl(item.webformatURL || item.previewURL || item.largeImageURL),
       alt: (item.tags || query).split(',')[0]?.trim() || query,
       kind: item.type || 'photo',
       tags: item.tags || '',
+      width: normalizeDimension(item.imageWidth),
+      height: normalizeDimension(item.imageHeight),
     }))
     .filter((item) => item.url);
 
@@ -133,6 +149,7 @@ export const searchStockImages = async (
   try {
     const response = await fetch(proxyUrl.toString(), {
       method: 'GET',
+      cache: 'no-store',
       signal: opts?.signal,
     });
 
@@ -181,6 +198,7 @@ export const searchStockImages = async (
 
   const directResponse = await fetch(directUrl.toString(), {
     method: 'GET',
+    cache: 'no-store',
     signal: opts?.signal,
   });
   if (!directResponse.ok) {

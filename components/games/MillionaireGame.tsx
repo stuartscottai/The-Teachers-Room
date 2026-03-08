@@ -587,7 +587,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                             role={isMobileViewport ? undefined : 'button'}
                                             tabIndex={isMobileViewport ? -1 : 0}
                                             title={isMobileViewport ? undefined : 'Click to zoom'}
-                                            className={`max-h-full w-auto rounded-xl object-contain border border-indigo-300/40 bg-black/60 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                            className={`h-full w-full rounded-xl object-contain border border-indigo-300/40 bg-black/60 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                         />
                                     </div>
                                     <div className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}>

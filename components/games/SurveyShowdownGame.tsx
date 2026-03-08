@@ -583,7 +583,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 role={isMobileViewport ? undefined : 'button'}
                                 tabIndex={isMobileViewport ? -1 : 0}
                                 title={isMobileViewport ? undefined : 'Click to zoom'}
-                                className={`max-h-36 sm:max-h-44 md:max-h-52 w-auto rounded-xl object-contain border border-blue-300/40 bg-blue-900/40 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                className={`h-36 sm:h-44 md:h-52 w-full rounded-xl object-contain border border-blue-300/40 bg-blue-900/40 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                             />
                         )}
                         <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-normal break-words">

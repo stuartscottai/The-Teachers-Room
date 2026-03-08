@@ -554,9 +554,195 @@ const generateUUID = () => {
     });
 };
 
+const IMAGE_KEYWORD_BATCH_SIZE = 20;
+const IMAGE_KEYWORD_WEAK_TERMS = new Set([
+  'service', 'services', 'thing', 'things', 'item', 'items', 'person', 'people',
+  'someone', 'somebody', 'its', 'it', 'their', 'them', 'his', 'her', 'like',
+  'known', 'original', 'question', 'answer', 'choose', 'select', 'correct',
+]);
+
+const rootKeywordToken = (value: string): string => {
+  let token = String(value || '').trim().toLowerCase();
+  if (!token) return '';
+  if (token.endsWith('ing') && token.length > 5) {
+    token = token.slice(0, -3);
+    if (token.endsWith('v')) token += 'e';
+    return token;
+  }
+  if (token.endsWith('ied') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('ed') && token.length > 4) {
+    token = token.slice(0, -2);
+    if (token.endsWith('v')) token += 'e';
+    return token;
+  }
+  if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+  if (token.endsWith('s') && token.length > 4) return token.slice(0, -1);
+  return token;
+};
+
+const tokenizeForKeywordRoots = (value: string): string[] =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2);
+
+const sanitizeKeywordCandidate = (value: string): string => {
+  const token = String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, ' ')
+    .trim()
+    .split(/\s+/)[0] || '';
+  if (!token || token.length < 3) return '';
+  return token;
+};
+
+const uniqueKeywords = (values: string[]): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const token = sanitizeKeywordCandidate(raw);
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+    out.push(token);
+  }
+  return out;
+};
+
+const sanitizeImageKeywordsForQuestion = (
+  question: GeneratedQuestion,
+  rawKeywords: string[],
+): string[] => {
+  const answerRoots = new Set([
+    ...tokenizeForKeywordRoots(question.answer || '').map(rootKeywordToken),
+    ...(Array.isArray(question.options)
+      ? tokenizeForKeywordRoots(question.options.join(' ')).map(rootKeywordToken)
+      : []),
+  ].filter(Boolean));
+
+  const extracted = uniqueKeywords(rawKeywords)
+    .filter((token) => !IMAGE_KEYWORD_WEAK_TERMS.has(token))
+    .filter((token) => !answerRoots.has(rootKeywordToken(token)));
+
+  const fallback = uniqueKeywords(Array.isArray(question.imageKeywords) ? question.imageKeywords : [])
+    .filter((token) => !IMAGE_KEYWORD_WEAK_TERMS.has(token))
+    .filter((token) => !answerRoots.has(rootKeywordToken(token)));
+
+  const merged = uniqueKeywords([...extracted, ...fallback]);
+  return merged.slice(0, 2);
+};
+
+const extractAiImageKeywordsBatch = async (
+  ai: GoogleGenAI,
+  batch: Array<{ localId: number; question: GeneratedQuestion }>,
+  config: GameConfig
+): Promise<Map<number, string[]>> => {
+  const requestPayload = batch.map((item) => ({
+    id: item.localId,
+    question: item.question.question || '',
+    answer: item.question.answer || '',
+    options: Array.isArray(item.question.options) ? item.question.options : [],
+    topic: config.topic || '',
+  }));
+
+  const schema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      items: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.INTEGER },
+            imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ['id', 'imageKeywords'],
+        },
+      },
+    },
+    required: ['items'],
+  };
+
+  const prompt = `
+You are an image keyword extractor for quiz questions.
+Return JSON only.
+
+Rules:
+- Return exactly 2 keywords per item in "imageKeywords".
+- Each keyword must be a single word.
+- Keyword 1 must be the strongest visual subject.
+- Keywords must not be the answer or close variants of the answer/options.
+- Prefer concrete visual nouns or proper nouns that work in stock image search.
+- Avoid weak utility words (service, thing, item, person), pronouns, and filler words.
+- Avoid verbs/adjectives unless they are clearly visual and necessary.
+
+Input:
+${JSON.stringify(requestPayload)}
+`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: schema,
+    },
+  });
+
+  const parsed = JSON.parse(cleanJson(response.text || '{}'));
+  const items = Array.isArray(parsed?.items) ? parsed.items : [];
+  const out = new Map<number, string[]>();
+
+  for (const entry of items) {
+    const id = Number(entry?.id);
+    if (!Number.isInteger(id)) continue;
+    const question = batch.find((item) => item.localId === id)?.question;
+    if (!question) continue;
+    const raw = Array.isArray(entry?.imageKeywords) ? entry.imageKeywords.map((v: any) => String(v || '')) : [];
+    const sanitized = sanitizeImageKeywordsForQuestion(question, raw);
+    if (!sanitized.length) continue;
+    out.set(id, sanitized);
+  }
+
+  return out;
+};
+
+const withAiImageKeywords = async (
+  questions: GeneratedQuestion[],
+  config: GameConfig,
+  ai?: GoogleGenAI | null
+): Promise<GeneratedQuestion[]> => {
+  if (!ai || !Array.isArray(questions) || !questions.length) return questions;
+
+  const next = [...questions];
+  for (let start = 0; start < next.length; start += IMAGE_KEYWORD_BATCH_SIZE) {
+    const slice = next.slice(start, start + IMAGE_KEYWORD_BATCH_SIZE);
+    const batch = slice.map((question, idx) => ({ localId: idx, question }));
+
+    try {
+      const extracted = await extractAiImageKeywordsBatch(ai, batch, config);
+      batch.forEach((item, idx) => {
+        const picked = extracted.get(item.localId);
+        if (!picked || !picked.length) return;
+        const targetIndex = start + idx;
+        next[targetIndex] = {
+          ...next[targetIndex],
+          imageKeywords: picked,
+        };
+      });
+    } catch (err) {
+      console.warn('AI keyword extraction batch failed:', err);
+    }
+  }
+
+  return next;
+};
+
 const hydrateGameAutoImages = async (
   game: Pick<GeneratedGame, 'questions' | 'jeopardyBoard' | 'pubQuizRounds'>,
-  config: GameConfig
+  config: GameConfig,
+  ai?: GoogleGenAI | null
 ) => {
   const shouldAutoPickImages = Boolean(config.includeImages && config.imageMode === 'auto');
   if (!shouldAutoPickImages) {
@@ -573,14 +759,18 @@ const hydrateGameAutoImages = async (
   let pubQuizRounds = game.pubQuizRounds;
 
   if (Array.isArray(questions) && questions.length) {
+    questions = await withAiImageKeywords(questions, config, ai);
     questions = await autoPickImagesForQuestions(questions, config, imageCache);
   }
   if (Array.isArray(jeopardyBoard)) {
     const nextBoard = [];
     for (const category of jeopardyBoard) {
       const catQuestions = Array.isArray(category?.questions) ? category.questions : [];
-      const updatedQuestions = catQuestions.length
-        ? await autoPickImagesForQuestions(catQuestions, config, imageCache)
+      const preparedQuestions = catQuestions.length
+        ? await withAiImageKeywords(catQuestions, config, ai)
+        : catQuestions;
+      const updatedQuestions = preparedQuestions.length
+        ? await autoPickImagesForQuestions(preparedQuestions, config, imageCache)
         : catQuestions;
       nextBoard.push({ ...category, questions: updatedQuestions });
     }
@@ -590,8 +780,11 @@ const hydrateGameAutoImages = async (
     const nextRounds = [];
     for (const round of pubQuizRounds) {
       const roundQuestions = Array.isArray(round?.questions) ? round.questions : [];
-      const updatedQuestions = roundQuestions.length
-        ? await autoPickImagesForQuestions(roundQuestions, config, imageCache)
+      const preparedQuestions = roundQuestions.length
+        ? await withAiImageKeywords(roundQuestions, config, ai)
+        : roundQuestions;
+      const updatedQuestions = preparedQuestions.length
+        ? await autoPickImagesForQuestions(preparedQuestions, config, imageCache)
         : roundQuestions;
       nextRounds.push({ ...round, questions: updatedQuestions });
     }
@@ -619,7 +812,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         jeopardyBoard: external.jeopardyBoard,
         pubQuizRounds: external.pubQuizRounds,
       },
-      config
+      config,
+      apiKey ? getClient() : null
     );
     return {
       ...external,
@@ -657,9 +851,15 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
   
   Ensure questions are appropriate for a classroom setting.
-  If images are requested, include imageKeywords (2-4 concise, concrete keywords) for each question. 
-  Prefer concrete objects/scenes over abstract terms. Avoid generic keywords like "education", "concept", "background".
-  If the question is generic (e.g., "Choose the correct sentence"), derive keywords from the answer/options.
+  If images are requested, include imageKeywords as EXACTLY 2 concise visual keywords per question.
+  These keywords are for stock image search (e.g., Pixabay), so prefer concrete visual nouns or proper nouns.
+  Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be supporting context.
+  Do NOT use the exact answer, close synonyms, or wording that makes the answer too obvious.
+  Avoid adjectives, verbs, and abstract terms like "education", "concept", "background".
+  Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
+  Avoid role/action words like "person", "people", "call", "study", "learn" unless they are clearly the visual subject.
+  If the direct term is too revealing, choose one level broader while staying relevant.
+  If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from question/topic context, not the answer text.
   `;
 
   let prompt = '';
@@ -930,9 +1130,15 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
   if (config.includeImages) {
     prompt += `
-    IMPORTANT: Include imageKeywords (2-4 concise, concrete keywords) for EACH question.
-    Use specific objects/scenes and avoid abstract tags (e.g., avoid "education", "concept", "background").
-    If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from the ANSWER or options instead of the question text.
+    IMPORTANT: Include imageKeywords as EXACTLY 2 concise visual keywords for EACH question.
+    CRITICAL: Keywords must NOT be the exact answer, close synonyms, or reveal the answer too directly.
+    Use stock-search-friendly concrete visual nouns/proper nouns, not adjectives/verbs.
+    Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be context.
+    Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
+    Avoid role/action words like "person", "people", "call", "study", "learn" unless truly visual.
+    Avoid abstract tags (e.g., "education", "concept", "background").
+    If a direct keyword is too revealing, pick a broader but still relevant visual keyword.
+    For generic prompts (e.g., "Choose the correct sentence"), derive keywords from question/topic context, not the answer text.
     `;
   }
 
@@ -986,7 +1192,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         jeopardyBoard: data.jeopardyBoard,
         pubQuizRounds: data.pubQuizRounds,
       },
-      config
+      config,
+      ai
     );
     
     return {

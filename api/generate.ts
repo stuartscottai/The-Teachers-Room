@@ -619,9 +619,15 @@ Return JSON: { "categories": ["..."] }
       3. NO unescaped newlines, tabs, or control characters inside string values. Use \\n for line breaks.
       
       Ensure questions are appropriate for a classroom setting.
-      If images are requested, include imageKeywords (2-4 concise, concrete keywords) for each question.
-      Prefer concrete objects/scenes and avoid abstract terms like "education", "concept", "background".
-      If the question is generic (e.g., "Choose the correct sentence"), derive keywords from the answer/options.
+      If images are requested, include imageKeywords as EXACTLY 2 concise visual keywords per question.
+      These keywords are for stock image search (e.g., Pixabay), so prefer concrete visual nouns or proper nouns.
+      Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be supporting context.
+      Do NOT use the exact answer, close synonyms, or wording that makes the answer too obvious.
+      Avoid adjectives, verbs, and abstract terms like "education", "concept", "background".
+      Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
+      Avoid role/action words like "person", "people", "call", "study", "learn" unless they are clearly the visual subject.
+      If the direct term is too revealing, choose one level broader while staying relevant.
+      If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from question/topic context, not the answer text.
       `;
 
       let prompt = '';
@@ -884,9 +890,15 @@ Return JSON: { "categories": ["..."] }
 
       if (config.includeImages) {
         prompt += `
-          IMPORTANT: Include imageKeywords (2-4 concise, concrete keywords) for EACH question.
-          Use specific objects/scenes and avoid abstract tags (e.g., avoid "education", "concept", "background").
-          If the prompt is generic (e.g., "Choose the correct sentence"), derive keywords from the ANSWER or options instead of the question text.
+          IMPORTANT: Include imageKeywords as EXACTLY 2 concise visual keywords for EACH question.
+          CRITICAL: Keywords must NOT be the exact answer, close synonyms, or reveal the answer too directly.
+          Use stock-search-friendly concrete visual nouns/proper nouns, not adjectives/verbs.
+          Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be context.
+          Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
+          Avoid role/action words like "person", "people", "call", "study", "learn" unless truly visual.
+          Avoid abstract tags (e.g., "education", "concept", "background").
+          If a direct keyword is too revealing, pick a broader but still relevant visual keyword.
+          For generic prompts (e.g., "Choose the correct sentence"), derive keywords from question/topic context, not the answer text.
         `;
       }
 

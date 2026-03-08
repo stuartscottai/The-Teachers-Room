@@ -978,7 +978,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                     role={isMobileViewport ? undefined : 'button'}
                                                                     tabIndex={isMobileViewport ? -1 : 0}
                                                                     title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                                    className={`max-h-full w-auto rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                                    className={`h-full w-full rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                                 />
                                                             </div>
                                                             <div
@@ -1064,7 +1064,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             role={isMobileViewport ? undefined : 'button'}
                                                             tabIndex={isMobileViewport ? -1 : 0}
                                                             title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                            className={`max-h-44 sm:max-h-52 md:max-h-60 w-auto rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                            className={`h-44 sm:h-52 md:h-60 w-full rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                         />
                                                         <div
                                                             ref={questionWrapRef}
