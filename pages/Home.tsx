@@ -73,7 +73,7 @@ const getGameVisual = (type?: GameType) => {
         case GameType.TIME_BOMB:
             return { image: '/assets/games/timebomb.png', icon: <Timer size={40} />, color: 'bg-rose-600' };
         case GameType.STOP_THE_FIRE:
-            return { image: '/assets/games/stopthefire.png', icon: <Flame size={40} />, color: 'bg-orange-500' };
+            return { image: '/assets/games/stopthefire.png', icon: <Flame size={40} />, color: 'bg-[#0f4c81]' };
         case GameType.WORD_WHEEL:
             return { image: '/assets/games/wordwheel.png', icon: <RefreshCw size={40} />, color: 'bg-cyan-600' };
         case GameType.SNAKES_LADDERS:

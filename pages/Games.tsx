@@ -985,7 +985,7 @@ const GameHub: React.FC<{
             desc: "Fast word race inspired by Scattergories.",
             image: getGameThumbnails(GameType.STOP_THE_FIRE)[0],
             previewImages: getGameThumbnails(GameType.STOP_THE_FIRE).slice(1),
-            color: "bg-orange-600"
+            color: "bg-[#0f4c81]"
         },
         { 
             type: GameType.MILLIONAIRE, 
@@ -1523,8 +1523,11 @@ export const Games: React.FC = () => {
                 setStep('play');
              }, 50); 
         } else if (selectedType === GameType.STOP_THE_FIRE) {
-             trackStartedGame(replayGame);
-             setStep('play');
+             setStep(playReturnStep);
+             setTimeout(() => {
+                trackStartedGame(replayGame);
+                setStep('play');
+             }, 50);
         } else {
              setStep('setup');
         }
