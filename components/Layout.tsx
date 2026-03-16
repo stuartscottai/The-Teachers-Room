@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
 import { Avatar } from './Avatar';
 import { BrandName } from './BrandName';
+import { AUTH_PROMPT_EVENT, AuthPromptDetail } from '../services/accountAccess';
+import { PlanUpgradeModal } from './PlanUpgradeModal';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
@@ -17,7 +19,10 @@ const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: st
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        if (isActive && !state) return; // Don't navigate if already there unless checking for state changes
+        if (isActive && !state) {
+            if (onClick) onClick();
+            return; // Don't navigate if already there unless checking for state changes
+        }
 
         const performNavigation = () => {
             setIsDirty(false); // Clear dirty state on confirmed navigation
@@ -45,9 +50,53 @@ const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: st
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [loginDefaultMode, setLoginDefaultMode] = useState<'login' | 'signup'>('login');
+  const [loginTitle, setLoginTitle] = useState<string | undefined>(undefined);
+  const [loginMessage, setLoginMessage] = useState<string | undefined>(undefined);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeTitle, setUpgradeTitle] = useState<string | undefined>(undefined);
+  const [upgradeMessage, setUpgradeMessage] = useState<string | undefined>(undefined);
   const location = useLocation();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const canAccessSchoolAdmin = user?.accountType === 'school' && user.schoolAccess?.role === 'admin';
+
+  const openLoginModal = (mode: 'login' | 'signup', title?: string, message?: string) => {
+    setLoginDefaultMode(mode);
+    setLoginTitle(title);
+    setLoginMessage(message);
+    setShowLogin(true);
+  };
+
+  useEffect(() => {
+    const onAuthPrompt = (event: Event) => {
+      const detail = (event as CustomEvent<AuthPromptDetail>).detail;
+      if (!detail) return;
+
+      if (detail.kind === 'upgrade-ai') {
+        if (user?.accountType === 'free') {
+          setUpgradeTitle(detail.title);
+          setUpgradeMessage(detail.message);
+          setShowUpgrade(true);
+          return;
+        }
+        openLoginModal('signup', detail.title, detail.message);
+        return;
+      }
+
+      if (detail.kind === 'signup-free') {
+        openLoginModal('signup', detail.title, detail.message);
+        return;
+      }
+
+      openLoginModal('login', detail.title, detail.message);
+    };
+
+    window.addEventListener(AUTH_PROMPT_EVENT, onAuthPrompt as EventListener);
+    return () => {
+      window.removeEventListener(AUTH_PROMPT_EVENT, onAuthPrompt as EventListener);
+    };
+  }, [user?.accountType]);
   
   const navItems = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
@@ -122,6 +171,13 @@ const Navbar: React.FC = () => {
                         >
                           <User size={16} className="mr-2 text-brand-blue" /> My Profile
                         </SafeLink>
+                        <SafeLink
+                          to="/change-plan"
+                          onClick={() => setShowUserMenu(false)}
+                          className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
+                        >
+                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Plan
+                        </SafeLink>
                         <SafeLink 
                           to="/games" 
                           state={{ view: 'library' }}
@@ -138,6 +194,15 @@ const Navbar: React.FC = () => {
                         >
                           <FileText size={16} className="mr-2 text-brand-blue" /> My Saved Worksheets
                         </SafeLink>
+                        {canAccessSchoolAdmin && (
+                          <SafeLink
+                            to="/school-admin"
+                            onClick={() => setShowUserMenu(false)}
+                            className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
+                          >
+                            <Building2 size={16} className="mr-2 text-brand-blue" /> School Admin
+                          </SafeLink>
+                        )}
                         <button 
                           onClick={() => { logout(); setShowUserMenu(false); }}
                           className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center"
@@ -150,7 +215,7 @@ const Navbar: React.FC = () => {
                 </div>
               ) : (
                 <button 
-                  onClick={() => setShowLogin(true)}
+                  onClick={() => openLoginModal('login')}
                   className="text-slate-500 hover:text-brand-accent transition-colors"
                 >
                   <div className="bg-slate-100 p-2 rounded-full hover:bg-sky-50 hover:text-sky-600 transition-colors flex items-center gap-2 px-4">
@@ -207,17 +272,33 @@ const Navbar: React.FC = () => {
                     <SafeLink to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Profile
                     </SafeLink>
+                    <SafeLink to="/change-plan" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
+                        Change Plan
+                    </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games
                     </SafeLink>
                     <SafeLink to="/worksheets" state={{ tab: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Worksheets
                     </SafeLink>
-                    <button onClick={logout} className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
+                    {canAccessSchoolAdmin && (
+                      <SafeLink to="/school-admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
+                        School Admin
+                      </SafeLink>
+                    )}
+                    <button
+                      onClick={() => {
+                        setIsOpen(false);
+                        void logout();
+                      }}
+                      className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50"
+                    >
+                      Sign Out
+                    </button>
                   </>
                 ) : (
                   <button 
-                    onClick={() => { setShowLogin(true); setIsOpen(false); }}
+                    onClick={() => { openLoginModal('login'); setIsOpen(false); }}
                     className="w-full text-left px-3 py-2 text-slate-600 font-medium hover:text-sky-600"
                   >
                     Login / Sign Up
@@ -229,7 +310,19 @@ const Navbar: React.FC = () => {
       )}
     </nav>
 
-    <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+    <LoginModal
+      isOpen={showLogin}
+      onClose={() => setShowLogin(false)}
+      defaultMode={loginDefaultMode}
+      titleOverride={loginTitle}
+      messageOverride={loginMessage}
+    />
+    <PlanUpgradeModal
+      isOpen={showUpgrade}
+      onClose={() => setShowUpgrade(false)}
+      title={upgradeTitle}
+      message={upgradeMessage}
+    />
     </>
   );
 };

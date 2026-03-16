@@ -15,6 +15,7 @@ import { Avatar } from '../components/Avatar';
 import { StockImagePicker, StockImageSelection } from '../components/worksheet/StockImagePicker';
 import { searchStockImages } from '../services/stockImageService';
 import { generateWordSearchPuzzle } from '../utils/wordsearchGenerator';
+import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
 // --- TIPTAP EDITOR STYLESHEET ---
 const TIPTAP_EDITOR_CSS = `
@@ -1996,7 +1997,12 @@ const WorksheetBuilder: React.FC<{
         }
 
         if (!user) {
-            alert("Please log in to use AI generation.");
+            promptSignupForFree('Create a free account to create and save worksheets.');
+            return;
+        }
+
+        if (user.accountType === 'free') {
+            promptUpgradeForAi('Worksheet AI generation is available on Teacher and School plans.');
             return;
         }
 
@@ -2160,7 +2166,12 @@ const WorksheetBuilder: React.FC<{
 
     const requestAiBlocksForActivity = async (rawActivity: ActivityConfig): Promise<WorksheetBlock[]> => {
         if (!user) {
-            throw new Error("Please log in to use AI generation.");
+            promptSignupForFree('Create a free account to continue.');
+            throw new Error("Please sign up for a free account to continue.");
+        }
+        if (user.accountType === 'free') {
+            promptUpgradeForAi('AI block generation is available on Teacher and School plans.');
+            throw new Error("Upgrade required: AI block generation is not included in the Free plan.");
         }
 
         const activity: ActivityConfig = normalizeActivityForAi({
@@ -2454,7 +2465,10 @@ const WorksheetBuilder: React.FC<{
     };
 
     const handleSave = (docOverride?: WorksheetDesignerDocV1) => {
-        if (!user) { alert("Please log in to save."); return; }
+        if (!user) {
+            promptSignupForFree('Create a free account to save worksheets to your library.');
+            return;
+        }
         if (!generatedWs) return;
         const finalWs = {
             ...generatedWs,
@@ -2558,7 +2572,10 @@ const WorksheetBuilder: React.FC<{
     const handleHeightChange = useCallback((height: number) => setContentHeight(height), []);
 
     const handleVisibilityToggle = () => {
-        if (!user) { alert("Please log in to share."); return; }
+        if (!user) {
+            promptSignupForFree('Create a free account to publish worksheets to the community.');
+            return;
+        }
         setIsPublic(!isPublic);
     };
 

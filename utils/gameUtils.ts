@@ -334,6 +334,7 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 
 export const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 let hasLoggedMissingPlayCountColumn = false;
+let hasLoggedMissingPlayEventRpc = false;
 
 export const getGameShareUrl = (id: string) => {
     const base = (import.meta as any).env?.BASE_URL || '/';
@@ -674,6 +675,23 @@ export const getSharedWorksheet = async (id: string): Promise<GeneratedWorksheet
 
 export const recordGamePlay = async (gameId?: string): Promise<void> => {
     if (!gameId || !isUUID(gameId)) return;
+
+    // Record per-user play event (for school analytics dashboards).
+    const { error: eventRpcError } = await supabase.rpc('record_game_play_event', { p_game_id: gameId });
+    if (eventRpcError) {
+        const eventRpcMessage = String((eventRpcError as any)?.message || '').toLowerCase();
+        const eventRpcCode = String((eventRpcError as any)?.code || '');
+        const isExpectedEventFallback =
+            eventRpcMessage.includes('record_game_play_event') ||
+            eventRpcMessage.includes('could not find the function') ||
+            eventRpcCode === 'PGRST202' ||
+            eventRpcCode === '42883';
+
+        if (!isExpectedEventFallback && !hasLoggedMissingPlayEventRpc) {
+            console.warn("Play-event tracking RPC failed:", eventRpcError);
+            hasLoggedMissingPlayEventRpc = true;
+        }
+    }
 
     // Preferred path: atomic DB-side increment via RPC
     const { error: rpcError } = await supabase.rpc('increment_game_play', { p_game_id: gameId });

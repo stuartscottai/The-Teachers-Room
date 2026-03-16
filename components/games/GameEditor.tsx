@@ -12,6 +12,7 @@ import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
 import { Avatar } from '../Avatar';
 import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { promptSignupForFree } from '../../services/accountAccess';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -221,7 +222,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return null;
         }
         if (!user) {
-            alert('Please log in to save games to your profile.');
+            promptSignupForFree('Create a free account to save games to your profile.');
             return null;
         }
         setSaveStatus('saving');
@@ -304,7 +305,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     const handleVisibilityToggle = () => {
         if (!user) {
-            alert("Guests cannot publish games to the community. Please log in to share your creation!");
+            promptSignupForFree('Create a free account to publish games to the community.');
             return;
         }
         if (!isPublic && editedGame.sourceGameId && !hasEdits) {
@@ -341,7 +342,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return;
         }
         if (!user) {
-            alert("Please log in to share games.");
+            promptSignupForFree('Create a free account to share games.');
             return;
         }
 

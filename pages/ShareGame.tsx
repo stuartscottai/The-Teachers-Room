@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { getGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, saveGameToLibrary } from '../utils/gameUtils';
+import { getGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
 import { GamePreview } from '../components/games/GamePreview';
@@ -91,7 +91,14 @@ export const ShareGame: React.FC = () => {
     };
   }, [step]);
 
+  const trackStartedGame = (targetGame?: GeneratedGame | null) => {
+    const gameIdToTrack = targetGame?.sourceGameId || targetGame?.id;
+    if (!gameIdToTrack) return;
+    void recordGamePlay(gameIdToTrack);
+  };
+
   const handleGameStart = (options: GameRunOptions) => {
+    trackStartedGame(sessionGame || game);
     setPlayOptions(options);
     setStep('play');
   };
@@ -149,6 +156,7 @@ export const ShareGame: React.FC = () => {
         strictMode: false,
         muted: false,
       });
+      trackStartedGame(gameToPlay);
       setStep('play');
     } else if (gameToPlay.config.type === GameType.STOP_THE_FIRE) {
       setPlayOptions({
@@ -160,6 +168,7 @@ export const ShareGame: React.FC = () => {
         stopTheFireCategoryCount: 10,
         stopTheFireDifficulty: 'beginner',
       });
+      trackStartedGame(gameToPlay);
       setStep('play');
     } else if (gameToPlay.config.type === GameType.SURVEY_SHOWDOWN) {
       setPlayOptions({
@@ -214,6 +223,7 @@ export const ShareGame: React.FC = () => {
   };
 
   const handleReplay = () => {
+    trackStartedGame(sessionGame || game);
     setPlayKey((prev) => prev + 1);
   };
 
@@ -231,7 +241,7 @@ export const ShareGame: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-lg max-w-lg w-full p-8 text-center">
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Sign in to view this shared game</h1>
           <p className="text-slate-500 mb-6">
-            Shared games are available to registered teachers. Create a free account to continue.
+            Shared games are available to registered users. Create a free account to continue.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
@@ -338,6 +348,7 @@ export const ShareGame: React.FC = () => {
               strictMode: false,
               muted: false,
             });
+            trackStartedGame(updated);
             setStep('play');
           } else if (updated.config.type === GameType.STOP_THE_FIRE) {
             setPlayOptions({
@@ -349,6 +360,7 @@ export const ShareGame: React.FC = () => {
               stopTheFireCategoryCount: 10,
               stopTheFireDifficulty: 'beginner',
             });
+            trackStartedGame(updated);
             setStep('play');
           } else if (updated.config.type === GameType.SURVEY_SHOWDOWN) {
             setPlayOptions({

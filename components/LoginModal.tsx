@@ -1,23 +1,42 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultMode?: 'login' | 'signup';
+  titleOverride?: string;
+  messageOverride?: string;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  defaultMode = 'login',
+  titleOverride,
+  messageOverride
+}) => {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [hasSchoolCode, setHasSchoolCode] = useState(false);
+  const [schoolCode, setSchoolCode] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const { login, signup } = useAuth();
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsLogin(defaultMode !== 'signup');
+    setError(null);
+    setHasSchoolCode(false);
+    setSchoolCode('');
+  }, [defaultMode, isOpen]);
 
   if (!isOpen) return null;
 
@@ -36,7 +55,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 setLoading(false);
                 return;
             }
-            const { error } = await signup(email, password, name);
+            const cleanSchoolCode = hasSchoolCode ? schoolCode.trim().toUpperCase() : '';
+            const { error } = await signup(email, password, name, cleanSchoolCode || undefined);
             if (error) throw error;
         }
         onClose();
@@ -63,10 +83,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
               <LogIn className="text-slate-900" size={24} />
             </div>
             <h2 className="font-display text-2xl font-bold text-slate-800">
-              {isLogin ? 'Welcome Back' : 'Join the Community'}
+              {titleOverride || (isLogin ? 'Welcome Back' : 'Join the Community')}
             </h2>
             <p className="text-slate-500 text-sm mt-1">
-              {isLogin ? 'Login to access your saved games' : 'Create an account to start saving'}
+              {messageOverride || (isLogin ? 'Login to access your saved games' : 'Create an account to start saving')}
             </p>
           </div>
           
@@ -124,6 +144,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 </button>
               </div>
             </div>
+
+            {!isLogin && (
+              <div className="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                <label className="inline-flex items-center text-sm font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={hasSchoolCode}
+                    onChange={(e) => setHasSchoolCode(e.target.checked)}
+                    className="mr-2 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                  />
+                  I have a school code
+                </label>
+                {hasSchoolCode && (
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      value={schoolCode}
+                      onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
+                      className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none font-mono tracking-wide"
+                      placeholder="Enter school code"
+                    />
+                    <p className="mt-2 text-xs text-slate-500">
+                      Your request will be pending until a school admin approves it.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <button 
               type="submit"

@@ -5,6 +5,7 @@ import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent, WizardSuggestion } from '../../services/geminiService';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
+import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
 
 interface AiAssistantChatProps {
     onClose: () => void;
@@ -119,7 +120,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         if (e) e.preventDefault();
         if (!input.trim()) return;
         if (!user) {
-            alert("Please log in to use AI generation.");
+            promptSignupForFree('Create a free account to use classroom tools and save progress.');
+            return;
+        }
+        if (user.accountType === 'free') {
+            promptUpgradeForAi('The AI Assistant is available on Teacher and School plans.');
             return;
         }
 
@@ -166,7 +171,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
 
     const handleCreateGame = async (suggestion: WizardSuggestion) => {
         if (!user) {
-            alert("Please log in to use AI generation.");
+            promptSignupForFree('Create a free account to start creating and saving games.');
+            return;
+        }
+        if (user.accountType === 'free') {
+            promptUpgradeForAi('AI game generation is available on Teacher and School plans.');
             return;
         }
         setIsGenerating(true);

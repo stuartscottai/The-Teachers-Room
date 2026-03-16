@@ -2,13 +2,22 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabase';
+import {
+  ensureProfileRow,
+  getMyEntitlements,
+  normalizeAccountType,
+  requestSchoolJoinWithCode
+} from '../services/accountAccess';
+
+const PENDING_SCHOOL_CODE_STORAGE_KEY = 'teachers-room:pending-school-code';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signup: (email: string, password: string, name: string) => Promise<{ error: any }>;
-  logout: () => void;
+  signup: (email: string, password: string, name: string, schoolCode?: string) => Promise<{ error: any }>;
+  logout: () => Promise<void>;
   updateUserProfile: (updates: { name?: string; avatarUrl?: string | null }) => Promise<{ error: any }>;
+  refreshUserAccess: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -17,6 +26,84 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const redirectToHome = () => {
+    if (typeof window === 'undefined') return;
+    if (window.location.hash !== '#/') {
+      window.location.hash = '/';
+    }
+  };
+
+  const createBaseUser = (authUser: any): User => {
+    const accountType = normalizeAccountType(authUser?.user_metadata?.account_type);
+    return {
+      id: authUser.id,
+      email: authUser.email || '',
+      name: authUser.user_metadata?.full_name || 'Teacher',
+      avatar: authUser.user_metadata?.avatar_url || undefined,
+      accountType,
+      canUseAi: accountType === 'teacher' || accountType === 'school',
+      schoolAccess: null
+    };
+  };
+
+  const normalizeSchoolCode = (value: unknown) => {
+    if (typeof value !== 'string') return '';
+    return value.trim().toUpperCase();
+  };
+
+  const hydrateUserAccess = async (authUser: any) => {
+    if (!authUser) {
+      setUser(null);
+      return;
+    }
+
+    const baseUser = createBaseUser(authUser);
+    setUser(baseUser);
+
+    try {
+      await ensureProfileRow({
+        userId: authUser.id,
+        fullName: baseUser.name,
+        avatarUrl: baseUser.avatar || null
+      });
+      if (typeof window !== 'undefined') {
+        const pendingCodeFromStorage = normalizeSchoolCode(window.localStorage.getItem(PENDING_SCHOOL_CODE_STORAGE_KEY));
+        const pendingCodeFromMetadata = normalizeSchoolCode(authUser?.user_metadata?.pending_school_code);
+        const pendingCode = pendingCodeFromStorage || pendingCodeFromMetadata;
+
+        if (pendingCode) {
+          const joinResult = await requestSchoolJoinWithCode(pendingCode);
+          if (!joinResult.error) {
+            window.localStorage.removeItem(PENDING_SCHOOL_CODE_STORAGE_KEY);
+            if (pendingCodeFromMetadata) {
+              const nextMeta = {
+                ...(authUser.user_metadata || {}),
+                pending_school_code: null
+              };
+              try {
+                await supabase.auth.updateUser({ data: nextMeta });
+              } catch {
+                // Ignore metadata cleanup errors; request already succeeded.
+              }
+            }
+          } else {
+            console.warn('Failed to submit pending school code request:', joinResult.error.message);
+          }
+        }
+      }
+      const entitlements = await getMyEntitlements(authUser.id);
+
+      setUser((prev) => {
+        if (!prev || prev.id !== authUser.id) {
+          return { ...baseUser, ...entitlements };
+        }
+        return { ...prev, ...entitlements };
+      });
+    } catch (error) {
+      console.warn('Failed to hydrate account entitlements:', error);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -30,12 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.full_name || 'Teacher',
-            avatar: session.user.user_metadata?.avatar_url || undefined
-          });
+          await hydrateUserAccess(session.user);
         }
       } catch (authError) {
         await supabase.auth.signOut();
@@ -47,16 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || 'Teacher',
-          avatar: session.user.user_metadata?.avatar_url || undefined
-        });
+        void hydrateUserAccess(session.user);
       } else {
         setUser(null);
+        if (event === 'SIGNED_OUT') {
+          redirectToHome();
+        }
       }
       setIsLoading(false);
     });
@@ -75,22 +155,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const signup = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signup = async (email: string, password: string, name: string, schoolCode?: string) => {
+    const cleanSchoolCode = normalizeSchoolCode(schoolCode);
+    const signupMeta: Record<string, any> = {
+      full_name: name,
+      account_type: 'free'
+    };
+    if (cleanSchoolCode) {
+      signupMeta.pending_school_code = cleanSchoolCode;
+    }
+
+    const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-            data: {
-                full_name: name
-            }
+            data: signupMeta
         }
     });
+
+    if (!error && data?.user) {
+      await ensureProfileRow({
+        userId: data.user.id,
+        fullName: name,
+        avatarUrl: null,
+        accountType: 'free'
+      });
+
+      if (cleanSchoolCode) {
+        if (data.session?.user) {
+          const joinResult = await requestSchoolJoinWithCode(cleanSchoolCode);
+          if (joinResult.error) {
+            if (typeof window !== 'undefined') {
+              window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
+            }
+            return {
+              error: new Error(
+                `Account created, but school join request failed: ${joinResult.error.message}`
+              )
+            };
+          }
+
+          const nextMeta = {
+            ...(data.user.user_metadata || {}),
+            pending_school_code: null
+          };
+          try {
+            await supabase.auth.updateUser({ data: nextMeta });
+          } catch {
+            // Ignore metadata cleanup errors; join request already exists.
+          }
+        } else if (typeof window !== 'undefined') {
+          window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
+        }
+      }
+    }
     return { error };
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+      redirectToHome();
+    }
+  };
+
+  const refreshUserAccess = async () => {
+    const userId = user?.id;
+    if (!userId) return;
+    try {
+      const entitlements = await getMyEntitlements(userId);
+      setUser((prev) => (prev ? { ...prev, ...entitlements } : prev));
+    } catch (error) {
+      console.warn('Failed to refresh user access:', error);
+    }
   };
 
   const updateUserProfile = async (updates: { name?: string; avatarUrl?: string | null }) => {
@@ -131,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUserProfile, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, updateUserProfile, refreshUserAccess, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

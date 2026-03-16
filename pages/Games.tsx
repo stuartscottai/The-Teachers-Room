@@ -6,6 +6,7 @@ import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Bee
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
 // Import Modular Components
 import { JeopardyGame } from '../components/games/JeopardyGame';
@@ -1245,6 +1246,10 @@ export const Games: React.FC = () => {
     }, []);
 
     const handleSelect = (type: GameType) => {
+        if (!user) {
+            promptSignupForFree('Create a free account to start creating games.');
+            return;
+        }
         setSelectedType(type);
         setGeneratedGame(null);
         setSessionGame(null);
@@ -1253,6 +1258,10 @@ export const Games: React.FC = () => {
     };
 
     const handleModeSelect = (mode: 'ai' | 'manual' | 'bank') => {
+        if (mode === 'ai' && user?.accountType === 'free') {
+            promptUpgradeForAi('AI game generation is available on Teacher and School plans.');
+            return;
+        }
         setCreationMode(mode);
         setStep('config');
     };
@@ -1324,6 +1333,10 @@ export const Games: React.FC = () => {
     };
 
     const handleLoadPersonalGame = (game: GeneratedGame) => {
+        if (!user) {
+            promptSignupForFree('Create a free account to use saved game features.');
+            return;
+        }
         setGeneratedGame(game);
         setSessionGame(null);
         setSelectedType(game.config.type);
@@ -1333,6 +1346,10 @@ export const Games: React.FC = () => {
     };
 
     const handleLoadCommunityGame = (game: GeneratedGame) => {
+        if (!user) {
+            promptSignupForFree('Create a free account to copy and play community games.');
+            return;
+        }
         // Strip ID to treat as template (avoid overwriting public game or confusing local store)
         // Also ensure visibility is reset to private for the remixer
         const safeGame = { 
@@ -1389,6 +1406,10 @@ export const Games: React.FC = () => {
 
     const handlePreviewSave = async () => {
         if (!generatedGame) return;
+        if (!user) {
+            promptSignupForFree('Create a free account to save games to your library.');
+            return;
+        }
         const savedGame = await persistPreviewGame(generatedGame);
         if (!savedGame) return;
         alert(hubTab === 'community' ? 'Game saved to your library.' : 'Game saved.');
@@ -1408,7 +1429,7 @@ export const Games: React.FC = () => {
         }
 
         if (!user) {
-            alert('Please log in to share games.');
+            promptSignupForFree('Create a free account to share games with colleagues.');
             return;
         }
 
@@ -1609,7 +1630,17 @@ export const Games: React.FC = () => {
                     initialTab={hubTab}
                     onLoadCommunityGame={handleLoadCommunityGame}
                     onLoadPersonalGame={handleLoadPersonalGame}
-                    onOpenAiAssistant={() => setIsAssistantOpen(true)}
+                    onOpenAiAssistant={() => {
+                        if (!user) {
+                            promptSignupForFree('Create a free account to use the AI Assistant.');
+                            return;
+                        }
+                        if (user.accountType === 'free') {
+                            promptUpgradeForAi('The AI Assistant is available on Teacher and School plans.');
+                            return;
+                        }
+                        setIsAssistantOpen(true);
+                    }}
                     initialCommunityAuthorFilter={communitySeedAuthorFilter}
                     initialCommunitySearch={communitySeedSearch}
                 />

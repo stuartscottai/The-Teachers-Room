@@ -6,6 +6,7 @@ import { processFile } from '../../utils/gameUtils';
 import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
+import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
@@ -380,11 +381,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             alert("Please enter a Game Title!");
             return;
         }
+
+        if (!user) {
+            promptSignupForFree('Create a free account to create games and save your work.');
+            return;
+        }
         
         // AI MODE
         if (mode === 'ai') {
-            if (!user) {
-                alert("Please log in to use AI generation.");
+            if (user.accountType === 'free') {
+                promptUpgradeForAi('Free accounts can create games manually, but AI game generation requires Teacher or School.');
                 return;
             }
             if (type === GameType.STOP_THE_FIRE) {

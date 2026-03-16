@@ -3,6 +3,7 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 import { supabase } from "./supabase";
+import { getMyEntitlements } from "./accountAccess";
 
 export type WizardSuggestion = Partial<GameConfig> & {
   type: GameType;
@@ -42,6 +43,14 @@ const getRequiredAccessToken = async () => {
   const accessToken = data.session?.access_token;
   if (!accessToken) {
     throw new Error('Please log in to use AI generation.');
+  }
+
+  const userId = data.session?.user?.id;
+  if (userId) {
+    const entitlements = await getMyEntitlements(userId);
+    if (!entitlements.canUseAi) {
+      throw new Error('AI generation is not included in the Free plan. Upgrade to Teacher or School.');
+    }
   }
 
   return accessToken;

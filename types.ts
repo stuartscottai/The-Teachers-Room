@@ -261,9 +261,21 @@ export interface BlogPost {
   image: string;
 }
 
+export type AccountType = 'free' | 'teacher' | 'school';
+export type SchoolRole = 'admin' | 'teacher';
+
+export interface UserSchoolAccess {
+  schoolId: string;
+  schoolName: string;
+  role: SchoolRole;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   avatar?: string;
+  accountType: AccountType;
+  canUseAi: boolean;
+  schoolAccess: UserSchoolAccess | null;
 }

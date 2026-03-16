@@ -9,10 +9,12 @@ import { Pricing, Info, Contact, Legal } from './pages/InfoPages';
 import { Blog } from './pages/Blog';
 import { BlogPostPage } from './pages/BlogPost';
 import { Profile } from './pages/Profile';
+import { ChangePlan } from './pages/ChangePlan';
 import { TestBench } from './pages/TestBench';
 import { ShareGame } from './pages/ShareGame';
 import { AuthProvider } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
+import { SchoolAdmin } from './pages/SchoolAdmin';
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -47,6 +49,8 @@ const App: React.FC = () => {
               <Route path="/terms" element={<Legal type="terms" />} />
               <Route path="/privacy" element={<Legal type="privacy" />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/change-plan" element={<ChangePlan />} />
+              <Route path="/school-admin" element={<SchoolAdmin />} />
               <Route path="/test" element={<TestBench />} />
               <Route path="/share/game/:id" element={<ShareGame />} />
             </Routes>

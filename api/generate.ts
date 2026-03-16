@@ -29,6 +29,12 @@ const supabaseAdminClient = SUPABASE_SERVICE_ROLE_KEY
     })
   : null;
 
+const normalizeAccountType = (value: unknown): 'free' | 'teacher' | 'school' => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'teacher' || normalized === 'school') return normalized;
+  return 'free';
+};
+
 const getHeaderValue = (value: unknown): string => {
   if (Array.isArray(value)) return String(value[0] || '').trim();
   return typeof value === 'string' ? value.trim() : '';
@@ -205,6 +211,21 @@ const authenticateRequestUser = async (req: any) => {
   }
 
   return data.user;
+};
+
+const resolveAccountTypeForUser = async (user: any): Promise<'free' | 'teacher' | 'school'> => {
+  const metadataType = normalizeAccountType(user?.user_metadata?.account_type);
+  if (metadataType !== 'free') return metadataType;
+  if (!supabaseAdminClient || !user?.id) return metadataType;
+
+  const { data } = await supabaseAdminClient
+    .from('profiles')
+    .select('account_type')
+    .eq('id', user.id)
+    .maybeSingle()
+    .catch(() => ({ data: null }));
+
+  return normalizeAccountType((data as any)?.account_type);
 };
 
 const recordUsageEvent = async (payload: Record<string, any>) => {
@@ -425,6 +446,7 @@ export default async function handler(req: any, res: any) {
   let requestBody: any = req.body || {};
   let requestAction = String(requestBody?.action || '');
   let authenticatedUser: any = null;
+  let resolvedAccountType: 'free' | 'teacher' | 'school' = 'free';
   let usageSnapshot: any = null;
   let usageLogged = false;
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -465,7 +487,10 @@ export default async function handler(req: any, res: any) {
       response_id: usageSnapshot.responseId || null,
       model_version: usageSnapshot.modelVersion || null,
       error_message: errorMessage || null,
-      meta: buildUsageMeta(requestBody)
+      meta: {
+        ...buildUsageMeta(requestBody),
+        accountType: resolvedAccountType
+      }
     });
   };
 
@@ -490,6 +515,24 @@ export default async function handler(req: any, res: any) {
     authenticatedUser = await authenticateRequestUser(req);
     if (!authenticatedUser) {
       return sendJson(401, { error: 'Please log in to use AI generation.' });
+    }
+    resolvedAccountType = await resolveAccountTypeForUser(authenticatedUser);
+    if (resolvedAccountType === 'free') {
+      usageSnapshot = {
+        model: DEFAULT_MODEL,
+        promptTokens: 0,
+        outputTokens: 0,
+        thoughtsTokens: 0,
+        totalTokens: 0,
+        estimatedCostUsd: 0,
+        responseId: null,
+        modelVersion: null
+      };
+      return sendJson(403, {
+        error: 'AI generation is not included in the Free plan. Upgrade to Teacher or School.',
+        code: 'AI_NOT_INCLUDED_IN_FREE',
+        accountType: resolvedAccountType
+      });
     }
 
     // 2. Initialize AI Client safely inside the request
