@@ -408,6 +408,124 @@ export const SchoolAdmin: React.FC = () => {
     setOpenActionsForUserId(null);
   };
 
+  const renderUsageBadges = (teacher: SchoolTeacherSummary) => (
+    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+      <span
+        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
+        title="This is the total number of games created by the user."
+      >
+        games created: <span className="font-bold text-slate-800">{teacher.totalGamesCreated}</span>
+      </span>
+      <span
+        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
+        title="This is the total number of times the user's created games have been played."
+      >
+        Created Playcount: <span className="font-bold text-slate-800">{teacher.totalGamePlays}</span>
+      </span>
+      <span
+        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
+        title="This is the total number of game sessions started by this user."
+      >
+        Games played: <span className="font-bold text-slate-800">{teacher.totalPlayEvents}</span>
+      </span>
+      <span
+        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
+        title="This is the total number of successful AI generations by this user."
+      >
+        AI Gens: <span className="font-bold text-slate-800">{teacher.totalAiGenerations}</span>
+      </span>
+    </div>
+  );
+
+  const renderTeacherActions = (teacher: SchoolTeacherSummary) => (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          closeActionsMenu();
+          handleViewTeacherGames(teacher);
+        }}
+        className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
+      >
+        <Gamepad2 size={13} className="mr-1.5" />
+        View Games
+      </button>
+
+      {teacher.status === 'active' ? (
+        <button
+          type="button"
+          disabled={updatingActivityUserId === teacher.userId}
+          onClick={() => {
+            closeActionsMenu();
+            void handleSetMemberActivity(teacher, false);
+          }}
+          className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+        >
+          <Ban size={13} className="mr-1.5" />
+          {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Inactive'}
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={updatingActivityUserId === teacher.userId}
+          onClick={() => {
+            closeActionsMenu();
+            void handleSetMemberActivity(teacher, true);
+          }}
+          className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+        >
+          <CheckCircle2 size={13} className="mr-1.5" />
+          {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Active'}
+        </button>
+      )}
+
+      {teacher.role === 'teacher' && (
+        <button
+          type="button"
+          disabled={updatingRoleUserId === teacher.userId}
+          onClick={() => {
+            closeActionsMenu();
+            void handleSetTeacherRole(teacher, 'admin');
+          }}
+          className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
+        >
+          <Shield size={13} className="mr-1.5" />
+          {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Grant Admin'}
+        </button>
+      )}
+
+      {teacher.role === 'admin' && !teacher.isOwner && (
+        <button
+          type="button"
+          disabled={updatingRoleUserId === teacher.userId}
+          onClick={() => {
+            closeActionsMenu();
+            void handleSetTeacherRole(teacher, 'teacher');
+          }}
+          className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+        >
+          <Shield size={13} className="mr-1.5" />
+          {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Remove Admin'}
+        </button>
+      )}
+
+      {!teacher.isOwner && (
+        <button
+          type="button"
+          onClick={() => {
+            closeActionsMenu();
+            void handleRemoveTeacher(teacher.userId);
+          }}
+          className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-red-700 hover:bg-red-50"
+          title="Remove teacher"
+        >
+          <Trash2 size={13} className="mr-1.5" />
+          Remove Teacher
+        </button>
+      )}
+    </>
+  );
+
   useEffect(() => {
     if (!openActionsForUserId) return;
 
@@ -711,21 +829,14 @@ export const SchoolAdmin: React.FC = () => {
               <RefreshCw size={15} className="animate-spin mr-2" /> Loading teacher directory...
             </div>
           ) : (
-            <div className="overflow-visible">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-500">
-                    <th className="py-2 pr-4">Teacher</th>
-                    <th className="py-2 pr-4">Usage Activity</th>
-                    <th className="py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teachers.map((teacher) => (
-                    <tr key={teacher.userId} className="border-t border-slate-100">
-                      <td className="py-3 pr-4">
+            <>
+              <div className="space-y-3 md:hidden">
+                {teachers.map((teacher) => (
+                  <article key={teacher.userId} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <div className="font-semibold text-slate-800">{teacher.fullName}</div>
-                        <div className="text-xs text-slate-500">{teacher.email || teacher.userId}</div>
+                        <div className="text-xs text-slate-500 break-all">{teacher.email || teacher.userId}</div>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                             {teacher.role}
@@ -745,151 +856,119 @@ export const SchoolAdmin: React.FC = () => {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                          <span
-                            className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-                            title="This is the total number of games created by the user."
-                          >
-                            games created: <span className="font-bold text-slate-800">{teacher.totalGamesCreated}</span>
-                          </span>
-                          <span
-                            className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-                            title="This is the total number of times the user’s created games have been played."
-                          >
-                            Created Playcount: <span className="font-bold text-slate-800">{teacher.totalGamePlays}</span>
-                          </span>
-                          <span
-                            className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-                            title="This is the total number of game sessions started by this user."
-                          >
-                            Games played: <span className="font-bold text-slate-800">{teacher.totalPlayEvents}</span>
-                          </span>
-                          <span
-                            className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-                            title="This is the total number of successful AI generations by this user."
-                          >
-                            AI Gens: <span className="font-bold text-slate-800">{teacher.totalAiGenerations}</span>
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          Last Seen: {formatDateTime(teacher.lastActivityAt)}
-                        </div>
-                      </td>
-                      <td className="py-3 relative">
+                      </div>
+                      <div className="relative shrink-0">
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             toggleActionsMenu(teacher.userId);
                           }}
-                          className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                          className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                         >
                           Actions
-                          <ChevronDown size={13} className="ml-1.5" />
+                          <ChevronDown
+                            size={13}
+                            className={`ml-1.5 transition-transform ${
+                              openActionsForUserId === teacher.userId ? 'rotate-180' : ''
+                            }`}
+                          />
                         </button>
                         {openActionsForUserId === teacher.userId && (
                           <div
-                            className="absolute right-0 mt-2 z-20 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 space-y-1"
+                            className="absolute right-0 top-full mt-1 z-20 w-52 max-w-[calc(100vw-6rem)] rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 space-y-1"
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                closeActionsMenu();
-                                handleViewTeacherGames(teacher);
-                              }}
-                              className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
-                            >
-                              <Gamepad2 size={13} className="mr-1.5" />
-                              View Games
-                            </button>
-
-                            {teacher.status === 'active' ? (
-                              <button
-                                type="button"
-                                disabled={updatingActivityUserId === teacher.userId}
-                                onClick={() => {
-                                  closeActionsMenu();
-                                  void handleSetMemberActivity(teacher, false);
-                                }}
-                                className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                              >
-                                <Ban size={13} className="mr-1.5" />
-                                {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Inactive'}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={updatingActivityUserId === teacher.userId}
-                                onClick={() => {
-                                  closeActionsMenu();
-                                  void handleSetMemberActivity(teacher, true);
-                                }}
-                                className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
-                              >
-                                <CheckCircle2 size={13} className="mr-1.5" />
-                                {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Active'}
-                              </button>
-                            )}
-
-                            {teacher.role === 'teacher' && (
-                              <button
-                                type="button"
-                                disabled={updatingRoleUserId === teacher.userId}
-                                onClick={() => {
-                                  closeActionsMenu();
-                                  void handleSetTeacherRole(teacher, 'admin');
-                                }}
-                                className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
-                              >
-                                <Shield size={13} className="mr-1.5" />
-                                {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Grant Admin'}
-                              </button>
-                            )}
-
-                            {teacher.role === 'admin' && !teacher.isOwner && (
-                              <button
-                                type="button"
-                                disabled={updatingRoleUserId === teacher.userId}
-                                onClick={() => {
-                                  closeActionsMenu();
-                                  void handleSetTeacherRole(teacher, 'teacher');
-                                }}
-                                className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
-                              >
-                                <Shield size={13} className="mr-1.5" />
-                                {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Remove Admin'}
-                              </button>
-                            )}
-
-                            {!teacher.isOwner && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  closeActionsMenu();
-                                  void handleRemoveTeacher(teacher.userId);
-                                }}
-                                className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-red-700 hover:bg-red-50"
-                                title="Remove teacher"
-                              >
-                                <Trash2 size={13} className="mr-1.5" />
-                                Remove Teacher
-                              </button>
-                            )}
+                            {renderTeacherActions(teacher)}
                           </div>
                         )}
-                      </td>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">{renderUsageBadges(teacher)}</div>
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      Last Seen: {formatDateTime(teacher.lastActivityAt)}
+                    </div>
+                  </article>
+                ))}
+                {!teachers.length && <p className="text-sm text-slate-500 py-1">No teachers assigned yet.</p>}
+              </div>
+
+              <div className="hidden md:block overflow-visible">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-500">
+                      <th className="py-2 pr-4">Teacher</th>
+                      <th className="py-2 pr-4">Usage Activity</th>
+                      <th className="py-2">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!teachers.length && <p className="text-sm text-slate-500 py-3">No teachers assigned yet.</p>}
-            </div>
+                  </thead>
+                  <tbody>
+                    {teachers.map((teacher) => (
+                      <tr key={teacher.userId} className="border-t border-slate-100">
+                        <td className="py-3 pr-4">
+                          <div className="font-semibold text-slate-800">{teacher.fullName}</div>
+                          <div className="text-xs text-slate-500">{teacher.email || teacher.userId}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                              {teacher.role}
+                            </span>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                teacher.status === 'active'
+                                  ? 'bg-green-50 text-green-700'
+                                  : 'bg-slate-100 text-slate-600'
+                              }`}
+                            >
+                              {teacher.status}
+                            </span>
+                            {teacher.isOwner && (
+                              <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                                Owner
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          {renderUsageBadges(teacher)}
+                          <div className="text-[11px] text-slate-500 mt-1">
+                            Last Seen: {formatDateTime(teacher.lastActivityAt)}
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <div className="relative inline-block">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleActionsMenu(teacher.userId);
+                              }}
+                              className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                            >
+                              Actions
+                              <ChevronDown size={13} className="ml-1.5" />
+                            </button>
+                            {openActionsForUserId === teacher.userId && (
+                              <div
+                                className="absolute right-0 top-full mt-1 z-20 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 space-y-1"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                {renderTeacherActions(teacher)}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!teachers.length && <p className="text-sm text-slate-500 py-3">No teachers assigned yet.</p>}
+              </div>
+            </>
           )}
         </section>
       </div>
     </div>
   );
 };
+
