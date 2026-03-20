@@ -3,12 +3,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent, generateStopTheFireCategories } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
 import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
+import { SchoolStorageBrowser } from '../school/SchoolStorageBrowser';
+import { SchoolStorageFolder, ensureSchoolStorageCapacity, listSchoolStorageFolders, uploadSchoolStorageFile, uploadUploadedFileToSchoolStorage } from '../../services/schoolStorage';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
+const SOURCE_MAX_SIZE_BYTES = 4 * 1024 * 1024;
 const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
     [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
     [GameType.TRIVIA]: '/assets/games/trivia.png',
@@ -252,9 +256,54 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     
     // Files state separate from config until generation for cleaner updates
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const schoolId = user?.schoolAccess?.schoolId || '';
+    const canUseSchoolStorage = Boolean(user?.accountType === 'school' && schoolId);
+    const [schoolStorageFolders, setSchoolStorageFolders] = useState<SchoolStorageFolder[]>([]);
+    const [schoolStorageLoading, setSchoolStorageLoading] = useState(false);
+    const [schoolStorageBrowserOpen, setSchoolStorageBrowserOpen] = useState(false);
+    const [saveUploadsToSchoolStorage, setSaveUploadsToSchoolStorage] = useState(false);
+    const [schoolUploadFolderId, setSchoolUploadFolderId] = useState<string>('');
+    const [schoolStorageSavingUploads, setSchoolStorageSavingUploads] = useState(false);
 
     // For Survey Showdown custom prompts
     const [roundPrompts, setRoundPrompts] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (!canUseSchoolStorage) {
+            setSchoolStorageFolders([]);
+            setSaveUploadsToSchoolStorage(false);
+            setSchoolUploadFolderId('');
+            return;
+        }
+
+        let active = true;
+        const loadFolders = async () => {
+            setSchoolStorageLoading(true);
+            try {
+                const nextFolders = await listSchoolStorageFolders(schoolId);
+                if (!active) return;
+                setSchoolStorageFolders(nextFolders);
+            } catch (error) {
+                if (!active) return;
+                console.warn('Failed to load school storage folders:', error);
+                setSchoolStorageFolders([]);
+            } finally {
+                if (active) setSchoolStorageLoading(false);
+            }
+        };
+
+        void loadFolders();
+        return () => {
+            active = false;
+        };
+    }, [canUseSchoolStorage, schoolId]);
+
+    useEffect(() => {
+        const hasLocalUploads = uploadedFiles.some((file) => file.source !== 'school-storage');
+        if (!hasLocalUploads) {
+            setSaveUploadsToSchoolStorage(false);
+        }
+    }, [uploadedFiles]);
 
     useEffect(() => {
         if (type === GameType.SURVEY_SHOWDOWN) {
@@ -335,11 +384,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles: UploadedFile[] = [];
-            const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+            const rawFiles = Array.from(e.target.files);
+            const filesToSaveToSchool: Array<{ rawFile: File; uploadedFile: UploadedFile }> = [];
             
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i];
-                if (file.size > MAX_SIZE) {
+            for (let i = 0; i < rawFiles.length; i++) {
+                const file = rawFiles[i];
+                if (file.size > SOURCE_MAX_SIZE_BYTES) {
                     alert(`File "${file.name}" exceeds the 4MB limit.`);
                     continue;
                 }
@@ -349,12 +399,61 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 }
                 try {
                     const processed = await processFile(file);
-                    newFiles.push(processed);
+                    const nextUploadedFile: UploadedFile = {
+                        ...processed,
+                        source: 'upload',
+                        sizeBytes: file.size,
+                        savedToSchoolStorage: false,
+                    };
+                    newFiles.push(nextUploadedFile);
+                    if (saveUploadsToSchoolStorage && canUseSchoolStorage) {
+                        filesToSaveToSchool.push({ rawFile: file, uploadedFile: nextUploadedFile });
+                    }
                 } catch (err) {
                     console.error("Error reading file", err);
                     alert(`Failed to read file: ${file.name}`);
                 }
             }
+
+            if (filesToSaveToSchool.length > 0) {
+                try {
+                    await ensureSchoolStorageCapacity({
+                        schoolId,
+                        additionalBytes: filesToSaveToSchool.reduce(
+                            (sum, { rawFile }) => sum + Math.max(0, Number(rawFile.size || 0)),
+                            0
+                        ),
+                    });
+                    setSchoolStorageSavingUploads(true);
+                    const results = await Promise.allSettled(
+                        filesToSaveToSchool.map(({ rawFile }) =>
+                            uploadSchoolStorageFile({
+                                schoolId,
+                                folderId: schoolUploadFolderId || null,
+                                file: rawFile
+                            })
+                        )
+                    );
+                    results.forEach((result, index) => {
+                        if (result.status === 'fulfilled') {
+                            filesToSaveToSchool[index].uploadedFile.savedToSchoolStorage = true;
+                        }
+                    });
+                    const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+                    if (failures.length > 0) {
+                        setSaveUploadsToSchoolStorage(false);
+                        console.warn('Some files were not saved to school storage:', failures);
+                        alert('One or more files could not be saved to School Storage. They were still attached locally for this game.');
+                    }
+                } catch (err) {
+                    setSaveUploadsToSchoolStorage(false);
+                    const message = err instanceof Error ? err.message : 'School Storage is full.';
+                    alert(`${message} These files were still attached locally for this game.`);
+                } finally {
+                    setSchoolStorageSavingUploads(false);
+                }
+            }
+
             setUploadedFiles(prev => [...prev, ...newFiles]);
             // Reset input value to allow re-uploading same file if deleted
             e.target.value = '';
@@ -363,6 +462,79 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     const removeFile = (index: number) => {
         setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAttachSchoolFiles = (filesFromSchool: UploadedFile[]) => {
+        setUploadedFiles((prev) => [...prev, ...filesFromSchool].slice(0, 3));
+    };
+
+    const hasLocalUploads = uploadedFiles.some((file) => file.source !== 'school-storage');
+    const localUploadsPendingSchoolSave = uploadedFiles.filter(
+        (file) => file.source !== 'school-storage' && !file.savedToSchoolStorage
+    ).length;
+
+    const handleSaveUploadsToSchoolStorageChange = async (checked: boolean) => {
+        if (!checked) {
+            setSaveUploadsToSchoolStorage(false);
+            return;
+        }
+
+        const filesToPersist = uploadedFiles.filter(
+            (file) => file.source !== 'school-storage' && !file.savedToSchoolStorage
+        );
+
+        if (filesToPersist.length === 0) {
+            setSaveUploadsToSchoolStorage(true);
+            return;
+        }
+
+        try {
+            await ensureSchoolStorageCapacity({
+                schoolId,
+                additionalBytes: filesToPersist.reduce(
+                    (sum, file) => sum + Math.max(0, Number(file.sizeBytes || 0)),
+                    0
+                ),
+            });
+        } catch (err) {
+            setSaveUploadsToSchoolStorage(false);
+            alert(err instanceof Error ? err.message : 'School Storage is full.');
+            return;
+        }
+
+        setSchoolStorageSavingUploads(true);
+        const results = await Promise.allSettled(
+            filesToPersist.map((file) =>
+                uploadUploadedFileToSchoolStorage({
+                    schoolId,
+                    folderId: schoolUploadFolderId || null,
+                    uploadedFile: file,
+                })
+            )
+        );
+
+        const successfulFiles = filesToPersist.filter((_, index) => results[index].status === 'fulfilled');
+        if (successfulFiles.length > 0) {
+            setUploadedFiles((prev) =>
+                prev.map((file) =>
+                    successfulFiles.includes(file)
+                        ? { ...file, savedToSchoolStorage: true }
+                        : file
+                )
+            );
+        }
+
+        const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+        if (failures.length > 0) {
+            setSaveUploadsToSchoolStorage(false);
+            console.warn('Some existing uploads were not saved to school storage:', failures);
+            alert('One or more uploaded files could not be saved to School Storage. Please try again.');
+            setSchoolStorageSavingUploads(false);
+            return;
+        }
+
+        setSaveUploadsToSchoolStorage(true);
+        setSchoolStorageSavingUploads(false);
     };
 
     const openSourcePicker = () => {
@@ -1201,7 +1373,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 ref={sourceInputRef}
                                                 type="file"
                                                 multiple
-                                                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                accept={SOURCE_ACCEPT}
                                                 onChange={handleFileChange}
                                                 className="hidden"
                                             />
@@ -1224,6 +1396,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             >
                                                 {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />}
                                             </button>
+                                            {canUseSchoolStorage && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSchoolStorageBrowserOpen(true)}
+                                                    title="Browse School Storage"
+                                                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                                >
+                                                    <HardDrive size={16} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                     <textarea 
@@ -1232,9 +1414,57 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
-                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game.</p>
+                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. PDFs, Word docs, and images are supported.</p>
                                     {dictation.statusMessage && (
                                         <p className="mt-1 text-xs text-slate-500">{dictation.statusMessage}</p>
+                                    )}
+                                    {canUseSchoolStorage && hasLocalUploads && (
+                                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                            <div className="flex flex-wrap items-center gap-3 justify-between">
+                                                <label className="flex items-center gap-2 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={saveUploadsToSchoolStorage}
+                                                        onChange={(event) => void handleSaveUploadsToSchoolStorageChange(event.target.checked)}
+                                                        disabled={schoolStorageSavingUploads}
+                                                        className="h-4 w-4 rounded border-slate-300 text-brand-blue"
+                                                    />
+                                                    <span className="font-medium">
+                                                        {schoolStorageSavingUploads ? 'Saving uploads to School Storage...' : 'Save uploaded files to School Storage'}
+                                                    </span>
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSchoolStorageBrowserOpen(true)}
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue"
+                                                >
+                                                    <HardDrive size={14} /> Browse School Storage
+                                                </button>
+                                            </div>
+                                            <div className="mt-3">
+                                                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">
+                                                    School folder for new uploads
+                                                </label>
+                                                <select
+                                                    value={schoolUploadFolderId}
+                                                    onChange={(event) => setSchoolUploadFolderId(event.target.value)}
+                                                    disabled={schoolStorageLoading}
+                                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue disabled:opacity-60"
+                                                >
+                                                    <option value="">Root folder</option>
+                                                    {schoolStorageFolders.map((folder) => (
+                                                        <option key={folder.id} value={folder.id}>
+                                                            {folder.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <p className="mt-2 text-xs text-slate-500">
+                                                {localUploadsPendingSchoolSave > 0
+                                                    ? `${localUploadsPendingSchoolSave} uploaded file${localUploadsPendingSchoolSave === 1 ? '' : 's'} not yet saved to School Storage.`
+                                                    : 'Current uploaded files are already saved to School Storage.'}
+                                            </p>
+                                        </div>
                                     )}
                                     {uploadedFiles.length > 0 && (
                                         <div className="mt-3 space-y-2">
@@ -1242,7 +1472,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
                                                     <div className="flex items-center truncate">
                                                         <FileText size={16} className="text-slate-400 mr-2 flex-shrink-0" />
-                                                        <span className="text-sm text-slate-600 truncate max-w-[220px]">{file.name}</span>
+                                                        <span className="text-sm text-slate-600 truncate max-w-[220px]">
+                                                            {file.name}
+                                                            {file.source === 'school-storage' ? ' (school storage)' : ''}
+                                                        </span>
                                                     </div>
                                                     <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-1">
                                                         <X size={16} />
@@ -1271,6 +1504,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     </div>
                 </div>
             </div>
+            <SchoolStorageBrowser
+                isOpen={schoolStorageBrowserOpen}
+                schoolId={schoolId}
+                existingCount={uploadedFiles.length}
+                onAttach={handleAttachSchoolFiles}
+                onClose={() => setSchoolStorageBrowserOpen(false)}
+            />
         </div>
     );
 };

@@ -31,13 +31,15 @@
     "interactjs": "^1.10.27",
     "lucide-react": "0.300.0",
     "maath": "0.10.8",
+    "mammoth": "^1.12.0",
     "path": "^0.12.7",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-router-dom": "6.22.3",
     "three": "0.168.0",
     "three-stdlib": "2.30.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "word-extractor": "^1.0.4"
   },
   "devDependencies": {
     "@tailwindcss/aspect-ratio": "^0.4.2",

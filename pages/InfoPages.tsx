@@ -323,7 +323,7 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">from $49<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Unlimited AI for all school teachers', 'School-level teacher spot allocation', 'School admin dashboard', 'Shared school resource management'].map(item => (
+              {['Unlimited AI for all school teachers', 'School-level teacher spot allocation', 'School admin dashboard', 'Shared school resource management', '100 MB shared school storage'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
                   <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>

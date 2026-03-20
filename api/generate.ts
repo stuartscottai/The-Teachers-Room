@@ -2,6 +2,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import mammoth from "mammoth";
+import WordExtractor from "word-extractor";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -18,6 +20,26 @@ const TOKEN_PRICING = {
   outputStandard: 2.5,
   outputLarge: 15.0
 };
+const MAX_EXTRACTED_TEXT_CHARS = 150_000;
+const DOCX_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+const DOC_MIME_TYPES = new Set([
+  'application/msword',
+]);
+const WORD_MIME_TYPES = new Set([
+  ...DOC_MIME_TYPES,
+  ...DOCX_MIME_TYPES,
+]);
+const TEXT_MIME_TYPES = new Set([
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'text/html',
+  'application/xml',
+  'text/xml',
+]);
+const wordExtractor = new WordExtractor();
 
 const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -114,6 +136,150 @@ const buildUsageMeta = (body: any) => {
 
 const hasAudioFiles = (config: any) =>
   Array.isArray(config?.files) && config.files.some((file: any) => typeof file?.mimeType === 'string' && file.mimeType.startsWith('audio/'));
+
+const asText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+
+const resolveIncomingFileMimeType = (file: any) => {
+  const explicit = asText(file?.mimeType);
+  if (explicit) return explicit;
+
+  const name = asText(file?.name).toLowerCase();
+  if (name.endsWith('.pdf')) return 'application/pdf';
+  if (name.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (name.endsWith('.doc')) return 'application/msword';
+  if (name.endsWith('.png')) return 'image/png';
+  if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+  if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.txt')) return 'text/plain';
+  if (name.endsWith('.md')) return 'text/markdown';
+  if (name.endsWith('.csv')) return 'text/csv';
+  if (name.endsWith('.html') || name.endsWith('.htm')) return 'text/html';
+  if (name.endsWith('.xml')) return 'application/xml';
+  return 'application/octet-stream';
+};
+
+const isTextMimeType = (mimeType: string) => TEXT_MIME_TYPES.has(mimeType);
+
+const isDocxMimeType = (mimeType: string, fileName?: string) =>
+  DOCX_MIME_TYPES.has(mimeType) || (fileName || '').toLowerCase().endsWith('.docx');
+
+const isLegacyWordMimeType = (mimeType: string, fileName?: string) =>
+  DOC_MIME_TYPES.has(mimeType) || (fileName || '').toLowerCase().endsWith('.doc');
+
+const isWordMimeType = (mimeType: string, fileName?: string) =>
+  WORD_MIME_TYPES.has(mimeType) ||
+  isDocxMimeType(mimeType, fileName) ||
+  isLegacyWordMimeType(mimeType, fileName);
+
+const decodeBase64ToBuffer = (data: string) => Buffer.from(data, 'base64');
+
+const trimExtractedText = (value: string) => {
+  const cleaned = String(value || '')
+    .replace(/\u0000/g, '')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return cleaned.length > MAX_EXTRACTED_TEXT_CHARS
+    ? `${cleaned.slice(0, MAX_EXTRACTED_TEXT_CHARS).trim()}\n\n[Truncated]`
+    : cleaned;
+};
+
+const extractTextFromSourceFile = async (file: any): Promise<string | null> => {
+  const mimeType = resolveIncomingFileMimeType(file);
+  const data = asText(file?.data);
+  const fileName = asText(file?.name) || 'document';
+  if (!data) return null;
+
+  const buffer = decodeBase64ToBuffer(data);
+
+  if (isDocxMimeType(mimeType, fileName)) {
+    const extracted = await mammoth.extractRawText({ buffer });
+    const text = trimExtractedText(extracted?.value || '');
+    return text || null;
+  }
+
+  if (isLegacyWordMimeType(mimeType, fileName)) {
+    const extracted = await wordExtractor.extract(buffer);
+    const segments = [
+      extracted.getHeaders?.({ includeFooters: false }) || '',
+      extracted.getBody?.() || '',
+      extracted.getFootnotes?.() || '',
+      extracted.getEndnotes?.() || '',
+      extracted.getFooters?.() || '',
+      extracted.getTextboxes?.({ includeBody: true, includeHeadersAndFooters: true }) || '',
+    ]
+      .map((segment) => trimExtractedText(segment))
+      .filter(Boolean);
+
+    return segments.length ? trimExtractedText(segments.join('\n\n')) : null;
+  }
+
+  if (isTextMimeType(mimeType)) {
+    return trimExtractedText(buffer.toString('utf8'));
+  }
+
+  return null;
+};
+
+const buildSourceFileParts = async (files: any[] | undefined) => {
+  if (!Array.isArray(files) || !files.length) return [];
+
+  const parts: any[] = [];
+
+  for (const file of files) {
+    const mimeType = resolveIncomingFileMimeType(file);
+    const name = asText(file?.name) || 'document';
+    const data = asText(file?.data);
+    const isWordSource = isWordMimeType(mimeType, name);
+    if (!data) continue;
+
+    if (mimeType.startsWith('image/') || mimeType.startsWith('audio/') || mimeType === 'application/pdf') {
+      parts.push({
+        inlineData: {
+          mimeType,
+          data,
+        },
+      });
+      continue;
+    }
+
+    try {
+      const extractedText = await extractTextFromSourceFile({ ...file, mimeType, name, data });
+      if (extractedText) {
+        parts.push({
+          text: `Source document: ${name}\n\n${extractedText}`,
+        });
+        continue;
+      }
+    } catch (error) {
+      if (isWordSource) {
+        console.error(`Failed to extract text from Word source file "${name}".`, error);
+        throw new Error(`The Word document "${name}" could not be read for AI context. Please save it as a standard .docx or PDF and try again.`);
+      }
+      console.warn(`Failed to extract text from source file "${name}", falling back to binary prompt part.`, error);
+    }
+
+    if (isWordSource) {
+      throw new Error(`The Word document "${name}" did not contain readable text for AI context. Please save it as a standard .docx or PDF and try again.`);
+    }
+
+    parts.push({
+      inlineData: {
+        mimeType,
+        data,
+      },
+    });
+  }
+
+  return parts;
+};
+
+const SOURCE_MATERIAL_STYLE_RULES = `
+When source files are provided, use them only as background knowledge.
+Do NOT write phrases like "according to the text", "according to the notes", "the document states", "the passage says", "the provided material", or similar.
+Do NOT mention attached files, notes, documents, passages, or source material in the student-facing output unless the user explicitly asked for that.
+Write all questions, prompts, explanations, and worksheet text as standalone classroom content.
+`;
 
 const countTokensSafe = async (ai: GoogleGenAI, model: string, contents: any) => {
   try {
@@ -218,12 +384,17 @@ const resolveAccountTypeForUser = async (user: any): Promise<'free' | 'teacher' 
   if (metadataType !== 'free') return metadataType;
   if (!supabaseAdminClient || !user?.id) return metadataType;
 
-  const { data } = await supabaseAdminClient
-    .from('profiles')
-    .select('account_type')
-    .eq('id', user.id)
-    .maybeSingle()
-    .catch(() => ({ data: null }));
+  let data: { account_type?: unknown } | null = null;
+  try {
+    const response = await supabaseAdminClient
+      .from('profiles')
+      .select('account_type')
+      .eq('id', user.id)
+      .maybeSingle();
+    data = (response?.data as { account_type?: unknown } | null) || null;
+  } catch {
+    data = null;
+  }
 
   return normalizeAccountType((data as any)?.account_type);
 };
@@ -570,6 +741,7 @@ Create a list of short, attainable categories for a Scattergories-style word gam
 Categories must be easy for most people to answer without specialist knowledge.
 Avoid niche trivia, advanced academic topics, or obscure references.
 If files are provided, base the categories on the material in those files.
+${SOURCE_MATERIAL_STYLE_RULES}
 
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON.
@@ -588,17 +760,9 @@ Topic: ${config?.topic || "General"}.
 Return JSON: { "categories": ["..."] }
 `;
 
-      const parts: any[] = [];
-      if (config?.files && config.files.length > 0) {
-        config.files.forEach((file: any) => {
-          parts.push({
-            inlineData: {
-              mimeType: file.mimeType,
-              data: file.data
-            }
-          });
-        });
-        prompt = `IMPORTANT: Analyze the attached files and create categories based on their content.\n\n` + prompt;
+      const parts: any[] = await buildSourceFileParts(config?.files);
+      if (parts.length > 0) {
+        prompt = `IMPORTANT: Use the attached files as background knowledge for the categories. Do not mention the files, notes, text, document, or source material in the category wording.\n\n` + prompt;
       }
 
       parts.push({ text: prompt });
@@ -649,7 +813,8 @@ Return JSON: { "categories": ["..."] }
       const systemInstruction = `You are an expert educational content creator. 
       Create a structured game based on the following parameters.
       
-      If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
+      If the user provides source files (images/PDFs/Word docs), analyze them thoroughly and base ALL questions/content on that material.
+      ${SOURCE_MATERIAL_STYLE_RULES}
 
       IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
       CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse option A. Use an equal balance across A/B/C/D (or however many options are used).
@@ -946,17 +1111,9 @@ Return JSON: { "categories": ["..."] }
       }
 
       // Handle Files
-      const parts: any[] = [];
-      if (config.files && config.files.length > 0) {
-          config.files.forEach((file: any) => {
-              parts.push({
-                  inlineData: {
-                      mimeType: file.mimeType,
-                      data: file.data
-                  }
-              });
-          });
-          prompt = `IMPORTANT: Analyze the attached files thoroughly. Create the game content based specifically on the information found in these documents.\n\n` + prompt;
+      const parts: any[] = await buildSourceFileParts(config.files);
+      if (parts.length > 0) {
+          prompt = `IMPORTANT: Use the attached files as background knowledge for the game content. Do not mention the files, notes, document, passage, text, or source material in the wording of questions, answers, clues, or explanations unless the user explicitly asked for that style.\n\n` + prompt;
       }
       parts.push({ text: prompt });
 
@@ -1256,11 +1413,13 @@ ${gapFillEmbedInStory
 Only include fields for the requested blocks. Do not include extra fields.
 
 If source files are attached, base requested content on those documents instead of inventing unrelated facts.
+Do not refer to the documents, notes, text, passage, attached files, or source material in the student-facing worksheet content unless the user explicitly asked for that.
        `;
 
        const systemInstruction = `You are an expert teacher generating worksheet PARTS for a drag-and-drop worksheet designer.
 
 Return ONLY valid JSON that matches the provided schema (no markdown).
+${SOURCE_MATERIAL_STYLE_RULES}
 
 RULES:
 1. Only include fields for the requested blocks. Omit all other fields.
@@ -1281,17 +1440,9 @@ RULES:
        `;
 
        // Handle Files
-       const parts: any[] = [];
-       if (config.files && config.files.length > 0) {
-           config.files.forEach((file: any) => {
-               parts.push({
-                   inlineData: {
-                       mimeType: file.mimeType,
-                       data: file.data
-                   }
-               });
-           });
-           prompt = `IMPORTANT: Analyze the attached files thoroughly. Create the worksheet content based specifically on the information found in these documents.\n\n` + prompt;
+       const parts: any[] = await buildSourceFileParts(config.files);
+       if (parts.length > 0) {
+           prompt = `IMPORTANT: Use the attached files as background knowledge for the worksheet content. Do not mention the files, notes, document, passage, text, or source material in the worksheet wording unless the user explicitly asked for that style.\n\n` + prompt;
        }
        parts.push({ text: prompt });
 

@@ -2,6 +2,7 @@
 import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile, User } from "../types";
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
+import mammoth from "mammoth";
 
 // --- ASSET HELPERS ---
 export const resolvePath = (path: string) => {
@@ -22,7 +23,55 @@ export const resolvePath = (path: string) => {
 };
 
 // --- FILE HELPERS ---
+const inferSourceMimeType = (file: File) => {
+    const explicit = typeof file.type === 'string' ? file.type.trim() : '';
+    if (explicit) return explicit;
+
+    const name = (file.name || '').toLowerCase();
+    if (name.endsWith('.pdf')) return 'application/pdf';
+    if (name.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (name.endsWith('.doc')) return 'application/msword';
+    if (name.endsWith('.png')) return 'image/png';
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+    if (name.endsWith('.webp')) return 'image/webp';
+    if (name.endsWith('.txt')) return 'text/plain';
+    if (name.endsWith('.md')) return 'text/markdown';
+    if (name.endsWith('.csv')) return 'text/csv';
+    if (name.endsWith('.html') || name.endsWith('.htm')) return 'text/html';
+    if (name.endsWith('.xml')) return 'application/xml';
+    return 'application/octet-stream';
+};
+
+const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const toBase64FromText = (value: string) => {
+    const bytes = new TextEncoder().encode(value);
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 1) {
+        binary += String.fromCharCode(bytes[index]);
+    }
+    return btoa(binary);
+};
+
 export const processFile = (file: File): Promise<UploadedFile> => {
+    const mimeType = inferSourceMimeType(file);
+    if (mimeType === DOCX_MIME_TYPE) {
+        return file
+            .arrayBuffer()
+            .then((arrayBuffer) => mammoth.extractRawText({ arrayBuffer }))
+            .then((result) => {
+                const extractedText = String(result?.value || '').trim();
+                if (!extractedText) {
+                    throw new Error('This Word document does not contain readable text.');
+                }
+                return {
+                    name: file.name,
+                    mimeType: 'text/plain',
+                    data: toBase64FromText(extractedText),
+                };
+            });
+    }
+
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -31,7 +80,7 @@ export const processFile = (file: File): Promise<UploadedFile> => {
             const data = result.split(',')[1]; 
             resolve({
                 name: file.name,
-                mimeType: file.type,
+                mimeType,
                 data: data
             });
         };
@@ -368,6 +417,19 @@ export const prepareGameForLibrarySave = (
     };
 };
 
+const sanitizeStoredConfig = <T extends Record<string, any> | undefined | null>(config: T, isPublic?: boolean): T => {
+    if (!config || typeof config !== 'object') {
+        return (config || {}) as T;
+    }
+
+    const next: Record<string, any> = { ...config };
+    delete next.files;
+    if (typeof isPublic === 'boolean') {
+        next.isPublic = isPublic;
+    }
+    return next as T;
+};
+
 // Helper to retrieve local games (Guest Mode)
 export const getLocalGames = (): GeneratedGame[] => {
     try {
@@ -414,8 +476,8 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
                 : [];
         const configWithBank =
             stopTheFireCategories.length > 0
-                ? { ...game.config, stopTheFireCategories }
-                : game.config;
+                ? { ...sanitizeStoredConfig(game.config), stopTheFireCategories }
+                : sanitizeStoredConfig(game.config);
         // Prepare payload with top-level is_public column
         const payload: any = {
             user_id: userId,
@@ -470,7 +532,7 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
             playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
             // Sync isPublic from column to config object for consistency
-            config: { ...d.config, isPublic: d.is_public },
+            config: sanitizeStoredConfig(d.config, d.is_public),
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
             pubQuizRounds: d.pub_quiz_rounds,
@@ -539,7 +601,7 @@ export const getCommunityGames = async (
             authorName: d.author_name,
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
             playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
-            config: { ...d.config, isPublic: d.is_public },
+            config: sanitizeStoredConfig(d.config, d.is_public),
             questions: d.questions,
             jeopardyBoard: d.jeopardy_board,
             pubQuizRounds: d.pub_quiz_rounds,
@@ -564,7 +626,7 @@ export const getTrendingGames = async (
         authorName: d.author_name,
         authorAvatar: d.author_avatar || d.config?.authorAvatar,
         playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
-        config: { ...d.config, isPublic: d.is_public },
+        config: sanitizeStoredConfig(d.config, d.is_public),
         questions: d.questions,
         jeopardyBoard: d.jeopardy_board,
         pubQuizRounds: d.pub_quiz_rounds,
@@ -630,7 +692,7 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
             authorName: data.author_name,
             authorAvatar: data.author_avatar || data.config?.authorAvatar,
             playCount: Number(data.play_count ?? data.config?.playCount ?? 0),
-            config: { ...data.config, isPublic: data.is_public },
+            config: sanitizeStoredConfig(data.config, data.is_public),
             questions: data.questions,
             jeopardyBoard: data.jeopardy_board,
             pubQuizRounds: data.pub_quiz_rounds,
@@ -662,7 +724,7 @@ export const getSharedWorksheet = async (id: string): Promise<GeneratedWorksheet
             authorId: data.user_id,
             authorName: data.author_name,
             authorAvatar: data.author_avatar || data.config?.authorAvatar,
-            config: { ...data.config, isPublic: data.is_public },
+            config: sanitizeStoredConfig(data.config, data.is_public),
             content: data.content,
             type: data.type,
             createdAt: data.created_at
@@ -888,7 +950,7 @@ export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, user
         const payload: any = {
             user_id: userId,
             title: worksheet.title,
-            config: worksheet.config,
+            config: sanitizeStoredConfig(worksheet.config),
             content: worksheet.content,
             type: worksheet.type,
             is_public: worksheet.config?.isPublic || false,
@@ -937,7 +999,7 @@ export const getSavedWorksheets = async (userId?: string): Promise<GeneratedWork
             authorId: d.user_id,
             authorName: d.author_name,
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
-            config: { ...d.config, isPublic: d.is_public },
+            config: sanitizeStoredConfig(d.config, d.is_public),
             content: d.content,
             type: d.type,
             createdAt: d.created_at
@@ -994,7 +1056,7 @@ export const getCommunityWorksheets = async (
             authorId: d.user_id,
             authorName: d.author_name,
             authorAvatar: d.author_avatar || d.config?.authorAvatar,
-            config: { ...d.config, isPublic: d.is_public },
+            config: sanitizeStoredConfig(d.config, d.is_public),
             content: d.content,
             type: d.type,
             createdAt: d.created_at

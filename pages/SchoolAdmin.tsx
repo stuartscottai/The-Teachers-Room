@@ -25,6 +25,7 @@ import {
   SchoolTeacherSpotSummary,
   SchoolTeacherSummary
 } from '../services/accountAccess';
+import { SchoolStorageManager } from '../components/school/SchoolStorageManager';
 import { resolveSchoolLogoForSchool } from '../utils/schoolLogoStorage';
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
@@ -818,6 +819,8 @@ export const SchoolAdmin: React.FC = () => {
             </div>
           </section>
         </div>
+
+        <SchoolStorageManager schoolId={schoolId} />
 
         <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">

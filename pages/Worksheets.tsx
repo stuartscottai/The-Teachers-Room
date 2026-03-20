@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List, GraduationCap } from 'lucide-react';
+import { FileText, Printer, Sparkles, LayoutTemplate, Save, BookOpen, ArrowLeft, Trash2, LogIn, Check, Edit, Minus, Plus, GripVertical, X, Scissors, Undo, Redo, ChevronDown, ChevronRight, ChevronUp, ZoomIn, ZoomOut, Search, Globe, Library, Copy, SortAsc, RefreshCw, AlertTriangle, Paperclip, Image as ImageIcon, Bold, Italic, Underline, Type, AlignLeft, AlignCenter, AlignRight, Palette, Download, ChevronLeft, ImagePlus, List, GraduationCap, HardDrive } from 'lucide-react';
 import { WorksheetConfig, GeneratedWorksheet, ActivityType, ActivityConfig, UploadedFile } from '../types';
 import { generateWorksheetContent } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,11 @@ import { StockImagePicker, StockImageSelection } from '../components/worksheet/S
 import { searchStockImages } from '../services/stockImageService';
 import { generateWordSearchPuzzle } from '../utils/wordsearchGenerator';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
+import { SchoolStorageBrowser } from '../components/school/SchoolStorageBrowser';
+import { SchoolStorageFolder, ensureSchoolStorageCapacity, listSchoolStorageFolders, uploadSchoolStorageFile } from '../services/schoolStorage';
+
+const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
+const SOURCE_MAX_SIZE_BYTES = 4 * 1024 * 1024;
 
 // --- TIPTAP EDITOR STYLESHEET ---
 const TIPTAP_EDITOR_CSS = `
@@ -738,6 +743,13 @@ const WorksheetBuilder: React.FC<{
     const [historyTimeout, setHistoryTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
     const [isPublic, setIsPublic] = useState(true);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const schoolId = user?.schoolAccess?.schoolId || '';
+    const canUseSchoolStorage = Boolean(user?.accountType === 'school' && schoolId);
+    const [schoolStorageFolders, setSchoolStorageFolders] = useState<SchoolStorageFolder[]>([]);
+    const [schoolStorageLoading, setSchoolStorageLoading] = useState(false);
+    const [schoolStorageBrowserOpen, setSchoolStorageBrowserOpen] = useState(false);
+    const [saveUploadsToSchoolStorage, setSaveUploadsToSchoolStorage] = useState(false);
+    const [schoolUploadFolderId, setSchoolUploadFolderId] = useState('');
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [mobileTab, setMobileTab] = useState<'config' | 'canvas' | 'tools'>('config');
     const [isMobile, setIsMobile] = useState(false);
@@ -753,6 +765,36 @@ const WorksheetBuilder: React.FC<{
     const [appendAddType, setAppendAddType] = useState<ActivityType>('multiple-choice');
     const [appendLoading, setAppendLoading] = useState(false);
     const hasGenerated = Boolean(generatedWs?.content?.trim());
+
+    useEffect(() => {
+        if (!canUseSchoolStorage) {
+            setSchoolStorageFolders([]);
+            setSaveUploadsToSchoolStorage(false);
+            setSchoolUploadFolderId('');
+            return;
+        }
+
+        let active = true;
+        const loadFolders = async () => {
+            setSchoolStorageLoading(true);
+            try {
+                const nextFolders = await listSchoolStorageFolders(schoolId);
+                if (!active) return;
+                setSchoolStorageFolders(nextFolders);
+            } catch (error) {
+                if (!active) return;
+                console.warn('Failed to load school storage folders:', error);
+                setSchoolStorageFolders([]);
+            } finally {
+                if (active) setSchoolStorageLoading(false);
+            }
+        };
+
+        void loadFolders();
+        return () => {
+            active = false;
+        };
+    }, [canUseSchoolStorage, schoolId]);
 
     // --- NEW DESIGNER STATE ---
     const [pages, setPages] = useState<WorksheetDesignerPage[]>(() => createEmptyDoc().pages);
@@ -1488,11 +1530,12 @@ const WorksheetBuilder: React.FC<{
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const newFiles: UploadedFile[] = [];
-            const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+            const rawFiles = Array.from(e.target.files);
+            const filesToSaveToSchool: File[] = [];
             
-            for (let i = 0; i < e.target.files.length; i++) {
-                const file = e.target.files[i];
-                if (file.size > MAX_SIZE) {
+            for (let i = 0; i < rawFiles.length; i++) {
+                const file = rawFiles[i];
+                if (file.size > SOURCE_MAX_SIZE_BYTES) {
                     alert(`File "${file.name}" exceeds the 4MB limit.`);
                     continue;
                 }
@@ -1503,11 +1546,46 @@ const WorksheetBuilder: React.FC<{
                 try {
                     const processed = await processFile(file);
                     newFiles.push(processed);
+                    if (saveUploadsToSchoolStorage && canUseSchoolStorage) {
+                        filesToSaveToSchool.push(file);
+                    }
                 } catch (err) {
                     console.error("Error reading file", err);
                     alert(`Failed to read file: ${file.name}`);
                 }
             }
+
+            if (filesToSaveToSchool.length > 0) {
+                try {
+                    await ensureSchoolStorageCapacity({
+                        schoolId,
+                        additionalBytes: filesToSaveToSchool.reduce(
+                            (sum, file) => sum + Math.max(0, Number(file.size || 0)),
+                            0
+                        ),
+                    });
+                    const results = await Promise.allSettled(
+                        filesToSaveToSchool.map((file) =>
+                            uploadSchoolStorageFile({
+                                schoolId,
+                                folderId: schoolUploadFolderId || null,
+                                file
+                            })
+                        )
+                    );
+                    const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+                    if (failures.length > 0) {
+                        setSaveUploadsToSchoolStorage(false);
+                        console.warn('Some files were not saved to school storage:', failures);
+                        alert('One or more files could not be saved to School Storage. They were still attached locally for this worksheet.');
+                    }
+                } catch (err) {
+                    setSaveUploadsToSchoolStorage(false);
+                    const message = err instanceof Error ? err.message : 'School Storage is full.';
+                    alert(`${message} These files were still attached locally for this worksheet.`);
+                }
+            }
+
             setUploadedFiles(prev => [...prev, ...newFiles]);
             e.target.value = '';
         }
@@ -1515,6 +1593,10 @@ const WorksheetBuilder: React.FC<{
 
     const removeFile = (index: number) => {
         setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAttachSchoolFiles = (filesFromSchool: UploadedFile[]) => {
+        setUploadedFiles((prev) => [...prev, ...filesFromSchool].slice(0, 3));
     };
 
     // Activity Management
@@ -3355,14 +3437,57 @@ const WorksheetBuilder: React.FC<{
                         <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center">
                             <Paperclip size={14} className="mr-1 text-teal-600" /> Source Material
                         </label>
-                        <p className="text-[10px] text-slate-500 mb-2">Upload PDFs/Images (Max 3, 4MB each).</p>
+                        <p className="text-[10px] text-slate-500 mb-2">Upload PDFs, Word docs, or images (Max 3, 4MB each).</p>
                         
                         <div className="space-y-2">
+                            {canUseSchoolStorage && (
+                                <div className="rounded-lg border border-slate-200 bg-white p-2.5">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <label className="flex items-center gap-2 text-[11px] font-semibold text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={saveUploadsToSchoolStorage}
+                                                onChange={(event) => setSaveUploadsToSchoolStorage(event.target.checked)}
+                                                className="h-4 w-4 rounded border-slate-300 text-teal-600"
+                                            />
+                                            <span>Save new uploads to School Storage</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSchoolStorageBrowserOpen(true)}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700 hover:border-teal-500 hover:text-teal-600"
+                                        >
+                                            <HardDrive size={13} /> Browse School Storage
+                                        </button>
+                                    </div>
+                                    <div className="mt-2">
+                                        <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
+                                            School folder for new uploads
+                                        </label>
+                                        <select
+                                            value={schoolUploadFolderId}
+                                            onChange={(event) => setSchoolUploadFolderId(event.target.value)}
+                                            disabled={schoolStorageLoading}
+                                            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 outline-none focus:border-teal-500 disabled:opacity-60"
+                                        >
+                                            <option value="">Root folder</option>
+                                            {schoolStorageFolders.map((folder) => (
+                                                <option key={folder.id} value={folder.id}>
+                                                    {folder.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                             {uploadedFiles.map((file, idx) => (
                                 <div key={idx} className="flex items-center justify-between bg-white p-1.5 rounded border border-slate-200 text-xs">
                                     <div className="flex items-center truncate">
                                         <FileText size={12} className="text-slate-400 mr-1.5 flex-shrink-0" />
-                                        <span className="text-slate-600 truncate max-w-[150px]">{file.name}</span>
+                                        <span className="text-slate-600 truncate max-w-[150px]">
+                                            {file.name}
+                                            {file.source === 'school-storage' ? ' (school storage)' : ''}
+                                        </span>
                                     </div>
                                     <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-0.5">
                                         <X size={14} />
@@ -3372,7 +3497,7 @@ const WorksheetBuilder: React.FC<{
                             
                             {uploadedFiles.length < 3 && (
                                 <label className="flex items-center justify-center p-2 border-2 border-dashed border-slate-300 rounded hover:border-teal-500 hover:bg-white cursor-pointer transition-colors text-slate-500 font-bold text-[10px]">
-                                    <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={handleFileChange} className="hidden" />
+                                    <input type="file" multiple accept={SOURCE_ACCEPT} onChange={handleFileChange} className="hidden" />
                                     <Plus size={12} className="mr-1" /> Add Document
                                 </label>
                             )}
@@ -3741,6 +3866,13 @@ const WorksheetBuilder: React.FC<{
                     }}
                 />
             </div>
+            <SchoolStorageBrowser
+                isOpen={schoolStorageBrowserOpen}
+                schoolId={schoolId}
+                existingCount={uploadedFiles.length}
+                onAttach={handleAttachSchoolFiles}
+                onClose={() => setSchoolStorageBrowserOpen(false)}
+            />
         </div>
     );
 };

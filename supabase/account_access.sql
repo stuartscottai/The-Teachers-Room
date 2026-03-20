@@ -162,6 +162,27 @@ create table if not exists public.centre_invites (
   accepted_at timestamptz
 );
 
+create table if not exists public.school_storage_folders (
+  id uuid primary key default gen_random_uuid(),
+  school_id uuid not null references public.schools (id) on delete cascade,
+  parent_id uuid references public.school_storage_folders (id),
+  name text not null,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create table if not exists public.school_storage_files (
+  id uuid primary key default gen_random_uuid(),
+  school_id uuid not null references public.schools (id) on delete cascade,
+  folder_id uuid references public.school_storage_folders (id),
+  file_name text not null,
+  mime_type text not null,
+  size_bytes bigint not null default 0 check (size_bytes >= 0),
+  storage_path text not null unique,
+  created_by uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 create index if not exists school_memberships_school_idx on public.school_memberships (school_id, status, role);
 create index if not exists school_memberships_user_idx on public.school_memberships (user_id, status);
 create index if not exists school_centres_school_idx on public.school_centres (school_id);
@@ -169,6 +190,15 @@ create index if not exists centre_memberships_centre_idx on public.centre_member
 create index if not exists centre_memberships_user_idx on public.centre_memberships (user_id, status);
 create index if not exists centre_invites_school_idx on public.centre_invites (school_id, status);
 create index if not exists centre_invites_email_idx on public.centre_invites (lower(email), status);
+create index if not exists school_storage_folders_school_idx on public.school_storage_folders (school_id, parent_id, created_at);
+create unique index if not exists school_storage_folders_unique_name_idx
+  on public.school_storage_folders (
+    school_id,
+    coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    lower(name)
+  );
+create index if not exists school_storage_files_school_idx on public.school_storage_files (school_id, folder_id, created_at desc);
+create index if not exists school_storage_files_folder_idx on public.school_storage_files (folder_id, created_at desc);
 create unique index if not exists schools_join_code_idx on public.schools (join_code);
 
 do $$
@@ -365,6 +395,22 @@ as $$
     where sm.school_id = p_school_id
       and sm.user_id = auth.uid()
       and sm.role = 'admin'
+      and sm.status = 'active'
+  );
+$$;
+
+create or replace function public.current_user_has_active_school_membership(p_school_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.school_memberships sm
+    where sm.school_id = p_school_id
+      and sm.user_id = auth.uid()
       and sm.status = 'active'
   );
 $$;
@@ -725,6 +771,127 @@ begin
   return v_school_id_text::uuid;
 end;
 $$;
+
+create or replace function public.school_id_from_school_storage_object_name(p_object_name text)
+returns uuid
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_school_id_text text;
+begin
+  if p_object_name is null then
+    return null;
+  end if;
+
+  if split_part(p_object_name, '/', 1) <> 'schools' then
+    return null;
+  end if;
+
+  v_school_id_text := split_part(p_object_name, '/', 2);
+  if v_school_id_text is null
+    or v_school_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    return null;
+  end if;
+
+  return v_school_id_text::uuid;
+end;
+$$;
+
+create or replace function public.validate_school_storage_folder_row()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_parent_school_id uuid;
+begin
+  if new.parent_id is null then
+    return new;
+  end if;
+
+  select f.school_id
+    into v_parent_school_id
+  from public.school_storage_folders f
+  where f.id = new.parent_id;
+
+  if v_parent_school_id is null then
+    raise exception 'Parent folder not found';
+  end if;
+
+  if v_parent_school_id <> new.school_id then
+    raise exception 'Parent folder must belong to the same school';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_validate_school_storage_folder_row on public.school_storage_folders;
+create trigger trg_validate_school_storage_folder_row
+before insert or update of parent_id, school_id on public.school_storage_folders
+for each row
+execute function public.validate_school_storage_folder_row();
+
+create or replace function public.validate_school_storage_file_row()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_folder_school_id uuid;
+  v_school_usage_bytes bigint := 0;
+  v_previous_usage_bytes bigint := 0;
+  v_storage_limit_bytes bigint := 104857600;
+begin
+  if new.size_bytes is null or new.size_bytes < 0 then
+    raise exception 'Invalid file size';
+  end if;
+
+  if new.folder_id is not null then
+    select f.school_id
+      into v_folder_school_id
+    from public.school_storage_folders f
+    where f.id = new.folder_id;
+
+    if v_folder_school_id is null then
+      raise exception 'Target folder not found';
+    end if;
+
+    if v_folder_school_id <> new.school_id then
+      raise exception 'Files can only be stored in folders from the same school';
+    end if;
+  end if;
+
+  select coalesce(sum(f.size_bytes), 0)
+    into v_school_usage_bytes
+  from public.school_storage_files f
+  where f.school_id = new.school_id
+    and f.id <> coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid);
+
+  if tg_op = 'UPDATE' and old.school_id = new.school_id then
+    v_previous_usage_bytes := v_school_usage_bytes + coalesce(old.size_bytes, 0);
+    if v_school_usage_bytes + coalesce(new.size_bytes, 0) > v_storage_limit_bytes
+       and v_school_usage_bytes + coalesce(new.size_bytes, 0) > v_previous_usage_bytes then
+      raise exception 'School Storage is limited to 100 MB. Remove some files before uploading more.';
+    end if;
+  elsif v_school_usage_bytes + coalesce(new.size_bytes, 0) > v_storage_limit_bytes then
+    raise exception 'School Storage is limited to 100 MB. Remove some files before uploading more.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_validate_school_storage_file_row on public.school_storage_files;
+create trigger trg_validate_school_storage_file_row
+before insert or update of folder_id, school_id, size_bytes on public.school_storage_files
+for each row
+execute function public.validate_school_storage_file_row();
 
 -- Claim invites automatically for logged-in user email.
 create or replace function public.claim_my_school_invites()
@@ -2186,6 +2353,7 @@ $$;
 
 -- Grants for RPC usage
 grant execute on function public.current_user_is_school_admin(uuid) to authenticated;
+grant execute on function public.current_user_has_active_school_membership(uuid) to authenticated;
 grant execute on function public.generate_school_join_code() to authenticated;
 grant execute on function public.get_school_join_code(uuid) to authenticated;
 grant execute on function public.regenerate_school_join_code(uuid) to authenticated;
@@ -2195,6 +2363,7 @@ grant execute on function public.list_school_join_requests(uuid) to authenticate
 grant execute on function public.approve_school_join_request(uuid, uuid) to authenticated;
 grant execute on function public.reject_school_join_request(uuid, uuid) to authenticated;
 grant execute on function public.school_id_from_logo_object_name(text) to authenticated;
+grant execute on function public.school_id_from_school_storage_object_name(text) to authenticated;
 grant execute on function public.claim_my_school_invites() to authenticated;
 grant execute on function public.get_my_entitlements() to authenticated;
 grant execute on function public.get_my_ai_generation_stats() to authenticated;
@@ -2223,6 +2392,8 @@ grant select, insert, update, delete on public.school_memberships to authenticat
 grant select, insert, update, delete on public.school_centres to authenticated;
 grant select, insert, update, delete on public.centre_memberships to authenticated;
 grant select, insert, update, delete on public.centre_invites to authenticated;
+grant select, insert, update, delete on public.school_storage_folders to authenticated;
+grant select, insert, update, delete on public.school_storage_files to authenticated;
 grant select, insert on public.game_play_events to authenticated;
 
 -- RLS
@@ -2232,6 +2403,8 @@ alter table public.school_memberships enable row level security;
 alter table public.school_centres enable row level security;
 alter table public.centre_memberships enable row level security;
 alter table public.centre_invites enable row level security;
+alter table public.school_storage_folders enable row level security;
+alter table public.school_storage_files enable row level security;
 alter table public.game_play_events enable row level security;
 
 drop policy if exists profiles_select_own on public.profiles;
@@ -2370,6 +2543,38 @@ for all
 using (public.current_user_is_school_admin(school_id))
 with check (public.current_user_is_school_admin(school_id));
 
+drop policy if exists school_storage_folders_select_member on public.school_storage_folders;
+create policy school_storage_folders_select_member on public.school_storage_folders
+for select
+using (public.current_user_has_active_school_membership(school_id));
+
+drop policy if exists school_storage_folders_manage_admin on public.school_storage_folders;
+create policy school_storage_folders_manage_admin on public.school_storage_folders
+for all
+using (public.current_user_is_school_admin(school_id))
+with check (public.current_user_is_school_admin(school_id));
+
+drop policy if exists school_storage_files_select_member on public.school_storage_files;
+create policy school_storage_files_select_member on public.school_storage_files
+for select
+using (public.current_user_has_active_school_membership(school_id));
+
+drop policy if exists school_storage_files_insert_member on public.school_storage_files;
+create policy school_storage_files_insert_member on public.school_storage_files
+for insert
+with check (public.current_user_has_active_school_membership(school_id));
+
+drop policy if exists school_storage_files_manage_admin on public.school_storage_files;
+create policy school_storage_files_manage_admin on public.school_storage_files
+for update
+using (public.current_user_is_school_admin(school_id))
+with check (public.current_user_is_school_admin(school_id));
+
+drop policy if exists school_storage_files_delete_admin on public.school_storage_files;
+create policy school_storage_files_delete_admin on public.school_storage_files
+for delete
+using (public.current_user_is_school_admin(school_id));
+
 drop policy if exists game_play_events_select_own on public.game_play_events;
 create policy game_play_events_select_own on public.game_play_events
 for select
@@ -2383,6 +2588,10 @@ with check (auth.uid() = user_id);
 -- Ensure shared assets bucket exists (used for worksheets, game images, and school logos).
 insert into storage.buckets (id, name, public)
 values ('worksheet-assets', 'worksheet-assets', false)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('school-storage', 'school-storage', false)
 on conflict (id) do nothing;
 
 -- School logo object policies (path: schools/<school_id>/logo-*.ext).
@@ -2433,9 +2642,53 @@ using (
   and public.current_user_is_school_admin(public.school_id_from_logo_object_name(name))
 );
 
+drop policy if exists school_storage_select_member on storage.objects;
+create policy school_storage_select_member on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'school-storage'
+  and public.school_id_from_school_storage_object_name(name) is not null
+  and public.current_user_has_active_school_membership(public.school_id_from_school_storage_object_name(name))
+);
+
+drop policy if exists school_storage_insert_member on storage.objects;
+create policy school_storage_insert_member on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'school-storage'
+  and public.school_id_from_school_storage_object_name(name) is not null
+  and public.current_user_has_active_school_membership(public.school_id_from_school_storage_object_name(name))
+);
+
+drop policy if exists school_storage_update_admin on storage.objects;
+create policy school_storage_update_admin on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'school-storage'
+  and public.current_user_is_school_admin(public.school_id_from_school_storage_object_name(name))
+)
+with check (
+  bucket_id = 'school-storage'
+  and public.current_user_is_school_admin(public.school_id_from_school_storage_object_name(name))
+);
+
+drop policy if exists school_storage_delete_admin on storage.objects;
+create policy school_storage_delete_admin on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'school-storage'
+  and public.current_user_is_school_admin(public.school_id_from_school_storage_object_name(name))
+);
+
 comment on table public.schools is 'School-level accounts.';
 comment on table public.school_centres is 'Internal school teacher-capacity container (single primary row used by UI).';
 comment on table public.school_memberships is 'School members and roles (admin/teacher).';
 comment on table public.centre_memberships is 'Internal teacher seat tracking for school membership.';
 comment on table public.centre_invites is 'Email-based school invite queue.';
+comment on table public.school_storage_folders is 'Folder metadata for school-shared document storage.';
+comment on table public.school_storage_files is 'File metadata for school-shared document storage.';
 comment on table public.game_play_events is 'Per-user game play starts for school analytics and engagement tracking.';

@@ -16,6 +16,10 @@ export interface UploadedFile {
   name: string;
   data: string; // Base64 string (raw)
   mimeType: string;
+  source?: 'upload' | 'school-storage';
+  schoolStorageFileId?: string;
+  sizeBytes?: number;
+  savedToSchoolStorage?: boolean;
 }
 
 export interface GameConfig {
