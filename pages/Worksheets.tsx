@@ -2560,7 +2560,7 @@ const WorksheetBuilder: React.FC<{
             config: { ...config, isPublic, files: uploadedFiles, authorAvatar: user.avatar || null },
         };
         setSaveStatus('saving');
-        saveWorksheetToLibrary(finalWs, user.id, user.name).then(success => {
+        saveWorksheetToLibrary(finalWs, user.id, user.name, user.schoolAccess?.schoolId).then(success => {
             if (success) {
                 setSaveStatus('saved');
                 setGeneratedWs(finalWs);
@@ -4074,17 +4074,22 @@ const WorksheetLibrary: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> =
 
 // --- COMMUNITY LIBRARY COMPONENT ---
 const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }> = ({ onLoad }) => {
+    const { user } = useAuth();
     const [worksheets, setWorksheets] = useState<GeneratedWorksheet[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchInput, setSearchInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchAutoFilled, setIsSearchAutoFilled] = useState(false);
+    const [communityScope, setCommunityScope] = useState<'all' | 'school'>('all');
     const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [error, setError] = useState<string | null>(null);
     const pageSizeOptions = [10, 20, 30, 40, 50];
+    const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
+    const schoolCommunityName = user?.accountType === 'school' ? user.schoolAccess?.schoolName : '';
+    const canFilterBySchool = Boolean(schoolCommunityId);
 
     const fetchWorksheets = async () => {
         setLoading(true);
@@ -4095,7 +4100,8 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
             searchQuery,
             'all',
             'newest',
-            authorFilter?.id
+            authorFilter?.id,
+            communityScope === 'school' ? schoolCommunityId : undefined
         );
         if (fetchError) {
             setError(fetchError);
@@ -4109,12 +4115,18 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, itemsPerPage, authorFilter]);
+    }, [searchQuery, itemsPerPage, authorFilter, communityScope]);
 
     useEffect(() => {
         const timer = setTimeout(fetchWorksheets, 500);
         return () => clearTimeout(timer);
-    }, [searchQuery, currentPage, itemsPerPage, authorFilter]);
+    }, [searchQuery, currentPage, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
+
+    useEffect(() => {
+        if (!canFilterBySchool && communityScope === 'school') {
+            setCommunityScope('all');
+        }
+    }, [canFilterBySchool, communityScope]);
 
     const applyAuthorFilter = (id: string, name: string) => {
         setAuthorFilter({ id, name });
@@ -4153,6 +4165,19 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-teal-400 shadow-sm" 
                     />
                 </div>
+                {canFilterBySchool && (
+                    <div className="relative min-w-[170px] w-full md:w-auto">
+                        <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <select
+                            value={communityScope}
+                            onChange={(e) => setCommunityScope(e.target.value as 'all' | 'school')}
+                            className="w-full pl-10 pr-8 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-teal-400 shadow-sm appearance-none bg-white text-sm"
+                        >
+                            <option value="all">All Community</option>
+                            <option value="school">{schoolCommunityName || 'My School'}</option>
+                        </select>
+                    </div>
+                )}
             </div>
             {authorFilter && (
                 <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
@@ -4170,11 +4195,27 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
                     </span>
                 </div>
             )}
+            {canFilterBySchool && communityScope === 'school' && (
+                <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-slate-500 font-semibold">School scope:</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 font-bold">
+                        {schoolCommunityName || 'My School'}
+                        <button
+                            type="button"
+                            onClick={() => setCommunityScope('all')}
+                            className="text-amber-700 hover:text-amber-900"
+                            aria-label="Show all community worksheets"
+                        >
+                            x
+                        </button>
+                    </span>
+                </div>
+            )}
 
             {!loading && !error && totalCount > 0 && (
                 <>
                 <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
-                    Showing {pageStart}-{pageEnd} of {totalCount} worksheets
+                    Showing {pageStart}-{pageEnd} of {totalCount} {communityScope === 'school' ? 'school community worksheets' : 'worksheets'}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
@@ -4212,7 +4253,11 @@ const CommunityWorksheets: React.FC<{ onLoad: (ws: GeneratedWorksheet) => void }
             ) : worksheets.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 border-dashed">
                     <Globe size={40} className="text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500 font-medium">No worksheets found matching your search.</p>
+                    <p className="text-slate-500 font-medium">
+                        {communityScope === 'school'
+                            ? `No public worksheets found for ${schoolCommunityName || 'your school'} yet.`
+                            : 'No worksheets found matching your search.'}
+                    </p>
                 </div>
             ) : (
                 <>

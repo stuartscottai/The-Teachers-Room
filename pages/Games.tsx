@@ -574,6 +574,7 @@ const CommunityLibrary: React.FC<{
     initialAuthorFilter?: { id?: string; name: string } | null;
     initialSearch?: string;
 }> = ({ onLoadGame, initialAuthorFilter, initialSearch }) => {
+    const { user } = useAuth();
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchInput, setSearchInput] = useState('');
@@ -582,12 +583,16 @@ const CommunityLibrary: React.FC<{
     const [typeFilter, setTypeFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
+    const [communityScope, setCommunityScope] = useState<'all' | 'school'>('all');
     const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const pageSizeOptions = [10, 20, 30, 40, 50];
+    const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
+    const schoolCommunityName = user?.accountType === 'school' ? user.schoolAccess?.schoolName : '';
+    const canFilterBySchool = Boolean(schoolCommunityId);
     
     const fetchGames = async () => {
         setLoading(true);
@@ -601,7 +606,8 @@ const CommunityLibrary: React.FC<{
             typeFilter,
             sortBy,
             sourceFilter,
-            authorFilter?.id
+            authorFilter?.id,
+            communityScope === 'school' ? schoolCommunityId : undefined
         );
         
         if (fetchError) {
@@ -617,14 +623,20 @@ const CommunityLibrary: React.FC<{
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter]);
+    }, [searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter, communityScope]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGames();
         }, 500); 
         return () => clearTimeout(timer);
-    }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter]);
+    }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
+
+    useEffect(() => {
+        if (!canFilterBySchool && communityScope === 'school') {
+            setCommunityScope('all');
+        }
+    }, [canFilterBySchool, communityScope]);
 
     const applyAuthorFilter = (id: string, name: string) => {
         setAuthorFilter({ id, name });
@@ -731,6 +743,20 @@ const CommunityLibrary: React.FC<{
                     </select>
                 </div>
 
+                {canFilterBySchool && (
+                    <div className="relative min-w-[170px] w-full md:w-auto">
+                        <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <select
+                            value={communityScope}
+                            onChange={(e) => setCommunityScope(e.target.value as 'all' | 'school')}
+                            className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                        >
+                            <option value="all">All Community</option>
+                            <option value="school">{schoolCommunityName || 'My School'}</option>
+                        </select>
+                    </div>
+                )}
+
 
                 <button 
                     onClick={fetchGames}
@@ -756,11 +782,27 @@ const CommunityLibrary: React.FC<{
                     </span>
                 </div>
             )}
+            {canFilterBySchool && communityScope === 'school' && (
+                <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-slate-500 font-semibold">School scope:</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 font-bold">
+                        {schoolCommunityName || 'My School'}
+                        <button
+                            type="button"
+                            onClick={() => setCommunityScope('all')}
+                            className="text-amber-700 hover:text-amber-900"
+                            aria-label="Show all community games"
+                        >
+                            x
+                        </button>
+                    </span>
+                </div>
+            )}
 
             {!loading && !error && totalCount > 0 && (
                 <>
                 <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
-                    Showing {pageStart}-{pageEnd} of {totalCount} games
+                    Showing {pageStart}-{pageEnd} of {totalCount} {communityScope === 'school' ? 'school community games' : 'games'}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
@@ -804,7 +846,11 @@ const CommunityLibrary: React.FC<{
                         <Globe size={32} className="text-slate-300" />
                     </div>
                     <h3 className="text-lg font-bold text-slate-700 mb-2">No public games found</h3>
-                    <p className="text-slate-400 max-w-sm mx-auto mb-6">Be the first to publish a game to the community!</p>
+                    <p className="text-slate-400 max-w-sm mx-auto mb-6">
+                        {communityScope === 'school'
+                            ? `No public games found for ${schoolCommunityName || 'your school'} yet.`
+                            : 'Be the first to publish a game to the community!'}
+                    </p>
                 </div>
             ) : (
                 <>
@@ -1392,7 +1438,7 @@ export const Games: React.FC = () => {
         }
 
         const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
-        const result = await saveGameToLibrary(nextGame, user?.id, user?.name);
+        const result = await saveGameToLibrary(nextGame, user?.id, user?.name, user?.schoolAccess?.schoolId);
         if (!result.success) {
             alert('Failed to save. Please try again.');
             return null;

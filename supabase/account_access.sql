@@ -301,12 +301,48 @@ create index if not exists generation_usage_school_idx
 
 -- Optional play-count column on saved games (for trending + creator analytics)
 alter table if exists public.saved_games
-  add column if not exists play_count integer not null default 0;
+  add column if not exists play_count integer not null default 0,
+  add column if not exists school_id uuid references public.schools (id) on delete set null;
+
+alter table if exists public.saved_worksheets
+  add column if not exists school_id uuid references public.schools (id) on delete set null;
 
 create index if not exists saved_games_user_created_idx
   on public.saved_games (user_id, created_at desc);
 create index if not exists saved_games_play_count_idx
   on public.saved_games (play_count desc, created_at desc);
+create index if not exists saved_games_school_public_idx
+  on public.saved_games (school_id, is_public, created_at desc);
+create index if not exists saved_worksheets_school_public_idx
+  on public.saved_worksheets (school_id, is_public, created_at desc);
+
+with active_school_membership as (
+  select distinct on (sm.user_id)
+    sm.user_id,
+    sm.school_id
+  from public.school_memberships sm
+  where sm.status = 'active'
+  order by sm.user_id, case when sm.role = 'admin' then 0 else 1 end, sm.created_at desc
+)
+update public.saved_games sg
+set school_id = asm.school_id
+from active_school_membership asm
+where sg.school_id is null
+  and sg.user_id = asm.user_id;
+
+with active_school_membership as (
+  select distinct on (sm.user_id)
+    sm.user_id,
+    sm.school_id
+  from public.school_memberships sm
+  where sm.status = 'active'
+  order by sm.user_id, case when sm.role = 'admin' then 0 else 1 end, sm.created_at desc
+)
+update public.saved_worksheets sw
+set school_id = asm.school_id
+from active_school_membership asm
+where sw.school_id is null
+  and sw.user_id = asm.user_id;
 
 -- Per-user play event tracking for school analytics
 create table if not exists public.game_play_events (

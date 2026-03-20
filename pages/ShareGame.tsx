@@ -120,7 +120,7 @@ export const ShareGame: React.FC = () => {
     }
 
     const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
-    const result = await saveGameToLibrary(nextGame, user?.id, user?.name);
+    const result = await saveGameToLibrary(nextGame, user?.id, user?.name, user?.schoolAccess?.schoolId);
     if (!result.success) {
       alert('Failed to save. Please try again.');
       return null;

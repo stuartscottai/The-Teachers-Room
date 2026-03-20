@@ -89,6 +89,23 @@ export const processFile = (file: File): Promise<UploadedFile> => {
     });
 };
 
+const isMissingColumnError = (error: unknown, columnName: string) => {
+    if (!error || typeof error !== 'object') return false;
+    const needle = columnName.toLowerCase();
+    const code = String((error as any).code || '').toLowerCase();
+    const message = String((error as any).message || '').toLowerCase();
+    const details = String((error as any).details || '').toLowerCase();
+    const hint = String((error as any).hint || '').toLowerCase();
+
+    return (
+        code === 'pgrst204' ||
+        code === '42703' ||
+        (message.includes(needle) && message.includes('column')) ||
+        details.includes(needle) ||
+        hint.includes(needle)
+    );
+};
+
 // --- AUDIO UTILS (Web Audio API) ---
 // Singleton AudioContext to prevent "Max AudioContexts" error
 let audioCtx: AudioContext | null = null;
@@ -441,7 +458,12 @@ export const getLocalGames = (): GeneratedGame[] => {
     }
 };
 
-export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, authorName?: string): Promise<{ success: boolean; id?: string }> => {
+export const saveGameToLibrary = async (
+    game: GeneratedGame,
+    userId?: string,
+    authorName?: string,
+    schoolId?: string | null
+): Promise<{ success: boolean; id?: string }> => {
     if (!userId) {
         // Local Storage for guests - PRIVATE ONLY
         try {
@@ -470,6 +492,9 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
             if (Array.isArray(data)) return data[0]?.id;
             return data.id;
         };
+        const normalizedSchoolId = typeof schoolId === 'string' && schoolId.trim().length > 0
+            ? schoolId.trim()
+            : null;
         const stopTheFireCategories =
             game.config.type === GameType.STOP_THE_FIRE
                 ? (game.stopTheFireCategories || []).map((cat) => cat.trim()).filter(Boolean)
@@ -488,21 +513,34 @@ export const saveGameToLibrary = async (game: GeneratedGame, userId?: string, au
             pub_quiz_rounds: game.pubQuizRounds,
             is_public: game.config.isPublic || false, // Use new column
             author_name: authorName || 'Teacher', // New Column
+            school_id: normalizedSchoolId,
             created_at: new Date()
         };
 
-        if (game.id && isUUID(game.id)) {
-            payload.id = game.id;
-            const { data, error } = await supabase.from('saved_games').upsert(payload).select('id');
-            if (error) throw error;
-            return { success: true, id: extractId(data) || game.id };
-        } else {
+        const persistPayload = async (nextPayload: any) => {
             if (game.id && isUUID(game.id)) {
-                 payload.id = game.id;
+                nextPayload.id = game.id;
+                const { data, error } = await supabase.from('saved_games').upsert(nextPayload).select('id');
+                if (error) throw error;
+                return { success: true, id: extractId(data) || game.id };
+            } else {
+                if (game.id && isUUID(game.id)) {
+                    nextPayload.id = game.id;
+                }
+                const { data, error } = await supabase.from('saved_games').insert(nextPayload).select('id');
+                if (error) throw error;
+                return { success: true, id: extractId(data) };
             }
-            const { data, error } = await supabase.from('saved_games').insert(payload).select('id');
-            if (error) throw error;
-            return { success: true, id: extractId(data) };
+        };
+
+        try {
+            return await persistPayload(payload);
+        } catch (e) {
+            if (normalizedSchoolId && isMissingColumnError(e, 'school_id')) {
+                const { school_id: _ignored, ...fallbackPayload } = payload;
+                return await persistPayload(fallbackPayload);
+            }
+            throw e;
         }
     } catch (e) {
         console.error("Supabase Save Error:", e);
@@ -553,7 +591,8 @@ export const getCommunityGames = async (
     typeFilter: string = 'all', 
     sort: string = 'newest',
     sourceFilter: 'all' | 'ai' | 'manual' = 'all',
-    authorId?: string
+    authorId?: string,
+    schoolId?: string
 ): Promise<{ data: GeneratedGame[], count: number, error: string | null }> => {
     try {
         // Query using the top-level is_public column (faster/cleaner)
@@ -564,6 +603,10 @@ export const getCommunityGames = async (
 
         if (authorId) {
             query = query.eq('user_id', authorId);
+        }
+
+        if (schoolId) {
+            query = query.eq('school_id', schoolId);
         }
 
         if (search) {
@@ -611,6 +654,13 @@ export const getCommunityGames = async (
 
         return { data: mappedData, count: count || 0, error: null };
     } catch (e: any) {
+        if (schoolId && isMissingColumnError(e, 'school_id')) {
+            return {
+                data: [],
+                count: 0,
+                error: 'School community filtering needs the latest Supabase SQL update.'
+            };
+        }
         console.error("Community Fetch Error:", e);
         return { data: [], count: 0, error: e.message || "Failed to fetch games" };
     }
@@ -927,7 +977,12 @@ export const deleteSavedGame = async (id: string, userId?: string) => {
     }
 };
 
-export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, userId?: string, authorName?: string): Promise<boolean> => {
+export const saveWorksheetToLibrary = async (
+    worksheet: GeneratedWorksheet,
+    userId?: string,
+    authorName?: string,
+    schoolId?: string | null
+): Promise<boolean> => {
     if (!userId) {
         try {
             const existing = localStorage.getItem('teachersRoomWorksheets');
@@ -947,6 +1002,9 @@ export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, user
     }
 
     try {
+        const normalizedSchoolId = typeof schoolId === 'string' && schoolId.trim().length > 0
+            ? schoolId.trim()
+            : null;
         const payload: any = {
             user_id: userId,
             title: worksheet.title,
@@ -955,19 +1013,33 @@ export const saveWorksheetToLibrary = async (worksheet: GeneratedWorksheet, user
             type: worksheet.type,
             is_public: worksheet.config?.isPublic || false,
             author_name: authorName || 'Teacher',
+            school_id: normalizedSchoolId,
             created_at: new Date()
         };
 
-        if (worksheet.id && isUUID(worksheet.id)) {
-            payload.id = worksheet.id;
-            const { error } = await supabase.from('saved_worksheets').upsert(payload);
-            if (error) throw error;
-        } else {
-             if (worksheet.id && isUUID(worksheet.id)) {
-                 payload.id = worksheet.id;
+        const persistPayload = async (nextPayload: any) => {
+            if (worksheet.id && isUUID(worksheet.id)) {
+                nextPayload.id = worksheet.id;
+                const { error } = await supabase.from('saved_worksheets').upsert(nextPayload);
+                if (error) throw error;
+            } else {
+                if (worksheet.id && isUUID(worksheet.id)) {
+                    nextPayload.id = worksheet.id;
+                }
+                const { error } = await supabase.from('saved_worksheets').insert(nextPayload);
+                if (error) throw error;
             }
-            const { error } = await supabase.from('saved_worksheets').insert(payload);
-            if (error) throw error;
+        };
+
+        try {
+            await persistPayload(payload);
+        } catch (e) {
+            if (normalizedSchoolId && isMissingColumnError(e, 'school_id')) {
+                const { school_id: _ignored, ...fallbackPayload } = payload;
+                await persistPayload(fallbackPayload);
+            } else {
+                throw e;
+            }
         }
         return true;
     } catch (e) {
@@ -1017,7 +1089,8 @@ export const getCommunityWorksheets = async (
     search: string = '', 
     gradeFilter: string = 'all',
     sort: string = 'newest',
-    authorId?: string
+    authorId?: string,
+    schoolId?: string
 ): Promise<{ data: GeneratedWorksheet[], count: number, error: string | null }> => {
     try {
         let query = supabase
@@ -1027,6 +1100,10 @@ export const getCommunityWorksheets = async (
 
         if (authorId) {
             query = query.eq('user_id', authorId);
+        }
+
+        if (schoolId) {
+            query = query.eq('school_id', schoolId);
         }
 
         if (search) {
@@ -1064,6 +1141,13 @@ export const getCommunityWorksheets = async (
 
         return { data: mappedData, count: count || 0, error: null };
     } catch (e: any) {
+        if (schoolId && isMissingColumnError(e, 'school_id')) {
+            return {
+                data: [],
+                count: 0,
+                error: 'School community filtering needs the latest Supabase SQL update.'
+            };
+        }
         console.error("Community Worksheet Fetch Error:", e);
         return { data: [], count: 0, error: e.message || "Failed to fetch worksheets" };
     }

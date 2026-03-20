@@ -270,7 +270,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         };
 
         // Async save with Author Name
-        const result = await saveGameToLibrary(finalGame, user.id, user.name);
+        const result = await saveGameToLibrary(finalGame, user.id, user.name, user.schoolAccess?.schoolId);
         
         if (result.success) {
             const savedGame = { ...finalGame, id: result.id ?? finalGame.id };
