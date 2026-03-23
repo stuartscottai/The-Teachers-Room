@@ -1,13 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut, Building2 } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut, Building2, MailCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
 import { Avatar } from './Avatar';
 import { BrandName } from './BrandName';
-import { AUTH_PROMPT_EVENT, AuthPromptDetail } from '../services/accountAccess';
+import {
+  AUTH_PROMPT_EVENT,
+  AuthPromptDetail,
+  EMAIL_CONFIRMATION_EVENT,
+  EmailConfirmationDetail
+} from '../services/accountAccess';
 import { PlanUpgradeModal } from './PlanUpgradeModal';
 
 // SafeLink Component to intercept navigation if changes are unsaved
@@ -56,8 +61,12 @@ const Navbar: React.FC = () => {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeTitle, setUpgradeTitle] = useState<string | undefined>(undefined);
   const [upgradeMessage, setUpgradeMessage] = useState<string | undefined>(undefined);
+  const [emailConfirmationState, setEmailConfirmationState] = useState<EmailConfirmationDetail | null>(null);
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
+  const [emailConfirmationFeedback, setEmailConfirmationFeedback] = useState<string | null>(null);
+  const [emailConfirmationError, setEmailConfirmationError] = useState<string | null>(null);
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, resendSignupConfirmation } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const canAccessSchoolAdmin = user?.accountType === 'school' && user.schoolAccess?.role === 'admin';
 
@@ -97,6 +106,56 @@ const Navbar: React.FC = () => {
       window.removeEventListener(AUTH_PROMPT_EVENT, onAuthPrompt as EventListener);
     };
   }, [user?.accountType]);
+
+  const dismissEmailConfirmation = () => {
+    setEmailConfirmationState(null);
+    setIsResendingConfirmation(false);
+    setEmailConfirmationFeedback(null);
+    setEmailConfirmationError(null);
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!emailConfirmationState?.email || isResendingConfirmation) return;
+
+    setIsResendingConfirmation(true);
+    setEmailConfirmationFeedback(null);
+    setEmailConfirmationError(null);
+
+    const { error } = await resendSignupConfirmation(emailConfirmationState.email);
+    if (error) {
+      const message = String((error as any)?.message || 'Could not resend the confirmation email.');
+      const code = String((error as any)?.code || '').toLowerCase();
+      const lowerMessage = message.toLowerCase();
+
+      if (code === 'over_email_send_rate_limit' || lowerMessage.includes('rate limit') || lowerMessage.includes('request this after')) {
+        setEmailConfirmationError('Please wait a moment before requesting another confirmation email.');
+      } else {
+        setEmailConfirmationError(message);
+      }
+      setIsResendingConfirmation(false);
+      return;
+    }
+
+    setEmailConfirmationFeedback('We sent another confirmation link. Please check your inbox and spam folder.');
+    setIsResendingConfirmation(false);
+  };
+
+  useEffect(() => {
+    const onEmailConfirmation = (event: Event) => {
+      const detail = (event as CustomEvent<EmailConfirmationDetail>).detail;
+      if (!detail?.email) return;
+      setShowLogin(false);
+      setIsResendingConfirmation(false);
+      setEmailConfirmationFeedback(null);
+      setEmailConfirmationError(null);
+      setEmailConfirmationState(detail);
+    };
+
+    window.addEventListener(EMAIL_CONFIRMATION_EVENT, onEmailConfirmation as EventListener);
+    return () => {
+      window.removeEventListener(EMAIL_CONFIRMATION_EVENT, onEmailConfirmation as EventListener);
+    };
+  }, []);
   
   const navItems = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
@@ -317,6 +376,69 @@ const Navbar: React.FC = () => {
       titleOverride={loginTitle}
       messageOverride={loginMessage}
     />
+    {emailConfirmationState && (
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-fade-in">
+          <button
+            type="button"
+            onClick={dismissEmailConfirmation}
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1"
+          >
+            <X size={20} />
+          </button>
+          <div className="p-8 text-center">
+            <div className="inline-flex bg-brand-yellow p-3 rounded-full mb-4">
+              <MailCheck className="text-slate-900" size={24} />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-slate-800">
+              Check Your Email
+            </h2>
+            <p className="text-slate-500 text-sm mt-2">
+              We sent a confirmation link to <span className="font-semibold text-slate-700">{emailConfirmationState.email}</span>.
+            </p>
+            <p className="text-slate-500 text-sm mt-3">
+              Confirm your account from that email.
+            </p>
+            <p className="text-slate-400 text-xs mt-3">
+              If you don&apos;t see it, check your spam folder.
+            </p>
+            {emailConfirmationFeedback && (
+              <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {emailConfirmationFeedback}
+              </p>
+            )}
+            {emailConfirmationError && (
+              <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                {emailConfirmationError}
+              </p>
+            )}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { void handleResendConfirmation(); }}
+                disabled={isResendingConfirmation}
+                className={`w-full py-2.5 px-3 bg-brand-blue text-white text-sm font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md flex items-center justify-center ${
+                  isResendingConfirmation ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                {isResendingConfirmation ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  'Resend Confirmation Email'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={dismissEmailConfirmation}
+                className="w-full py-2.5 px-3 border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     <PlanUpgradeModal
       isOpen={showUpgrade}
       onClose={() => setShowUpgrade(false)}

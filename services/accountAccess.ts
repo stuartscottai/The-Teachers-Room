@@ -2,6 +2,7 @@ import { AccountType, SchoolRole, User, UserSchoolAccess } from '../types';
 import { supabase } from './supabase';
 
 export const AUTH_PROMPT_EVENT = 'teachers-room:auth-prompt';
+export const EMAIL_CONFIRMATION_EVENT = 'teachers-room:email-confirmation';
 
 export type AuthPromptKind = 'signup-free' | 'login' | 'upgrade-ai';
 
@@ -9,6 +10,11 @@ export interface AuthPromptDetail {
   kind: AuthPromptKind;
   title?: string;
   message?: string;
+}
+
+export interface EmailConfirmationDetail {
+  email: string;
+  reason?: 'new-signup' | 'existing-signup';
 }
 
 export interface UserEntitlements {
@@ -203,6 +209,11 @@ const parseSchoolAccess = (row: any): UserSchoolAccess | null => {
 export const dispatchAuthPrompt = (detail: AuthPromptDetail) => {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(AUTH_PROMPT_EVENT, { detail }));
+};
+
+export const dispatchEmailConfirmationPrompt = (detail: EmailConfirmationDetail) => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(EMAIL_CONFIRMATION_EVENT, { detail }));
 };
 
 export const promptSignupForFree = (message?: string) => {

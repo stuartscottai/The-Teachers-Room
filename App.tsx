@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
@@ -12,9 +12,25 @@ import { Profile } from './pages/Profile';
 import { ChangePlan } from './pages/ChangePlan';
 import { TestBench } from './pages/TestBench';
 import { ShareGame } from './pages/ShareGame';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { SchoolAdmin } from './pages/SchoolAdmin';
+import { ResetPassword } from './pages/ResetPassword';
+
+const AccountTierOnboardingRedirect: React.FC = () => {
+  const { user, needsPlanSelection, isLoading, isPasswordRecovery } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoading || !user || !needsPlanSelection || isPasswordRecovery) return;
+    if (location.pathname === '/reset-password') return;
+    if (location.pathname === '/choose-plan') return;
+    navigate('/choose-plan', { replace: true });
+  }, [isLoading, isPasswordRecovery, location.pathname, navigate, needsPlanSelection, user]);
+
+  return null;
+};
 
 const App: React.FC = () => {
   useEffect(() => {
@@ -36,6 +52,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <UnsavedChangesProvider>
         <Router>
+          <AccountTierOnboardingRedirect />
           <Layout>
             <Routes>
               <Route path="/" element={<Home />} />
@@ -49,6 +66,8 @@ const App: React.FC = () => {
               <Route path="/terms" element={<Legal type="terms" />} />
               <Route path="/privacy" element={<Legal type="privacy" />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/choose-plan" element={<ChangePlan mode="onboarding" />} />
               <Route path="/change-plan" element={<ChangePlan />} />
               <Route path="/school-admin" element={<SchoolAdmin />} />
               <Route path="/test" element={<TestBench />} />

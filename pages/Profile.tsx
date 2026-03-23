@@ -15,6 +15,7 @@ export const Profile: React.FC = () => {
     const { user, updateUserProfile, refreshUserAccess, logout } = useAuth();
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState(user?.name || '');
+    const [currentPassword, setCurrentPassword] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
@@ -201,20 +202,50 @@ export const Profile: React.FC = () => {
         setMessage(null);
 
         try {
-            // Update Name
-            if (fullName !== user?.name) {
-                const { error } = await updateUserProfile({ name: fullName });
-                if (error) throw error;
-            }
+            const nextFullName = fullName.trim();
+            const hasNameChange = nextFullName !== (user?.name || '');
+            const hasPasswordChange = Boolean(currentPassword || password || confirmPassword);
 
-            // Update Password if provided
-            if (password) {
+            if (hasPasswordChange) {
+                if (!password || !confirmPassword) {
+                    throw new Error('Enter and confirm your new password.');
+                }
                 if (password !== confirmPassword) throw new Error("Passwords do not match");
-                const { error } = await supabase.auth.updateUser({ password: password });
+                if (password.length < 8) throw new Error('Password must be at least 8 characters long.');
+                if (!currentPassword) throw new Error('Enter your current password to change it.');
+
+                const { error: verifyPasswordError } = await supabase.auth.signInWithPassword({
+                    email: user.email,
+                    password: currentPassword
+                });
+                if (verifyPasswordError) {
+                    throw new Error('Your current password is incorrect.');
+                }
+
+                const { error } = await supabase.auth.updateUser({
+                    password
+                });
                 if (error) throw error;
             }
 
-            setMessage({ type: 'success', text: "Profile updated successfully!" });
+            if (hasNameChange) {
+                const { error } = await updateUserProfile({ name: nextFullName });
+                if (error) throw error;
+            }
+
+            if (!hasNameChange && !hasPasswordChange) {
+                setMessage({ type: 'success', text: 'No changes to save.' });
+                return;
+            }
+
+            const successText = hasNameChange && hasPasswordChange
+                ? 'Profile and password updated successfully!'
+                : hasPasswordChange
+                    ? 'Password updated successfully!'
+                    : 'Profile updated successfully!';
+
+            setMessage({ type: 'success', text: successText });
+            setCurrentPassword('');
             setPassword('');
             setConfirmPassword('');
         } catch (error: any) {
@@ -677,6 +708,24 @@ export const Profile: React.FC = () => {
                             <div className="border-t border-slate-100 pt-8 space-y-4">
                                 <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Security</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                     <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <Lock className="h-5 w-5 text-slate-400" />
+                                            </div>
+                                            <input
+                                                type="password"
+                                                value={currentPassword}
+                                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                                placeholder="Required to change your password"
+                                                className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-brand-blue focus:border-brand-blue sm:text-sm outline-none transition-colors"
+                                            />
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-400">
+                                            Enter your current password before setting a new one.
+                                        </p>
+                                    </div>
                                      <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
                                         <div className="relative">

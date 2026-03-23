@@ -14,10 +14,21 @@ const PENDING_SCHOOL_CODE_STORAGE_KEY = 'teachers-room:pending-school-code';
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signup: (email: string, password: string, name: string, schoolCode?: string) => Promise<{ error: any }>;
+  signup: (
+    email: string,
+    password: string,
+    name: string,
+    schoolCode?: string
+  ) => Promise<{ error: any; requiresEmailConfirmation?: boolean; email?: string }>;
+  resendSignupConfirmation: (email: string) => Promise<{ error: any }>;
+  requestPasswordReset: (email: string) => Promise<{ error: any }>;
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   logout: () => Promise<void>;
   updateUserProfile: (updates: { name?: string; avatarUrl?: string | null }) => Promise<{ error: any }>;
   refreshUserAccess: () => Promise<void>;
+  needsPlanSelection: boolean;
+  completePlanSelection: () => Promise<{ error: any }>;
   isLoading: boolean;
 }
 
@@ -25,6 +36,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [needsPlanSelection, setNeedsPlanSelection] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const redirectToHome = () => {
@@ -52,14 +65,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return value.trim().toUpperCase();
   };
 
+  const getAuthEmailRedirectUrl = () => {
+    if (typeof window === 'undefined') return undefined;
+    return window.location.href.split('#')[0];
+  };
+
+  const clearPasswordRecovery = () => {
+    setIsPasswordRecovery(false);
+  };
+
+  const hasPendingPlanSelection = (authUser: any) =>
+    Boolean(authUser?.user_metadata?.needs_plan_selection);
+
   const hydrateUserAccess = async (authUser: any) => {
     if (!authUser) {
       setUser(null);
+      setNeedsPlanSelection(false);
       return;
     }
 
     const baseUser = createBaseUser(authUser);
     setUser(baseUser);
+    setNeedsPlanSelection(hasPendingPlanSelection(authUser));
 
     try {
       await ensureProfileRow({
@@ -77,12 +104,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!joinResult.error) {
             window.localStorage.removeItem(PENDING_SCHOOL_CODE_STORAGE_KEY);
             if (pendingCodeFromMetadata) {
-              const nextMeta = {
-                ...(authUser.user_metadata || {}),
-                pending_school_code: null
-              };
               try {
-                await supabase.auth.updateUser({ data: nextMeta });
+                await supabase.auth.updateUser({ data: { pending_school_code: null } });
               } catch {
                 // Ignore metadata cleanup errors; request already succeeded.
               }
@@ -113,7 +136,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
           await supabase.auth.signOut();
-          if (isMounted) setUser(null);
+          if (isMounted) {
+            setUser(null);
+            setNeedsPlanSelection(false);
+          }
           return;
         }
         if (session?.user) {
@@ -121,7 +147,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (authError) {
         await supabase.auth.signOut();
-        if (isMounted) setUser(null);
+        if (isMounted) {
+          setUser(null);
+          setNeedsPlanSelection(false);
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -130,10 +159,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        if (typeof window !== 'undefined' && window.location.hash !== '#/reset-password') {
+          window.location.hash = '/reset-password';
+        }
+      } else {
+        setIsPasswordRecovery(false);
+      }
+
       if (session?.user) {
         void hydrateUserAccess(session.user);
       } else {
         setUser(null);
+        setNeedsPlanSelection(false);
         if (event === 'SIGNED_OUT') {
           redirectToHome();
         }
@@ -159,56 +198,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanSchoolCode = normalizeSchoolCode(schoolCode);
     const signupMeta: Record<string, any> = {
       full_name: name,
-      account_type: 'free'
+      account_type: 'free',
+      needs_plan_selection: true
     };
     if (cleanSchoolCode) {
       signupMeta.pending_school_code = cleanSchoolCode;
     }
 
+    const emailRedirectTo = getAuthEmailRedirectUrl();
+
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-            data: signupMeta
+            data: signupMeta,
+            ...(emailRedirectTo ? { emailRedirectTo } : {})
         }
     });
 
-    if (!error && data?.user) {
+    if (!error && data?.user && data.session?.user) {
       await ensureProfileRow({
         userId: data.user.id,
         fullName: name,
         avatarUrl: null,
         accountType: 'free'
       });
+    }
 
-      if (cleanSchoolCode) {
-        if (data.session?.user) {
-          const joinResult = await requestSchoolJoinWithCode(cleanSchoolCode);
-          if (joinResult.error) {
-            if (typeof window !== 'undefined') {
-              window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
-            }
-            return {
-              error: new Error(
-                `Account created, but school join request failed: ${joinResult.error.message}`
-              )
-            };
+    if (!error && data?.user && cleanSchoolCode) {
+      if (data.session?.user) {
+        const joinResult = await requestSchoolJoinWithCode(cleanSchoolCode);
+        if (joinResult.error) {
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
           }
-
-          const nextMeta = {
-            ...(data.user.user_metadata || {}),
-            pending_school_code: null
+          return {
+            error: new Error(
+              `Account created, but school join request failed: ${joinResult.error.message}`
+            ),
+            requiresEmailConfirmation: !data.session,
+            email: data.user.email || email
           };
-          try {
-            await supabase.auth.updateUser({ data: nextMeta });
-          } catch {
-            // Ignore metadata cleanup errors; join request already exists.
-          }
-        } else if (typeof window !== 'undefined') {
-          window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
         }
+
+        try {
+          await supabase.auth.updateUser({ data: { pending_school_code: null } });
+        } catch {
+          // Ignore metadata cleanup errors; join request already exists.
+        }
+      } else if (typeof window !== 'undefined') {
+        window.localStorage.setItem(PENDING_SCHOOL_CODE_STORAGE_KEY, cleanSchoolCode);
       }
     }
+    return {
+      error,
+      requiresEmailConfirmation: !error && Boolean(data?.user) && !data?.session,
+      email: data?.user?.email || email
+    };
+  };
+
+  const resendSignupConfirmation = async (email: string) => {
+    const emailRedirectTo = getAuthEmailRedirectUrl();
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: emailRedirectTo ? { emailRedirectTo } : undefined
+    });
+
+    return { error };
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    const redirectTo = getAuthEmailRedirectUrl();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      ...(redirectTo ? { redirectTo } : {})
+    });
+
     return { error };
   };
 
@@ -217,6 +282,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     } finally {
       setUser(null);
+      setNeedsPlanSelection(false);
+      setIsPasswordRecovery(false);
       redirectToHome();
     }
   };
@@ -230,6 +297,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.warn('Failed to refresh user access:', error);
     }
+  };
+
+  const completePlanSelection = async () => {
+    if (!user) return { error: 'No user logged in' };
+
+    const { error } = await supabase.auth.updateUser({
+      data: { needs_plan_selection: false }
+    });
+
+    if (!error) {
+      setNeedsPlanSelection(false);
+    }
+
+    return { error };
   };
 
   const updateUserProfile = async (updates: { name?: string; avatarUrl?: string | null }) => {
@@ -270,7 +351,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUserProfile, refreshUserAccess, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        resendSignupConfirmation,
+        requestPasswordReset,
+        isPasswordRecovery,
+        clearPasswordRecovery,
+        logout,
+        updateUserProfile,
+        refreshUserAccess,
+        needsPlanSelection,
+        completePlanSelection,
+        isLoading
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

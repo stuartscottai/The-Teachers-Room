@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Building2, Check, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountType } from '../types';
@@ -42,8 +42,13 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
   }
 };
 
-export const ChangePlan: React.FC = () => {
-  const { user, refreshUserAccess } = useAuth();
+interface ChangePlanProps {
+  mode?: 'settings' | 'onboarding';
+}
+
+export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => {
+  const navigate = useNavigate();
+  const { user, refreshUserAccess, completePlanSelection } = useAuth();
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [pendingTarget, setPendingTarget] = useState<AccountType | null>(null);
   const [showSchoolSetup, setShowSchoolSetup] = useState(false);
@@ -51,6 +56,7 @@ export const ChangePlan: React.FC = () => {
   const [teacherSeatLimit, setTeacherSeatLimit] = useState(10);
   const [schoolLogoFile, setSchoolLogoFile] = useState<File | null>(null);
   const schoolLogoInputRef = useRef<HTMLInputElement | null>(null);
+  const isOnboarding = mode === 'onboarding';
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error && typeof error === 'object' && 'message' in error) {
@@ -79,8 +85,33 @@ export const ChangePlan: React.FC = () => {
     return data && typeof (data as any).school_id === 'string' ? (data as any).school_id : null;
   };
 
+  const finishOnboarding = async (nextPath: string) => {
+    const { error } = await completePlanSelection();
+    if (error) {
+      setFeedback({
+        type: 'error',
+        text: getErrorMessage(error, 'Your account was updated, but onboarding could not be completed.')
+      });
+      return false;
+    }
+
+    navigate(nextPath, { replace: true });
+    return true;
+  };
+
   const applyPlan = async (target: AccountType) => {
-    if (!user || target === user.accountType) return;
+    if (!user) return;
+
+    if (!isOnboarding && target === user.accountType) return;
+
+    if (isOnboarding && target === user.accountType) {
+      setFeedback(null);
+      setPendingTarget(target);
+      if (!(await finishOnboarding(target === 'school' ? '/school-admin' : '/'))) {
+        setPendingTarget(null);
+      }
+      return;
+    }
 
     if (user.accountType === 'school' && (target === 'teacher' || target === 'free')) {
       const isSchoolTeacher = user.schoolAccess?.role === 'teacher';
@@ -93,17 +124,27 @@ export const ChangePlan: React.FC = () => {
       if (!confirmed) return;
     }
 
+    setShowSchoolSetup(false);
     setFeedback(null);
     setPendingTarget(target);
     const { error } = await changeMyAccountPlan({ targetAccountType: target });
-    setPendingTarget(null);
 
     if (error) {
+      setPendingTarget(null);
       setFeedback({ type: 'error', text: getErrorMessage(error, 'Could not change plan.') });
       return;
     }
 
     await refreshUserAccess();
+
+    if (isOnboarding) {
+      if (!(await finishOnboarding(target === 'school' ? '/school-admin' : '/'))) {
+        setPendingTarget(null);
+      }
+      return;
+    }
+
+    setPendingTarget(null);
     setFeedback({ type: 'success', text: `Plan switched to ${PLAN_DEFS[target].title}.` });
   };
 
@@ -159,19 +200,40 @@ export const ChangePlan: React.FC = () => {
       }
     }
 
-    setPendingTarget(null);
     setShowSchoolSetup(false);
     setSchoolLogoFile(null);
     await refreshUserAccess();
+
+    if (isOnboarding) {
+      if (!(await finishOnboarding('/school-admin'))) {
+        setPendingTarget(null);
+      }
+      return;
+    }
+
+    setPendingTarget(null);
     setFeedback({ type: 'success', text: 'Plan switched to School.' });
   };
+
+  const pageTitle = isOnboarding ? 'Choose Your Account Tier' : 'Change Plan';
+  const pageDescription = isOnboarding
+    ? 'Your account is confirmed. Stay on Free for now, or upgrade to Teacher or School.'
+    : 'Choose the plan that fits now. You can move up or down between plans.';
+  const badgeText =
+    isOnboarding && user?.accountType === 'free'
+      ? 'Default: Free'
+      : `Current: ${PLAN_DEFS[user?.accountType || 'free'].title}`;
 
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full text-center">
-          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Change Plan</h1>
-          <p className="text-slate-500 mb-6">Sign up or log in first to change your plan.</p>
+          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{pageTitle}</h1>
+          <p className="text-slate-500 mb-6">
+            {isOnboarding
+              ? 'Sign up or log in first to choose an account tier.'
+              : 'Sign up or log in first to change your plan.'}
+          </p>
           <button
             type="button"
             onClick={() => promptSignupForFree('Create a free account to continue.')}
@@ -188,13 +250,15 @@ export const ChangePlan: React.FC = () => {
     <div className="min-h-screen bg-slate-50 py-10 px-4">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <Link to="/profile" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-800 mb-4">
-            <ArrowLeft size={14} className="mr-2" /> Back to Profile
-          </Link>
-          <h1 className="font-display text-3xl font-bold text-slate-800">Change Plan</h1>
-          <p className="text-slate-500 mt-1">Choose the plan that fits now. You can move up or down between plans.</p>
+          {!isOnboarding && (
+            <Link to="/profile" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-800 mb-4">
+              <ArrowLeft size={14} className="mr-2" /> Back to Profile
+            </Link>
+          )}
+          <h1 className="font-display text-3xl font-bold text-slate-800">{pageTitle}</h1>
+          <p className="text-slate-500 mt-1">{pageDescription}</p>
           <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-            Current: {PLAN_DEFS[user.accountType].title}
+            {badgeText}
           </div>
         </div>
 
@@ -211,7 +275,11 @@ export const ChangePlan: React.FC = () => {
         )}
 
         <div className="grid md:grid-cols-3 gap-6">
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <section
+            className={`bg-white rounded-2xl border shadow-sm p-6 ${
+              user.accountType === 'free' ? 'border-brand-blue' : 'border-slate-200'
+            }`}
+          >
             <h2 className="text-xl font-bold text-slate-800 mb-1">Free</h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.free.subtitle}</p>
             <ul className="space-y-2 mb-6">
@@ -224,19 +292,33 @@ export const ChangePlan: React.FC = () => {
             </ul>
             <button
               type="button"
-              disabled={pendingTarget === 'free' || user.accountType === 'free'}
+              disabled={pendingTarget === 'free' || (!isOnboarding && user.accountType === 'free')}
               onClick={() => void applyPlan('free')}
               className={`w-full py-2.5 rounded-lg font-bold transition-colors ${
-                user.accountType === 'free'
+                !isOnboarding && user.accountType === 'free'
                   ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                   : 'bg-brand-blue text-white hover:bg-sky-600'
               } ${pendingTarget === 'free' ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {user.accountType === 'free' ? 'Current Plan' : pendingTarget === 'free' ? 'Switching...' : 'Switch To Free'}
+              {isOnboarding
+                ? pendingTarget === 'free'
+                  ? 'Continuing...'
+                  : user.accountType === 'free'
+                    ? 'Continue With Free'
+                    : 'Switch To Free'
+                : user.accountType === 'free'
+                  ? 'Current Plan'
+                  : pendingTarget === 'free'
+                    ? 'Switching...'
+                    : 'Switch To Free'}
             </button>
           </section>
 
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <section
+            className={`bg-white rounded-2xl border shadow-sm p-6 ${
+              user.accountType === 'teacher' ? 'border-brand-blue' : 'border-slate-200'
+            }`}
+          >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
               <GraduationCap size={18} className="mr-2 text-brand-blue" /> Teacher
             </h2>
@@ -251,19 +333,35 @@ export const ChangePlan: React.FC = () => {
             </ul>
             <button
               type="button"
-              disabled={pendingTarget === 'teacher' || user.accountType === 'teacher'}
+              disabled={pendingTarget === 'teacher' || (!isOnboarding && user.accountType === 'teacher')}
               onClick={() => void applyPlan('teacher')}
               className={`w-full py-2.5 rounded-lg font-bold transition-colors ${
-                user.accountType === 'teacher'
+                !isOnboarding && user.accountType === 'teacher'
                   ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
                   : 'bg-brand-blue text-white hover:bg-sky-600'
               } ${pendingTarget === 'teacher' ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {user.accountType === 'teacher' ? 'Current Plan' : pendingTarget === 'teacher' ? 'Switching...' : 'Switch To Teacher'}
+              {isOnboarding
+                ? pendingTarget === 'teacher'
+                  ? user.accountType === 'teacher'
+                    ? 'Continuing...'
+                    : 'Upgrading...'
+                  : user.accountType === 'teacher'
+                    ? 'Continue With Teacher'
+                    : 'Upgrade To Teacher'
+                : user.accountType === 'teacher'
+                  ? 'Current Plan'
+                  : pendingTarget === 'teacher'
+                    ? 'Switching...'
+                    : 'Switch To Teacher'}
             </button>
           </section>
 
-          <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <section
+            className={`bg-white rounded-2xl border shadow-sm p-6 ${
+              user.accountType === 'school' ? 'border-brand-blue' : 'border-slate-200'
+            }`}
+          >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
               <Building2 size={18} className="mr-2 text-brand-blue" /> School
             </h2>
@@ -276,7 +374,7 @@ export const ChangePlan: React.FC = () => {
                 </li>
               ))}
             </ul>
-            {user.accountType === 'school' ? (
+            {user.accountType === 'school' && !isOnboarding ? (
               <button
                 type="button"
                 disabled
@@ -287,10 +385,26 @@ export const ChangePlan: React.FC = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => setShowSchoolSetup((prev) => !prev)}
+                onClick={() => {
+                  if (user.accountType === 'school' && isOnboarding) {
+                    void applyPlan('school');
+                    return;
+                  }
+                  setShowSchoolSetup((prev) => !prev);
+                }}
                 className="w-full py-2.5 rounded-lg font-bold bg-brand-blue text-white hover:bg-sky-600 transition-colors"
               >
-                {showSchoolSetup ? 'Hide School Setup' : 'Switch To School'}
+                {isOnboarding
+                  ? user.accountType === 'school'
+                    ? pendingTarget === 'school'
+                      ? 'Continuing...'
+                      : 'Continue With School'
+                    : showSchoolSetup
+                      ? 'Hide School Setup'
+                      : 'Upgrade To School'
+                  : showSchoolSetup
+                    ? 'Hide School Setup'
+                    : 'Switch To School'}
               </button>
             )}
           </section>
@@ -300,11 +414,13 @@ export const ChangePlan: React.FC = () => {
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
             <h3 className="text-lg font-bold text-slate-800 mb-1">School Setup</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Add initial school details to switch to the School plan.
+              {isOnboarding
+                ? 'Add the basics for your school account. You can adjust the rest later.'
+                : 'Add initial school details to switch to the School plan.'}
             </p>
             <form onSubmit={handleConfirmSchoolPlan} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="md:col-span-2">
+                <div className={isOnboarding ? 'md:col-span-3' : 'md:col-span-2'}>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">School Name</label>
                   <input
                     value={schoolName}
@@ -314,17 +430,19 @@ export const ChangePlan: React.FC = () => {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">number of teacher spots</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={500}
-                    value={teacherSeatLimit}
-                    onChange={(event) => setTeacherSeatLimit(Number(event.target.value))}
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-brand-blue focus:border-brand-blue outline-none text-sm"
-                  />
-                </div>
+                {!isOnboarding && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">number of teacher spots</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={teacherSeatLimit}
+                      onChange={(event) => setTeacherSeatLimit(Number(event.target.value))}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-brand-blue focus:border-brand-blue outline-none text-sm"
+                    />
+                  </div>
+                )}
                 <div className="md:col-span-3">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">School logo (optional)</label>
                   <input
@@ -355,7 +473,13 @@ export const ChangePlan: React.FC = () => {
                   pendingTarget === 'school' ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
-                {pendingTarget === 'school' ? 'Switching...' : 'Confirm School Plan'}
+                {pendingTarget === 'school'
+                  ? isOnboarding
+                    ? 'Creating...'
+                    : 'Switching...'
+                  : isOnboarding
+                    ? 'Continue With School'
+                    : 'Confirm School Plan'}
               </button>
             </form>
           </section>
