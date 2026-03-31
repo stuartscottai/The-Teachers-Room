@@ -4,7 +4,7 @@ create table if not exists public.generation_usage (
   user_id uuid not null references auth.users (id) on delete cascade,
   user_email text,
   action text not null,
-  model text not null default 'gemini-2.5-flash',
+  model text not null,
   status text not null check (status in ('success', 'error')),
   prompt_tokens integer not null default 0 check (prompt_tokens >= 0),
   output_tokens integer not null default 0 check (output_tokens >= 0),

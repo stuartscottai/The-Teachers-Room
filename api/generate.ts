@@ -4,22 +4,14 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import mammoth from "mammoth";
 import WordExtractor from "word-extractor";
+import { ACTIVE_GEMINI_MODEL, getGeminiModelPricing } from "../utils/aiModelConfig";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZWZnd2h5d2N1emZuYXd0eXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MzMxMDEsImV4cCI6MjA4MDEwOTEwMX0._ZxWGsoU-rN8Yuf_v_7zGrivk2GKgb6QHBbT3QgtrCk';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
-const LARGE_PROMPT_THRESHOLD = 200_000;
-const TOKEN_PRICING = {
-  inputStandard: 0.3,
-  inputLarge: 1.0,
-  audioInputStandard: 1.0,
-  audioInputLarge: 3.0,
-  outputStandard: 2.5,
-  outputLarge: 15.0
-};
+const DEFAULT_MODEL = ACTIVE_GEMINI_MODEL;
 const MAX_EXTRACTED_TEXT_CHARS = 150_000;
 const DOCX_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -292,25 +284,28 @@ const countTokensSafe = async (ai: GoogleGenAI, model: string, contents: any) =>
 };
 
 const estimateCostUsd = ({
+  model,
   promptTokens,
   outputTokens,
   thoughtsTokens,
   hasAudioInput
 }: {
+  model: string;
   promptTokens: number;
   outputTokens: number;
   thoughtsTokens: number;
   hasAudioInput: boolean;
 }) => {
-  const largePrompt = promptTokens > LARGE_PROMPT_THRESHOLD;
+  const pricing = getGeminiModelPricing(model);
+  const largePrompt = pricing.largePromptThreshold !== null && promptTokens > pricing.largePromptThreshold;
   const inputRate = hasAudioInput
     ? largePrompt
-      ? TOKEN_PRICING.audioInputLarge
-      : TOKEN_PRICING.audioInputStandard
+      ? pricing.audioInputLarge
+      : pricing.audioInputStandard
     : largePrompt
-      ? TOKEN_PRICING.inputLarge
-      : TOKEN_PRICING.inputStandard;
-  const outputRate = largePrompt ? TOKEN_PRICING.outputLarge : TOKEN_PRICING.outputStandard;
+      ? pricing.inputLarge
+      : pricing.inputStandard;
+  const outputRate = largePrompt ? pricing.outputLarge : pricing.outputStandard;
   const billableOutputTokens = outputTokens + thoughtsTokens;
 
   return Number(
@@ -356,6 +351,7 @@ const buildUsageSnapshot = async ({
     thoughtsTokens,
     totalTokens,
     estimatedCostUsd: estimateCostUsd({
+      model,
       promptTokens,
       outputTokens,
       thoughtsTokens,
@@ -768,7 +764,7 @@ Return JSON: { "categories": ["..."] }
       parts.push({ text: prompt });
 
       const response = await generateTrackedContent({
-        model: 'gemini-2.5-flash',
+        model: DEFAULT_MODEL,
         contents: { parts },
         config: {
           systemInstruction,
@@ -1118,7 +1114,7 @@ Return JSON: { "categories": ["..."] }
       parts.push({ text: prompt });
 
       const response = await generateTrackedContent({
-        model: 'gemini-2.5-flash',
+        model: DEFAULT_MODEL,
         contents: { parts },
         config: {
           systemInstruction,
@@ -1447,7 +1443,7 @@ RULES:
        parts.push({ text: prompt });
 
        const response = await generateTrackedContent({
-        model: 'gemini-2.5-flash',
+        model: DEFAULT_MODEL,
         contents: { parts },
         config: {
             systemInstruction,
@@ -1739,7 +1735,7 @@ RULES:
         });
 
         const response = await generateTrackedContent({
-            model: 'gemini-2.5-flash',
+            model: DEFAULT_MODEL,
             contents: contents,
             config: {
                 systemInstruction: systemInstruction,
@@ -1814,7 +1810,7 @@ RULES:
       `;
 
         const response = await generateTrackedContent({
-          model: 'gemini-2.5-flash',
+          model: DEFAULT_MODEL,
           contents: prompt
         });
 

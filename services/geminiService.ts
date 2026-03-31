@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
+import { ACTIVE_GEMINI_MODEL } from "../utils/aiModelConfig";
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 import { supabase } from "./supabase";
 import { getMyEntitlements } from "./accountAccess";
@@ -19,6 +20,7 @@ export interface ChatWizardResponse {
 }
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const DEFAULT_MODEL = ACTIVE_GEMINI_MODEL;
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
 const DEFAULT_EXTERNAL_API = '/api/generate';
 const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL;
@@ -522,7 +524,7 @@ Return JSON: { "categories": ["..."] }
     parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_MODEL,
       contents: { parts },
       config: {
         systemInstruction: systemInstruction,
@@ -691,7 +693,7 @@ ${JSON.stringify(requestPayload)}
 `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: DEFAULT_MODEL,
     contents: { parts: [{ text: prompt }] },
     config: {
       responseMimeType: 'application/json',
@@ -1171,7 +1173,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_MODEL,
       contents: { parts },
       config: {
         systemInstruction: systemInstruction,
@@ -1612,7 +1614,7 @@ If source files are attached, base requested content on those documents instead 
     parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: DEFAULT_MODEL,
       contents: { parts },
       config: {
         systemInstruction: systemInstruction,
@@ -1956,7 +1958,7 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     });
 
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: DEFAULT_MODEL,
         contents: contents,
         config: {
             systemInstruction: systemInstruction,
