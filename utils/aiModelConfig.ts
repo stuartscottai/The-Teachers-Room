@@ -1,4 +1,5 @@
 export const ACTIVE_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+const FLASH_LITE_GAME_THINKING_BUDGET = 24_576;
 
 type GeminiModelPricing = {
   largePromptThreshold: number | null;
@@ -45,5 +46,14 @@ export const getGeminiModelPricing = (model: string): Required<GeminiModelPricin
     audioInputLarge: configured.audioInputLarge ?? configured.audioInputStandard,
     outputStandard: configured.outputStandard,
     outputLarge: configured.outputLarge ?? configured.outputStandard,
+  };
+};
+
+export const getGameGenerationThinkingConfig = (model: string) => {
+  const resolvedModel = model || ACTIVE_GEMINI_MODEL;
+  if (resolvedModel !== 'gemini-2.5-flash-lite') return undefined;
+
+  return {
+    thinkingBudget: FLASH_LITE_GAME_THINKING_BUDGET,
   };
 };

@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, WorksheetAiParts, WorksheetConfig, GameType, GeneratedQuestion } from "../types";
-import { ACTIVE_GEMINI_MODEL } from "../utils/aiModelConfig.js";
+import { ACTIVE_GEMINI_MODEL, getGameGenerationThinkingConfig } from "../utils/aiModelConfig.js";
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 import { supabase } from "./supabase";
 import { getMyEntitlements } from "./accountAccess";
@@ -1177,6 +1177,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       contents: { parts },
       config: {
         systemInstruction: systemInstruction,
+        ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
+          ? { thinkingConfig: getGameGenerationThinkingConfig(DEFAULT_MODEL) }
+          : {}),
         responseMimeType: "application/json",
         responseSchema: responseSchema
       }

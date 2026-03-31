@@ -4,7 +4,11 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import mammoth from "mammoth";
 import WordExtractor from "word-extractor";
-import { ACTIVE_GEMINI_MODEL, getGeminiModelPricing } from "../utils/aiModelConfig.js";
+import {
+  ACTIVE_GEMINI_MODEL,
+  getGameGenerationThinkingConfig,
+  getGeminiModelPricing
+} from "../utils/aiModelConfig.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -1118,6 +1122,9 @@ Return JSON: { "categories": ["..."] }
         contents: { parts },
         config: {
           systemInstruction,
+          ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
+            ? { thinkingConfig: getGameGenerationThinkingConfig(DEFAULT_MODEL) }
+            : {}),
           responseMimeType: "application/json",
           responseSchema: responseSchema
         }
