@@ -3,12 +3,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent, generateStopTheFireCategories } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff, Copy, Upload, ChevronDown } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
 import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
 import { SchoolStorageBrowser } from '../school/SchoolStorageBrowser';
 import { SchoolStorageFolder, ensureSchoolStorageCapacity, listSchoolStorageFolders, uploadSchoolStorageFile, uploadUploadedFileToSchoolStorage } from '../../services/schoolStorage';
+import { buildExternalLlmGamePrompt, MANUAL_GAME_IMPORT_ACCEPT, parseImportedGameContent } from '../../utils/gameImport';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
@@ -24,6 +25,29 @@ const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
     [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
     [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
     [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+};
+
+const copyTextToClipboard = async (text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    if (typeof document === 'undefined') {
+        throw new Error('Clipboard access is not available here.');
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
 };
 
 // Mode Selector Sub-Component
@@ -340,10 +364,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     const [manualCategories, setManualCategories] = useState<string[]>(Array(10).fill(''));
     const [bulkManualInput, setBulkManualInput] = useState('');
+    const [manualImportExpanded, setManualImportExpanded] = useState(false);
+    const [manualImportBusy, setManualImportBusy] = useState(false);
+    const [manualImportText, setManualImportText] = useState('');
+    const [externalPromptPointsMode, setExternalPromptPointsMode] = useState<'fixed' | 'random' | 'ai-random' | 'manual'>('fixed');
+    const [manualImportFeedback, setManualImportFeedback] = useState<{ tone: 'neutral' | 'success' | 'error'; text: string } | null>(null);
 
     const [loading, setLoading] = useState(false);
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
     const sourceInputRef = useRef<HTMLInputElement>(null);
+    const manualImportInputRef = useRef<HTMLInputElement>(null);
 
     // Update category names array (Jeopardy)
     useEffect(() => {
@@ -458,6 +488,81 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             // Reset input value to allow re-uploading same file if deleted
             e.target.value = '';
         }
+    };
+
+    const externalLlmPrompt = buildExternalLlmGamePrompt(config, { pointsStrategy: externalPromptPointsMode });
+    const supportsExternalTopic = mode === 'manual';
+    const supportsExternalQuestionType =
+        mode === 'manual' &&
+        ![GameType.MILLIONAIRE, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
+    const supportsExternalPointsMode =
+        mode === 'manual' &&
+        ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.DARTS, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
+
+    const handleCopyExternalPrompt = async () => {
+        try {
+            setManualImportExpanded(true);
+            await copyTextToClipboard(externalLlmPrompt);
+            setManualImportFeedback({
+                tone: 'success',
+                text: 'Prompt copied. Paste it into ChatGPT, Claude, Gemini, or another LLM, then upload the JSON result here.'
+            });
+        } catch (error) {
+            console.error('Failed to copy external LLM prompt', error);
+            setManualImportFeedback({
+                tone: 'error',
+                text: 'Could not copy the prompt automatically. Please try again.'
+            });
+        }
+    };
+
+    const openManualImportPicker = () => {
+        manualImportInputRef.current?.click();
+    };
+
+    const processManualImport = async (text: string, label: string) => {
+        setManualImportBusy(true);
+        setManualImportExpanded(true);
+        setManualImportFeedback({
+            tone: 'neutral',
+            text: `Importing ${label}...`
+        });
+
+        try {
+            const importedGame = parseImportedGameContent(text, config);
+            onProceed(importedGame);
+        } catch (error) {
+            console.error('Failed to import manual game JSON', error);
+            setManualImportFeedback({
+                tone: 'error',
+                text: error instanceof Error ? error.message : `Could not import ${label}.`
+            });
+        } finally {
+            setManualImportBusy(false);
+        }
+    };
+
+    const handleManualImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+
+        const text = await file.text();
+        await processManualImport(text, file.name);
+    };
+
+    const handleManualImportPaste = async () => {
+        const trimmed = manualImportText.trim();
+        if (!trimmed) {
+            setManualImportExpanded(true);
+            setManualImportFeedback({
+                tone: 'error',
+                text: 'Paste JSON from your external LLM before importing.'
+            });
+            return;
+        }
+
+        await processManualImport(trimmed, 'pasted JSON');
     };
 
     const removeFile = (index: number) => {
@@ -1295,6 +1400,197 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 </div>
                             )}
 
+                            {mode === 'manual' && (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+                                    <input
+                                        ref={manualImportInputRef}
+                                        type="file"
+                                        accept={MANUAL_GAME_IMPORT_ACCEPT}
+                                        onChange={handleManualImportFileChange}
+                                        className="hidden"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualImportExpanded((prev) => !prev)}
+                                        aria-expanded={manualImportExpanded}
+                                        className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:border-brand-blue"
+                                    >
+                                        <span className="flex items-center gap-3">
+                                            <span className="bg-sky-100 p-2 rounded-lg text-sky-700">
+                                                <Upload size={18} />
+                                            </span>
+                                            <span className="font-bold text-slate-800">Import from External LLM</span>
+                                        </span>
+                                        <ChevronDown
+                                            size={18}
+                                            className={`text-slate-500 transition-transform ${manualImportExpanded ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+
+                                    {manualImportExpanded && (
+                                        <div className="space-y-4">
+                                            <p className="text-sm text-slate-600">
+                                                Fill in the game settings above, then copy a prompt built from those settings. Use ChatGPT, Claude, Gemini, or another LLM to generate import-ready JSON, then upload or paste it here to open a prefilled editor.
+                                            </p>
+
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
+                                                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
+                                                    Prompt Settings
+                                                </label>
+
+                                                {supportsExternalTopic && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Topic / Theme</label>
+                                                        <input
+                                                            type="text"
+                                                            value={config.topic}
+                                                            onChange={(e) => setConfig({ ...config, topic: e.target.value })}
+                                                            placeholder="e.g., Ancient Rome, Ecosystems, Easter revision"
+                                                            className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {supportsExternalQuestionType && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                        <select
+                                                            value={config.questionType}
+                                                            onChange={(e) => setConfig({ ...config, questionType: e.target.value as any })}
+                                                            className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                        >
+                                                            <option value="ai-decide">LLM Decides (Mixed)</option>
+                                                            <option value="mixed">Mixed Format</option>
+                                                            <option value="multiple-choice">Multiple Choice</option>
+                                                            <option value="gap-fill">Gap Fill</option>
+                                                            <option value="open">Open Ended</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {supportsExternalQuestionType && config.questionType === 'multiple-choice' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                                                        <select
+                                                            value={config.mcOptionCount || 4}
+                                                            onChange={(e) => setConfig({ ...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4 })}
+                                                            className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                        >
+                                                            <option value="2">2 Options</option>
+                                                            <option value="3">3 Options</option>
+                                                            <option value="4">4 Options</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {supportsExternalPointsMode && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Points Strategy</label>
+                                                        <select
+                                                            value={externalPromptPointsMode}
+                                                            onChange={(e) => setExternalPromptPointsMode(e.target.value as 'fixed' | 'random' | 'ai-random' | 'manual')}
+                                                            className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                        >
+                                                            <option value="fixed">Fixed Points</option>
+                                                            <option value="random">Random Points</option>
+                                                            <option value="ai-random">Vary By Difficulty</option>
+                                                            <option value="manual">Edit Points Later</option>
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Extra Instructions</label>
+                                                    <textarea
+                                                        value={config.customInstructions}
+                                                        onChange={(e) => setConfig({ ...config, customInstructions: e.target.value })}
+                                                        placeholder="e.g., Keep the language around B1 level. Avoid trick questions. Focus on phrasal verbs."
+                                                        className="w-full min-h-[110px] rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void handleCopyExternalPrompt()}
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue"
+                                                >
+                                                    <Copy size={16} />
+                                                    Copy Prompt for External LLM
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={openManualImportPicker}
+                                                    disabled={manualImportBusy}
+                                                    className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                                                >
+                                                    <Upload size={16} />
+                                                    {manualImportBusy ? 'Importing...' : 'Upload JSON / MD'}
+                                                </button>
+                                            </div>
+
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                                                    How To Use It
+                                                </label>
+                                                <p className="text-sm text-slate-600">
+                                                    Copy the prompt after you finish the settings above. Paste it into your external LLM, then add your topic, lesson notes, or source material underneath it. Ask for JSON only, then upload the file or paste the response below.
+                                                </p>
+                                                <p className="mt-2 text-xs text-slate-500">
+                                                    Accepted formats: <span className="font-mono">.json</span>, <span className="font-mono">.txt</span>, or <span className="font-mono">.md</span> containing JSON.
+                                                </p>
+                                            </div>
+
+                                            <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                                                    Paste JSON Directly
+                                                </label>
+                                                <textarea
+                                                    value={manualImportText}
+                                                    onChange={(e) => setManualImportText(e.target.value)}
+                                                    placeholder="Paste the JSON output from your external LLM here."
+                                                    className="w-full min-h-[180px] rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
+                                                />
+                                                <div className="mt-3 flex flex-wrap gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void handleManualImportPaste()}
+                                                        disabled={manualImportBusy || !manualImportText.trim()}
+                                                        className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                                                    >
+                                                        <Upload size={16} />
+                                                        {manualImportBusy ? 'Importing...' : 'Import Pasted JSON'}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setManualImportText('')}
+                                                        disabled={manualImportBusy || !manualImportText}
+                                                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {manualImportFeedback && (
+                                                <div
+                                                    className={`rounded-xl px-4 py-3 text-sm ${
+                                                        manualImportFeedback.tone === 'error'
+                                                            ? 'border border-red-200 bg-red-50 text-red-700'
+                                                            : manualImportFeedback.tone === 'success'
+                                                                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                                : 'border border-slate-200 bg-white text-slate-600'
+                                                    }`}
+                                                >
+                                                    {manualImportFeedback.text}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {supportsQuestionImages && (
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <div className="flex items-start justify-between gap-4">
@@ -1497,7 +1793,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <>Generating Game Content...</>
                                 ) : (
                                     <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />} 
-                                    {mode === 'ai' ? 'Create Game' : 'Open Editor'}</>
+                                    {mode === 'ai' ? 'Create Game' : 'Open Blank Editor'}</>
                                 )}
                             </button>
                         </div>
