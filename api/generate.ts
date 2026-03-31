@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import mammoth from "mammoth";
 import WordExtractor from "word-extractor";
-import { ACTIVE_GEMINI_MODEL, getGeminiModelPricing } from "../utils/aiModelConfig";
+import { ACTIVE_GEMINI_MODEL, getGeminiModelPricing } from "../utils/aiModelConfig.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
