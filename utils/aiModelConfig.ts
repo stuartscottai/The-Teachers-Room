@@ -1,4 +1,4 @@
-export const ACTIVE_GEMINI_MODEL = 'gemini-2.5-flash-lite';
+export const ACTIVE_GEMINI_MODEL = 'gemini-2.5-flash';
 const FLASH_LITE_GAME_THINKING_BUDGET = 24_576;
 
 type GeminiModelPricing = {
