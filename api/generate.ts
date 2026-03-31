@@ -156,11 +156,15 @@ const resolveIncomingFileMimeType = (file: any) => {
 
 const isTextMimeType = (mimeType: string) => TEXT_MIME_TYPES.has(mimeType);
 
+const hasOnlyFallbackMimeType = (mimeType: string) => !mimeType || mimeType === 'application/octet-stream';
+
 const isDocxMimeType = (mimeType: string, fileName?: string) =>
-  DOCX_MIME_TYPES.has(mimeType) || (fileName || '').toLowerCase().endsWith('.docx');
+  DOCX_MIME_TYPES.has(mimeType) ||
+  (hasOnlyFallbackMimeType(mimeType) && (fileName || '').toLowerCase().endsWith('.docx'));
 
 const isLegacyWordMimeType = (mimeType: string, fileName?: string) =>
-  DOC_MIME_TYPES.has(mimeType) || (fileName || '').toLowerCase().endsWith('.doc');
+  DOC_MIME_TYPES.has(mimeType) ||
+  (hasOnlyFallbackMimeType(mimeType) && (fileName || '').toLowerCase().endsWith('.doc'));
 
 const isWordMimeType = (mimeType: string, fileName?: string) =>
   WORD_MIME_TYPES.has(mimeType) ||
