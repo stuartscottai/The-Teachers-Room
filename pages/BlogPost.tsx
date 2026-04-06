@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Share2 } from 'lucide-react';
 import { blogPosts } from '../data/blogPosts';
 import { BrandName } from '../components/BrandName';
@@ -7,6 +7,8 @@ import { BrandName } from '../components/BrandName';
 export const BlogPostPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const post = blogPosts.find(p => p.id === Number(id));
+    const heroImage = post?.heroImage ?? post?.image;
+    const heroUsesContain = post?.heroImageFit === 'contain';
 
     // Scroll to top on load
     useEffect(() => {
@@ -27,28 +29,71 @@ export const BlogPostPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-white animate-fade-in">
             {/* Hero Section */}
-            <div className="relative h-[50vh] min-h-[400px]">
-                <img src={post.image} alt={post.title} crossOrigin="anonymous" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
-                
-                <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
-                    <div className="max-w-4xl mx-auto px-4 w-full">
-                        <Link to="/blog" className="inline-flex items-center text-white/80 hover:text-white mb-6 transition-colors bg-black/20 hover:bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
-                            <ArrowLeft size={18} className="mr-2" /> Back to Blog
-                        </Link>
-                        <div className="flex items-center space-x-6 text-white/90 mb-4 text-sm md:text-base font-medium">
-                            <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
-                            <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
+            {heroUsesContain ? (
+                <div className="relative h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-teal-50 via-white to-sky-50">
+                    <div className="absolute inset-y-0 right-0 w-full md:w-[56%] lg:w-[48%]">
+                        <img
+                            src={heroImage}
+                            alt={post.title}
+                            crossOrigin="anonymous"
+                            className="w-full h-full object-contain object-right p-6 md:p-10 lg:p-12"
+                        />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/98 via-white/88 to-white/15"></div>
+
+                    <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
+                        <div className="max-w-4xl mx-auto px-4 w-full">
+                            <Link
+                                to="/blog"
+                                className="inline-flex items-center mb-6 transition-colors px-4 py-2 rounded-full backdrop-blur-sm text-slate-700 hover:text-slate-900 bg-white/75 hover:bg-white/90 border border-slate-200 shadow-sm"
+                            >
+                                <ArrowLeft size={18} className="mr-2" /> Back to Blog
+                            </Link>
+                            <div className="flex items-center space-x-6 mb-4 text-sm md:text-base font-medium text-slate-700">
+                                <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
+                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-display font-bold leading-tight mb-4 text-slate-900 max-w-4xl">
+                                {post.title}
+                            </h1>
+                            <p className="text-xl md:text-2xl font-light max-w-2xl leading-relaxed border-l-4 border-brand-yellow pl-6 text-slate-700">
+                                {post.subtitle}
+                            </p>
                         </div>
-                        <h1 className="text-4xl md:text-6xl font-display font-bold text-white leading-tight mb-4 shadow-black drop-shadow-lg">
-                            {post.title}
-                        </h1>
-                        <p className="text-xl md:text-2xl text-sky-100 font-light max-w-2xl leading-relaxed border-l-4 border-brand-yellow pl-6">
-                            {post.subtitle}
-                        </p>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="relative h-[50vh] min-h-[400px]">
+                    <img
+                        src={heroImage}
+                        alt={post.title}
+                        crossOrigin="anonymous"
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
+                    
+                    <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
+                        <div className="max-w-4xl mx-auto px-4 w-full">
+                            <Link
+                                to="/blog"
+                                className="inline-flex items-center text-white/80 hover:text-white mb-6 transition-colors bg-black/20 hover:bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm"
+                            >
+                                <ArrowLeft size={18} className="mr-2" /> Back to Blog
+                            </Link>
+                            <div className="flex items-center space-x-6 text-white/90 mb-4 text-sm md:text-base font-medium">
+                                <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
+                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-display font-bold text-white leading-tight mb-4 shadow-black drop-shadow-lg">
+                                {post.title}
+                            </h1>
+                            <p className="text-xl md:text-2xl text-sky-100 font-light max-w-2xl leading-relaxed border-l-4 border-brand-yellow pl-6">
+                                {post.subtitle}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Content Section */}
             <article className="max-w-3xl mx-auto px-4 py-16">

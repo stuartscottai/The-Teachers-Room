@@ -324,6 +324,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
         if (rank === 2) return isStageAtLeast('silver-rise');
         return isStageAtLeast('bronze-rise');
     };
+    const winnerHeroTopClearance = 'clamp(12px, 2.5vh, 20px)';
     const getPodiumHeight = (rank: 1 | 2 | 3) => {
         if (rank === 1) return 'clamp(150px, 26vw, 270px)';
         if (rank === 2) return 'clamp(120px, 20vw, 190px)';
@@ -382,7 +383,10 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             <div className="wordwheel-winner-aurora absolute inset-0 pointer-events-none" />
             <WinnerCeremonyConfetti active={winnerAnimationStage === 'complete'} />
 
-            <div className="relative z-10 w-full h-full overflow-y-auto">
+            <div
+                className="relative z-10 w-full h-full overflow-y-auto"
+                style={{ paddingTop: winnerHeroTopClearance, scrollPaddingTop: winnerHeroTopClearance }}
+            >
                 <div className="max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-10 flex flex-col items-center text-center">
                     <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2">{winnerHeadline}</h1>
                     <p className="text-cyan-100 text-base sm:text-xl mb-6">{subtitle}</p>
@@ -498,4 +502,3 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
         </>
     );
 };
-

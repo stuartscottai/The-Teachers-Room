@@ -263,6 +263,8 @@ export interface BlogPost {
   date: string;
   content: string;
   image: string;
+  heroImage?: string;
+  heroImageFit?: 'cover' | 'contain';
 }
 
 export type AccountType = 'free' | 'teacher' | 'school';

@@ -2,6 +2,42 @@ import { BlogPost } from '../types';
 
 export const blogPosts: BlogPost[] = [
     {
+        id: 6,
+        title: "Using AI to Write Student Reports With Custom Templates",
+        subtitle: "How structured templates make AI-generated student reports faster, more consistent, and more personal.",
+        date: "April 6, 2026",
+        image: "/assets/blog-aireportwriter-og.png",
+        heroImage: "/assets/blog-aireportwriter-mascot-up.png",
+        heroImageFit: "contain",
+        content: `
+            <p class="lead">Writing student reports is high-value work, but it is also repetitive, time-sensitive, and easy to drag into evenings and weekends. AI can help, but the real improvement does not come from typing a clever one-off prompt. It comes from building a customized template that reflects your school's tone, reporting categories, and the kind of next-step feedback you actually want parents to read.</p>
+
+            <h2>Why Templates Matter More Than Prompts</h2>
+            <p>A blank chatbot box creates inconsistent results. One report sounds warm, another sounds robotic, and a third forgets to mention targets for improvement. A customized report template fixes that. It gives the AI a structure to follow, which means your reports stay aligned across a class, a department, or an entire school.</p>
+            <p>Good templates usually include a fixed order for strengths, effort, attainment, and next steps, plus the phrases and criteria your school already uses. Once that structure is in place, AI can do the heavy lifting while the teacher stays in control of the final message.</p>
+
+            <h2>A Practical Workflow for AI Report Writing</h2>
+            <p>The most effective setup is simple:</p>
+            <ul>
+                <li>Create one template for each subject, age group, or reporting cycle.</li>
+                <li>Add consistent sections such as achievement, attitude to learning, and targets.</li>
+                <li>Feed in ratings, short teacher notes, and any specific context for the student.</li>
+                <li>Generate a first draft, then edit for accuracy, nuance, and safeguarding.</li>
+            </ul>
+            <p>This approach keeps the process fast without turning every report into the same paragraph with a different name at the top.</p>
+
+            <h2>A Review of AI Report Writer</h2>
+            <p>Based on the public website reviewed on April 6, 2026, <a href="https://aireportwriter.app/" target="_blank" rel="noopener noreferrer">AI Report Writer</a> looks like a focused reporting workflow rather than a generic AI writing tool. The strongest part of the offer is its template system: the site highlights a Template Builder, Template Manager, reusable templates, and sharing for teams. That is exactly the right feature set for schools that want consistency without removing the teacher's voice.</p>
+            <p>The site also presents a clear four-step process: choose a template, add student context, generate a draft, then review and export. Multilingual output and improvement-plan support are both useful additions, especially for schools communicating with families in more than one language. Pricing is also easy to understand, and the homepage currently states that every account receives 50 free beta credits each month.</p>
+
+            <h2>Where AI Still Needs the Teacher</h2>
+            <p>No matter how good the template is, the teacher still needs to review the final report. AI can help with consistency and speed, but it should not invent evidence, overstate progress, or flatten important pastoral context. The final quality still depends on the notes, ratings, and professional judgement that go into the draft.</p>
+
+            <h2>Final Thought</h2>
+            <p>AI works best in report writing when it is guided by a thoughtful structure. Customized templates turn AI from a novelty into a reliable workflow tool. If your goal is to save time without sacrificing clarity or personalisation, that is the model worth following.</p>
+        `
+    },
+    {
         id: 1,
         title: "AI in the Classroom: Friend or Foe?",
         subtitle: "Exploring the ethical implications and practical benefits of artificial intelligence for modern educators.",
