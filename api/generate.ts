@@ -430,6 +430,54 @@ const cleanJson = (text: string): string => {
 const stripOptionPrefix = (value: string) => (value || '').replace(/^[A-D]\)\s*/i, '').trim();
 const normalizeOption = (value: string) => stripOptionPrefix(value).toLowerCase();
 const normalizeOptionWithoutArticle = (value: string) => normalizeOption(value).replace(/^(a|an|the)\s+/i, '');
+const QUESTION_TYPES_WITH_MCQ = new Set(['multiple-choice', 'mixed', 'ai-decide']);
+
+const normalizeGameMcOptionCount = (value: any): 2 | 3 | 4 => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 4;
+  return Math.min(4, Math.max(2, Math.round(parsed))) as 2 | 3 | 4;
+};
+
+const resolveGameMcOptionStrategy = (config: any): 'fixed' | 'vary' => {
+  if (config?.type === 'Millionaire Maker') return 'fixed';
+  if (config?.mcOptionStrategy === 'fixed' || config?.mcOptionStrategy === 'vary') {
+    return config.mcOptionStrategy;
+  }
+  return config?.questionType === 'multiple-choice' ? 'fixed' : 'vary';
+};
+
+type GameMcOptionPolicy =
+  | { mode: 'fixed'; count: 2 | 3 | 4 }
+  | { mode: 'vary' };
+
+const getGameMcOptionPolicy = (config: any): GameMcOptionPolicy | null => {
+  if (config?.type === 'Millionaire Maker') {
+    return { mode: 'fixed', count: 4 };
+  }
+  if (!QUESTION_TYPES_WITH_MCQ.has(String(config?.questionType || ''))) {
+    return null;
+  }
+  return resolveGameMcOptionStrategy(config) === 'fixed'
+    ? { mode: 'fixed', count: normalizeGameMcOptionCount(config?.mcOptionCount) }
+    : { mode: 'vary' };
+};
+
+const applyToGameQuestions = (data: any, apply: (question: any) => void) => {
+  if (!data) return;
+
+  const visit = (questions?: any[]) => {
+    if (!Array.isArray(questions)) return;
+    questions.forEach(apply);
+  };
+
+  visit(data.questions);
+  if (Array.isArray(data.pubQuizRounds)) {
+    data.pubQuizRounds.forEach((round: any) => visit(round?.questions));
+  }
+  if (Array.isArray(data.jeopardyBoard)) {
+    data.jeopardyBoard.forEach((category: any) => visit(category?.questions));
+  }
+};
 
 const enforceAnswerMatchesOptions = (question: any) => {
   if (!question || typeof question.answer !== 'string' || !Array.isArray(question.options)) return;
@@ -453,27 +501,7 @@ const enforceAnswerMatchesOptions = (question: any) => {
 };
 
 const enforceGameAnswerMatchesOptions = (data: any) => {
-  if (!data) return;
-  const apply = (questions?: any[]) => {
-    if (!Array.isArray(questions)) return;
-    questions.forEach(enforceAnswerMatchesOptions);
-  };
-
-  apply(data.questions);
-  if (Array.isArray(data.pubQuizRounds)) {
-    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
-  }
-  if (Array.isArray(data.jeopardyBoard)) {
-    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
-  }
-};
-
-const clampGameMcOptionCount = (config: any): number | null => {
-  if (config?.type === 'Millionaire Maker') return 4;
-  if (config?.questionType !== 'multiple-choice') return null;
-  const parsed = Number(config?.mcOptionCount);
-  if (!Number.isFinite(parsed)) return 4;
-  return Math.min(4, Math.max(2, Math.round(parsed)));
+  applyToGameQuestions(data, enforceAnswerMatchesOptions);
 };
 
 const enforceQuestionOptionCount = (question: any, targetCount: number) => {
@@ -507,22 +535,165 @@ const enforceQuestionOptionCount = (question: any, targetCount: number) => {
 };
 
 const enforceGameOptionCounts = (data: any, config: any) => {
-  if (!data) return;
-  const targetCount = clampGameMcOptionCount(config);
-  if (!targetCount) return;
+  const policy = getGameMcOptionPolicy(config);
+  if (!policy) return;
 
-  const apply = (questions?: any[]) => {
-    if (!Array.isArray(questions)) return;
-    questions.forEach((question: any) => enforceQuestionOptionCount(question, targetCount));
-  };
+  const maxCount = policy.mode === 'fixed' ? policy.count : 4;
+  applyToGameQuestions(data, (question: any) => enforceQuestionOptionCount(question, maxCount));
+};
 
-  apply(data.questions);
-  if (Array.isArray(data.pubQuizRounds)) {
-    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
+const getQuestionAnswerIndex = (question: any): number => {
+  if (!question || !Array.isArray(question.options)) return -1;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+  const answer = String(question.answer || '').trim();
+  if (!answer || options.length < 2) return -1;
+
+  return options.findIndex(
+    (opt: string) =>
+      opt === answer ||
+      normalizeOption(opt) === normalizeOption(answer) ||
+      normalizeOptionWithoutArticle(opt) === normalizeOptionWithoutArticle(answer)
+  );
+};
+
+const moveCorrectOptionToIndex = (question: any, targetIndex: number) => {
+  if (!question || !Array.isArray(question.options)) return;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+  const answerIndex = getQuestionAnswerIndex({ ...question, options });
+
+  if (
+    answerIndex === -1 ||
+    targetIndex < 0 ||
+    targetIndex >= options.length ||
+    answerIndex === targetIndex
+  ) {
+    question.options = options;
+    return;
   }
-  if (Array.isArray(data.jeopardyBoard)) {
-    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
+
+  const answerOption = options[answerIndex];
+  const distractors = options.filter((_: string, index: number) => index !== answerIndex);
+  question.options = [
+    ...distractors.slice(0, targetIndex),
+    answerOption,
+    ...distractors.slice(targetIndex),
+  ];
+  question.answer = answerOption;
+};
+
+const rebalanceQuestionAnswerPositions = (questions: any[]) => {
+  const byOptionCount = new Map<number, Array<{ question: any; answerIndex: number }>>();
+
+  (questions || []).forEach((question: any) => {
+    const optionCount = Array.isArray(question?.options) ? question.options.length : 0;
+    const answerIndex = getQuestionAnswerIndex(question);
+    if (optionCount < 2 || optionCount > 4 || answerIndex < 0 || answerIndex >= optionCount) return;
+
+    const existing = byOptionCount.get(optionCount) || [];
+    existing.push({ question, answerIndex });
+    byOptionCount.set(optionCount, existing);
+  });
+
+  byOptionCount.forEach((entries, optionCount) => {
+    if (entries.length <= 1) return;
+
+    const baseTarget = Math.floor(entries.length / optionCount);
+    const targetCounts = Array(optionCount).fill(baseTarget);
+    const currentCounts = Array(optionCount).fill(0);
+    entries.forEach(({ answerIndex }) => {
+      currentCounts[answerIndex] += 1;
+    });
+
+    const remainder = entries.length - (baseTarget * optionCount);
+    const remainderOrder = Array.from({ length: optionCount }, (_, index) => index).sort((a, b) => {
+      if (currentCounts[a] !== currentCounts[b]) return currentCounts[a] - currentCounts[b];
+      return a - b;
+    });
+    for (let index = 0; index < remainder; index += 1) {
+      targetCounts[remainderOrder[index % optionCount]] += 1;
+    }
+
+    const assignments = new Map<any, number>();
+    for (let position = 0; position < optionCount; position += 1) {
+      const inPlace = entries.filter((entry) => entry.answerIndex === position);
+      const keepCount = Math.min(targetCounts[position], inPlace.length);
+      for (let index = 0; index < keepCount; index += 1) {
+        assignments.set(inPlace[index].question, position);
+      }
+      targetCounts[position] -= keepCount;
+    }
+
+    const remainingTargets: number[] = [];
+    targetCounts.forEach((count, position) => {
+      for (let index = 0; index < count; index += 1) {
+        remainingTargets.push(position);
+      }
+    });
+
+    entries.forEach((entry) => {
+      if (assignments.has(entry.question)) return;
+      let bestTargetIndex = 0;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      remainingTargets.forEach((position, index) => {
+        const distance = Math.abs(position - entry.answerIndex);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestTargetIndex = index;
+        }
+      });
+
+      const [targetPosition] = remainingTargets.splice(bestTargetIndex, 1);
+      if (typeof targetPosition === 'number') {
+        assignments.set(entry.question, targetPosition);
+      }
+    });
+
+    entries.forEach(({ question }) => {
+      const targetPosition = assignments.get(question);
+      if (typeof targetPosition === 'number') {
+        moveCorrectOptionToIndex(question, targetPosition);
+      }
+    });
+  });
+};
+
+const rebalanceGameAnswerPositions = (data: any, config: any) => {
+  if (!getGameMcOptionPolicy(config)) return;
+
+  const questions: any[] = [];
+  applyToGameQuestions(data, (question: any) => {
+    questions.push(question);
+  });
+  rebalanceQuestionAnswerPositions(questions);
+};
+
+const getGameQuestionTypeInstruction = (config: any, aiDecideLabel: string) => {
+  if (config?.questionType === 'ai-decide') {
+    return aiDecideLabel;
   }
+  return config?.questionType;
+};
+
+const getGameMcInstruction = (config: any) => {
+  const policy = getGameMcOptionPolicy(config);
+  if (!policy) return '';
+
+  if (policy.mode === 'fixed') {
+    return config?.questionType === 'multiple-choice'
+      ? ` Each multiple choice question must have exactly ${policy.count} options.`
+      : ` If you include multiple choice questions, each one must have exactly ${policy.count} options.`;
+  }
+
+  return config?.questionType === 'multiple-choice'
+    ? ' Vary the number of options between 2, 3, and 4 across the questions based on what suits each question best. Do not default to 4 options.'
+    : ' If you include multiple choice questions, vary the number of options between 2, 3, and 4 based on what suits each question best. Do not default to 4 options.';
 };
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -821,7 +992,7 @@ Return JSON: { "categories": ["..."] }
       ${SOURCE_MATERIAL_STYLE_RULES}
 
       IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
-      CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse option A. Use an equal balance across A/B/C/D (or however many options are used).
+      CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse any single position. Use an equal balance across A/B/C/D (or however many options are used).
       CRITICAL: Only ONE option can be correct. Ensure the question is specific enough that only one option is unambiguously correct (e.g., add context or time reference for grammar questions).
       If a question includes options, the "answer" must EXACTLY match one of the option strings (including articles like "a/an/the", punctuation, and capitalization). Do not paraphrase or drop articles.
       
@@ -881,12 +1052,11 @@ Return JSON: { "categories": ["..."] }
       if (isJeopardy) {
         const rows = config.jeopardyRows || 5;
         const categories = config.jeopardyCategoryNames || ["Cat 1", "Cat 2", "Cat 3", "Cat 4", "Cat 5"];
-        const qTypeInstruction = config.questionType === 'ai-decide' 
-            ? "Mix of question types suitable for the category (some open, some multiple choice, etc)" 
-            : config.questionType;
-        const mcInstruction = config.questionType === 'multiple-choice'
-            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
-            : '';
+        const qTypeInstruction = getGameQuestionTypeInstruction(
+            config,
+            "Mix of question types suitable for the category (some open, some multiple choice, etc)"
+        );
+        const mcInstruction = getGameMcInstruction(config);
 
         prompt = `
           Create a Jeopardy game with the title "${gameTitle}".
@@ -921,10 +1091,8 @@ Return JSON: { "categories": ["..."] }
         const roundCount = config.pubQuizRoundsCount || 3;
         const questionsPerRound = config.pubQuizQuestionsPerRound || 5;
         const roundNames = config.pubQuizRoundNames || ["Round 1", "Round 2", "Round 3"];
-        const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats" : config.questionType;
-        const mcInstruction = config.questionType === 'multiple-choice'
-            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
-            : '';
+        const qTypeInstruction = getGameQuestionTypeInstruction(config, "Varied formats");
+        const mcInstruction = getGameMcInstruction(config);
 
         prompt = `
           Create a Pub Quiz game titled "${gameTitle}".
@@ -980,10 +1148,8 @@ Return JSON: { "categories": ["..."] }
           };
 
       } else if (isDarts) {
-          const qTypeInstruction = config.questionType === 'ai-decide' ? "Mixed formats" : config.questionType;
-          const mcInstruction = config.questionType === 'multiple-choice'
-              ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
-              : '';
+          const qTypeInstruction = getGameQuestionTypeInstruction(config, "Mixed formats");
+          const mcInstruction = getGameMcInstruction(config);
           const requestedCount = (config.questionCount || 15) + 10;
           
           prompt = `
@@ -1063,10 +1229,8 @@ Return JSON: { "categories": ["..."] }
 
       } else {
         // Standard Game
-        const qTypeInstruction = config.questionType === 'ai-decide' ? "Varied formats chosen by AI" : config.questionType;
-        const mcInstruction = config.questionType === 'multiple-choice'
-            ? ` Each multiple choice question must have exactly ${config.mcOptionCount || 4} options.`
-            : '';
+        const qTypeInstruction = getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
+        const mcInstruction = getGameMcInstruction(config);
         
         // Points Logic
         let pointsInstruction = "Assign 100 points to every question.";
@@ -1139,6 +1303,7 @@ Return JSON: { "categories": ["..."] }
 
       enforceGameOptionCounts(data, config);
       enforceGameAnswerMatchesOptions(data);
+      rebalanceGameAnswerPositions(data, config);
       if (isWordWheel) {
         data.questions = normalizeWordWheelQuestions(data.questions || [], wordWheelLetterRule as WordWheelLetterRule);
       }

@@ -1,3 +1,4 @@
+import { jsonrepair } from 'jsonrepair';
 import { GameConfig, GameType, GeneratedGame, GeneratedQuestion, JeopardyCategory, SurveyAnswer } from '../types';
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -244,48 +245,331 @@ const enforceQuestionOptionCount = (question: any, targetCount: number) => {
   question.options = trimmed;
 };
 
-const clampGameMcOptionCount = (config: GameConfig): number | null => {
-  if (config.type === GameType.MILLIONAIRE) return 4;
-  if (config.questionType !== 'multiple-choice') return null;
-  const parsed = Number(config.mcOptionCount);
+const QUESTION_TYPES_WITH_MCQ = new Set(['multiple-choice', 'mixed', 'ai-decide']);
+
+const normalizeGameMcOptionCount = (value: any): 2 | 3 | 4 => {
+  const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 4;
-  return Math.min(4, Math.max(2, Math.round(parsed)));
+  return Math.min(4, Math.max(2, Math.round(parsed))) as 2 | 3 | 4;
+};
+
+const resolveGameMcOptionStrategy = (config: GameConfig): 'fixed' | 'vary' => {
+  if (config.type === GameType.MILLIONAIRE) return 'fixed';
+  if (config.mcOptionStrategy === 'fixed' || config.mcOptionStrategy === 'vary') {
+    return config.mcOptionStrategy;
+  }
+  return config.questionType === 'multiple-choice' ? 'fixed' : 'vary';
+};
+
+type GameMcOptionPolicy =
+  | { mode: 'fixed'; count: 2 | 3 | 4 }
+  | { mode: 'vary' };
+
+const getGameMcOptionPolicy = (config: GameConfig): GameMcOptionPolicy | null => {
+  if (config.type === GameType.MILLIONAIRE) {
+    return { mode: 'fixed', count: 4 };
+  }
+  if (!QUESTION_TYPES_WITH_MCQ.has(String(config.questionType || ''))) {
+    return null;
+  }
+  return resolveGameMcOptionStrategy(config) === 'fixed'
+    ? { mode: 'fixed', count: normalizeGameMcOptionCount(config.mcOptionCount) }
+    : { mode: 'vary' };
+};
+
+const applyToGameQuestions = (data: any, apply: (question: any) => void) => {
+  if (!data) return;
+
+  const visit = (questions?: any[]) => {
+    if (!Array.isArray(questions)) return;
+    questions.forEach(apply);
+  };
+
+  visit(data.questions);
+  if (Array.isArray(data.pubQuizRounds)) {
+    data.pubQuizRounds.forEach((round: any) => visit(round?.questions));
+  }
+  if (Array.isArray(data.jeopardyBoard)) {
+    data.jeopardyBoard.forEach((category: any) => visit(category?.questions));
+  }
 };
 
 const enforceGameAnswerMatchesOptions = (data: any) => {
-  if (!data) return;
-
-  const apply = (questions?: any[]) => {
-    if (!Array.isArray(questions)) return;
-    questions.forEach(enforceAnswerMatchesOptions);
-  };
-
-  apply(data.questions);
-  if (Array.isArray(data.pubQuizRounds)) {
-    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
-  }
-  if (Array.isArray(data.jeopardyBoard)) {
-    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
-  }
+  applyToGameQuestions(data, enforceAnswerMatchesOptions);
 };
 
 const enforceGameOptionCounts = (data: any, config: GameConfig) => {
-  if (!data) return;
-  const targetCount = clampGameMcOptionCount(config);
-  if (!targetCount) return;
+  const policy = getGameMcOptionPolicy(config);
+  if (!policy) return;
 
-  const apply = (questions?: any[]) => {
-    if (!Array.isArray(questions)) return;
-    questions.forEach((question: any) => enforceQuestionOptionCount(question, targetCount));
-  };
+  const maxCount = policy.mode === 'fixed' ? policy.count : 4;
+  applyToGameQuestions(data, (question: any) => enforceQuestionOptionCount(question, maxCount));
+};
 
-  apply(data.questions);
-  if (Array.isArray(data.pubQuizRounds)) {
-    data.pubQuizRounds.forEach((round: any) => apply(round?.questions));
+const getQuestionAnswerIndex = (question: any): number => {
+  if (!question || !Array.isArray(question.options)) return -1;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+  const answer = String(question.answer || '').trim();
+  if (!answer || options.length < 2) return -1;
+
+  return options.findIndex(
+    (opt: string) =>
+      opt === answer ||
+      normalizeOption(opt) === normalizeOption(answer) ||
+      normalizeOptionWithoutArticle(opt) === normalizeOptionWithoutArticle(answer)
+  );
+};
+
+const moveCorrectOptionToIndex = (question: any, targetIndex: number) => {
+  if (!question || !Array.isArray(question.options)) return;
+
+  const options = question.options
+    .map((opt: any) => String(opt || '').trim())
+    .filter(Boolean);
+  const answerIndex = getQuestionAnswerIndex({ ...question, options });
+
+  if (
+    answerIndex === -1 ||
+    targetIndex < 0 ||
+    targetIndex >= options.length ||
+    answerIndex === targetIndex
+  ) {
+    question.options = options;
+    return;
   }
-  if (Array.isArray(data.jeopardyBoard)) {
-    data.jeopardyBoard.forEach((category: any) => apply(category?.questions));
+
+  const answerOption = options[answerIndex];
+  const distractors = options.filter((_: string, index: number) => index !== answerIndex);
+  question.options = [
+    ...distractors.slice(0, targetIndex),
+    answerOption,
+    ...distractors.slice(targetIndex),
+  ];
+  question.answer = answerOption;
+};
+
+const rebalanceQuestionAnswerPositions = (questions: any[]) => {
+  const byOptionCount = new Map<number, Array<{ question: any; answerIndex: number }>>();
+
+  (questions || []).forEach((question: any) => {
+    const optionCount = Array.isArray(question?.options) ? question.options.length : 0;
+    const answerIndex = getQuestionAnswerIndex(question);
+    if (optionCount < 2 || optionCount > 4 || answerIndex < 0 || answerIndex >= optionCount) return;
+
+    const existing = byOptionCount.get(optionCount) || [];
+    existing.push({ question, answerIndex });
+    byOptionCount.set(optionCount, existing);
+  });
+
+  byOptionCount.forEach((entries, optionCount) => {
+    if (entries.length <= 1) return;
+
+    const baseTarget = Math.floor(entries.length / optionCount);
+    const targetCounts = Array(optionCount).fill(baseTarget);
+    const currentCounts = Array(optionCount).fill(0);
+    entries.forEach(({ answerIndex }) => {
+      currentCounts[answerIndex] += 1;
+    });
+
+    const remainder = entries.length - (baseTarget * optionCount);
+    const remainderOrder = Array.from({ length: optionCount }, (_, index) => index).sort((a, b) => {
+      if (currentCounts[a] !== currentCounts[b]) return currentCounts[a] - currentCounts[b];
+      return a - b;
+    });
+    for (let index = 0; index < remainder; index += 1) {
+      targetCounts[remainderOrder[index % optionCount]] += 1;
+    }
+
+    const assignments = new Map<any, number>();
+    for (let position = 0; position < optionCount; position += 1) {
+      const inPlace = entries.filter((entry) => entry.answerIndex === position);
+      const keepCount = Math.min(targetCounts[position], inPlace.length);
+      for (let index = 0; index < keepCount; index += 1) {
+        assignments.set(inPlace[index].question, position);
+      }
+      targetCounts[position] -= keepCount;
+    }
+
+    const remainingTargets: number[] = [];
+    targetCounts.forEach((count, position) => {
+      for (let index = 0; index < count; index += 1) {
+        remainingTargets.push(position);
+      }
+    });
+
+    entries.forEach((entry) => {
+      if (assignments.has(entry.question)) return;
+      let bestTargetIndex = 0;
+      let bestDistance = Number.POSITIVE_INFINITY;
+
+      remainingTargets.forEach((position, index) => {
+        const distance = Math.abs(position - entry.answerIndex);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestTargetIndex = index;
+        }
+      });
+
+      const [targetPosition] = remainingTargets.splice(bestTargetIndex, 1);
+      if (typeof targetPosition === 'number') {
+        assignments.set(entry.question, targetPosition);
+      }
+    });
+
+    entries.forEach(({ question }) => {
+      const targetPosition = assignments.get(question);
+      if (typeof targetPosition === 'number') {
+        moveCorrectOptionToIndex(question, targetPosition);
+      }
+    });
+  });
+};
+
+const rebalanceGameAnswerPositions = (data: any, config: GameConfig) => {
+  if (!getGameMcOptionPolicy(config)) return;
+
+  const questions: any[] = [];
+  applyToGameQuestions(data, (question: any) => {
+    questions.push(question);
+  });
+  rebalanceQuestionAnswerPositions(questions);
+};
+
+const getImportMcInstruction = (config: GameConfig, includeConditionalPrefix = false) => {
+  const policy = getGameMcOptionPolicy(config);
+  if (!policy) return '';
+
+  if (policy.mode === 'fixed') {
+    return includeConditionalPrefix
+      ? `If you include multiple-choice questions, each one must have exactly ${policy.count} options.`
+      : `Each multiple-choice question must have exactly ${policy.count} options.`;
   }
+
+  return includeConditionalPrefix
+    ? 'If you include multiple-choice questions, vary the number of options between 2, 3, and 4 based on the question. Do not default to 4 options.'
+    : 'Vary the number of options between 2, 3, and 4 across the multiple-choice questions based on the question. Do not default to 4 options.';
+};
+
+const getSampleMcOptionCount = (config: GameConfig) => {
+  const policy = getGameMcOptionPolicy(config);
+  if (!policy) return null;
+  return policy.mode === 'fixed' ? policy.count : 3;
+};
+
+const getImportJsonParseErrorMessage = () =>
+  [
+    'Could not read that pasted result.',
+    'Ask your AI tool to return JSON only, make sure any quotation marks inside a question stay inside the sentence, remove trailing commas, and make sure the reply was not cut off.',
+    'Example: "question": "Find the paraphrase for \\\"if I hadn\'t revised\\\"."',
+  ].join(' ');
+
+const normalizeLikelyAiJsonText = (text: string) =>
+  String(text || '')
+    .replace(/^\uFEFF/, '')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"');
+
+const nextNonWhitespaceChar = (text: string, startIndex: number) => {
+  for (let index = startIndex; index < text.length; index += 1) {
+    const char = text[index];
+    if (!/\s/.test(char)) return char;
+  }
+  return '';
+};
+
+const repairLikelyAiJsonText = (text: string) => {
+  const normalized = normalizeLikelyAiJsonText(text);
+  let result = '';
+  let inString = false;
+  let escaping = false;
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const char = normalized[index];
+
+    if (!inString) {
+      if (char === '"') {
+        inString = true;
+      }
+      result += char;
+      continue;
+    }
+
+    if (escaping) {
+      result += char;
+      escaping = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      result += char;
+      escaping = true;
+      continue;
+    }
+
+    if (char === '\r') continue;
+    if (char === '\n') {
+      result += '\\n';
+      continue;
+    }
+
+    if (char === '"') {
+      const nextChar = nextNonWhitespaceChar(normalized, index + 1);
+      const isClosingQuote =
+        nextChar === '' ||
+        nextChar === ',' ||
+        nextChar === '}' ||
+        nextChar === ']' ||
+        nextChar === ':';
+
+      if (isClosingQuote) {
+        inString = false;
+        result += char;
+      } else {
+        result += '\\"';
+      }
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+};
+
+const parseImportedJsonText = (text: string) => {
+  const normalizedText = normalizeLikelyAiJsonText(text);
+  const repairedText = repairLikelyAiJsonText(normalizedText);
+  const candidateTextFactories = [
+    () => text,
+    () => normalizedText,
+    () => repairedText,
+    () => jsonrepair(normalizedText),
+    () => jsonrepair(repairedText),
+  ];
+  const tried = new Set<string>();
+
+  for (const getCandidateText of candidateTextFactories) {
+    let candidateText = '';
+    try {
+      candidateText = getCandidateText();
+    } catch {
+      continue;
+    }
+
+    if (!candidateText || tried.has(candidateText)) continue;
+    tried.add(candidateText);
+
+    try {
+      return JSON.parse(candidateText);
+    } catch {
+      // Try the next recovery strategy.
+    }
+  }
+
+  throw new Error(getImportJsonParseErrorMessage());
 };
 
 type WordWheelLetterRule = 'starts-with' | 'contains-hard';
@@ -446,8 +730,9 @@ const getJsonOnlyTemplate = (config: GameConfig) => {
     isBonus: false,
   };
 
-  if (config.type === GameType.MILLIONAIRE || config.questionType === 'multiple-choice') {
-    sampleQuestion.options = Array.from({ length: config.type === GameType.MILLIONAIRE ? 4 : config.mcOptionCount || 4 }).map(
+  const sampleMcOptionCount = getSampleMcOptionCount(config);
+  if (config.type === GameType.MILLIONAIRE || (config.questionType === 'multiple-choice' && sampleMcOptionCount)) {
+    sampleQuestion.options = Array.from({ length: config.type === GameType.MILLIONAIRE ? 4 : sampleMcOptionCount || 3 }).map(
       (_, index) => `Option ${index + 1}`
     );
     sampleQuestion.answer = 'Option 1';
@@ -535,10 +820,23 @@ export const buildExternalLlmGamePrompt = (
     'Return ONLY valid JSON.',
     'Do not wrap the response in markdown or code fences.',
     'Do not add notes, explanations, headings, or comments.',
+    'JSON SAFETY RULES:',
+    'Use straight double quotes (") for every JSON key and every string value. Never use smart quotes like “ ” or ‘ ’.',
+    'If text inside a string contains quotation marks, escape them as \\".',
+    'Escape backslashes as \\\\ when needed.',
+    'Do not put literal line breaks inside string values. Use \\n if a line break is required inside a value.',
+    'Do not use trailing commas.',
+    `Example of valid escaping: "question": "Find the paraphrase for \\\"if I hadn't revised\\\"."`,
+    `If a question needs quoted wording inside the visible text, prefer single quotes in the question itself, for example: What is a paraphrase for 'If I hadn't revised'?`,
+    'Before sending the final answer, verify that it would parse with JSON.parse.',
     `This JSON will be imported into a classroom game app for the game type "${config.type}".`,
     `Use the title "${title}".`,
     `Question style: ${questionStyle}.`,
   ];
+
+  if (config.type === GameType.MILLIONAIRE || QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
+    lines.push('Distribute correct answer positions as evenly as possible across the available option letters. Do not overuse any single position.');
+  }
 
   if (topic) {
     lines.push(`Topic / theme: ${topic}.`);
@@ -555,8 +853,8 @@ export const buildExternalLlmGamePrompt = (
   if (config.type === GameType.JEOPARDY) {
     lines.push(`Create exactly ${config.jeopardyCategories || 5} categories.`);
     lines.push(`Create exactly ${config.jeopardyRows || 5} questions per category.`);
-    if (config.questionType === 'multiple-choice') {
-      lines.push(`Each multiple-choice question must have exactly ${config.mcOptionCount || 4} options.`);
+    if (QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
+      lines.push(getImportMcInstruction(config, config.questionType !== 'multiple-choice'));
       lines.push('The answer field must match one option exactly.');
     }
     if ((config.jeopardyCategoryNames || []).some((name) => name.trim())) {
@@ -568,8 +866,8 @@ export const buildExternalLlmGamePrompt = (
   } else if (config.type === GameType.PUB_QUIZ) {
     lines.push(`Create exactly ${config.pubQuizRoundsCount || 3} rounds.`);
     lines.push(`Create exactly ${config.pubQuizQuestionsPerRound || 5} questions per round.`);
-    if (config.questionType === 'multiple-choice') {
-      lines.push(`Each multiple-choice question must have exactly ${config.mcOptionCount || 4} options.`);
+    if (QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
+      lines.push(getImportMcInstruction(config, config.questionType !== 'multiple-choice'));
       lines.push('The answer field must match one option exactly.');
     }
     if ((config.pubQuizRoundNames || []).some((name) => name.trim())) {
@@ -583,8 +881,8 @@ export const buildExternalLlmGamePrompt = (
   } else if (config.type === GameType.DARTS) {
     lines.push(`Create at least ${(config.questionCount || 15) + 10} questions.`);
     lines.push('Include a difficulty field for every question: easy, medium, or hard.');
-    if (config.questionType === 'multiple-choice') {
-      lines.push(`Each multiple-choice question must have exactly ${config.mcOptionCount || 4} options.`);
+    if (QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
+      lines.push(getImportMcInstruction(config, config.questionType !== 'multiple-choice'));
       lines.push('The answer field must match one option exactly.');
     }
   } else if (config.type === GameType.SURVEY_SHOWDOWN) {
@@ -607,8 +905,11 @@ export const buildExternalLlmGamePrompt = (
   } else {
     lines.push(`Create exactly ${config.questionCount || 10} questions.`);
     if (config.questionType === 'multiple-choice') {
-      lines.push(`Every question must have exactly ${config.mcOptionCount || 4} options.`);
+      lines.push(getImportMcInstruction(config));
       lines.push('The answer field must match one option exactly.');
+    } else if (config.questionType === 'mixed' || config.questionType === 'ai-decide') {
+      lines.push(getImportMcInstruction(config, true));
+      lines.push('Whenever a question includes options, the answer field must match one option exactly.');
     } else if (config.questionType === 'open') {
       lines.push('Do not include multiple-choice options unless truly needed.');
     } else if (config.questionType === 'gap-fill') {
@@ -683,12 +984,7 @@ export const parseImportedGameContent = (text: string, config: GameConfig): Gene
     throw new Error('The import file was empty. Paste or upload valid JSON.');
   }
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch (error) {
-    throw new Error('Could not parse the import file. Use valid JSON or a Markdown file containing one JSON block.');
-  }
+  const parsed = parseImportedJsonText(jsonText);
 
   const payload = unwrapImportedPayload(parsed);
   const nextConfig: GameConfig = {
@@ -775,6 +1071,7 @@ export const parseImportedGameContent = (text: string, config: GameConfig): Gene
 
   enforceGameOptionCounts(normalizedPayload, nextConfig);
   enforceGameAnswerMatchesOptions(normalizedPayload);
+  rebalanceGameAnswerPositions(normalizedPayload, nextConfig);
 
   const finalQuestions =
     config.type === GameType.WORD_WHEEL

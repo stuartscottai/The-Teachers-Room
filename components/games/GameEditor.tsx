@@ -547,6 +547,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         });
     };
 
+    const getDefaultMcOptionCount = () => {
+        if (editedGame.config.type === GameType.MILLIONAIRE) return 4;
+
+        const parsed = Number(editedGame.config.mcOptionCount);
+        const fixedCount = Number.isFinite(parsed) ? Math.min(4, Math.max(2, Math.round(parsed))) : 4;
+        const strategy = editedGame.config.mcOptionStrategy;
+        if (strategy === 'fixed') return fixedCount;
+        if (!strategy && editedGame.config.questionType === 'multiple-choice') return fixedCount;
+        return 3;
+    };
+
     // --- STANDARD EDITOR HELPERS ---
     const updateQuestionType = (index: number, type: 'open' | 'multiple-choice') => {
         handleChange(prev => {
@@ -555,7 +566,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 newQuestions[index].options = undefined;
             } else {
                 if (!newQuestions[index].options || newQuestions[index].options.length === 0) {
-                    newQuestions[index].options = ["", "", "", ""];
+                    newQuestions[index].options = Array(getDefaultMcOptionCount()).fill("");
                 }
             }
             return { ...prev, questions: newQuestions };
@@ -598,7 +609,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 q.options = undefined;
             } else {
                 if (!q.options || q.options.length === 0) {
-                    q.options = ["", "", "", ""];
+                    q.options = Array(getDefaultMcOptionCount()).fill("");
                 }
             }
             

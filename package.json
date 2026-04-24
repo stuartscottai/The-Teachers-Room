@@ -29,6 +29,7 @@
     "dompurify": "^3.2.7",
     "framer-motion": "^12.23.26",
     "interactjs": "^1.10.27",
+    "jsonrepair": "^3.14.0",
     "lucide-react": "0.300.0",
     "maath": "0.10.8",
     "mammoth": "^1.12.0",

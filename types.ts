@@ -27,6 +27,7 @@ export interface GameConfig {
   title?: string; // User defined title
   questionCount: number; // Used for list-based games
   questionType: 'multiple-choice' | 'gap-fill' | 'open' | 'mixed' | 'ai-decide';
+  mcOptionStrategy?: 'fixed' | 'vary'; // Fixed option count for every MCQ or let AI vary between 2-4
   mcOptionCount?: 2 | 3 | 4; // Number of options for multiple choice questions
   pointsMode?: 'fixed' | 'ai-random' | 'manual'; // New points configuration
   topic: string; // Still used for non-Jeopardy games

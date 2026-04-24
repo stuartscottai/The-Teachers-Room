@@ -246,7 +246,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 type === GameType.MILLIONAIRE
                     ? 'multiple-choice'
                     : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE || type === GameType.WORD_WHEEL ? 'open' : 'mixed'),
-            mcOptionCount: 4, // Default to 4 options for multiple choice
             pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
@@ -275,6 +274,77 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         }
         return defaults;
     });
+
+    const getEffectiveMcOptionStrategy = (currentConfig: GameConfig): 'fixed' | 'vary' => {
+        if (type === GameType.MILLIONAIRE) return 'fixed';
+        if (currentConfig.mcOptionStrategy === 'fixed' || currentConfig.mcOptionStrategy === 'vary') {
+            return currentConfig.mcOptionStrategy;
+        }
+        return currentConfig.questionType === 'multiple-choice' ? 'fixed' : 'vary';
+    };
+
+    const getEffectiveMcOptionCount = (currentConfig: GameConfig): 2 | 3 | 4 => {
+        const parsed = Number(currentConfig.mcOptionCount);
+        if (!Number.isFinite(parsed)) return 4;
+        return Math.min(4, Math.max(2, Math.round(parsed))) as 2 | 3 | 4;
+    };
+
+    const updateQuestionType = (questionType: GameConfig['questionType']) => {
+        setConfig(prev => ({ ...prev, questionType }));
+    };
+
+    const updateMcOptionStrategy = (mcOptionStrategy: 'fixed' | 'vary') => {
+        setConfig(prev => ({ ...prev, mcOptionStrategy }));
+    };
+
+    const updateMcOptionCount = (mcOptionCount: 2 | 3 | 4) => {
+        setConfig(prev => ({ ...prev, mcOptionStrategy: 'fixed', mcOptionCount }));
+    };
+
+    const renderMcOptionControls = (selectClassName: string) => {
+        if (type === GameType.MILLIONAIRE) return null;
+        if (!['multiple-choice', 'mixed', 'ai-decide'].includes(config.questionType)) return null;
+
+        const strategy = getEffectiveMcOptionStrategy(config);
+        const optionCount = getEffectiveMcOptionCount(config);
+        const isExplicitMcq = config.questionType === 'multiple-choice';
+
+        return (
+            <>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">MCQ Option Strategy</label>
+                    <select
+                        value={strategy}
+                        onChange={(e) => updateMcOptionStrategy(e.target.value as 'fixed' | 'vary')}
+                        className={selectClassName}
+                    >
+                        <option value="vary">Let AI Vary (2-4)</option>
+                        <option value="fixed">Fixed Count</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                        {isExplicitMcq
+                            ? 'Use a fixed count for exam-style consistency, or let AI vary between 2, 3, and 4 options.'
+                            : 'If AI includes MCQs, this controls whether they stay fixed or vary between 2, 3, and 4 options.'}
+                    </p>
+                </div>
+
+                {strategy === 'fixed' && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                        <select
+                            value={optionCount}
+                            onChange={(e) => updateMcOptionCount(Number(e.target.value) as 2 | 3 | 4)}
+                            className={selectClassName}
+                        >
+                            <option value="2">2 Options</option>
+                            <option value="3">3 Options</option>
+                            <option value="4">4 Options</option>
+                        </select>
+                    </div>
+                )}
+            </>
+        );
+    };
 
     const supportsQuestionImages = mode === 'ai' && ![GameType.STOP_THE_FIRE].includes(type);
     
@@ -505,7 +575,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             await copyTextToClipboard(externalLlmPrompt);
             setManualImportFeedback({
                 tone: 'success',
-                text: 'Prompt copied. Paste it into ChatGPT, Claude, Gemini, or another LLM, then upload the JSON result here.'
+                text: 'Prompt copied. Paste it into ChatGPT or another AI tool, then upload or paste the result here.'
             });
         } catch (error) {
             console.error('Failed to copy external LLM prompt', error);
@@ -557,7 +627,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             setManualImportExpanded(true);
             setManualImportFeedback({
                 tone: 'error',
-                text: 'Paste JSON from your external LLM before importing.'
+                text: 'Paste the result from your AI tool before importing.'
             });
             return;
         }
@@ -1008,7 +1078,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                                 <select
                                                     value={config.questionType}
-                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
                                                     <option value="ai-decide">AI Decide (Mixed)</option>
@@ -1019,21 +1089,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 </select>
                                                 <p className="text-xs text-slate-500 mt-1">Time Bomb works best with quick-answer formats.</p>
                                             </div>
-
-                                            {config.questionType === 'multiple-choice' && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                    <select
-                                                        value={config.mcOptionCount || 4}
-                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
-                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
-                                                    >
-                                                        <option value="2">2 Options</option>
-                                                        <option value="3">3 Options</option>
-                                                        <option value="4">4 Options</option>
-                                                    </select>
-                                                </div>
-                                            )}
+                                            {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
                                     )}
                                 </div>
@@ -1163,7 +1219,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                                 <select
                                                     value={config.questionType}
-                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
                                                     <option value="ai-decide">AI Decide (Mixed)</option>
@@ -1174,20 +1230,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 </select>
                                             </div>
 
-                                            {config.questionType === 'multiple-choice' && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                    <select
-                                                        value={config.mcOptionCount || 4}
-                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
-                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
-                                                    >
-                                                        <option value="2">2 Options</option>
-                                                        <option value="3">3 Options</option>
-                                                        <option value="4">4 Options</option>
-                                                    </select>
-                                                </div>
-                                            )}
+                                            {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
                                     )}
                                 </div>
@@ -1242,7 +1285,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                                 <select
                                                     value={config.questionType}
-                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
                                                     <option value="ai-decide">AI Decide (Mixed)</option>
@@ -1252,21 +1295,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="mixed">Mixed Format</option>
                                                 </select>
                                             </div>
-
-                                            {config.questionType === 'multiple-choice' && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                    <select
-                                                        value={config.mcOptionCount || 4}
-                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
-                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
-                                                    >
-                                                        <option value="2">2 Options</option>
-                                                        <option value="3">3 Options</option>
-                                                        <option value="4">4 Options</option>
-                                                    </select>
-                                                </div>
-                                            )}
+                                            {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
                                     )}
                                 </div>
@@ -1321,7 +1350,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                             <select
                                                 value={config.questionType}
-                                                onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                             >
                                                 <option value="ai-decide">AI Decide (Mixed)</option>
@@ -1331,21 +1360,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <option value="mixed">Mixed Format</option>
                                             </select>
                                         </div>
-
-                                        {config.questionType === 'multiple-choice' && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                <select
-                                                    value={config.mcOptionCount || 4}
-                                                    onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
-                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
-                                                >
-                                                    <option value="2">2 Options</option>
-                                                    <option value="3">3 Options</option>
-                                                    <option value="4">4 Options</option>
-                                                </select>
-                                            </div>
-                                        )}
+                                        {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                     </>
                                 )}
                             </div>
@@ -1370,7 +1385,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                                 <select
                                                     value={config.questionType}
-                                                    onChange={(e) => setConfig({...config, questionType: e.target.value as any})}
+                                                    onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
                                                     <option value="ai-decide">AI Decide (Mixed)</option>
@@ -1380,21 +1395,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="mixed">Mixed Format</option>
                                                 </select>
                                             </div>
-
-                                            {config.questionType === 'multiple-choice' && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                    <select
-                                                        value={config.mcOptionCount || 4}
-                                                        onChange={(e) => setConfig({...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4})}
-                                                        className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
-                                                    >
-                                                        <option value="2">2 Options</option>
-                                                        <option value="3">3 Options</option>
-                                                        <option value="4">4 Options</option>
-                                                    </select>
-                                                </div>
-                                            )}
+                                            {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
                                     )}
                                 </div>
@@ -1419,7 +1420,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <span className="bg-sky-100 p-2 rounded-lg text-sky-700">
                                                 <Upload size={18} />
                                             </span>
-                                            <span className="font-bold text-slate-800">Import from External LLM</span>
+                                            <span className="font-bold text-slate-800">Import from Another AI Tool</span>
                                         </span>
                                         <ChevronDown
                                             size={18}
@@ -1430,7 +1431,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {manualImportExpanded && (
                                         <div className="space-y-4">
                                             <p className="text-sm text-slate-600">
-                                                Fill in the game settings above, then copy a prompt built from those settings. Use ChatGPT, Claude, Gemini, or another LLM to generate import-ready JSON, then upload or paste it here to open a prefilled editor.
+                                                Fill in the game settings above, then copy a prompt built from those settings. Use ChatGPT, Claude, Gemini, or another AI tool to generate the game content, then upload or paste it here to open a prefilled editor.
                                             </p>
 
                                             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
@@ -1456,10 +1457,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
                                                         <select
                                                             value={config.questionType}
-                                                            onChange={(e) => setConfig({ ...config, questionType: e.target.value as any })}
+                                                            onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                         >
-                                                            <option value="ai-decide">LLM Decides (Mixed)</option>
+                                                            <option value="ai-decide">AI Decides (Mixed)</option>
                                                             <option value="mixed">Mixed Format</option>
                                                             <option value="multiple-choice">Multiple Choice</option>
                                                             <option value="gap-fill">Gap Fill</option>
@@ -1468,20 +1469,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     </div>
                                                 )}
 
-                                                {supportsExternalQuestionType && config.questionType === 'multiple-choice' && (
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
-                                                        <select
-                                                            value={config.mcOptionCount || 4}
-                                                            onChange={(e) => setConfig({ ...config, mcOptionCount: Number(e.target.value) as 2 | 3 | 4 })}
-                                                            className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
-                                                        >
-                                                            <option value="2">2 Options</option>
-                                                            <option value="3">3 Options</option>
-                                                            <option value="4">4 Options</option>
-                                                        </select>
-                                                    </div>
-                                                )}
+                                                {supportsExternalQuestionType && renderMcOptionControls("w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue")}
 
                                                 {supportsExternalPointsMode && (
                                                     <div>
@@ -1517,7 +1505,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue"
                                                 >
                                                     <Copy size={16} />
-                                                    Copy Prompt for External LLM
+                                                    Copy Prompt for AI Tool
                                                 </button>
                                                 <button
                                                     type="button"
@@ -1535,7 +1523,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     How To Use It
                                                 </label>
                                                 <p className="text-sm text-slate-600">
-                                                    Copy the prompt after you finish the settings above. Paste it into your external LLM, then add your topic, lesson notes, or source material underneath it. Ask for JSON only, then upload the file or paste the response below.
+                                                    Copy the prompt after you finish the settings above. Paste it into your AI tool, then add your topic, lesson notes, or source material underneath it. The prompt already tells the AI how to return the game in the correct format so it can be imported here.
                                                 </p>
                                                 <p className="mt-2 text-xs text-slate-500">
                                                     Accepted formats: <span className="font-mono">.json</span>, <span className="font-mono">.txt</span>, or <span className="font-mono">.md</span> containing JSON.
@@ -1549,7 +1537,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <textarea
                                                     value={manualImportText}
                                                     onChange={(e) => setManualImportText(e.target.value)}
-                                                    placeholder="Paste the JSON output from your external LLM here."
+                                                    placeholder="Paste the result from your AI tool here."
                                                     className="w-full min-h-[180px] rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                 />
                                                 <div className="mt-3 flex flex-wrap gap-3">
