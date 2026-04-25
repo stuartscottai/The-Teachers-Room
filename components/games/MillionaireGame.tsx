@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GeneratedGame, GameRunOptions } from '../../types';
+import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 
 interface MillionaireGameProps {
     game: GeneratedGame;
@@ -29,6 +30,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [correctOption, setCorrectOption] = useState<number | null>(null);
     const [isProcessing, setIsProcessing] = useState(false); // Prevent double clicks
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
     
     // Lifelines
     const [used5050, setUsed5050] = useState(false);
@@ -176,6 +178,16 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
             } else {
                 // Incorrect
                 playSound('incorrect', isMuted);
+                setMissedItems((prev) => [
+                    ...prev,
+                    {
+                        id: String(currentQuestion.id ?? currentLevel),
+                        question: currentQuestion.question,
+                        correctAnswer: currentQuestion.answer,
+                        studentAnswer: optionsList[index],
+                        context: `Question ${currentLevel + 1}`,
+                    },
+                ]);
                 setTimeout(() => {
                     const reachedSafetyNets = safetyNets.filter((index) => currentLevel > index);
                     const safeAmount = reachedSafetyNets.length > 0
@@ -451,6 +463,18 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
             {/* WIN/LOSE SCREEN */}
             {(gameState === 'result' || gameState === 'walkaway') && (
+                options.studentPractice ? (
+                    <div className="absolute inset-0 z-30 overflow-auto bg-slate-50">
+                        <PracticeReviewSummary
+                            playerName={options.teamNames?.[0]}
+                            correctCount={gameState === 'walkaway' ? currentLevel : Math.max(0, currentLevel + (missedItems.length === 0 ? 1 : 0))}
+                            totalCount={questions.length}
+                            missedItems={missedItems}
+                            onReplay={onReplay}
+                            onExit={onFinish}
+                        />
+                    </div>
+                ) : (
                 <div className="absolute inset-0 flex items-center justify-center p-4 text-center z-30 bg-black/80 backdrop-blur-md">
                     {/* Money Rain Effect */}
                     {winnings >= 32000 && Array.from({length: 50}).map((_, i) => (
@@ -493,6 +517,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         </div>
                     </div>
                 </div>
+                )
             )}
 
             {/* MAIN GAME INTERFACE */}

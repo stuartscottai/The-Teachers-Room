@@ -12,6 +12,7 @@ import { Profile } from './pages/Profile';
 import { ChangePlan } from './pages/ChangePlan';
 import { TestBench } from './pages/TestBench';
 import { ShareGame } from './pages/ShareGame';
+import { StudentGame } from './pages/StudentGame';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { SchoolAdmin } from './pages/SchoolAdmin';
@@ -72,6 +73,7 @@ const App: React.FC = () => {
               <Route path="/school-admin" element={<SchoolAdmin />} />
               <Route path="/test" element={<TestBench />} />
               <Route path="/share/game/:id" element={<ShareGame />} />
+              <Route path="/student/game/:id" element={<StudentGame />} />
             </Routes>
           </Layout>
         </Router>

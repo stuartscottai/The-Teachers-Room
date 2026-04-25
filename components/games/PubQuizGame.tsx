@@ -3,6 +3,7 @@ import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, ArrowRight, RotateCcw, CheckCircle, XCircle, Plus, Minus, List, Play, Check, Edit2, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Star, X, Flag } from 'lucide-react';
 
 interface PubQuizGameProps {
@@ -440,6 +441,28 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     };
 
     if (phase === 'gameover') {
+        if (options.studentPractice) {
+            const allQuestions = (game.pubQuizRounds || []).flatMap((round, roundIndex) =>
+                (round.questions || []).map((question, questionIndex) => ({
+                    id: `${roundIndex}-${questionIndex}`,
+                    question: question.question,
+                    correctAnswer: question.answer,
+                    context: round.name,
+                }))
+            );
+            const correctCount = Math.max(0, Math.min(scores[0] || 0, allQuestions.length));
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={correctCount}
+                    totalCount={allQuestions.length}
+                    missedItems={correctCount >= allQuestions.length ? [] : allQuestions}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = scores
             .map((score, index) => ({ index, score, name: teamNames[index] || `Team ${index + 1}` }))
             .sort((a, b) => b.score - a.score);

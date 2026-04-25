@@ -408,6 +408,12 @@ export const getGameShareUrl = (id: string) => {
     return `${window.location.origin}${normalizedBase}#/share/game/${id}`;
 };
 
+export const getStudentGameShareUrl = (id: string) => {
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+    return `${window.location.origin}${normalizedBase}#/student/game/${id}`;
+};
+
 export const prepareGameForLibrarySave = (
     game: GeneratedGame,
     user?: Pick<User, 'id' | 'name' | 'avatar'> | null,

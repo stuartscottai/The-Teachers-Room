@@ -3,10 +3,11 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { RoundedBox, Environment, ContactShadows, Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft, X, Flag } from 'lucide-react';
 
 // --- 3D DICE COMPONENT ---
@@ -267,6 +268,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [flipLock, setFlipLock] = useState(false); 
     const [isQuestionVisible, setIsQuestionVisible] = useState(true); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+    const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
+    const [correctCount, setCorrectCount] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [isTimesUp, setIsTimesUp] = useState(false);
     
@@ -680,12 +684,23 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         playSound(correct ? 'correct' : 'incorrect', isMuted);
         
         if (correct) {
+            setCorrectCount((prev) => prev + 1);
             setTimeout(() => {
                 setPhase('moving');
                 movePlayer(diceValue); // Dice value is state, preserved
                 setIsProcessing(false); // Can release early as phase changes
             }, 1000);
         } else {
+            setMissedItems((prev) => [
+                ...prev,
+                {
+                    id: String(currentQuestion.id),
+                    question: currentQuestion.question,
+                    correctAnswer: currentQuestion.answer,
+                    studentAnswer: selectedMcAnswer || undefined,
+                    context: `Square ${positions[currentPlayer] + 1}`,
+                },
+            ]);
             setTimeout(() => {
                 setPhase('turn-complete');
                 setIsProcessing(false);
@@ -697,6 +712,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (!currentQuestion) return;
         const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
         const isCorrect = clean(opt) === clean(currentQuestion.answer);
+        setSelectedMcAnswer(opt);
         setMcResult(isCorrect ? 'correct' : 'incorrect');
         handleFlip();
     };
@@ -869,6 +885,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         : 0;
 
     if (phase === 'gameover') {
+        if (options.studentPractice) {
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={correctCount}
+                    totalCount={correctCount + missedItems.length}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = positions
             .map((position, index) => ({
                 index,

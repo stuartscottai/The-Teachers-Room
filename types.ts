@@ -107,6 +107,15 @@ export interface GameRunOptions {
   // Word Wheel
   wordWheelScoringMode?: 'classic' | 'speed-bonus';
   wordWheelLetterRule?: 'starts-with' | 'contains-hard';
+  studentPractice?: boolean;
+}
+
+export interface PracticeReviewItem {
+  id: string;
+  question: string;
+  correctAnswer: string;
+  studentAnswer?: string;
+  context?: string;
 }
 
 export interface SurveyAnswer {

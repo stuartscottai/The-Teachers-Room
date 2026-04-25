@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull, Flag } from 'lucide-react';
 
 interface TimeBombGameProps {
@@ -60,6 +61,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const [explosionKey, setExplosionKey] = useState(0);
     const explosionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [mcFeedback, setMcFeedback] = useState<{ index: number; status: 'correct' | 'wrong' } | null>(null);
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
+    const [correctCount, setCorrectCount] = useState(0);
     const [isResolvingMc, setIsResolvingMc] = useState(false);
     const mcFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -394,6 +397,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     const handleCorrect = () => {
+        setCorrectCount((prev) => prev + 1);
         playSound('correct', isMuted, 'Magic');
         passBombToNextSurvivor();
         setBombTime(t => Math.min(t + 5, options.bombDuration || 60)); 
@@ -401,6 +405,16 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     const handleIncorrect = () => {
+        if (currentQuestion) {
+            setMissedItems((prev) => [
+                ...prev,
+                {
+                    id: String(currentQuestion.id),
+                    question: currentQuestion.question,
+                    correctAnswer: currentQuestion.answer,
+                },
+            ]);
+        }
         playSound('incorrect', isMuted, 'Buzz');
         setBombTime(t => Math.max(0.1, t - 10)); // Big penalty
         // For Open questions, we skip to next. For MC, we let them try again (handled in handleMCOptionClick)
@@ -435,6 +449,15 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             }, 350);
         } else {
             // Wrong MC answer
+            setMissedItems((prev) => [
+                ...prev,
+                {
+                    id: `${currentQuestion.id}-${index}`,
+                    question: currentQuestion.question,
+                    correctAnswer: currentQuestion.answer,
+                    studentAnswer: option,
+                },
+            ]);
             playSound('incorrect', isMuted, 'Buzz');
             setBombTime(t => Math.max(0.1, t - 10)); // Penalty
             setDisabledOptions(prev => [...prev, index]); // Disable this option
@@ -605,6 +628,19 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     }, [hasOptions, optionKey, gameState, isMobileViewport, resizeTick]);
 
     if (gameState === 'gameover') {
+        if (options.studentPractice) {
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={correctCount}
+                    totalCount={correctCount + missedItems.length}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = teamLives
             .map((lives, index) => ({
                 index,

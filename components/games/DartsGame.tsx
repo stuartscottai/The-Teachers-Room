@@ -3,10 +3,11 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect 
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Target, FileQuestion, AlertTriangle, Flag } from 'lucide-react';
 
 interface DartsGameProps {
@@ -495,6 +496,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const [currentQuestion, setCurrentQuestion] = useState<GeneratedQuestion | null>(null);
     const [isFlipped, setIsFlipped] = useState(false);
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+    const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
+    const [correctCount, setCorrectCount] = useState(0);
     const [turnResult, setTurnResult] = useState<{ score: number, text: string } | null>(null);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
@@ -647,6 +651,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         setPhase('question');
         setIsFlipped(false);
         setMcResult(null);
+        setSelectedMcAnswer('');
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
     };
@@ -817,6 +822,22 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     };
 
     const handleThrow = (hit: boolean) => {
+        if (currentQuestion) {
+            if (hit) {
+                setCorrectCount((prev) => prev + 1);
+            } else {
+                setMissedItems((prev) => [
+                    ...prev,
+                    {
+                        id: String(currentQuestion.id),
+                        question: currentQuestion.question,
+                        correctAnswer: currentQuestion.answer,
+                        studentAnswer: selectedMcAnswer || undefined,
+                        context: lockedTarget ? `${lockedTarget.sector} x${lockedTarget.multiplier}` : undefined,
+                    },
+                ]);
+            }
+        }
         setPhase('throwing'); 
         spawnDart(hit);
     };
@@ -1091,6 +1112,19 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     }, [isMobileViewport, resizeTick]);
 
     if (phase === 'gameover') {
+        if (options.studentPractice) {
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={correctCount}
+                    totalCount={correctCount + missedItems.length}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = scores
             .map((score, index) => ({
                 index,
@@ -1399,6 +1433,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                         onClick={() => {
                                                                             const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
                                                                             const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                            setSelectedMcAnswer(opt);
                                                                             setMcResult(isCorrect ? 'correct' : 'incorrect');
                                                                             setIsFlipped(true);
                                                                         }}
@@ -1486,6 +1521,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                         onClick={() => {
                                                                             const clean = (s: string) => s.replace(/^[A-Z]\)\s*/i, '').trim().toLowerCase();
                                                                             const isCorrect = clean(opt) === clean(currentQuestion.answer);
+                                                                            setSelectedMcAnswer(opt);
                                                                             setMcResult(isCorrect ? 'correct' : 'incorrect');
                                                                             setIsFlipped(true);
                                                                         }}

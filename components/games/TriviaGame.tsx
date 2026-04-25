@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
+import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, Flag } from 'lucide-react';
 
 interface TriviaGameProps {
@@ -69,6 +70,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+    const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
     
     // Lock state to prevent double clicks/points
     const [isProcessing, setIsProcessing] = useState(false);
@@ -396,6 +399,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
         setMcResult(null);
+        setSelectedMcAnswer('');
         setIsProcessing(false); // Reset lock for new question
         setActiveQuestionIndex(index);
         setIsFlipped(false);
@@ -415,6 +419,18 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             newScores[currentTeam] += points;
         } else {
             newScores[currentTeam] -= points;
+            if (q && !q.isBonus) {
+                setMissedItems((prev) => [
+                    ...prev,
+                    {
+                        id: String(q.id ?? activeQuestionIndex),
+                        question: q.question,
+                        correctAnswer: q.answer,
+                        studentAnswer: selectedMcAnswer || undefined,
+                        context: q.category,
+                    },
+                ]);
+            }
         }
         
         setScores(newScores);
@@ -430,6 +446,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         
         const isCorrect = clean(selectedOption) === clean(q.answer);
         
+        setSelectedMcAnswer(selectedOption);
         setMcResult(isCorrect ? 'correct' : 'incorrect');
         setIsFlipped(true);
     };
@@ -661,6 +678,19 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     if (gameQuestions.length === 0) return <div className="text-slate-500 text-center p-8">Loading Game...</div>;
 
     if (isGameOver) {
+        if (options.studentPractice) {
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={Math.max(0, answeredIndices.length - missedItems.length)}
+                    totalCount={gameQuestions.length}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = scores
             .map((score, index) => ({ index, score, name: teamNames[index] || `Team ${index + 1}` }))
             .sort((a, b) => b.score - a.score);

@@ -3,6 +3,7 @@ import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -110,24 +111,19 @@ const appendPassByTeam = (entry: WheelEntry, teamIndex: number) => {
     return Array.from(unique);
 };
 
-const hasBeenPassedByAllTeams = (entry: WheelEntry, teamCount: number) => {
-    if (!entry || teamCount <= 0) return false;
-    const unique = new Set(entry.passedByTeams || []);
-    return unique.size >= teamCount;
+const hasBeenPassedByTeam = (entry: WheelEntry, teamIndex: number) =>
+    Boolean(entry?.passedByTeams?.includes(teamIndex));
+
+const getOriginalPassingTeam = (entry: WheelEntry, fallbackTeam: number, teamCount: number) => {
+    const owner = entry.passedByTeams?.[0];
+    if (typeof owner === 'number' && owner >= 0 && owner < teamCount) return owner;
+    return ((fallbackTeam % teamCount) + teamCount) % teamCount;
 };
 
 const pickTeamForEntryTurn = (entry: WheelEntry | undefined, preferredTeam: number, teamCount: number) => {
     if (teamCount <= 1) return 0;
     if (!entry) return ((preferredTeam % teamCount) + teamCount) % teamCount;
-    if (entry.status !== 'passed') return ((preferredTeam % teamCount) + teamCount) % teamCount;
-    if (hasBeenPassedByAllTeams(entry, teamCount)) return ((preferredTeam % teamCount) + teamCount) % teamCount;
-
-    const passedSet = new Set(entry.passedByTeams || []);
-    for (let offset = 0; offset < teamCount; offset += 1) {
-        const candidate = (preferredTeam + offset + teamCount) % teamCount;
-        if (!passedSet.has(candidate)) return candidate;
-    }
-
+    if (entry.status === 'passed') return getOriginalPassingTeam(entry, preferredTeam, teamCount);
     return ((preferredTeam % teamCount) + teamCount) % teamCount;
 };
 
@@ -272,8 +268,11 @@ const findNextPlayableIndex = (entries: WheelEntry[], startIndex: number) => {
     if (!entries.length) return -1;
     for (let offset = 1; offset <= entries.length; offset += 1) {
         const idx = (startIndex + offset + entries.length) % entries.length;
-        const status = entries[idx]?.status;
-        if (status === 'pending' || status === 'passed') return idx;
+        if (entries[idx]?.status === 'pending') return idx;
+    }
+    for (let offset = 1; offset <= entries.length; offset += 1) {
+        const idx = (startIndex + offset + entries.length) % entries.length;
+        if (entries[idx]?.status === 'passed') return idx;
     }
     return -1;
 };
@@ -727,7 +726,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             return;
         }
 
-        if (kind === 'timeout' && hasBeenPassedByAllTeams(activeEntry, teamCount)) {
+        if (kind === 'timeout' && hasBeenPassedByTeam(activeEntry, currentTeam)) {
             const nextEntries = entries.map((entry, index) =>
                 index === activeIndex ? { ...entry, status: 'missed' as WheelStatus } : entry
             );
@@ -807,7 +806,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
     const handlePass = (fromTimeout = false) => {
         if (!activeEntry) return;
-        const passBlocked = hasBeenPassedByAllTeams(activeEntry, teamCount);
+        const passBlocked = hasBeenPassedByTeam(activeEntry, currentTeam);
         if (!fromTimeout && passBlocked) return;
         resolveTurn(fromTimeout ? 'timeout' : 'passed');
     };
@@ -1000,6 +999,31 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     }, [cardState, activeIndex, currentTeam, phase, hasTimer, options.timerSeconds]);
 
     if (phase === 'gameover') {
+        if (options.studentPractice) {
+            const reviewableEntries = entries.filter(
+                (entry) => String(entry.answer || '').trim().length > 0 && String(entry.question || '').trim().length > 0
+            );
+            const missedItems = reviewableEntries
+                .filter((entry) => entry.status === 'missed' || entry.status === 'passed' || entry.status === 'pending')
+                .map((entry) => ({
+                    id: String(entry.id),
+                    question: entry.question,
+                    correctAnswer: entry.answer,
+                    context: `Letter ${entry.letter}`,
+                }));
+
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={reviewableEntries.filter((entry) => entry.status === 'solved').length}
+                    totalCount={reviewableEntries.length}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const isTie = winners.length > 1;
         const revealableEntries = entries.filter(
             (entry) => String(entry.answer || '').trim().length > 0 && String(entry.question || '').trim().length > 0
@@ -1131,7 +1155,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const currentTeamClues = teamCluesLeft[currentTeam] || 0;
     const canPassCurrent = Boolean(
         activeEntry &&
-        !hasBeenPassedByAllTeams(activeEntry, teamCount)
+        !hasBeenPassedByTeam(activeEntry, currentTeam)
     );
     const canUseClueCurrent = Boolean(
         activeEntry &&

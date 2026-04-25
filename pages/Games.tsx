@@ -5,7 +5,7 @@ import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSharedGame, getStudentGameShareUrl, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
 // Import Modular Components
@@ -25,6 +25,7 @@ import { GameConfigurator, ModeSelector } from '../components/games/GameConfigur
 import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
 import { Avatar } from '../components/Avatar';
+import { StudentShareModal } from '../components/games/StudentShareModal';
 
 // Helper to extract stats for display
 const getGameStats = (game: GeneratedGame) => {
@@ -1174,6 +1175,8 @@ export const Games: React.FC = () => {
     const [isTourActive, setIsTourActive] = useState(false);
     const [isMobileTourViewport, setIsMobileTourViewport] = useState(false);
     const [tourPopupHeight, setTourPopupHeight] = useState(0);
+    const [studentShareUrl, setStudentShareUrl] = useState('');
+    const [studentShareTitle, setStudentShareTitle] = useState('');
 
     const location = useLocation();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
@@ -1500,6 +1503,47 @@ export const Games: React.FC = () => {
         await copyPreviewShareLink(shareGame.id);
     };
 
+    const handlePreviewStudentShare = async () => {
+        if (!generatedGame) return;
+
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(generatedGame.config.type)) {
+            alert('Student practice sharing is not available for this game type.');
+            return;
+        }
+
+        if (generatedGame.sourceGameId && isUUID(generatedGame.sourceGameId)) {
+            setStudentShareUrl(getStudentGameShareUrl(generatedGame.sourceGameId));
+            setStudentShareTitle(generatedGame.title);
+            return;
+        }
+
+        if (!user) {
+            promptSignupForFree('Create a free account to share games with students.');
+            return;
+        }
+
+        let shareGame = generatedGame;
+        if (!shareGame.config.isPublic) {
+            const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+            if (!confirmPublic) return;
+            const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
+            if (!savedGame) return;
+            shareGame = savedGame;
+        } else if (!isUUID(shareGame.id)) {
+            const savedGame = await persistPreviewGame(shareGame);
+            if (!savedGame) return;
+            shareGame = savedGame;
+        }
+
+        if (!shareGame.id || !isUUID(shareGame.id)) {
+            alert('Please save this game before sharing it with students.');
+            return;
+        }
+
+        setStudentShareUrl(getStudentGameShareUrl(shareGame.id));
+        setStudentShareTitle(shareGame.title);
+    };
+
     const handlePreviewEdit = () => {
         if (!generatedGame) return;
         setEditorReturnStep('preview');
@@ -1701,6 +1745,7 @@ export const Games: React.FC = () => {
                     onPlay={handlePreviewPlay}
                     onSave={handlePreviewSave}
                     onShare={handlePreviewShare}
+                    onStudentShare={handlePreviewStudentShare}
                 />
             )}
             
@@ -1876,6 +1921,13 @@ export const Games: React.FC = () => {
                     onHeightChange={setTourPopupHeight}
                 />
             )}
+
+            <StudentShareModal
+                isOpen={Boolean(studentShareUrl)}
+                url={studentShareUrl}
+                title={studentShareTitle || 'Student practice'}
+                onClose={() => setStudentShareUrl('')}
+            />
         </div>
     );
 };

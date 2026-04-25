@@ -4,15 +4,16 @@ import { Link } from 'react-router-dom';
 import { GameType, GeneratedGame, GeneratedQuestion } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
-import { saveGameToLibrary } from '../../utils/gameUtils';
+import { getStudentGameShareUrl, saveGameToLibrary } from '../../utils/gameUtils';
 import { optimizeImageForUpload } from '../../utils/imageOptimize';
 import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/gameAssetStorage';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
 import { Avatar } from '../Avatar';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Calendar } from 'lucide-react';
 import { promptSignupForFree } from '../../services/accountAccess';
+import { StudentShareModal } from './StudentShareModal';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -28,6 +29,13 @@ type QuestionImageTarget =
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 const AI_PROMPT_MODAL_MAX_HEIGHT = 'min(75dvh, calc(100dvh - 2rem))';
+
+const formatCreatedDate = (value?: string) => {
+    if (!value) return 'Date unavailable';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Date unavailable';
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+};
 
 const getWordWheelRuleForLetter = (rule: 'starts-with' | 'contains-hard', letter: string) => {
     if (rule === 'contains-hard' && WORD_WHEEL_CONTAINS_HARD.has(letter)) return 'contains';
@@ -63,6 +71,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [showAiPrompt, setShowAiPrompt] = useState(false);
     const [showCopyToast, setShowCopyToast] = useState(false);
     const [showShareToast, setShowShareToast] = useState(false);
+    const [studentShareUrl, setStudentShareUrl] = useState('');
     const [hasEdits, setHasEdits] = useState(false);
     const tabsScrollRef = useRef<HTMLDivElement>(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -399,6 +408,52 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         }
     };
 
+    const handleStudentShare = async () => {
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)) {
+            alert('Student practice sharing is not available for this game type.');
+            return;
+        }
+
+        if (!user) {
+            promptSignupForFree('Create a free account to share games with students.');
+            return;
+        }
+
+        if (!hasEdits && editedGame.sourceGameId) {
+            setStudentShareUrl(getStudentGameShareUrl(editedGame.sourceGameId));
+            return;
+        }
+
+        let desiredPublic = isPublic;
+        if (!desiredPublic) {
+            const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+            if (!confirmPublic) return;
+            desiredPublic = true;
+            setIsPublic(true);
+        }
+
+        let shareGame = editedGame;
+        const needsSave = hasEdits;
+        if (needsSave) {
+            const confirmSave = window.confirm('Save this game to generate a student practice link?');
+            if (!confirmSave) return;
+            const saved = await handleSave({ overrideIsPublic: desiredPublic });
+            if (!saved) return;
+            shareGame = saved;
+        } else if (desiredPublic !== shareGame.config.isPublic || !isUuid(shareGame.id)) {
+            const saved = await handleSave({ overrideIsPublic: desiredPublic });
+            if (!saved) return;
+            shareGame = saved;
+        }
+
+        if (!shareGame.id || !isUuid(shareGame.id)) {
+            alert('Please save this game before sharing it with students.');
+            return;
+        }
+
+        setStudentShareUrl(getStudentGameShareUrl(shareGame.id));
+    };
+
     const openImagePicker = (target: QuestionImageTarget, question?: GeneratedQuestion | null) => {
         setImagePickerTarget(target);
         const initialSelection: StockImageSelection[] = question?.image?.url
@@ -652,6 +707,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const createdByName = editedGame.config.originalCreatorName || editedGame.authorName;
     const createdByAvatar = editedGame.config.originalCreatorAvatar || editedGame.authorAvatar || editedGame.config.authorAvatar || null;
     const editedByName = editedGame.config.lastEditorName;
+    const createdDate = formatCreatedDate(editedGame.createdAt);
     const showEditedBy = Boolean(editedByName && createdByName && editedByName !== createdByName);
     const showCreatorAttribution = Boolean(createdByName || editedByName || editedGame.sourceGameId);
     const publicToggleLocked = Boolean(!isPublic && editedGame.sourceGameId && !hasEdits);
@@ -740,9 +796,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             )}
                                         </div>
                                     )}
+                                    <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                                        <Calendar size={13} />
+                                        <span>Date created: <span className="font-bold text-slate-700">{createdDate}</span></span>
+                                    </div>
                                 </div>
                                 
-                                <div className="w-full shrink-0 grid grid-cols-4 gap-0.5 pb-1 sm:gap-1.5 lg:w-auto lg:flex lg:items-center lg:pb-0">
+                                <div className="w-full shrink-0 grid grid-cols-5 gap-0.5 pb-1 sm:gap-1.5 lg:w-auto lg:flex lg:items-center lg:pb-0">
                                     {/* VISIBILITY TOGGLE */}
                                     <div
                                         className={`w-full min-w-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-10 lg:h-9 lg:w-[136px] ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -767,6 +827,18 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         <Share2 size={13} className="shrink-0 sm:hidden" />
                                         <Share2 size={12} className="hidden shrink-0 sm:block" />
                                         <span className="truncate">Share</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleStudentShare}
+                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
+                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        title="Share with students"
+                                        aria-label="Share with students"
+                                    >
+                                        <QrCode size={13} className="shrink-0 sm:hidden" />
+                                        <QrCode size={12} className="hidden shrink-0 sm:block" />
+                                        <span className="truncate">Students</span>
                                     </button>
 
                                     <button 
@@ -1605,6 +1677,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 onClose={closeImagePicker}
                 onConfirm={handleImagePickerConfirm}
                 onUpload={handleImagePickerUpload}
+            />
+            <StudentShareModal
+                isOpen={Boolean(studentShareUrl)}
+                url={studentShareUrl}
+                title={editedGame.title}
+                onClose={() => setStudentShareUrl('')}
             />
         </div>
     );

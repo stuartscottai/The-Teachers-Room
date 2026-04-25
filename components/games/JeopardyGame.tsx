@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { GeneratedGame, GameRunOptions } from '../../types';
+import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Maximize2, Minimize2, AlertTriangle, RotateCcw, X, Check, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, Flag } from 'lucide-react';
 
 interface JeopardyGameProps {
@@ -69,6 +70,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [gameBoard, setGameBoard] = useState(game.jeopardyBoard); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
+    const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
+    const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
     
     // Lock to prevent double-clicks
     const [isProcessing, setIsProcessing] = useState(false);
@@ -297,6 +300,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
         setMcResult(null);
+        setSelectedMcAnswer('');
         setIsProcessing(false); // New interaction
         setSelectedQuestion({ categoryIndex: cIdx, questionIndex: qIdx });
         setIsFlipped(false);
@@ -317,6 +321,18 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             newScores[currentTeam] += points;
         } else {
             newScores[currentTeam] -= points;
+            if (!q.isBonus) {
+                setMissedItems((prev) => [
+                    ...prev,
+                    {
+                        id: `${categoryIndex}-${questionIndex}`,
+                        question: q.question,
+                        correctAnswer: q.answer,
+                        studentAnswer: selectedMcAnswer || undefined,
+                        context: gameBoard[categoryIndex]?.name,
+                    },
+                ]);
+            }
         }
         setScores(newScores);
         finalizeTurn(categoryIndex, questionIndex);
@@ -332,6 +348,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         
         const isCorrect = clean(selectedOption) === clean(q.answer);
         
+        setSelectedMcAnswer(selectedOption);
         setMcResult(isCorrect ? 'correct' : 'incorrect');
         setIsFlipped(true);
     };
@@ -611,6 +628,19 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     if (!gameBoard) return <div>Loading Board...</div>;
 
     if (isGameOver) {
+        if (options.studentPractice) {
+            return (
+                <PracticeReviewSummary
+                    playerName={teamNames[0]}
+                    correctCount={Math.max(0, answeredQuestions.length - missedItems.length)}
+                    totalCount={gameBoard.reduce((total, category) => total + category.questions.length, 0)}
+                    missedItems={missedItems}
+                    onReplay={onReplay}
+                    onExit={onFinish}
+                />
+            );
+        }
+
         const ranking = scores
             .map((score, index) => ({ index, score, name: teamNames[index] || `Team ${index + 1}` }))
             .sort((a, b) => b.score - a.score);

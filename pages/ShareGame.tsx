@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { getGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { getGameShareUrl, getSharedGame, getStudentGameShareUrl, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
 import { GamePreview } from '../components/games/GamePreview';
@@ -18,6 +18,7 @@ import { TimeBombGame } from '../components/games/TimeBombGame';
 import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { StopTheFireGame } from '../components/games/StopTheFireGame';
 import { WordWheelGame } from '../components/games/WordWheelGame';
+import { StudentShareModal } from '../components/games/StudentShareModal';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -33,6 +34,8 @@ export const ShareGame: React.FC = () => {
   const [playReturnStep, setPlayReturnStep] = useState<'editor' | 'preview'>('preview');
   const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
   const [playKey, setPlayKey] = useState(0);
+  const [studentShareUrl, setStudentShareUrl] = useState('');
+  const [studentShareTitle, setStudentShareTitle] = useState('');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -222,6 +225,42 @@ export const ShareGame: React.FC = () => {
     await copyPreviewShareLink(shareGame.id);
   };
 
+  const handlePreviewStudentShare = async () => {
+    if (!game) return;
+
+    if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(game.config.type)) {
+      alert('Student practice sharing is not available for this game type.');
+      return;
+    }
+
+    if (game.sourceGameId && isUUID(game.sourceGameId)) {
+      setStudentShareUrl(getStudentGameShareUrl(game.sourceGameId));
+      setStudentShareTitle(game.title);
+      return;
+    }
+
+    let shareGame = game;
+    if (!shareGame.config.isPublic) {
+      const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+      if (!confirmPublic) return;
+      const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
+      if (!savedGame) return;
+      shareGame = savedGame;
+    } else if (!isUUID(shareGame.id)) {
+      const savedGame = await persistPreviewGame(shareGame);
+      if (!savedGame) return;
+      shareGame = savedGame;
+    }
+
+    if (!shareGame.id || !isUUID(shareGame.id)) {
+      alert('Please save this game before sharing it with students.');
+      return;
+    }
+
+    setStudentShareUrl(getStudentGameShareUrl(shareGame.id));
+    setStudentShareTitle(shareGame.title);
+  };
+
   const handleReplay = () => {
     trackStartedGame(sessionGame || game);
     setPlayKey((prev) => prev + 1);
@@ -315,16 +354,25 @@ export const ShareGame: React.FC = () => {
 
   if (step === 'preview' && game) {
     return (
-      <GamePreview
-        game={game}
-        source="community"
-        onBack={() => navigate('/games')}
-        onEdit={handlePreviewEdit}
-        onPlay={handlePreviewPlay}
-        onSave={handlePreviewSave}
-        onShare={handlePreviewShare}
-        saveLabel="Save copy"
-      />
+      <>
+        <GamePreview
+          game={game}
+          source="community"
+          onBack={() => navigate('/games')}
+          onEdit={handlePreviewEdit}
+          onPlay={handlePreviewPlay}
+          onSave={handlePreviewSave}
+          onShare={handlePreviewShare}
+          onStudentShare={handlePreviewStudentShare}
+          saveLabel="Save copy"
+        />
+        <StudentShareModal
+          isOpen={Boolean(studentShareUrl)}
+          url={studentShareUrl}
+          title={studentShareTitle || 'Student practice'}
+          onClose={() => setStudentShareUrl('')}
+        />
+      </>
     );
   }
 
