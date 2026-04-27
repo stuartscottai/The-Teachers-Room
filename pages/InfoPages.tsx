@@ -1,8 +1,12 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, AlertCircle, Send, Loader, ChevronDown } from 'lucide-react';
 import { sendContactMessage } from '../utils/gameUtils';
 import { BrandName } from '../components/BrandName';
+import { useAuth } from '../contexts/AuthContext';
+import { AccountType } from '../types';
+import { promptSignupForFree } from '../services/accountAccess';
 
 export const Info: React.FC = () => {
   type SectionKey = 'story' | 'how-to' | 'prompt-guide' | 'faqs';
@@ -280,6 +284,22 @@ export const Info: React.FC = () => {
 };
 
 export const Pricing: React.FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handlePlanCta = (targetPlan: AccountType) => {
+    if (!user) {
+      promptSignupForFree(
+        targetPlan === 'free'
+          ? 'Create a free account to save and share your classroom games.'
+          : `Create a free account first, then choose the ${targetPlan === 'teacher' ? 'Teacher Pro' : 'School'} plan.`
+      );
+      return;
+    }
+
+    navigate('/change-plan', { state: { targetPlan } });
+  };
+
   return (
     <div className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -300,7 +320,13 @@ export const Pricing: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <button className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors">Sign Up Free</button>
+            <button
+              type="button"
+              onClick={() => handlePlanCta('free')}
+              className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors"
+            >
+              Sign Up Free
+            </button>
           </div>
 
           {/* Pro */}
@@ -315,7 +341,13 @@ export const Pricing: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <button className="w-full py-3 bg-brand-yellow rounded-xl font-bold text-slate-800 hover:bg-yellow-300 transition-colors shadow-md">Go Pro</button>
+            <button
+              type="button"
+              onClick={() => handlePlanCta('teacher')}
+              className="w-full py-3 bg-brand-yellow rounded-xl font-bold text-slate-800 hover:bg-yellow-300 transition-colors shadow-md"
+            >
+              Go Pro
+            </button>
           </div>
 
            {/* School */}
@@ -329,7 +361,13 @@ export const Pricing: React.FC = () => {
                 </li>
               ))}
             </ul>
-            <button className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors">Contact Sales</button>
+            <button
+              type="button"
+              onClick={() => handlePlanCta('school')}
+              className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors"
+            >
+              Set Up School
+            </button>
           </div>
         </div>
       </div>

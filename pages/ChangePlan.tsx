@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Building2, Check, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountType } from '../types';
@@ -48,6 +48,7 @@ interface ChangePlanProps {
 
 export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, refreshUserAccess, completePlanSelection } = useAuth();
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [pendingTarget, setPendingTarget] = useState<AccountType | null>(null);
@@ -57,6 +58,12 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
   const [schoolLogoFile, setSchoolLogoFile] = useState<File | null>(null);
   const schoolLogoInputRef = useRef<HTMLInputElement | null>(null);
   const isOnboarding = mode === 'onboarding';
+  const targetPlanFromNavigation = (location.state as { targetPlan?: AccountType } | null)?.targetPlan;
+
+  useEffect(() => {
+    if (!user || targetPlanFromNavigation !== 'school' || user.accountType === 'school') return;
+    setShowSchoolSetup(true);
+  }, [targetPlanFromNavigation, user]);
 
   const getErrorMessage = (error: unknown, fallback: string) => {
     if (error && typeof error === 'object' && 'message' in error) {
