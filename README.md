@@ -17,7 +17,8 @@ View your app in AI Studio: https://ai.studio/apps/drive/1_wScMm1K3obxR1cj5TveAz
 2. Create an `.env.local` file in the project root (or update the existing one) and add:
    ```
    # Point localhost at the hosted Vercel API so dev generations are logged too
-   VITE_EXTERNAL_API_URL=https://the-teachers-room.vercel.app/api/generate
+   VITE_EXTERNAL_API_URL=https://www.theteachersroom.app/api/generate
+   VITE_APP_URL=https://www.theteachersroom.app
    ```
 3. Run the app:
    `npm run dev`

@@ -2,6 +2,7 @@
 import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile, User } from "../types";
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
+import { getPublicAppUrl } from "./appUrl";
 import mammoth from "mammoth";
 
 // --- ASSET HELPERS ---
@@ -405,13 +406,13 @@ let hasLoggedMissingPlayEventRpc = false;
 export const getGameShareUrl = (id: string) => {
     const base = (import.meta as any).env?.BASE_URL || '/';
     const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-    return `${window.location.origin}${normalizedBase}#/share/game/${id}`;
+    return `${getPublicAppUrl()}${normalizedBase}share/game/${id}`;
 };
 
 export const getStudentGameShareUrl = (id: string) => {
     const base = (import.meta as any).env?.BASE_URL || '/';
     const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-    return `${window.location.origin}${normalizedBase}#/student/game/${id}`;
+    return `${getPublicAppUrl()}${normalizedBase}student/game/${id}`;
 };
 
 export const prepareGameForLibrarySave = (

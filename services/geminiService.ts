@@ -24,7 +24,7 @@ const DEFAULT_MODEL = ACTIVE_GEMINI_MODEL;
 // Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
 const DEFAULT_EXTERNAL_API = '/api/generate';
 const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL;
-const LOCAL_DEV_EXTERNAL_API = 'https://the-teachers-room.vercel.app/api/generate';
+const LOCAL_DEV_EXTERNAL_API = 'https://www.theteachersroom.app/api/generate';
 
 const getGenerationApiUrl = () => {
   if (externalApiUrl) return externalApiUrl;

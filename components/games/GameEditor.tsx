@@ -14,6 +14,7 @@ import { Avatar } from '../Avatar';
 import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Calendar } from 'lucide-react';
 import { promptSignupForFree } from '../../services/accountAccess';
 import { StudentShareModal } from './StudentShareModal';
+import { getPublicAppUrl } from '../../utils/appUrl';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -342,7 +343,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const getShareUrl = (id: string) => {
         const base = (import.meta as any).env?.BASE_URL || '/';
         const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-        return `${window.location.origin}${normalizedBase}#/share/game/${id}`;
+        return `${getPublicAppUrl()}${normalizedBase}share/game/${id}`;
     };
 
     const handleShare = async () => {

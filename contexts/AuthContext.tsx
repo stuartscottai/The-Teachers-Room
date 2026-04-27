@@ -8,6 +8,7 @@ import {
   normalizeAccountType,
   requestSchoolJoinWithCode
 } from '../services/accountAccess';
+import { getPublicAppUrl } from '../utils/appUrl';
 
 const PENDING_SCHOOL_CODE_STORAGE_KEY = 'teachers-room:pending-school-code';
 
@@ -42,8 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const redirectToHome = () => {
     if (typeof window === 'undefined') return;
-    if (window.location.hash !== '#/') {
-      window.location.hash = '/';
+    if (window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
 
@@ -67,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getAuthEmailRedirectUrl = () => {
     if (typeof window === 'undefined') return undefined;
-    return window.location.href.split('#')[0];
+    return `${getPublicAppUrl()}/`;
   };
 
   const clearPasswordRecovery = () => {
@@ -161,8 +163,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
-        if (typeof window !== 'undefined' && window.location.hash !== '#/reset-password') {
-          window.location.hash = '/reset-password';
+        if (typeof window !== 'undefined' && window.location.pathname !== '/reset-password') {
+          window.history.pushState(null, '', '/reset-password');
+          window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } else {
         setIsPasswordRecovery(false);

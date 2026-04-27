@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { HashRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { SchoolAdmin } from './pages/SchoolAdmin';
 import { ResetPassword } from './pages/ResetPassword';
+import { RouteSEO } from './components/RouteSEO';
 
 const AccountTierOnboardingRedirect: React.FC = () => {
   const { user, needsPlanSelection, isLoading, isPasswordRecovery } = useAuth();
@@ -29,6 +30,21 @@ const AccountTierOnboardingRedirect: React.FC = () => {
     if (location.pathname === '/choose-plan') return;
     navigate('/choose-plan', { replace: true });
   }, [isLoading, isPasswordRecovery, location.pathname, navigate, needsPlanSelection, user]);
+
+  return null;
+};
+
+const LegacyHashRouteRedirect: React.FC = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const legacyPath = window.location.hash;
+    if (!legacyPath.startsWith('#/')) return;
+
+    const nextPath = legacyPath.slice(1) || '/';
+    window.history.replaceState(null, '', nextPath);
+    navigate(nextPath, { replace: true });
+  }, [navigate]);
 
   return null;
 };
@@ -53,6 +69,8 @@ const App: React.FC = () => {
     <AuthProvider>
       <UnsavedChangesProvider>
         <Router>
+          <LegacyHashRouteRedirect />
+          <RouteSEO />
           <AccountTierOnboardingRedirect />
           <Layout>
             <Routes>

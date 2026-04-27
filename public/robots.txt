@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+Disallow: /profile
+Disallow: /reset-password
+Disallow: /choose-plan
+Disallow: /change-plan
+Disallow: /school-admin
+Disallow: /test
+Disallow: /share/game
+Disallow: /student/game
+Disallow: /api/
+
+Sitemap: https://www.theteachersroom.app/sitemap.xml
