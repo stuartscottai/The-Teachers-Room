@@ -28,8 +28,32 @@ export const Info: React.FC = () => {
       answer: 'Yes. Most game modes let you choose Manual Creation and build from scratch in the editor. AI mode is for speed; manual mode is for full control.'
     },
     {
+      question: 'Can I use my own AI tool to make a game?',
+      answer: 'Yes. In manual game creation, use "Import from Another AI Tool" to copy our custom prompt template, paste it into your preferred LLM, then import the returned JSON here.'
+    },
+    {
       question: 'Can I upload a photo/PDF from my book and generate from that?',
       answer: 'Yes. In Games and Worksheets, you can upload source files (up to 3 files, 4MB each). The AI then uses those files to build content instead of guessing from thin air.'
+    },
+    {
+      question: 'Can students play review games at home?',
+      answer: 'Yes. Saved games can be shared with students by link or QR code, so they can open a review game outside class without needing to build anything themselves.'
+    },
+    {
+      question: 'Do students need teacher accounts to use shared games?',
+      answer: 'No. Student share links are designed for playing/reviewing a specific game. Teacher account features such as creating, saving, editing, and school admin tools stay separate.'
+    },
+    {
+      question: 'What do School accounts include?',
+      answer: 'School accounts let admins manage teacher spots, invite or approve teachers, monitor teacher activity such as games created/played and AI generations, and use shared school document storage.'
+    },
+    {
+      question: 'Can school admins see what teachers are doing?',
+      answer: 'School admins can see school-level usage information such as teacher status, games created, game play activity, and AI generation counts. This is intended for account management and support, not student surveillance.'
+    },
+    {
+      question: 'How does school document sharing work?',
+      answer: 'School accounts include shared school storage where members can keep documents and resources for the school. Admins can organise and manage the shared space.'
     },
     {
       question: 'Do voice prompts work?',
@@ -143,10 +167,22 @@ export const Info: React.FC = () => {
                   <li>Open <strong>Games</strong> and pick a mode: Snakes & Ladders, Trivia, Jeopardy, Pub Quiz, Darts, Millionaire, Time Bomb, Survey Showdown, Stop the Fire, or Word Wheel.</li>
                   <li>If you are not sure where to start, open the <strong>AI Assistant</strong>, explain your idea in plain English, and it will recommend suitable game types based on your class and goals.</li>
                   <li>Choose <strong>Manual</strong> (build from scratch) or <strong>AI</strong> (instant first draft).</li>
+                  <li>In Manual mode, open <strong>Import from Another AI Tool</strong> if you want to use your own LLM. Copy the custom prompt template, paste it into your AI tool, then import the returned JSON.</li>
                   <li>In AI mode, add a topic and optional instructions. You can type or use the mic dictation button.</li>
                   <li>Optional but powerful: upload source files (PDF/images, max 3 files, 4MB each) so AI uses your actual material.</li>
                   <li>If you enable images, <strong>Auto-pick</strong> grabs stock visuals from question/answer keywords, or choose <strong>Pick later</strong> and add them manually in the editor.</li>
                   <li>Generate, then polish in the editor: fix wording, change answers, replace images, save to library, and hit Play.</li>
+                  <li>For independent review, share a saved game with students using a link or QR code so they can practise outside class.</li>
+                </ol>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mt-4">
+                <h3 className="font-bold text-slate-800 mb-3">School accounts: manage teachers and shared resources</h3>
+                <ol className="list-decimal pl-5 space-y-2 text-sm">
+                  <li>Create a <strong>School</strong> plan, add your school name, and open the School Admin dashboard.</li>
+                  <li>Invite teachers or approve join requests, then manage teacher spots and active/inactive access.</li>
+                  <li>Monitor useful school activity such as games created, game play activity, and AI generation usage.</li>
+                  <li>Use shared school storage for documents and resources that school members need to access.</li>
                 </ol>
               </div>
 
@@ -248,7 +284,7 @@ export const Info: React.FC = () => {
           >
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-800">FAQs</h2>
-              <p className="text-sm text-slate-500 mt-1">Common questions from teachers using games and worksheets every week.</p>
+              <p className="text-sm text-slate-500 mt-1">Common questions from teachers using games, student review links, and school accounts.</p>
             </div>
             <ChevronDown className={`text-slate-500 transition-transform ${openSections.faqs ? 'rotate-180' : ''}`} />
           </button>
@@ -314,7 +350,7 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Starter</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Access to all manual creation tools', 'Save and share games/worksheets', 'Community library access', 'AI generation not included'].map(item => (
+              {['Access to all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games/worksheets', 'Community library access', 'Built-in AI generation not included'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
                   <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>
