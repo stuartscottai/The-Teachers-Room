@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, FileText, Home, LogIn, Grid, LogOut, Building2, MailCheck } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
@@ -160,7 +160,6 @@ const Navbar: React.FC = () => {
   const navItems = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
     { name: 'Games', path: '/games', icon: <GraduationCap size={18} /> },
-    { name: 'Worksheets', path: '/worksheets', icon: <FileText size={18} /> },
     { name: 'Pricing', path: '/pricing', icon: <BookOpen size={18} /> },
     { name: 'Info', path: '/info', icon: <HelpCircle size={18} /> },
     { name: 'Blog', path: '/blog', icon: <MessageSquare size={18} /> },
@@ -245,14 +244,6 @@ const Navbar: React.FC = () => {
                         >
                           <Grid size={16} className="mr-2 text-brand-blue" /> My Saved Games
                         </SafeLink>
-                        <SafeLink 
-                          to="/worksheets" 
-                          state={{ tab: 'library' }}
-                          onClick={() => setShowUserMenu(false)}
-                          className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
-                        >
-                          <FileText size={16} className="mr-2 text-brand-blue" /> My Saved Worksheets
-                        </SafeLink>
                         {canAccessSchoolAdmin && (
                           <SafeLink
                             to="/school-admin"
@@ -336,9 +327,6 @@ const Navbar: React.FC = () => {
                     </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games
-                    </SafeLink>
-                    <SafeLink to="/worksheets" state={{ tab: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        My Saved Worksheets
                     </SafeLink>
                     {canAccessSchoolAdmin && (
                       <SafeLink to="/school-admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
@@ -458,7 +446,6 @@ const Footer: React.FC = () => {
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Site</h3>
             <ul className="space-y-3">
               <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</SafeLink></li>
-              <li><SafeLink to="/worksheets" className="hover:text-brand-yellow text-sm transition-colors">Worksheets</SafeLink></li>
               <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</SafeLink></li>
               <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</SafeLink></li>
             </ul>

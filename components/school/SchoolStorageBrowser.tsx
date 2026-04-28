@@ -297,7 +297,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
 
         <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
           <p className="text-xs text-slate-500">
-            School files are attached as source material only. They are not copied into the saved game or worksheet.
+            School files are attached as source material only. They are not copied into the saved game.
           </p>
           <div className="flex items-center gap-3">
             <button

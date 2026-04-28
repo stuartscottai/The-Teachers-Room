@@ -148,3 +148,5 @@ export const blogPosts: BlogPost[] = [
         `
     }
 ];
+
+export const publicBlogPosts = blogPosts.filter((post) => post.id !== 4);

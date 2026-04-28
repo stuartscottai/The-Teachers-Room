@@ -33,7 +33,7 @@ export const Info: React.FC = () => {
     },
     {
       question: 'Can I upload a photo/PDF from my book and generate from that?',
-      answer: 'Yes. In Games and Worksheets, you can upload source files (up to 3 files, 4MB each). The AI then uses those files to build content instead of guessing from thin air.'
+      answer: 'Yes. In Games, you can upload source files (up to 3 files, 4MB each). The AI then uses those files to build content instead of guessing from thin air.'
     },
     {
       question: 'Can students play review games at home?',
@@ -57,7 +57,7 @@ export const Info: React.FC = () => {
     },
     {
       question: 'Do voice prompts work?',
-      answer: 'Yes for game creation: the AI instructions box in Games has a mic button, and the Game AI Assistant chat also supports dictation. Worksheet instructions are currently typed.'
+      answer: 'Yes. The AI instructions box in Games has a mic button, and the Game AI Assistant chat also supports dictation.'
     },
     {
       question: 'How do images work in Games?',
@@ -68,16 +68,8 @@ export const Info: React.FC = () => {
       answer: 'Yes. In the game editor you can pick stock images manually or upload your own image per question.'
     },
     {
-      question: 'What is the worksheet image bank?',
-      answer: 'For Wordsearch and Matching activities, you can enable "Use image bank (auto-pick)" so images are matched to activity labels/words, then edit picks if needed.'
-    },
-    {
       question: 'Can I edit everything after generation?',
       answer: 'Absolutely. You can edit questions, answers, options, images, rounds, activity settings, layout, and design elements before class use.'
-    },
-    {
-      question: 'Can I add more worksheet activities after I already generated one?',
-      answer: 'Yes. In Worksheet Builder, use "AI - Add New Activities" and click Generate & Append to extend your worksheet without starting over.'
     },
     {
       question: 'Why did my output feel generic or miss the point?',
@@ -185,18 +177,6 @@ export const Info: React.FC = () => {
                   <li>Use shared school storage for documents and resources that school members need to access.</li>
                 </ol>
               </div>
-
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-4">
-                <h3 className="font-bold text-slate-800 mb-3">Worksheets: build once, remix forever</h3>
-                <ol className="list-decimal pl-5 space-y-2 text-sm">
-                  <li>Open <strong>Worksheets</strong> and set your topic, grade level, difficulty, and global instructions.</li>
-                  <li>Add activity blocks (Multiple Choice, Wordsearch, Matching, Gap Fill, Sentence Transform, Word Formation, Open Ended, Information Sheet, Table, Custom).</li>
-                  <li>Tune each activity: counts, grid sizes, story/sentence mode, notes, and options like word banks.</li>
-                  <li>For Wordsearch and Matching, you can enable <strong>Use image bank (auto-pick)</strong> and edit selected images afterward.</li>
-                  <li>Upload source files if needed (same limit: max 3 files, 4MB each) and click Generate.</li>
-                  <li>After generation, use templates/themes/layouts, add manual blocks, append new AI activities, then print/export/save.</li>
-                </ol>
-              </div>
             </div>
           )}
         </section>
@@ -223,7 +203,7 @@ export const Info: React.FC = () => {
                 <ul className="list-disc pl-5 space-y-2 text-sm">
                   <li><strong>Who:</strong> age + level (for example, "A2 teens").</li>
                   <li><strong>What:</strong> precise objective (for example, "past simple negatives").</li>
-                  <li><strong>Format:</strong> game type or worksheet activities + counts.</li>
+                  <li><strong>Format:</strong> game type, question count, and answer style.</li>
                   <li><strong>Boundaries:</strong> must include / must avoid.</li>
                   <li><strong>Practical limits:</strong> class time, difficulty, tone.</li>
                   <li><strong>Source anchor:</strong> if you uploaded files, explicitly tell AI to use them.</li>
@@ -252,20 +232,6 @@ export const Info: React.FC = () => {
                   <h4 className="font-bold text-rose-700 mb-2">Weak Game Prompt</h4>
                   <p className="text-sm leading-relaxed">
                     "Make me a game from this."
-                  </p>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                  <h4 className="font-bold text-emerald-700 mb-2">Good Worksheet Prompt</h4>
-                  <p className="text-sm leading-relaxed">
-                    "Grade 5 A2 worksheet on travel vocabulary.
-                    Activities: 8 gap-fill (with word bank), 6 matching pairs, 5 open-ended speaking prompts.
-                    Keep instructions simple, include answer key, and use friendly classroom tone."
-                  </p>
-                </div>
-                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
-                  <h4 className="font-bold text-rose-700 mb-2">Weak Worksheet Prompt</h4>
-                  <p className="text-sm leading-relaxed">
-                    "Create a worksheet for my class."
                   </p>
                 </div>
               </div>
@@ -350,7 +316,7 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Starter</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Access to all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games/worksheets', 'Community library access', 'Built-in AI generation not included'].map(item => (
+              {['Access to all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games', 'Community library access', 'Built-in AI generation not included'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
                   <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>
@@ -371,7 +337,7 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Pro</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">$9<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Unlimited AI-generated games', 'Unlimited AI-generated worksheets', 'Unlimited private library storage', 'Priority support'].map(item => (
+              {['Unlimited AI-generated games', 'Unlimited private library storage', 'Priority support'].map(item => (
                 <li key={item} className="flex items-center text-slate-800 font-medium">
                   <Check size={18} className="text-brand-accent mr-2 shrink-0" /> {item}
                 </li>
@@ -549,7 +515,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
                 <h3>3. What the Service Does</h3>
                 <p>
-                    <BrandName /> helps you create games and worksheets using manual tools and AI-assisted generation.
+                    <BrandName /> helps you create games using manual tools and AI-assisted generation.
                     Features may include saving content, publishing to community libraries, image search/selection, and optional voice dictation support.
                 </p>
 
@@ -682,10 +648,10 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                     <strong>Account data:</strong> name, email, authentication identifiers, and optional avatar/profile details.
                 </li>
                 <li>
-                    <strong>Content you create:</strong> games, worksheets, prompts, instructions, uploads, edits, and library items.
+                    <strong>Content you create:</strong> games, prompts, instructions, uploads, edits, and library items.
                 </li>
                 <li>
-                    <strong>Uploads:</strong> documents/images you attach for AI generation, plus worksheet/game assets you choose to store.
+                    <strong>Uploads:</strong> documents/images you attach for AI generation, plus game assets you choose to store.
                 </li>
                 <li>
                     <strong>Community visibility data:</strong> whether content is public or private, plus public author display fields.
@@ -697,7 +663,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                     <strong>Technical data:</strong> basic logs, request metadata, and error diagnostics from the app and hosting stack.
                 </li>
                 <li>
-                    <strong>Browser-local data (guest mode):</strong> games/worksheets may be stored in your browser localStorage.
+                    <strong>Browser-local data (guest mode):</strong> games may be stored in your browser localStorage.
                 </li>
                 <li>
                     <strong>Voice input (optional):</strong> if you use dictation, microphone audio is processed by browser speech recognition and/or local Whisper Web transcription, depending on availability.

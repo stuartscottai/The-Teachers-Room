@@ -7,6 +7,8 @@ Disallow: /choose-plan
 Disallow: /change-plan
 Disallow: /school-admin
 Disallow: /test
+Disallow: /worksheets
+Disallow: /blog/4
 Disallow: /share/game
 Disallow: /student/game
 Disallow: /student/share

@@ -1332,15 +1332,23 @@ export const getGlobalStats = async () => {
     try {
         // Use count: 'exact' and head: true to get only the count without data payload
         const { count: gamesCount } = await supabase.from('saved_games').select('*', { count: 'exact', head: true });
-        const { count: worksheetsCount } = await supabase.from('saved_worksheets').select('*', { count: 'exact', head: true });
+        const { data: playRows, error: playError } = await supabase
+            .from('saved_games')
+            .select('play_count');
+
+        if (playError) throw playError;
+
+        const gamesPlayed = (playRows || []).reduce((total, row: any) => {
+            return total + Math.max(0, Number(row?.play_count || 0));
+        }, 0);
         
         return {
             games: gamesCount || 0,
-            worksheets: worksheetsCount || 0
+            gamesPlayed
         };
     } catch (e) {
         console.error("Stats Fetch Error:", e);
         // Fallback for safety
-        return { games: 0, worksheets: 0 };
+        return { games: 0, gamesPlayed: 0 };
     }
 };

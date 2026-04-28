@@ -1,10 +1,9 @@
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { Games } from './pages/Games';
-import { Worksheets } from './pages/Worksheets';
 import { Pricing, Info, Contact, Legal } from './pages/InfoPages';
 import { Blog } from './pages/Blog';
 import { BlogPostPage } from './pages/BlogPost';
@@ -76,7 +75,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<Games />} />
-              <Route path="/worksheets" element={<Worksheets />} />
+              <Route path="/worksheets" element={<Navigate to="/games" replace />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/info" element={<Info />} />
               <Route path="/blog" element={<Blog />} />

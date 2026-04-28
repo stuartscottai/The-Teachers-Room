@@ -15,7 +15,7 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
     subtitle: 'Manual tools for everything, no AI generation.',
     features: [
       'Access to all manual creation tools',
-      'Save and share games/worksheets',
+      'Save and share games',
       'Community library access',
       'AI generation locked'
     ]
@@ -25,7 +25,6 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
     subtitle: 'Unlimited AI generation for your own account.',
     features: [
       'Unlimited AI game generation',
-      'Unlimited AI worksheet generation',
       'Manual tools stay fully available',
       'Single-teacher plan'
     ]

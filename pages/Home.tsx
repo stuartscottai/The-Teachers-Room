@@ -1,10 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, To, useNavigate } from 'react-router-dom';
-import { Play, FileText, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw } from 'lucide-react';
+import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
-import { GameType, GeneratedWorksheet } from '../types';
-import { getGlobalStats, getTrendingGames, getCommunityWorksheets } from '../utils/gameUtils';
+import { GameType } from '../types';
+import { getGlobalStats, getTrendingGames } from '../utils/gameUtils';
 
 type HomeTrendingCard = {
     id: string;
@@ -17,44 +17,10 @@ type HomeTrendingCard = {
     state?: unknown;
 };
 
-type HomeWorksheetItem = Pick<GeneratedWorksheet, 'id' | 'title' | 'createdAt' | 'authorName'> & {
-    worksheet: GeneratedWorksheet;
-};
-
 const compactNumberFormatter = new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 });
-const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 const formatPlayCount = (value: number) => compactNumberFormatter.format(Math.max(0, value));
 const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-
-const formatRelativeTime = (dateString?: string) => {
-    if (!dateString) return 'just now';
-    const then = new Date(dateString).getTime();
-    if (Number.isNaN(then)) return 'recently';
-
-    const elapsedMs = Date.now() - then;
-    const elapsedSeconds = Math.round(elapsedMs / 1000);
-
-    if (Math.abs(elapsedSeconds) < 60) return 'just now';
-
-    const ranges: Array<{ seconds: number; unit: Intl.RelativeTimeFormatUnit }> = [
-        { seconds: 31536000, unit: 'year' },
-        { seconds: 2592000, unit: 'month' },
-        { seconds: 604800, unit: 'week' },
-        { seconds: 86400, unit: 'day' },
-        { seconds: 3600, unit: 'hour' },
-        { seconds: 60, unit: 'minute' }
-    ];
-
-    for (const range of ranges) {
-        if (Math.abs(elapsedSeconds) >= range.seconds) {
-            const delta = Math.round(elapsedSeconds / range.seconds);
-            return relativeTimeFormatter.format(-delta, range.unit);
-        }
-    }
-
-    return 'just now';
-};
 
 const getGameVisual = (type?: GameType) => {
     switch (type) {
@@ -89,12 +55,6 @@ const FALLBACK_TRENDING_GAMES: HomeTrendingCard[] = [
     { id: 'fallback-3', title: 'Survey Showdown', plays: '0', to: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
     { id: 'fallback-4', title: 'Trivia Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.TRIVIA) },
     { id: 'fallback-5', title: 'Pub Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
-];
-
-const FALLBACK_WORKSHEETS: HomeWorksheetItem[] = [
-    { id: 'ws-fallback-1', title: 'Present Perfect Simple', authorName: 'Teacher 1' },
-    { id: 'ws-fallback-2', title: 'Photosynthesis Matching', authorName: 'Teacher 2' },
-    { id: 'ws-fallback-3', title: 'French Vocab Search', authorName: 'Teacher 3' }
 ];
 
 // Simple Animated Counter Component
@@ -175,9 +135,8 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
-  const [stats, setStats] = useState({ games: 0, worksheets: 0 });
+  const [stats, setStats] = useState({ games: 0, gamesPlayed: 0 });
   const [trendingGames, setTrendingGames] = useState<HomeTrendingCard[]>(FALLBACK_TRENDING_GAMES);
-  const [freshWorksheets, setFreshWorksheets] = useState<HomeWorksheetItem[]>(FALLBACK_WORKSHEETS);
   const [showTourInvite, setShowTourInvite] = useState(false);
   const [dontShowTourAgain, setDontShowTourAgain] = useState(false);
 
@@ -203,10 +162,9 @@ export const Home: React.FC = () => {
 
     const refreshHomeFeed = async () => {
       try {
-        const [statsData, trendingResult, worksheetsResult] = await Promise.all([
+        const [statsData, trendingResult] = await Promise.all([
           getGlobalStats(),
-          getTrendingGames(5),
-          getCommunityWorksheets(1, 3, '', 'all', 'newest')
+          getTrendingGames(5)
         ]);
 
         if (isUnmounted) return;
@@ -229,20 +187,10 @@ export const Home: React.FC = () => {
 
         setTrendingGames(mappedTrending.length > 0 ? mappedTrending : FALLBACK_TRENDING_GAMES);
 
-        const mappedWorksheets: HomeWorksheetItem[] = worksheetsResult.data.map((worksheet) => ({
-          id: worksheet.id,
-          title: worksheet.title,
-          authorName: worksheet.authorName,
-          createdAt: worksheet.createdAt,
-          worksheet
-        }));
-
-        setFreshWorksheets(mappedWorksheets.length > 0 ? mappedWorksheets : FALLBACK_WORKSHEETS);
       } catch (error) {
         if (isUnmounted) return;
         console.warn('Home feed refresh failed:', error);
         setTrendingGames(FALLBACK_TRENDING_GAMES);
-        setFreshWorksheets(FALLBACK_WORKSHEETS);
       }
     };
 
@@ -270,10 +218,10 @@ export const Home: React.FC = () => {
     setShowTourInvite(false);
   };
 
-  const startTour = (target: 'games' | 'worksheets') => {
+  const startTour = () => {
     persistTourPreference(dontShowTourAgain);
     setShowTourInvite(false);
-    navigate(target === 'games' ? '/games' : '/worksheets', { state: { tour: target } });
+    navigate('/games', { state: { tour: 'games' } });
   };
 
   return (
@@ -298,20 +246,13 @@ export const Home: React.FC = () => {
               Pick where you want to start. We&apos;ll guide you step by step.
             </p>
 
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid gap-3">
               <button
                 type="button"
-                onClick={() => startTour('games')}
+                onClick={startTour}
                 className="py-3 px-4 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
               >
                 Games
-              </button>
-              <button
-                type="button"
-                onClick={() => startTour('worksheets')}
-                className="py-3 px-4 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 transition-colors"
-              >
-                Worksheets
               </button>
             </div>
 
@@ -427,7 +368,7 @@ export const Home: React.FC = () => {
           </h1>
 
           <p className="text-xl md:text-2xl text-sky-50 mb-12 font-medium max-w-3xl mx-auto leading-relaxed drop-shadow-sm">
-            The ultimate playground for educators. Create AI-powered games and worksheets in seconds.
+            The ultimate playground for educators. Create AI-powered classroom games in seconds.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16">
@@ -440,13 +381,6 @@ export const Home: React.FC = () => {
                 </div>
                 Start Playing
             </Link>
-            <Link 
-                to="/worksheets" 
-                className="group px-8 py-4 bg-transparent border-2 border-white text-white font-bold text-lg rounded-full hover:bg-white/10 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
-            >
-                <FileText size={20} className="group-hover:scale-110 transition-transform" /> 
-                Create Worksheets
-            </Link>
           </div>
 
           {/* LIVE STATS TICKER */}
@@ -457,7 +391,7 @@ export const Home: React.FC = () => {
               <div className="flex gap-8 md:gap-12">
                   <StatCounter end={stats.games} label="Games Created" />
                   <div className="w-px bg-white/20 h-10 hidden md:block"></div>
-                  <StatCounter end={stats.worksheets} label="Worksheets Generated" />
+                  <StatCounter end={stats.gamesPlayed} label="Games Played" />
               </div>
           </div>
 
@@ -482,59 +416,6 @@ export const Home: React.FC = () => {
                     <TrendingGameCard key={game.id} game={game} />
                 ))}
             </div>
-        </div>
-      </section>
-
-      {/* Recent Worksheets - Yellow Background with Blue Parallax Symbols */}
-      <section className="relative py-24 bg-brand-yellow overflow-hidden">
-        {/* Parallax Background Symbols */}
-        <div className="absolute top-20 left-10 text-brand-blue opacity-20"
-             style={{ transform: `translateY(${(scrollY - 800) * 0.15}px) rotate(${scrollY * 0.1}deg)` }}>
-             <Star size={80} fill="currentColor" />
-        </div>
-        <div className="absolute top-40 right-[10%] text-sky-600 opacity-25"
-             style={{ transform: `translateY(${(scrollY - 800) * -0.1}px) rotate(${scrollY * -0.05}deg)` }}>
-             <Hexagon size={100} strokeWidth={2} />
-        </div>
-        <div className="absolute bottom-20 left-[20%] text-brand-blue opacity-15"
-             style={{ transform: `translateY(${(scrollY - 1200) * 0.1}px) rotate(45deg)` }}>
-             <Square size={60} fill="currentColor" />
-        </div>
-        <div className="absolute bottom-10 right-10 text-sky-700 opacity-20"
-             style={{ transform: `translateY(${(scrollY - 1200) * -0.15}px)` }}>
-             <Circle size={50} strokeWidth={4} />
-        </div>
-        <div className="absolute top-1/2 left-1/2 text-white opacity-30"
-             style={{ transform: `translateY(${(scrollY - 1000) * 0.05}px) rotate(${scrollY * 0.2}deg)` }}>
-             <Triangle size={120} className="rotate-180" />
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 relative z-10">
-            <h2 className="font-display text-3xl font-bold text-center text-slate-900 mb-12">
-                <span className="border-b-4 border-brand-blue pb-2">Fresh Worksheets</span>
-            </h2>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                 {freshWorksheets.map((ws, idx) => (
-                    <div key={ws.id || idx} className="flex items-start space-x-4 bg-white p-6 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all border border-yellow-200 group">
-                        <div className="bg-sky-100 p-3 rounded-lg text-sky-600 group-hover:bg-brand-blue group-hover:text-white transition-colors">
-                            <FileText size={24} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-800">{ws.title}</h3>
-                            <p className="text-sm text-slate-500 mb-2">
-                              Created {formatRelativeTime(ws.createdAt)} by {ws.authorName || `Teacher ${idx + 1}`}
-                            </p>
-                            <Link
-                              to="/worksheets"
-                              state={isUUID(ws.id) ? { openWorksheetId: ws.id, openWorksheet: ws.worksheet } : { tab: 'community' }}
-                              className="text-sm font-semibold text-brand-blue hover:text-sky-800 flex items-center"
-                            >
-                                View Resource <ArrowRight size={14} className="ml-1" />
-                            </Link>
-                        </div>
-                    </div>
-                 ))}
-             </div>
         </div>
       </section>
 

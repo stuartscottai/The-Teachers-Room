@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Share2 } from 'lucide-react';
-import { blogPosts } from '../data/blogPosts';
+import { publicBlogPosts } from '../data/blogPosts';
 import { BrandName } from '../components/BrandName';
 
 export const BlogPostPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const post = blogPosts.find(p => p.id === Number(id));
+    const post = publicBlogPosts.find(p => p.id === Number(id));
     const heroImage = post?.heroImage ?? post?.image;
     const heroUsesContain = post?.heroImageFit === 'contain';
 
@@ -124,7 +124,7 @@ export const BlogPostPage: React.FC = () => {
                 <div className="max-w-6xl mx-auto px-4">
                      <h3 className="font-display text-2xl font-bold text-slate-800 mb-8">Read Next</h3>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {blogPosts.filter(p => p.id !== post.id).slice(0, 3).map(related => (
+                        {publicBlogPosts.filter(p => p.id !== post.id).slice(0, 3).map(related => (
                             <Link to={`/blog/${related.id}`} key={related.id} className="group block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-slate-100">
                                 <div className="h-48 overflow-hidden">
                                     <img src={related.image} alt={related.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

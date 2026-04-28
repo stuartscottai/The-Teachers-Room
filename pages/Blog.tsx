@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { blogPosts } from '../data/blogPosts';
+import { publicBlogPosts } from '../data/blogPosts';
 
 export const Blog: React.FC = () => {
     return (
@@ -10,7 +10,7 @@ export const Blog: React.FC = () => {
                 <p className="text-center text-slate-500 mb-16">Insights, tips, and stories from the education frontier.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {blogPosts.map((post) => (
+                    {publicBlogPosts.map((post) => (
                         <Link 
                             key={post.id} 
                             to={`/blog/${post.id}`}
