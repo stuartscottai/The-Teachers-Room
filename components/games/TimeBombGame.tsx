@@ -32,7 +32,10 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     // Questions
     const [questions] = useState<GeneratedQuestion[]>(game.questions || []);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
+    const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>(() => {
+        const firstId = game.questions?.[0]?.id;
+        return typeof firstId === 'number' ? [firstId] : [];
+    });
 
     // Card State
     const [isFlipped, setIsFlipped] = useState(false);
@@ -211,6 +214,28 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         setShowExplosionModal(false);
         playSound('incorrect', isMuted, 'Explosion'); 
 
+        if (options.studentPractice) {
+            if (currentQuestion) {
+                setMissedItems((prev) => [
+                    ...prev,
+                    {
+                        id: `timeout-${currentQuestion.id}-${prev.length}`,
+                        question: currentQuestion.question,
+                        correctAnswer: currentQuestion.answer,
+                        context: "Time ran out",
+                    },
+                ]);
+            }
+
+            if (explosionTimerRef.current) {
+                clearTimeout(explosionTimerRef.current);
+            }
+            explosionTimerRef.current = setTimeout(() => {
+                setShowExplosionModal(true);
+            }, 1400);
+            return;
+        }
+
         // Deduct Life immediately
         setTeamLives(prev => {
             const newLives = [...prev];
@@ -229,6 +254,14 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     const handleContinueAfterExplosion = () => {
         setShowExplosionModal(false);
+        if (options.studentPractice) {
+            setBombTime(options.bombDuration || 60);
+            setIsExploded(false);
+            setGameState('play');
+            setIsTicking(true);
+            nextQuestion();
+            return;
+        }
         checkElimination();
     };
 
@@ -375,6 +408,11 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
         
         if (available.length === 0) {
+            if (options.studentPractice) {
+                setGameState('gameover');
+                playSound('win', isMuted);
+                return;
+            }
             setUsedQuestionIds([]);
             // Restart
             if (options.randomizeQuestions) {
@@ -772,7 +810,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                 >
                     {teamNames.map((name, idx) => {
-                        const isAlive = teamLives[idx] > 0;
+                        const isAlive = options.studentPractice || teamLives[idx] > 0;
                         const isActive = idx === activeTeamIndex;
                         return (
                             <div 
@@ -787,12 +825,18 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                 <div className="text-[10px] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center truncate w-full">
                                     {name}
                                 </div>
-                                <div className="flex gap-1">
-                                    {Array.from({length: Math.max(0, teamLives[idx])}).map((_, i) => (
-                                        <Heart key={i} size={isMobileViewport ? 10 : 20} className="fill-red-500 text-red-500 drop-shadow-sm" />
-                                    ))}
-                                    {teamLives[idx] === 0 && <span className="text-[10px] sm:text-xs font-bold text-red-900 uppercase">Eliminated</span>}
-                                </div>
+                                {options.studentPractice ? (
+                                    <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-yellow-200">
+                                        Practice mode
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-1">
+                                        {Array.from({length: Math.max(0, teamLives[idx])}).map((_, i) => (
+                                            <Heart key={i} size={isMobileViewport ? 10 : 20} className="fill-red-500 text-red-500 drop-shadow-sm" />
+                                        ))}
+                                        {teamLives[idx] === 0 && <span className="text-[10px] sm:text-xs font-bold text-red-900 uppercase">Eliminated</span>}
+                                    </div>
+                                )}
                                 
                                 {/* Active Indicator (Center Left) */}
                                 {isActive && isAlive && (
@@ -1293,13 +1337,19 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                         <div className="mb-8 relative">
                             <div className="absolute inset-0 bg-red-500 blur-[40px] opacity-30 rounded-full"></div>
                             <div className="relative z-10 flex justify-center items-center">
-                                <Skull size={100} className="text-red-500 animate-bounce" />
+                                {options.studentPractice ? (
+                                    <XCircle size={100} className="text-red-500 animate-bounce" />
+                                ) : (
+                                    <Skull size={100} className="text-red-500 animate-bounce" />
+                                )}
                             </div>
                         </div>
                         <h2 className="text-6xl font-display font-black mb-4 text-red-500 drop-shadow-md">BOOM!</h2>
                         <div className="bg-slate-900/80 rounded-xl p-4 mb-8 border border-red-900/50">
                             <p className="text-3xl font-bold text-white mb-2">{teamNames[activeTeamIndex]}</p>
-                            <p className="text-xl text-red-400 font-mono tracking-widest uppercase">Lost a Life!</p>
+                            <p className="text-xl text-red-400 font-mono tracking-widest uppercase">
+                                {options.studentPractice ? "Time's up!" : 'Lost a Life!'}
+                            </p>
                         </div>
                         
                         <button 
@@ -1357,7 +1407,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
             {/* QUIT CONFIRM */}
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-slate-700 text-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
                         <h2 className="text-2xl font-bold mb-2">Abandon Mission?</h2>
                         <p className="text-slate-400 mb-6">The bomb will remain armed.</p>
@@ -1370,7 +1420,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[505] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-slate-700 text-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
                         <h2 className="text-2xl font-bold mb-2">End game now?</h2>
                         <p className="text-slate-400 mb-6">The game will stop and move to the winners screen.</p>

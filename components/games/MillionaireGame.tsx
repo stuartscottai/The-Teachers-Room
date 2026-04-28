@@ -849,7 +849,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
             {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>

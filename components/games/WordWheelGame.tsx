@@ -12,6 +12,8 @@ import {
     Flag,
     Maximize2,
     Minimize2,
+    Pause,
+    Play,
     Volume2,
     VolumeX,
     X,
@@ -373,6 +375,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const [endGameRevealList, setEndGameRevealList] = useState<Array<{ letter: string; answer: string }>>([]);
     const [reviewEntryId, setReviewEntryId] = useState<number | null>(null);
     const [timeLeft, setTimeLeft] = useState(options.timerSeconds > 0 ? options.timerSeconds : 0);
+    const [isTimerPaused, setIsTimerPaused] = useState(false);
     const [cardState, setCardState] = useState<CardState>('hidden');
     const [isFlipped, setIsFlipped] = useState(false);
     const [revealState, setRevealState] = useState<RevealState | null>(null);
@@ -796,6 +799,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         setInput('');
         setRevealState(null);
         setIsFlipped(false);
+        setIsTimerPaused(false);
         setHasStartedWheel(true);
         setCardState('question');
         if (hasTimer) {
@@ -872,6 +876,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             .map((entry) => ({ letter: entry.letter, answer: entry.answer }));
 
         setEndGameRevealList(remaining);
+        setIsTimerPaused(false);
         setEntries((prev) =>
             prev.map((entry) =>
                 entry.status === 'pending'
@@ -922,7 +927,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         if (correct) {
             const speedBonus =
                 scoringMode === 'speed-bonus' && hasTimer
-                    ? Math.max(0, Math.round((timeLeft / Math.max(options.timerSeconds, 1)) * 5))
+                    ? Math.max(0, Math.min(10, Math.floor((timeLeft / Math.max(options.timerSeconds, 1)) * 10)))
                     : 0;
             const gained = activeEntry.points + speedBonus;
             resolveTurn('correct', { gained, speedBonus });
@@ -938,6 +943,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
         setCardState('hidden');
         setIsFlipped(false);
+        setIsTimerPaused(false);
         setRevealState(null);
         setInput('');
 
@@ -979,8 +985,26 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
     useEffect(() => {
         if (phase !== 'play') return;
+        if (cardState !== 'hidden') return;
+        if (!cardPlayable || isWheelSpinning) return;
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Enter') return;
+            if (event.repeat) return;
+
+            event.preventDefault();
+            handleOpenCard();
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [phase, cardState, cardPlayable, isWheelSpinning, activeIndex, activeEntry?.id]);
+
+    useEffect(() => {
+        if (phase !== 'play') return;
         if (cardState !== 'question') return;
         if (!hasTimer) return;
+        if (isTimerPaused) return;
         if (!activeEntry) return;
 
         const timer = setInterval(() => {
@@ -996,7 +1020,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
         return () => clearInterval(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [cardState, activeIndex, currentTeam, phase, hasTimer, options.timerSeconds]);
+    }, [cardState, activeIndex, currentTeam, phase, hasTimer, isTimerPaused, options.timerSeconds]);
 
     if (phase === 'gameover') {
         if (options.studentPractice) {
@@ -1409,11 +1433,26 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     <div className="text-right justify-self-end">
                                         {hasTimer ? (
                                             <>
-                                                <div className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
-                                                    <Clock size={16} className="mr-1" /> {timeLeft}s
+                                                <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+                                                    <div className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
+                                                        <Clock size={16} className="mr-1" /> {timeLeft}s
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsTimerPaused((prev) => !prev)}
+                                                        className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-white transition-colors ${
+                                                            isTimerPaused
+                                                                ? 'border-emerald-300 bg-emerald-500 hover:bg-emerald-400'
+                                                                : 'border-white/25 bg-white/15 hover:bg-white/25'
+                                                        }`}
+                                                        title={isTimerPaused ? 'Resume timer' : 'Pause timer'}
+                                                        aria-label={isTimerPaused ? 'Resume timer' : 'Pause timer'}
+                                                    >
+                                                        {isTimerPaused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}
+                                                    </button>
                                                 </div>
                                                 <div className="font-bold text-[10px] sm:text-sm uppercase tracking-wide opacity-90 mt-1">
-                                                    Clues {teamCluesLeft[currentTeam] ?? 0}
+                                                    {isTimerPaused ? 'Paused' : `Clues ${teamCluesLeft[currentTeam] ?? 0}`}
                                                 </div>
                                             </>
                                         ) : (
@@ -1523,10 +1562,20 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             <div className="flex flex-col items-center mb-5 sm:mb-7">
                                                 <CheckCircle2 size={72} className="text-green-500 sm:w-24 sm:h-24" />
                                                 <h2 className="mt-3 text-4xl sm:text-6xl font-black text-green-500 uppercase">Correct</h2>
-                                                <p className="mt-2 text-lg sm:text-3xl font-black text-slate-700">
-                                                    +{revealState.gained || activeEntry.points}
-                                                    {Number(revealState.speedBonus) > 0 ? ` (${activeEntry.points}+${revealState.speedBonus})` : ''}
-                                                </p>
+                                                {Number(revealState.speedBonus) > 0 ? (
+                                                    <div className="mt-2 text-center">
+                                                        <p className="text-lg sm:text-3xl font-black text-slate-700">
+                                                            {activeEntry.points} points
+                                                        </p>
+                                                        <p className="mt-1 text-base sm:text-2xl font-black text-green-600">
+                                                            + {revealState.speedBonus} bonus points!
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="mt-2 text-lg sm:text-3xl font-black text-slate-700">
+                                                        {activeEntry.points} points
+                                                    </p>
+                                                )}
                                             </div>
                                         ) : revealState?.kind === 'incorrect' ? (
                                             <div className="flex flex-col items-center mb-5 sm:mb-7">
@@ -1575,7 +1624,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             )}
 
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[500] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
+                <div className="fixed inset-0 z-[900] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
                     <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
                         <button
                             onClick={() => setShowQuitConfirm(false)}
@@ -1605,7 +1654,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[530] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
+                <div className="fixed inset-0 z-[900] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
                     <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
                         <button
                             onClick={() => setShowEndGameConfirm(false)}

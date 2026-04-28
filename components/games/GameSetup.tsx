@@ -407,7 +407,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         </div>
                         <p className="text-[10px] text-slate-400 mt-1">
                             {options.wordWheelScoringMode === 'speed-bonus'
-                                ? 'Correct answers get extra points based on remaining time.'
+                                ? 'Correct answers can earn up to 10 extra points based on remaining time.'
                                 : 'Each correct answer gives fixed points.'}
                         </p>
                         <p className="text-[10px] text-slate-500 mt-2">

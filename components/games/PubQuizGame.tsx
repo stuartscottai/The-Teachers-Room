@@ -63,6 +63,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const [phase, setPhase] = useState<'home' | 'intro' | 'play' | 'review' | 'scoring' | 'gameover'>('home');
     const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [isFlipped, setIsFlipped] = useState(false);
+    const [selectedStudentAnswers, setSelectedStudentAnswers] = useState<Record<string, string>>({});
     
     // Track completed rounds
     const [completedRounds, setCompletedRounds] = useState<number[]>([]);
@@ -106,6 +107,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentRound = currentRoundIndex !== null ? rounds[currentRoundIndex] : null;
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
+    const currentQuestionKey = currentRoundIndex !== null ? `${currentRoundIndex}-${currentQuestionIndex}` : '';
+    const selectedStudentAnswer = currentQuestionKey ? selectedStudentAnswers[currentQuestionKey] : undefined;
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -141,7 +144,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         return 'text-xs sm:text-base md:text-2xl';
     };
 
-    const stripOptionPrefix = (value: string) => value.replace(/^[A-D]\)\s*/i, '').trim();
+    const stripOptionPrefix = (value: string) => value.replace(/^[A-D][.)]\s*/i, '').trim();
+    const normalizeAnswerValue = (value: string) => stripOptionPrefix(value).trim().toLowerCase();
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -368,6 +372,18 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 setTimeLeft(options.timerSeconds);
                 setIsTimesUp(false);
             } else {
+                if (options.studentPractice) {
+                    if (currentRoundIndex !== null) {
+                        setCompletedRounds(prev => [...prev, currentRoundIndex]);
+                    }
+                    const nextRoundIndex = rounds.findIndex((_, index) => index !== currentRoundIndex && !completedRounds.includes(index));
+                    if (nextRoundIndex >= 0) {
+                        startRound(nextRoundIndex);
+                    } else {
+                        setPhase('gameover');
+                    }
+                    return;
+                }
                 setPhase('review');
             }
         };
@@ -387,6 +403,24 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             return newScores;
         });
         if (delta > 0) playSound('correct', isMuted, 'Retro');
+    };
+
+    const handleStudentOptionSelect = (option: string) => {
+        if (!options.studentPractice || !currentQuestion || !currentQuestionKey || selectedStudentAnswer) return;
+
+        const isCorrect = normalizeAnswerValue(option) === normalizeAnswerValue(currentQuestion.answer);
+        setSelectedStudentAnswers(prev => ({ ...prev, [currentQuestionKey]: option }));
+        if (isCorrect) {
+            setScores(prev => {
+                const next = [...prev];
+                next[0] = (next[0] || 0) + 1;
+                return next;
+            });
+            playSound('correct', isMuted, options.soundConfig?.correct);
+        } else {
+            playSound('incorrect', isMuted, options.soundConfig?.incorrect);
+        }
+        setIsFlipped(true);
     };
 
     const finishRound = () => {
@@ -447,16 +481,22 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     id: `${roundIndex}-${questionIndex}`,
                     question: question.question,
                     correctAnswer: question.answer,
+                    studentAnswer: selectedStudentAnswers[`${roundIndex}-${questionIndex}`],
                     context: round.name,
                 }))
             );
-            const correctCount = Math.max(0, Math.min(scores[0] || 0, allQuestions.length));
+            const correctCount = allQuestions.filter((item) =>
+                item.studentAnswer && normalizeAnswerValue(item.studentAnswer) === normalizeAnswerValue(item.correctAnswer)
+            ).length;
+            const missedItems = allQuestions.filter((item) =>
+                !item.studentAnswer || normalizeAnswerValue(item.studentAnswer) !== normalizeAnswerValue(item.correctAnswer)
+            );
             return (
                 <PracticeReviewSummary
                     playerName={teamNames[0]}
                     correctCount={correctCount}
                     totalCount={allQuestions.length}
-                    missedItems={correctCount >= allQuestions.length ? [] : allQuestions}
+                    missedItems={missedItems}
                     onReplay={onReplay}
                     onExit={onFinish}
                 />
@@ -895,11 +935,27 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                             return currentQuestion.options!.map((opt, i) => {
                                                                 const optionLabel = String.fromCharCode(65 + i);
                                                                 const displayOpt = stripOptionPrefix(opt);
+                                                                const isSelected = selectedStudentAnswer === opt;
+                                                                const isCorrect = normalizeAnswerValue(opt) === normalizeAnswerValue(currentQuestion.answer);
+                                                                const studentOptionClass = options.studentPractice
+                                                                    ? selectedStudentAnswer
+                                                                        ? isSelected
+                                                                            ? isCorrect
+                                                                                ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                                                                                : 'bg-red-100 border-red-400 text-red-800'
+                                                                            : isCorrect
+                                                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                                                            : 'bg-slate-50 border-slate-200 text-slate-500'
+                                                                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-brand-blue cursor-pointer'
+                                                                    : 'bg-slate-50 border-slate-200 text-slate-700';
                                                                 return (
-                                                                    <div
+                                                                    <button
+                                                                        type="button"
                                                                         key={i}
+                                                                        onClick={() => handleStudentOptionSelect(opt)}
+                                                                        disabled={!options.studentPractice || Boolean(selectedStudentAnswer)}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize}`}
+                                                                        className={`relative p-3 sm:p-4 md:p-5 border-2 rounded-none font-bold text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none transition-colors disabled:cursor-default ${studentOptionClass} ${uniformSize}`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -914,7 +970,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                         >
                                                                             {displayOpt}
                                                                         </span>
-                                                                    </div>
+                                                                    </button>
                                                                 );
                                                             });
                                                         })()}
@@ -977,11 +1033,27 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                             return currentQuestion.options!.map((opt, i) => {
                                                                 const optionLabel = String.fromCharCode(65 + i);
                                                                 const displayOpt = stripOptionPrefix(opt);
+                                                                const isSelected = selectedStudentAnswer === opt;
+                                                                const isCorrect = normalizeAnswerValue(opt) === normalizeAnswerValue(currentQuestion.answer);
+                                                                const studentOptionClass = options.studentPractice
+                                                                    ? selectedStudentAnswer
+                                                                        ? isSelected
+                                                                            ? isCorrect
+                                                                                ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+                                                                                : 'bg-red-100 border-red-400 text-red-800'
+                                                                            : isCorrect
+                                                                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                                                            : 'bg-slate-50 border-slate-200 text-slate-500'
+                                                                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-brand-blue cursor-pointer'
+                                                                    : 'bg-slate-50 border-slate-200 text-slate-700';
                                                                 return (
-                                                                    <div
+                                                                    <button
+                                                                        type="button"
                                                                         key={i}
+                                                                        onClick={() => handleStudentOptionSelect(opt)}
+                                                                        disabled={!options.studentPractice || Boolean(selectedStudentAnswer)}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-3 sm:p-4 md:p-5 bg-slate-50 border-2 border-slate-200 rounded-none font-bold text-slate-700 text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize}`}
+                                                                        className={`relative p-3 sm:p-4 md:p-5 border-2 rounded-none font-bold text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none transition-colors disabled:cursor-default ${studentOptionClass} ${uniformSize}`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -996,7 +1068,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                         >
                                                                             {displayOpt}
                                                                         </span>
-                                                                    </div>
+                                                                    </button>
                                                                 );
                                                             });
                                                         })()}
@@ -1015,12 +1087,18 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 {/* Footer */}
                                 <div className="flex flex-col relative flex-shrink-0 z-50 bg-white px-0">
                                     <div className="w-full flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 md:px-8 py-2 sm:py-3">
-                                        <button 
-                                            onClick={() => setIsFlipped(true)}
-                                            className="bg-brand-blue text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-brand-blue"
-                                        >
-                                            Reveal Answer
-                                        </button>
+                                        {!(options.studentPractice && hasOptions) ? (
+                                            <button
+                                                onClick={() => setIsFlipped(true)}
+                                                className="bg-brand-blue text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-brand-blue"
+                                            >
+                                                Reveal Answer
+                                            </button>
+                                        ) : (
+                                            <div className="text-xs sm:text-sm md:text-base font-bold text-slate-500">
+                                                Choose an option to check your answer
+                                            </div>
+                                        )}
 
                                         <button 
                                             onClick={handleNextQuestion}
@@ -1066,6 +1144,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     </div>
                                     
                                     {/* IMMEDIATE SCORING PANEL */}
+                                    {!options.studentPractice && (
                                     <div className="mt-3 w-full bg-slate-50 rounded-2xl p-3 md:p-4 border-2 border-slate-200 flex-shrink-0 relative z-10">
                                         <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase mb-2 md:mb-3 tracking-widest">Quick Score (+1 Point)</h4>
                                         <div className="flex flex-wrap justify-center gap-2 md:gap-3">
@@ -1080,6 +1159,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                             ))}
                                         </div>
                                     </div>
+                                    )}
                                 </div>
 
                                 <div className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
@@ -1141,7 +1221,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
@@ -1165,7 +1245,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">End game now?</h2>
                         <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>

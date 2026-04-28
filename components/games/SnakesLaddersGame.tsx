@@ -629,6 +629,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const available = questions.filter(q => !usedQuestionIds.includes(q.id));
         let q: GeneratedQuestion;
         if (available.length === 0) {
+            if (options.studentPractice) {
+                playSound('win', isMuted);
+                setPhase('gameover');
+                return;
+            }
             if (!options.randomizeQuestions) {
                 setUsedQuestionIds([]);
                 q = questions[0];
@@ -681,11 +686,20 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (!usedQuestionIds.includes(currentQuestion.id)) {
              setUsedQuestionIds(prev => [...prev, currentQuestion.id]);
         }
+        const nextUsedQuestionIds = usedQuestionIds.includes(currentQuestion.id)
+            ? usedQuestionIds
+            : [...usedQuestionIds, currentQuestion.id];
+        const isStudentPracticeComplete = options.studentPractice && nextUsedQuestionIds.length >= questions.length;
         playSound(correct ? 'correct' : 'incorrect', isMuted);
         
         if (correct) {
             setCorrectCount((prev) => prev + 1);
             setTimeout(() => {
+                if (isStudentPracticeComplete) {
+                    setPhase('gameover');
+                    setIsProcessing(false);
+                    return;
+                }
                 setPhase('moving');
                 movePlayer(diceValue); // Dice value is state, preserved
                 setIsProcessing(false); // Can release early as phase changes
@@ -702,6 +716,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 },
             ]);
             setTimeout(() => {
+                if (isStudentPracticeComplete) {
+                    setPhase('gameover');
+                    setIsProcessing(false);
+                    return;
+                }
                 setPhase('turn-complete');
                 setIsProcessing(false);
             }, 1500);
@@ -768,6 +787,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             if (currentPos === 99) {
                 clearInterval(stepInterval);
                 setTimeout(() => {
+                    if (options.studentPractice && usedQuestionIds.length < questions.length) {
+                        setPhase('turn-complete');
+                        return;
+                    }
                     playSound('win', isMuted);
                     setPhase('gameover');
                 }, 500);
@@ -825,6 +848,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         // If a bonus pushes the player to the win, trigger game over immediately
         if (end === 99) {
             setTimeout(() => {
+                if (options.studentPractice && usedQuestionIds.length < questions.length) {
+                    setPhase('turn-complete');
+                    return;
+                }
                 playSound('win', isMuted);
                 setPhase('gameover');
             }, 1000);
@@ -1612,7 +1639,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             )}
 
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">Quit Game?</h2>
                         <p className="text-slate-500 mb-6">Progress will be lost.</p>
@@ -1625,7 +1652,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">End game now?</h2>
                         <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>

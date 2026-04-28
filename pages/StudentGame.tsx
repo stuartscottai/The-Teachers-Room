@@ -61,7 +61,7 @@ const buildStudentOptions = (game: GeneratedGame, studentName: string): GameRunO
     randomizeQuestions: true,
     triviaRandomPoints: false,
     dartsMode: 'high-score',
-    dartsLegs: 5,
+    dartsLegs: game.config.type === GameType.DARTS ? Math.max(1, questionCount) : 5,
     teamLives: 3,
     bombDuration: 60,
     wordWheelScoringMode: game.config.wordWheelScoringMode || 'classic',

@@ -1332,7 +1332,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {/* 5. QUIT CONFIRM */}
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
                         <p className="text-slate-500 mb-6">Unsaved progress will be lost.</p>
@@ -1355,7 +1355,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">End game now?</h2>
                         <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>

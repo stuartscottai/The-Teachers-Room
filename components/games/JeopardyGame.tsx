@@ -1296,9 +1296,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 </div>
             )}
 
-            {/* Quit Confirmation Modal - Z-Index 300 */}
+            {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
@@ -1322,7 +1322,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             )}
 
             {showEndGameConfirm && (
-                <div className="fixed inset-0 z-[305] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">End game now?</h2>
                         <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
