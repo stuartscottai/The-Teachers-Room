@@ -9,6 +9,7 @@ Disallow: /school-admin
 Disallow: /test
 Disallow: /share/game
 Disallow: /student/game
+Disallow: /student/share
 Disallow: /api/
 
 Sitemap: https://www.theteachersroom.app/sitemap.xml

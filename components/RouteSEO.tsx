@@ -75,7 +75,8 @@ const noindexPrefixes = [
   '/school-admin',
   '/test',
   '/share/game',
-  '/student/game'
+  '/student/game',
+  '/student/share'
 ];
 
 const upsertMeta = (selector: string, create: () => HTMLMetaElement, content: string) => {

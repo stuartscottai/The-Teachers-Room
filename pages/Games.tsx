@@ -5,7 +5,7 @@ import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSharedGame, getStudentGameShareUrl, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createSelectedStudentGameShare, deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
 // Import Modular Components
@@ -1503,7 +1503,7 @@ export const Games: React.FC = () => {
         await copyPreviewShareLink(shareGame.id);
     };
 
-    const handlePreviewStudentShare = async () => {
+    const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
         if (!generatedGame) return;
 
         if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(generatedGame.config.type)) {
@@ -1511,14 +1511,24 @@ export const Games: React.FC = () => {
             return;
         }
 
-        if (generatedGame.sourceGameId && isUUID(generatedGame.sourceGameId)) {
-            setStudentShareUrl(getStudentGameShareUrl(generatedGame.sourceGameId));
-            setStudentShareTitle(generatedGame.title);
+        if (selectedItemIds.length === 0) {
+            alert('Select at least one question before sharing with students.');
             return;
         }
 
         if (!user) {
             promptSignupForFree('Create a free account to share games with students.');
+            return;
+        }
+
+        if (generatedGame.sourceGameId && isUUID(generatedGame.sourceGameId)) {
+            const result = await createSelectedStudentGameShare(generatedGame.sourceGameId, user.id, generatedGame.title, selectedItemIds);
+            if (!result.success || !result.id) {
+                alert('Failed to create student practice link. Please try again.');
+                return;
+            }
+            setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
+            setStudentShareTitle(generatedGame.title);
             return;
         }
 
@@ -1540,7 +1550,13 @@ export const Games: React.FC = () => {
             return;
         }
 
-        setStudentShareUrl(getStudentGameShareUrl(shareGame.id));
+        const result = await createSelectedStudentGameShare(shareGame.id, user.id, shareGame.title, selectedItemIds);
+        if (!result.success || !result.id) {
+            alert('Failed to create student practice link. Please try again.');
+            return;
+        }
+
+        setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
         setStudentShareTitle(shareGame.title);
     };
 

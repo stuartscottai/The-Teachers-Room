@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { getGameShareUrl, getSharedGame, getStudentGameShareUrl, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createSelectedStudentGameShare, getGameShareUrl, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
 import { GamePreview } from '../components/games/GamePreview';
@@ -225,7 +225,7 @@ export const ShareGame: React.FC = () => {
     await copyPreviewShareLink(shareGame.id);
   };
 
-  const handlePreviewStudentShare = async () => {
+  const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
     if (!game) return;
 
     if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(game.config.type)) {
@@ -233,8 +233,18 @@ export const ShareGame: React.FC = () => {
       return;
     }
 
+    if (selectedItemIds.length === 0) {
+      alert('Select at least one question before sharing with students.');
+      return;
+    }
+
     if (game.sourceGameId && isUUID(game.sourceGameId)) {
-      setStudentShareUrl(getStudentGameShareUrl(game.sourceGameId));
+      const result = await createSelectedStudentGameShare(game.sourceGameId, user!.id, game.title, selectedItemIds);
+      if (!result.success || !result.id) {
+        alert('Failed to create student practice link. Please try again.');
+        return;
+      }
+      setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
       setStudentShareTitle(game.title);
       return;
     }
@@ -257,7 +267,13 @@ export const ShareGame: React.FC = () => {
       return;
     }
 
-    setStudentShareUrl(getStudentGameShareUrl(shareGame.id));
+    const result = await createSelectedStudentGameShare(shareGame.id, user!.id, shareGame.title, selectedItemIds);
+    if (!result.success || !result.id) {
+      alert('Failed to create student practice link. Please try again.');
+      return;
+    }
+
+    setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
     setStudentShareTitle(shareGame.title);
   };
 

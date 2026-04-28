@@ -92,6 +92,7 @@ const App: React.FC = () => {
               <Route path="/test" element={<TestBench />} />
               <Route path="/share/game/:id" element={<ShareGame />} />
               <Route path="/student/game/:id" element={<StudentGame />} />
+              <Route path="/student/share/:shareId" element={<StudentGame />} />
             </Routes>
           </Layout>
         </Router>

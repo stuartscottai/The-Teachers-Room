@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Calendar } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
-import { getSharedGame } from '../utils/gameUtils';
+import { getSelectedStudentGameShare, getSharedGame } from '../utils/gameUtils';
 import { DartsGame } from '../components/games/DartsGame';
 import { JeopardyGame } from '../components/games/JeopardyGame';
 import { MillionaireGame } from '../components/games/MillionaireGame';
@@ -71,7 +71,7 @@ const buildStudentOptions = (game: GeneratedGame, studentName: string): GameRunO
 };
 
 export const StudentGame: React.FC = () => {
-  const { id } = useParams();
+  const { id, shareId } = useParams();
   const navigate = useNavigate();
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [game, setGame] = useState<GeneratedGame | null>(null);
@@ -81,23 +81,27 @@ export const StudentGame: React.FC = () => {
   const [playKey, setPlayKey] = useState(0);
 
   useEffect(() => {
-    if (!id) {
+    if (!id && !shareId) {
       setLoadState('error');
       return;
     }
 
     setLoadState('loading');
-    getSharedGame(id)
-      .then((shared) => {
-        if (!shared) {
+    const loader = shareId
+      ? getSelectedStudentGameShare(shareId).then((result) => result?.game || null)
+      : getSharedGame(id!);
+
+    loader
+      .then((loadedGame) => {
+        if (!loadedGame) {
           setLoadState('not-found');
           return;
         }
-        setGame(shared);
+        setGame(loadedGame);
         setLoadState('ready');
       })
       .catch(() => setLoadState('error'));
-  }, [id]);
+  }, [id, shareId]);
 
   useEffect(() => {
     if (phase === 'play') document.body.classList.add('gameplay-active');

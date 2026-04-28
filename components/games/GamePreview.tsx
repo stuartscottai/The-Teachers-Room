@@ -630,7 +630,7 @@ interface GamePreviewProps {
   onEdit: () => void;
   onSave?: () => void | Promise<void>;
   onShare?: () => void | Promise<void>;
-  onStudentShare?: () => void | Promise<void>;
+  onStudentShare?: (selectedItemIds: string[]) => void | Promise<void>;
   saveLabel?: string;
 }
 
@@ -801,23 +801,24 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                     type="button"
                     onClick={() => void onShare()}
                     className={secondaryActionButtonClass}
-                    aria-label="Share"
-                    title="Share"
+                    aria-label="Teacher share"
+                    title="Teacher share"
                   >
                     <Share2 size={16} />
-                    <span className="hidden sm:inline">Share</span>
+                    <span className="hidden sm:inline">Teacher share</span>
                   </button>
                 )}
                 {onStudentShare && (
                   <button
                     type="button"
-                    onClick={() => void onStudentShare()}
+                    onClick={() => void onStudentShare(Array.from(selectedIds))}
+                    disabled={selectedCount === 0}
                     className={secondaryActionButtonClass}
-                    aria-label="Share with students"
-                    title="Share with students"
+                    aria-label="Student share"
+                    title="Student share"
                   >
                     <QrCode size={16} />
-                    <span className="hidden sm:inline">Students</span>
+                    <span className="hidden sm:inline">Student share</span>
                   </button>
                 )}
               </div>

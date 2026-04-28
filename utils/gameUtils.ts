@@ -415,6 +415,67 @@ export const getStudentGameShareUrl = (id: string) => {
     return `${getPublicAppUrl()}${normalizedBase}student/game/${id}`;
 };
 
+export const getSelectedStudentGameShareUrl = (id: string) => {
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+    return `${getPublicAppUrl()}${normalizedBase}student/share/${id}`;
+};
+
+export const applyGameSelection = (game: GeneratedGame, selectedItemIds: string[]): GeneratedGame | null => {
+    const selectedIds = new Set((selectedItemIds || []).filter((id) => typeof id === 'string' && id.trim()));
+    if (selectedIds.size === 0) return null;
+
+    if (game.config.type === GameType.JEOPARDY && game.jeopardyBoard) {
+        const nextBoard = game.jeopardyBoard
+            .map((category, categoryIndex) => ({
+                ...category,
+                questions: category.questions.filter((_, questionIndex) => selectedIds.has(`jeopardy-${categoryIndex}-${questionIndex}`)),
+            }))
+            .filter((category) => category.questions.length > 0);
+        if (nextBoard.length === 0) return null;
+
+        return {
+            ...game,
+            jeopardyBoard: nextBoard,
+            config: {
+                ...game.config,
+                questionCount: nextBoard.reduce((total, category) => total + category.questions.length, 0),
+            },
+        };
+    }
+
+    if (game.config.type === GameType.PUB_QUIZ && game.pubQuizRounds) {
+        const nextRounds = game.pubQuizRounds
+            .map((round, roundIndex) => ({
+                ...round,
+                questions: round.questions.filter((_, questionIndex) => selectedIds.has(`pubquiz-${roundIndex}-${questionIndex}`)),
+            }))
+            .filter((round) => round.questions.length > 0);
+        if (nextRounds.length === 0) return null;
+
+        return {
+            ...game,
+            pubQuizRounds: nextRounds,
+            config: {
+                ...game.config,
+                questionCount: nextRounds.reduce((total, round) => total + round.questions.length, 0),
+            },
+        };
+    }
+
+    const nextQuestions = (game.questions || []).filter((_, index) => selectedIds.has(`std-${index}`));
+    if (nextQuestions.length === 0) return null;
+
+    return {
+        ...game,
+        questions: nextQuestions,
+        config: {
+            ...game.config,
+            questionCount: nextQuestions.length,
+        },
+    };
+};
+
 export const prepareGameForLibrarySave = (
     game: GeneratedGame,
     user?: Pick<User, 'id' | 'name' | 'avatar'> | null,
@@ -758,6 +819,71 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
         };
     } catch (e) {
         console.error("Shared Game Fetch Error:", e);
+        return null;
+    }
+};
+
+export const createSelectedStudentGameShare = async (
+    gameId: string,
+    teacherId: string,
+    title: string,
+    selectedItemIds: string[]
+): Promise<{ success: boolean; id?: string }> => {
+    if (!isUUID(gameId) || !teacherId || selectedItemIds.length === 0) {
+        return { success: false };
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('student_game_shares')
+            .insert({
+                game_id: gameId,
+                teacher_id: teacherId,
+                title,
+                selected_items: selectedItemIds,
+            })
+            .select('id')
+            .single();
+
+        if (error) throw error;
+        return { success: true, id: data?.id };
+    } catch (e) {
+        console.error("Student Share Create Error:", e);
+        return { success: false };
+    }
+};
+
+export const getSelectedStudentGameShare = async (id: string): Promise<{ game: GeneratedGame; sourceGameId: string } | null> => {
+    if (!id) return null;
+
+    try {
+        const { data, error } = await supabase
+            .from('student_game_shares')
+            .select('id, game_id, title, selected_items, expires_at, revoked_at')
+            .eq('id', id)
+            .single();
+
+        if (error || !data) return null;
+        if (data.revoked_at) return null;
+        if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) return null;
+
+        const selectedItems = Array.isArray(data.selected_items) ? data.selected_items : [];
+        const sourceGame = await getSharedGame(data.game_id);
+        if (!sourceGame) return null;
+
+        const selectedGame = applyGameSelection(sourceGame, selectedItems);
+        if (!selectedGame) return null;
+
+        return {
+            game: {
+                ...selectedGame,
+                title: data.title || selectedGame.title,
+                sourceGameId: data.game_id,
+            },
+            sourceGameId: data.game_id,
+        };
+    } catch (e) {
+        console.error("Student Share Fetch Error:", e);
         return null;
     }
 };

@@ -822,24 +822,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         onClick={handleShare}
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
                                         className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        title="Share game"
-                                        aria-label="Share game"
+                                        title="Teacher share"
+                                        aria-label="Teacher share"
                                     >
                                         <Share2 size={13} className="shrink-0 sm:hidden" />
                                         <Share2 size={12} className="hidden shrink-0 sm:block" />
-                                        <span className="truncate">Share</span>
+                                        <span className="truncate">Teacher share</span>
                                     </button>
 
                                     <button
                                         onClick={handleStudentShare}
                                         disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
                                         className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        title="Share with students"
-                                        aria-label="Share with students"
+                                        title="Student share"
+                                        aria-label="Student share"
                                     >
                                         <QrCode size={13} className="shrink-0 sm:hidden" />
                                         <QrCode size={12} className="hidden shrink-0 sm:block" />
-                                        <span className="truncate">Students</span>
+                                        <span className="truncate">Student share</span>
                                     </button>
 
                                     <button 
