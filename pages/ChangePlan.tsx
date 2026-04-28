@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, Building2, Check, GraduationCap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Building2, Check, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountType } from '../types';
 import { changeMyAccountPlan, promptSignupForFree } from '../services/accountAccess';
 import { uploadSchoolLogoForSchool } from '../utils/schoolLogoStorage';
 import { supabase } from '../services/supabase';
+import { CompanyLogo } from '../components/CompanyLogo';
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
@@ -22,18 +23,20 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
   },
   teacher: {
     title: 'Teacher',
-    subtitle: 'Unlimited AI generation for your own account.',
+    subtitle: '$7.99/month with monthly AI game credits for one teacher.',
     features: [
-      'Unlimited AI game generation',
+      'Credits for approximately 50 AI-created games per month',
+      'Unlimited manual game creation',
       'Manual tools stay fully available',
       'Single-teacher plan'
     ]
   },
   school: {
     title: 'School',
-    subtitle: 'Unlimited AI plus school-wide teacher management.',
+    subtitle: 'From $29.99/month with a minimum of 5 teachers.',
     features: [
-      'Unlimited AI across school members',
+      'AI game credits for each teacher account',
+      'Minimum 5 teacher seats',
       'School-level teacher spot management',
       'Teacher invites',
       'School admin dashboard'
@@ -50,10 +53,11 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
   const location = useLocation();
   const { user, refreshUserAccess, completePlanSelection } = useAuth();
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [showBetaNotice, setShowBetaNotice] = useState(true);
   const [pendingTarget, setPendingTarget] = useState<AccountType | null>(null);
   const [showSchoolSetup, setShowSchoolSetup] = useState(false);
   const [schoolName, setSchoolName] = useState('');
-  const [teacherSeatLimit, setTeacherSeatLimit] = useState(10);
+  const [teacherSeatLimit, setTeacherSeatLimit] = useState(5);
   const [schoolLogoFile, setSchoolLogoFile] = useState<File | null>(null);
   const schoolLogoInputRef = useRef<HTMLInputElement | null>(null);
   const isOnboarding = mode === 'onboarding';
@@ -182,7 +186,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     const { error, schoolId } = await changeMyAccountPlan({
       targetAccountType: 'school',
       schoolName: cleanSchoolName,
-      teacherSeatLimit
+      teacherSeatLimit: Math.max(5, teacherSeatLimit)
     });
 
     if (error) {
@@ -254,6 +258,37 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
+      {showBetaNotice && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm px-4">
+          <div className="relative w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-2xl animate-fade-in">
+            <button
+              type="button"
+              onClick={() => setShowBetaNotice(false)}
+              className="absolute right-4 top-4 rounded-full bg-slate-100 p-1 text-slate-500 hover:text-slate-700"
+              aria-label="Close beta trial notice"
+            >
+              <X size={18} />
+            </button>
+            <CompanyLogo
+              showName
+              className="mb-5 flex flex-col items-center"
+              imageClassName="h-16 w-16 object-contain"
+              nameClassName="mt-2 font-display text-xl font-bold text-slate-800"
+            />
+            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Beta Trial Period</h2>
+            <p className="text-sm leading-relaxed text-slate-600">
+              The website is currently in a beta trial period. All tiers are available for free for a limited time so teachers and schools can try everything out.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowBetaNotice(false)}
+              className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-bold text-white hover:bg-sky-600 transition-colors"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           {!isOnboarding && (
@@ -291,7 +326,11 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             <ul className="space-y-2 mb-6">
               {PLAN_DEFS.free.features.map((feature) => (
                 <li key={feature} className="flex items-start text-sm text-slate-600">
-                  <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
+                  {feature.includes('locked') ? (
+                    <X size={15} className="text-red-500 mt-0.5 mr-2 shrink-0" />
+                  ) : (
+                    <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
+                  )}
                   {feature}
                 </li>
               ))}
@@ -441,10 +480,10 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">number of teacher spots</label>
                     <input
                       type="number"
-                      min={1}
+                      min={5}
                       max={500}
                       value={teacherSeatLimit}
-                      onChange={(event) => setTeacherSeatLimit(Number(event.target.value))}
+                      onChange={(event) => setTeacherSeatLimit(Math.max(5, Number(event.target.value)))}
                       className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-brand-blue focus:border-brand-blue outline-none text-sm"
                     />
                   </div>

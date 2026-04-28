@@ -50,13 +50,13 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
                 <GraduationCap size={16} className="text-brand-blue" /> Teacher
               </div>
-              <p className="text-xs text-slate-500">Unlimited AI generation for one account.</p>
+              <p className="text-xs text-slate-500">Monthly AI game credits for one account.</p>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
                 <Building2 size={16} className="text-brand-blue" /> School
               </div>
-              <p className="text-xs text-slate-500">Unlimited AI plus school-wide teacher management.</p>
+              <p className="text-xs text-slate-500">School-wide teacher management with AI credits per teacher.</p>
             </div>
           </div>
 

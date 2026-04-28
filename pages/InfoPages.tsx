@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Send, Loader, ChevronDown } from 'lucide-react';
+import { Check, AlertCircle, Send, Loader, ChevronDown, X } from 'lucide-react';
 import { sendContactMessage } from '../utils/gameUtils';
 import { BrandName } from '../components/BrandName';
 import { useAuth } from '../contexts/AuthContext';
@@ -318,7 +318,12 @@ export const Pricing: React.FC = () => {
             <ul className="space-y-4 mb-8">
               {['Access to all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games', 'Community library access', 'Built-in AI generation not included'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
-                  <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
+                  {item.includes('not included') ? (
+                    <X size={18} className="text-red-500 mr-2 shrink-0" />
+                  ) : (
+                    <Check size={18} className="text-teal-500 mr-2 shrink-0" />
+                  )}
+                  {item}
                 </li>
               ))}
             </ul>
@@ -335,9 +340,9 @@ export const Pricing: React.FC = () => {
           <div className="bg-white p-8 rounded-2xl shadow-xl border-2 border-brand-yellow relative transform scale-105">
              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-yellow px-4 py-1 rounded-full text-xs font-bold text-slate-800 uppercase tracking-wide">Best Value</div>
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Pro</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-6">$9<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-4xl font-bold text-teal-600 mb-6">$7.99<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Unlimited AI-generated games', 'Unlimited private library storage', 'Priority support'].map(item => (
+              {['Credits for approximately 50 AI-created games per month', 'Unlimited manual game creation', 'Unlimited private library storage', 'Priority support'].map(item => (
                 <li key={item} className="flex items-center text-slate-800 font-medium">
                   <Check size={18} className="text-brand-accent mr-2 shrink-0" /> {item}
                 </li>
@@ -355,9 +360,10 @@ export const Pricing: React.FC = () => {
            {/* School */}
            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-6">from $49<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-4xl font-bold text-teal-600 mb-1">from $29.99<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">minimum 5 teachers</p>
             <ul className="space-y-4 mb-8">
-              {['Unlimited AI for all school teachers', 'School-level teacher spot allocation', 'School admin dashboard', 'Shared school resource management', '100 MB shared school storage'].map(item => (
+              {['AI game credits for each teacher account', 'Minimum 5 teacher seats', 'School-level teacher spot allocation', 'School admin dashboard', 'Shared school resource management', '100 MB shared school storage'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
                   <Check size={18} className="text-teal-500 mr-2 shrink-0" /> {item}
                 </li>
