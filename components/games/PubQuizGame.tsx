@@ -302,7 +302,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     // Timer Effect
     useEffect(() => {
-        if (phase === 'play' && !isFlipped && !isTimesUp) {
+        const hasCheckedStudentOption = options.studentPractice && hasOptions && Boolean(selectedStudentAnswer);
+        if (phase === 'play' && !isFlipped && !isTimesUp && !hasCheckedStudentOption) {
              const duration = options.timerSeconds;
              if (duration > 0 && timeLeft > 0) {
                  if (timerRef.current) clearInterval(timerRef.current);
@@ -320,15 +321,16 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             if (timerRef.current) clearInterval(timerRef.current);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [phase, isFlipped, isTimesUp, options.timerSeconds]);
+    }, [phase, isFlipped, isTimesUp, options.timerSeconds, options.studentPractice, hasOptions, selectedStudentAnswer]);
 
     // Check Time's Up
     useEffect(() => {
-        if (timeLeft === 0 && options.timerSeconds > 0 && phase === 'play' && !isFlipped && !isTimesUp) {
+        const hasCheckedStudentOption = options.studentPractice && hasOptions && Boolean(selectedStudentAnswer);
+        if (timeLeft === 0 && options.timerSeconds > 0 && phase === 'play' && !isFlipped && !isTimesUp && !hasCheckedStudentOption) {
             setIsTimesUp(true);
             playSound('times-up', isMuted, options.soundConfig?.timesUp);
         }
-    }, [timeLeft, options.timerSeconds, phase, isFlipped, isTimesUp, isMuted, options.soundConfig]);
+    }, [timeLeft, options.timerSeconds, phase, isFlipped, isTimesUp, isMuted, options.soundConfig, options.studentPractice, hasOptions, selectedStudentAnswer]);
 
     // Review Mode Reset
     useEffect(() => {
@@ -420,7 +422,6 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         } else {
             playSound('incorrect', isMuted, options.soundConfig?.incorrect);
         }
-        setIsFlipped(true);
     };
 
     const finishRound = () => {
