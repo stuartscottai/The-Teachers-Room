@@ -19,6 +19,7 @@ type StudentPhase = 'start' | 'play';
 const UNSUPPORTED_STUDENT_TYPES = new Set<GameType>([
   GameType.STOP_THE_FIRE,
   GameType.SURVEY_SHOWDOWN,
+  GameType.LIVE_QUIZ_CHALLENGE,
 ]);
 
 const countPlayableQuestions = (game: GeneratedGame) => {

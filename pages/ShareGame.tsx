@@ -4,6 +4,7 @@ import { AlertTriangle, LogIn } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { createSelectedStudentGameShare, getGameShareUrl, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
 import { GamePreview } from '../components/games/GamePreview';
@@ -19,6 +20,7 @@ import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
 import { StopTheFireGame } from '../components/games/StopTheFireGame';
 import { WordWheelGame } from '../components/games/WordWheelGame';
 import { StudentShareModal } from '../components/games/StudentShareModal';
+import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 
@@ -36,6 +38,7 @@ export const ShareGame: React.FC = () => {
   const [playKey, setPlayKey] = useState(0);
   const [studentShareUrl, setStudentShareUrl] = useState('');
   const [studentShareTitle, setStudentShareTitle] = useState('');
+  const [liveQuizSelectedItems, setLiveQuizSelectedItems] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -228,7 +231,7 @@ export const ShareGame: React.FC = () => {
   const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
     if (!game) return;
 
-    if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(game.config.type)) {
+    if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(game.config.type)) {
       alert('Student practice sharing is not available for this game type.');
       return;
     }
@@ -275,6 +278,30 @@ export const ShareGame: React.FC = () => {
 
     setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
     setStudentShareTitle(shareGame.title);
+  };
+
+  const handlePreviewLiveQuiz = (selectedItemIds: string[]) => {
+    if (!game || !user) return;
+    if (selectedItemIds.length === 0) {
+      alert('Select at least one question before starting a live quiz.');
+      return;
+    }
+
+    setLiveQuizSelectedItems(selectedItemIds);
+  };
+
+  const handleCreateLiveQuiz = async (options: { timerSeconds: number; randomize: boolean }) => {
+    if (!game || !user || !liveQuizSelectedItems) return;
+    const result = await createLiveQuizSession(game, user.id, liveQuizSelectedItems, options);
+    if (!result.success || !result.sessionId) {
+      alert(result.error || 'Failed to create live quiz. Make sure selected questions are multiple choice with a saved correct answer.');
+      return;
+    }
+    if (result.skipped && result.skipped > 0) {
+      alert(`${result.skipped} selected question${result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.`);
+    }
+    setLiveQuizSelectedItems(null);
+    navigate(`/live/host/${result.sessionId}`);
   };
 
   const handleReplay = () => {
@@ -380,6 +407,7 @@ export const ShareGame: React.FC = () => {
           onSave={handlePreviewSave}
           onShare={handlePreviewShare}
           onStudentShare={handlePreviewStudentShare}
+          onLiveQuiz={handlePreviewLiveQuiz}
           saveLabel="Save copy"
         />
         <StudentShareModal
@@ -387,6 +415,13 @@ export const ShareGame: React.FC = () => {
           url={studentShareUrl}
           title={studentShareTitle || 'Student practice'}
           onClose={() => setStudentShareUrl('')}
+        />
+        <LiveQuizSetupModal
+          isOpen={Boolean(liveQuizSelectedItems)}
+          game={game}
+          selectedItemIds={liveQuizSelectedItems || []}
+          onClose={() => setLiveQuizSelectedItems(null)}
+          onStart={handleCreateLiveQuiz}
         />
       </>
     );

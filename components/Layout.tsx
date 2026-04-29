@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck, Radio } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
@@ -160,6 +160,7 @@ const Navbar: React.FC = () => {
   const navItems = [
     { name: 'Home', path: '/', icon: <Home size={18} /> },
     { name: 'Games', path: '/games', icon: <GraduationCap size={18} /> },
+    { name: 'Join Live', path: '/live', icon: <Radio size={18} /> },
     { name: 'Pricing', path: '/pricing', icon: <BookOpen size={18} /> },
     { name: 'Info', path: '/info', icon: <HelpCircle size={18} /> },
     { name: 'Blog', path: '/blog', icon: <MessageSquare size={18} /> },

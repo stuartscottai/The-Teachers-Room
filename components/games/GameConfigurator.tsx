@@ -25,6 +25,7 @@ const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
     [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
     [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
     [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+    [GameType.LIVE_QUIZ_CHALLENGE]: '/assets/games/livequiz.png',
 };
 
 const copyTextToClipboard = async (text: string) => {
@@ -227,7 +228,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     }, []);
 
     // Set default question count based on game type
-    let defaultCount = type === GameType.TRIVIA ? 12 : 
+    let defaultCount = type === GameType.LIVE_QUIZ_CHALLENGE ? 10 :
+                         type === GameType.TRIVIA ? 12 : 
                          type === GameType.SNAKES_LADDERS ? 20 : 
                          type === GameType.TIME_BOMB ? 25 : 
                          type === GameType.SURVEY_SHOWDOWN ? 5 : 
@@ -243,7 +245,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             title: '',
             questionCount: defaultCount,
             questionType:
-                type === GameType.MILLIONAIRE
+                type === GameType.LIVE_QUIZ_CHALLENGE
+                    ? 'multiple-choice'
+                    : type === GameType.MILLIONAIRE
                     ? 'multiple-choice'
                     : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE || type === GameType.WORD_WHEEL ? 'open' : 'mixed'),
             pointsMode: 'fixed',
@@ -276,7 +280,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     });
 
     const getEffectiveMcOptionStrategy = (currentConfig: GameConfig): 'fixed' | 'vary' => {
-        if (type === GameType.MILLIONAIRE) return 'fixed';
+        if (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE) return 'fixed';
         if (currentConfig.mcOptionStrategy === 'fixed' || currentConfig.mcOptionStrategy === 'vary') {
             return currentConfig.mcOptionStrategy;
         }
@@ -302,7 +306,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     const renderMcOptionControls = (selectClassName: string) => {
-        if (type === GameType.MILLIONAIRE) return null;
+        if (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE) return null;
         if (!['multiple-choice', 'mixed', 'ai-decide'].includes(config.questionType)) return null;
 
         const strategy = getEffectiveMcOptionStrategy(config);
@@ -564,10 +568,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     const supportsExternalTopic = mode === 'manual';
     const supportsExternalQuestionType =
         mode === 'manual' &&
-        ![GameType.MILLIONAIRE, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
+        ![GameType.MILLIONAIRE, GameType.LIVE_QUIZ_CHALLENGE, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
     const supportsExternalPointsMode =
         mode === 'manual' &&
-        ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.DARTS, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
+        ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.LIVE_QUIZ_CHALLENGE, GameType.DARTS, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL, GameType.STOP_THE_FIRE].includes(type);
 
     const handleCopyExternalPrompt = async () => {
         try {
@@ -792,6 +796,15 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             try {
                 // For Survey Showdown, inject custom prompts into instruction
                 let finalConfig = { ...config, files: uploadedFiles };
+                if (type === GameType.LIVE_QUIZ_CHALLENGE) {
+                    finalConfig = {
+                        ...finalConfig,
+                        questionType: 'multiple-choice',
+                        mcOptionStrategy: 'fixed',
+                        mcOptionCount: 4,
+                        pointsMode: 'fixed',
+                    };
+                }
                 if (type === GameType.SURVEY_SHOWDOWN && roundPrompts.some(p => p.trim())) {
                     const customList = roundPrompts.map((p, i) => p.trim() ? `Round ${i+1}: ${p}` : `Round ${i+1}: AI Decide`).join('; ');
                     finalConfig.customInstructions = (finalConfig.customInstructions || "") + `\n\nUSE THESE SPECIFIC QUESTIONS FOR ROUNDS: ${customList}`;
@@ -837,10 +850,10 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 id: i,
                                 question: '',
                                 answer: '',
-                                points: 100,
+                                points: type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : 100,
                                 isBonus: false,
                                 difficulty: type === GameType.DARTS ? 'easy' : undefined,
-                                options: type === GameType.MILLIONAIRE ? ["", "", "", ""] : undefined,
+                                options: (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE) ? ["", "", "", ""] : undefined,
                                 // Survey Init
                                 surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
                             }))
@@ -1193,12 +1206,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </div>
                                     </div>
                                 </div>
-                            ) : type === GameType.TRIVIA ? (
+                            ) : type === GameType.TRIVIA || type === GameType.LIVE_QUIZ_CHALLENGE ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Grid Size</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                                            {type === GameType.LIVE_QUIZ_CHALLENGE ? 'Question Count' : 'Grid Size'}
+                                        </label>
                                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                                            {[12, 15, 20, 24, 30, 36].map(num => (
+                                            {(type === GameType.LIVE_QUIZ_CHALLENGE ? [5, 10, 15, 20, 25, 30] : [12, 15, 20, 24, 30, 36]).map(num => (
                                                 <button
                                                     key={num}
                                                     onClick={() => setConfig({...config, questionCount: num})}
@@ -1213,7 +1228,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </div>
                                     </div>
 
-                                    {mode === 'ai' && (
+                                    {type === GameType.LIVE_QUIZ_CHALLENGE ? (
+                                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                            <div className="text-sm font-bold text-slate-800">Live quiz format</div>
+                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                Every question uses 4 multiple-choice options and 1000 max points for speed-based live scoring.
+                                            </p>
+                                        </div>
+                                    ) : mode === 'ai' && (
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>

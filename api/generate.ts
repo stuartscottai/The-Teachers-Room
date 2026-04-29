@@ -982,6 +982,7 @@ Return JSON: { "categories": ["..."] }
       const isTimeBomb = config.type === 'Time Bomb';
       const isSurvey = config.type === 'Survey Showdown';
       const isWordWheel = config.type === 'Word Wheel';
+      const isLiveQuiz = config.type === 'Live Quiz Challenge';
       const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
       const gameTitle = config.title || `My ${config.type} Game`;
       
@@ -1229,8 +1230,12 @@ Return JSON: { "categories": ["..."] }
 
       } else {
         // Standard Game
-        const qTypeInstruction = getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
-        const mcInstruction = getGameMcInstruction(config);
+        const qTypeInstruction = isLiveQuiz
+          ? 'Multiple Choice only'
+          : getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
+        const mcInstruction = isLiveQuiz
+          ? ' Each question must have exactly 4 concise options. The answer must exactly match one option.'
+          : getGameMcInstruction(config);
         
         // Points Logic
         let pointsInstruction = "Assign 100 points to every question.";
@@ -1251,6 +1256,17 @@ Return JSON: { "categories": ["..."] }
             prompt += `
             STYLE: Generate questions that are short, snappy, and suitable for rapid-fire answers.
             Avoid long reading passages.
+            `;
+        }
+
+        if (isLiveQuiz) {
+            prompt += `
+            LIVE QUIZ RULES:
+            1. Every question must be short enough for a projected classroom screen.
+            2. Every question must include exactly 4 answer options.
+            3. Only one option can be correct.
+            4. Set points to 1000 for every question.
+            5. Avoid open-ended, gap-fill, subjective, or multi-answer prompts.
             `;
         }
 

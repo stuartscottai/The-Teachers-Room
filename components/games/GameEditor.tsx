@@ -410,7 +410,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     };
 
     const handleStudentShare = async () => {
-        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)) {
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type)) {
             alert('Student practice sharing is not available for this game type.');
             return;
         }
@@ -584,9 +584,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                     question: '',
                     answer: '',
                     answerAliases: prev.config.type === GameType.WORD_WHEEL ? [] : undefined,
-                    points: prev.config.type === GameType.WORD_WHEEL ? 10 : 100,
+                    points: prev.config.type === GameType.WORD_WHEEL ? 10 : prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : 100,
                     isBonus: false,
                     difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined,
+                    options: prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? ["", "", "", ""] : undefined,
                     surveyAnswers: prev.config.type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
                 }
             ]
@@ -604,7 +605,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     };
 
     const getDefaultMcOptionCount = () => {
-        if (editedGame.config.type === GameType.MILLIONAIRE) return 4;
+        if (editedGame.config.type === GameType.MILLIONAIRE || editedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE) return 4;
 
         const parsed = Number(editedGame.config.mcOptionCount);
         const fixedCount = Number.isFinite(parsed) ? Math.min(4, Math.max(2, Math.round(parsed))) : 4;
@@ -832,8 +833,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button
                                         onClick={handleStudentShare}
-                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
-                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type)}
+                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Student share"
                                         aria-label="Student share"
                                     >

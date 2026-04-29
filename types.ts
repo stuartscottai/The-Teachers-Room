@@ -9,7 +9,8 @@ export enum GameType {
   TIME_BOMB = 'Time Bomb',
   SURVEY_SHOWDOWN = 'Survey Showdown',
   STOP_THE_FIRE = 'Stop the Fire!',
-  WORD_WHEEL = 'Word Wheel'
+  WORD_WHEEL = 'Word Wheel',
+  LIVE_QUIZ_CHALLENGE = 'Live Quiz Challenge'
 }
 
 export interface UploadedFile {
@@ -108,6 +109,62 @@ export interface GameRunOptions {
   wordWheelScoringMode?: 'classic' | 'speed-bonus';
   wordWheelLetterRule?: 'starts-with' | 'contains-hard';
   studentPractice?: boolean;
+}
+
+export type LiveQuizSessionStatus = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'ended';
+
+export interface LiveQuizQuestion {
+  id?: string;
+  sessionId?: string;
+  questionIndex: number;
+  sourceItemId?: string;
+  question: string;
+  options: string[];
+  answer?: string;
+  points: number;
+  category?: string;
+  image?: GeneratedQuestion['image'];
+}
+
+export type StudentSafeLiveQuizQuestion = Omit<LiveQuizQuestion, 'answer'> & {
+  revealedAnswer?: string | null;
+};
+
+export interface LiveQuizSession {
+  id: string;
+  teacherId?: string;
+  sourceGameId?: string | null;
+  title: string;
+  joinCode: string;
+  status: LiveQuizSessionStatus;
+  currentQuestionIndex: number;
+  timerSeconds: number;
+  selectedItems?: string[];
+  questionStartedAt?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  createdAt?: string;
+}
+
+export interface LiveQuizParticipant {
+  id: string;
+  sessionId: string;
+  displayName: string;
+  score: number;
+  joinedAt?: string;
+  lastSeenAt?: string;
+}
+
+export interface LiveQuizSubmission {
+  id: string;
+  sessionId: string;
+  participantId: string;
+  questionIndex: number;
+  answer: string;
+  isCorrect: boolean;
+  responseMs: number;
+  pointsAwarded: number;
+  submittedAt?: string;
 }
 
 export interface PracticeReviewItem {

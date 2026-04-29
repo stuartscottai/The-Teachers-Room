@@ -133,7 +133,8 @@ const WIZARD_REASON_BY_TYPE: Record<GameType, string> = {
   [GameType.TIME_BOMB]: 'Ideal for fluency, speed retrieval, and oral recall under light time pressure.',
   [GameType.SURVEY_SHOWDOWN]: 'Best for prediction, speaking, and collaborative discussion around likely answers.',
   [GameType.STOP_THE_FIRE]: 'Great for rapid lexical retrieval across categories with strong pace and engagement.',
-  [GameType.WORD_WHEEL]: 'Ideal for definitions, glossary terms, key vocabulary, and precise term recall.'
+  [GameType.WORD_WHEEL]: 'Ideal for definitions, glossary terms, key vocabulary, and precise term recall.',
+  [GameType.LIVE_QUIZ_CHALLENGE]: 'Best for whole-class live checks where every learner answers each question on their device.'
 };
 
 const WIZARD_TITLE_BY_TYPE: Record<GameType, string> = {
@@ -146,7 +147,8 @@ const WIZARD_TITLE_BY_TYPE: Record<GameType, string> = {
   [GameType.TIME_BOMB]: 'Rapid Recall Relay',
   [GameType.SURVEY_SHOWDOWN]: 'Prediction and Discussion Showdown',
   [GameType.STOP_THE_FIRE]: 'Category Sprint Challenge',
-  [GameType.WORD_WHEEL]: 'A-Z Vocabulary Wheel'
+  [GameType.WORD_WHEEL]: 'A-Z Vocabulary Wheel',
+  [GameType.LIVE_QUIZ_CHALLENGE]: 'Live Quiz Challenge'
 };
 
 const QUESTION_TYPES: NonNullable<GameConfig['questionType']>[] = ['multiple-choice', 'gap-fill', 'open', 'mixed', 'ai-decide'];
@@ -1017,6 +1019,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const isTimeBomb = config.type === GameType.TIME_BOMB;
   const isSurvey = config.type === GameType.SURVEY_SHOWDOWN;
   const isWordWheel = config.type === GameType.WORD_WHEEL;
+  const isLiveQuiz = config.type === GameType.LIVE_QUIZ_CHALLENGE;
   const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
 
   const systemInstruction = `You are an expert educational content creator. 
@@ -1269,8 +1272,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
 
   } else {
     // Standard Game
-    const qTypeInstruction = getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
-    const mcInstruction = getGameMcInstruction(config);
+    const qTypeInstruction = isLiveQuiz
+      ? 'Multiple Choice only'
+      : getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
+    const mcInstruction = isLiveQuiz
+      ? ' Each question must have exactly 4 concise options. The answer must exactly match one option.'
+      : getGameMcInstruction(config);
 
     // Points Logic
     let pointsInstruction = "Assign 100 points to every question.";
@@ -1291,6 +1298,17 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         prompt += `
         STYLE: Generate questions that are short, snappy, and suitable for rapid-fire answers.
         Avoid long reading passages.
+        `;
+    }
+
+    if (isLiveQuiz) {
+        prompt += `
+        LIVE QUIZ RULES:
+        1. Every question must be short enough for a projected classroom screen.
+        2. Every question must include exactly 4 answer options.
+        3. Only one option can be correct.
+        4. Set points to 1000 for every question.
+        5. Avoid open-ended, gap-fill, subjective, or multi-answer prompts.
         `;
     }
 

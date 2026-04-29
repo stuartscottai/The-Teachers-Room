@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, RotateCcw, Save, Share2, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
 import { resolveGameImageUrl } from '../../utils/gameImage';
@@ -26,6 +26,7 @@ const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
   [GameType.MILLIONAIRE]: '/assets/games/millionaire.png',
   [GameType.DARTS]: '/assets/games/darts.png',
   [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
+  [GameType.LIVE_QUIZ_CHALLENGE]: '/assets/games/livequiz.png',
 };
 
 const PREVIEW_PAGE_THEME = {
@@ -631,10 +632,11 @@ interface GamePreviewProps {
   onSave?: () => void | Promise<void>;
   onShare?: () => void | Promise<void>;
   onStudentShare?: (selectedItemIds: string[]) => void | Promise<void>;
+  onLiveQuiz?: (selectedItemIds: string[]) => void | Promise<void>;
   saveLabel?: string;
 }
 
-export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onEdit, onSave, onShare, onStudentShare, saveLabel }) => {
+export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, saveLabel }) => {
   const items = useMemo(() => buildPreviewItems(game), [game]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
@@ -696,7 +698,13 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
   const playActionButtonClass =
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
-  const topActionGridClass = onStudentShare ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3' : 'grid grid-cols-3 gap-2 sm:gap-3';
+  const topActionCount = [onSave, onShare, onStudentShare, onLiveQuiz].filter(Boolean).length + 1;
+  const topActionGridClass =
+    topActionCount >= 5
+      ? 'grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5 sm:gap-3'
+      : topActionCount === 4
+      ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
+      : 'grid grid-cols-3 gap-2 sm:gap-3';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
@@ -819,6 +827,19 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   >
                     <QrCode size={16} />
                     <span className="hidden sm:inline">Student share</span>
+                  </button>
+                )}
+                {onLiveQuiz && (
+                  <button
+                    type="button"
+                    onClick={() => void onLiveQuiz(Array.from(selectedIds))}
+                    disabled={selectedCount === 0}
+                    className={secondaryActionButtonClass}
+                    aria-label="Live quiz"
+                    title="Live quiz"
+                  >
+                    <Radio size={16} />
+                    <span className="hidden sm:inline">Live quiz</span>
                   </button>
                 )}
               </div>

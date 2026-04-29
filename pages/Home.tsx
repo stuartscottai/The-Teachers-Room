@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, To, useNavigate } from 'react-router-dom';
-import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw } from 'lucide-react';
+import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw, Radio } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
 import { GameType } from '../types';
 import { getGlobalStats, getTrendingGames } from '../utils/gameUtils';
@@ -32,6 +32,8 @@ const getGameVisual = (type?: GameType) => {
             return { image: '/assets/games/survey.png', icon: <List size={40} />, color: 'bg-emerald-500' };
         case GameType.TRIVIA:
             return { image: '/assets/games/trivia.png', icon: <HelpCircle size={40} />, color: 'bg-purple-500' };
+        case GameType.LIVE_QUIZ_CHALLENGE:
+            return { image: '/assets/games/livequiz.png', icon: <GraduationCap size={40} />, color: 'bg-cyan-700' };
         case GameType.PUB_QUIZ:
             return { image: '/assets/games/pubquiz.png', icon: <Beer size={40} />, color: 'bg-slate-700' };
         case GameType.DARTS:
@@ -380,6 +382,15 @@ export const Home: React.FC = () => {
                     <Play size={16} fill="currentColor" />
                 </div>
                 Start Playing
+            </Link>
+            <Link
+                to="/live"
+                className="group px-8 py-4 bg-brand-yellow text-slate-900 font-bold text-lg rounded-full shadow-lg hover:shadow-2xl hover:bg-yellow-300 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
+            >
+                <div className="bg-slate-900 text-brand-yellow rounded-full p-1 group-hover:scale-110 transition-transform">
+                    <Radio size={16} />
+                </div>
+                Join Live Quiz
             </Link>
           </div>
 

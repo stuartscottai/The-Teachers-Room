@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { createSelectedStudentGameShare, deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
 // Import Modular Components
@@ -26,6 +27,7 @@ import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
 import { Avatar } from '../components/Avatar';
 import { StudentShareModal } from '../components/games/StudentShareModal';
+import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 
 // Helper to extract stats for display
 const getGameStats = (game: GeneratedGame) => {
@@ -114,6 +116,11 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
         "/assets/games/wordwheel.png",
         "/assets/games/wordwheel1.png",
         "/assets/games/wordwheel2.png"
+    ],
+    [GameType.LIVE_QUIZ_CHALLENGE]: [
+        "/assets/games/livequiz.png",
+        "/assets/games/trivia1..png",
+        "/assets/games/trivia2.png"
     ]
 };
 
@@ -236,6 +243,7 @@ const getIcon = (type: string) => {
         case GameType.SURVEY_SHOWDOWN: return <List size={18} />;
         case GameType.STOP_THE_FIRE: return <Flame size={18} />;
         case GameType.WORD_WHEEL: return <RefreshCw size={18} />;
+        case GameType.LIVE_QUIZ_CHALLENGE: return <GraduationCap size={18} />;
         default: return <Dice5 size={18} />;
     }
 };
@@ -980,6 +988,14 @@ const GameHub: React.FC<{
     // Game Types Data
     const games = [
         { 
+            type: GameType.LIVE_QUIZ_CHALLENGE,
+            icon: <GraduationCap size={24} />,
+            desc: "Kahoot-style live quiz with QR joining and speed scoring.",
+            image: getGameThumbnails(GameType.LIVE_QUIZ_CHALLENGE)[0],
+            previewImages: getGameThumbnails(GameType.LIVE_QUIZ_CHALLENGE).slice(1),
+            color: "bg-cyan-700"
+        },
+        { 
             type: GameType.TRIVIA, 
             icon: <HelpCircle size={24} />, 
             desc: "Fast-paced questions to test knowledge.",
@@ -1160,6 +1176,7 @@ const GameHub: React.FC<{
 // MAIN COMPONENT
 export const Games: React.FC = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'editor' | 'setup' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
@@ -1177,6 +1194,7 @@ export const Games: React.FC = () => {
     const [tourPopupHeight, setTourPopupHeight] = useState(0);
     const [studentShareUrl, setStudentShareUrl] = useState('');
     const [studentShareTitle, setStudentShareTitle] = useState('');
+    const [liveQuizSelectedItems, setLiveQuizSelectedItems] = useState<string[] | null>(null);
 
     const location = useLocation();
     const { setIsDirty, confirmAction } = useUnsavedChanges();
@@ -1506,7 +1524,7 @@ export const Games: React.FC = () => {
     const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
         if (!generatedGame) return;
 
-        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(generatedGame.config.type)) {
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(generatedGame.config.type)) {
             alert('Student practice sharing is not available for this game type.');
             return;
         }
@@ -1558,6 +1576,42 @@ export const Games: React.FC = () => {
 
         setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
         setStudentShareTitle(shareGame.title);
+    };
+
+    const handlePreviewLiveQuiz = (selectedItemIds: string[]) => {
+        if (!generatedGame) return;
+
+        if (!user) {
+            promptSignupForFree('Create a free account to host live quiz challenges.');
+            return;
+        }
+
+        if (selectedItemIds.length === 0) {
+            alert('Select at least one question before starting a live quiz.');
+            return;
+        }
+
+        setLiveQuizSelectedItems(selectedItemIds);
+    };
+
+    const handleCreateLiveQuiz = async (options: { timerSeconds: number; randomize: boolean }) => {
+        if (!generatedGame || !user || !liveQuizSelectedItems) return;
+        const result = await createLiveQuizSession(generatedGame, user.id, liveQuizSelectedItems, {
+            timerSeconds: options.timerSeconds,
+            randomize: options.randomize,
+        });
+
+        if (!result.success || !result.sessionId) {
+            alert(result.error || 'Failed to create live quiz. Make sure selected questions are multiple choice with a saved correct answer.');
+            return;
+        }
+
+        if (result.skipped && result.skipped > 0) {
+            alert(`${result.skipped} selected question${result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.`);
+        }
+
+        setLiveQuizSelectedItems(null);
+        navigate(`/live/host/${result.sessionId}`);
     };
 
     const handlePreviewEdit = () => {
@@ -1762,6 +1816,7 @@ export const Games: React.FC = () => {
                     onSave={handlePreviewSave}
                     onShare={handlePreviewShare}
                     onStudentShare={handlePreviewStudentShare}
+                    onLiveQuiz={handlePreviewLiveQuiz}
                 />
             )}
             
@@ -1909,6 +1964,14 @@ export const Games: React.FC = () => {
                     onGameGenerated={handleAiGameGenerated} 
                 />
             )}
+
+            <LiveQuizSetupModal
+                isOpen={Boolean(liveQuizSelectedItems)}
+                game={generatedGame}
+                selectedItemIds={liveQuizSelectedItems || []}
+                onClose={() => setLiveQuizSelectedItems(null)}
+                onStart={handleCreateLiveQuiz}
+            />
 
             {isTourActive && step === 'hub' && !isAssistantOpen && (
                 <TourPopup

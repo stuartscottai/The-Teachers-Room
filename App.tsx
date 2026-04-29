@@ -12,6 +12,10 @@ import { ChangePlan } from './pages/ChangePlan';
 import { TestBench } from './pages/TestBench';
 import { ShareGame } from './pages/ShareGame';
 import { StudentGame } from './pages/StudentGame';
+import { LiveQuizHost } from './pages/LiveQuizHost';
+import { LiveQuizJoin } from './pages/LiveQuizJoin';
+import { LiveQuizStudent } from './pages/LiveQuizStudent';
+import { LiveQuizCodeEntry } from './pages/LiveQuizCodeEntry';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { SchoolAdmin } from './pages/SchoolAdmin';
@@ -92,6 +96,10 @@ const App: React.FC = () => {
               <Route path="/share/game/:id" element={<ShareGame />} />
               <Route path="/student/game/:id" element={<StudentGame />} />
               <Route path="/student/share/:shareId" element={<StudentGame />} />
+              <Route path="/live" element={<LiveQuizCodeEntry />} />
+              <Route path="/live/host/:sessionId" element={<LiveQuizHost />} />
+              <Route path="/live/join/:joinCode" element={<LiveQuizJoin />} />
+              <Route path="/live/play/:sessionId/:participantId" element={<LiveQuizStudent />} />
             </Routes>
           </Layout>
         </Router>
