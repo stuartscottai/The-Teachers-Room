@@ -1356,6 +1356,15 @@ export const Games: React.FC = () => {
         setSessionGame(updatedGame);
         setPlayReturnStep('editor');
         setIsDirty(false);
+
+        if (updatedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
+            if (!user) {
+                promptSignupForFree('Create a free account to host live quiz challenges.');
+                return;
+            }
+            setLiveQuizSelectedItems([]);
+            return;
+        }
         
         if (updatedGame.config.type === GameType.MILLIONAIRE) {
              setPlayOptions({
@@ -1524,7 +1533,7 @@ export const Games: React.FC = () => {
     const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
         if (!generatedGame) return;
 
-        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(generatedGame.config.type)) {
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(generatedGame.config.type)) {
             alert('Student practice sharing is not available for this game type.');
             return;
         }
@@ -1596,7 +1605,8 @@ export const Games: React.FC = () => {
 
     const handleCreateLiveQuiz = async (options: { timerSeconds: number; randomize: boolean }) => {
         if (!generatedGame || !user || !liveQuizSelectedItems) return;
-        const result = await createLiveQuizSession(generatedGame, user.id, liveQuizSelectedItems, {
+        const liveQuizGame = liveQuizSelectedItems.length === 0 && sessionGame ? sessionGame : generatedGame;
+        const result = await createLiveQuizSession(liveQuizGame, user.id, liveQuizSelectedItems, {
             timerSeconds: options.timerSeconds,
             randomize: options.randomize,
         });
@@ -1625,6 +1635,15 @@ export const Games: React.FC = () => {
         setSessionGame(gameToPlay);
         setPlayReturnStep('preview');
         setIsDirty(false);
+
+        if (gameToPlay.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
+            if (!user) {
+                promptSignupForFree('Create a free account to host live quiz challenges.');
+                return;
+            }
+            setLiveQuizSelectedItems([]);
+            return;
+        }
 
         if (gameToPlay.config.type === GameType.MILLIONAIRE) {
             setPlayOptions({
@@ -1967,7 +1986,7 @@ export const Games: React.FC = () => {
 
             <LiveQuizSetupModal
                 isOpen={Boolean(liveQuizSelectedItems)}
-                game={generatedGame}
+                game={liveQuizSelectedItems?.length === 0 && sessionGame ? sessionGame : generatedGame}
                 selectedItemIds={liveQuizSelectedItems || []}
                 onClose={() => setLiveQuizSelectedItems(null)}
                 onStart={handleCreateLiveQuiz}

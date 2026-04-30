@@ -410,7 +410,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     };
 
     const handleStudentShare = async () => {
-        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type)) {
+        if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)) {
             alert('Student practice sharing is not available for this game type.');
             return;
         }
@@ -833,8 +833,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button
                                         onClick={handleStudentShare}
-                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type)}
-                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
+                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Student share"
                                         aria-label="Student share"
                                     >

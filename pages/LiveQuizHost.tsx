@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, Copy, Crown, Play, SkipForward, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, Copy, Crown, Play, SkipForward, Trophy, UserMinus, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getLiveQuizJoinUrl,
@@ -9,12 +9,15 @@ import {
   getLiveQuizQuestionsForTeacher,
   getLiveQuizSession,
   getLiveQuizSubmissions,
+  removeLiveQuizParticipant,
   resetLiveQuizSession,
+  updateLiveQuizHostHeartbeat,
   updateLiveQuizStatus,
 } from '../utils/liveQuizUtils';
 import { LiveQuizParticipant, LiveQuizQuestion, LiveQuizSession, LiveQuizSubmission } from '../types';
 import { resolveGameImageUrl } from '../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyRankingEntry } from '../components/games/shared/WinnerCeremonyHero';
+import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
 
 const useIsMobileViewport = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -83,6 +86,7 @@ export const LiveQuizHost: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
+  const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
 
   const load = async () => {
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
@@ -104,9 +108,27 @@ export const LiveQuizHost: React.FC = () => {
   }, [sessionId]);
 
   useEffect(() => {
+    if (!sessionId) return;
+    const sendHeartbeat = () => void updateLiveQuizHostHeartbeat(sessionId);
+    sendHeartbeat();
+    const intervalId = window.setInterval(sendHeartbeat, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [sessionId]);
+
+  useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 250);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!session || ['ended'].includes(session.status)) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session?.id, session?.status]);
 
   const currentQuestion = questions[session?.currentQuestionIndex || 0];
   const joinUrl = session ? getLiveQuizJoinUrl(session.joinCode) : '';
@@ -120,7 +142,7 @@ export const LiveQuizHost: React.FC = () => {
   );
   const allPlayersAnswered = participants.length > 0 && currentSubmissions.length >= participants.length;
   const imageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
-  const showRoundScores = ['reveal', 'leaderboard', 'ended'].includes(session?.status || '');
+  const showRoundScores = ['leaderboard', 'ended'].includes(session?.status || '');
   const displayedRanking = useMemo(() => {
     const questionIndex = session?.currentQuestionIndex || 0;
     return [...participants]
@@ -138,6 +160,7 @@ export const LiveQuizHost: React.FC = () => {
   const timeLeft = session?.status === 'question'
     ? Math.max(0, Math.ceil((((session.timerSeconds || 20) * 1000) - elapsedMs) / 1000))
     : 0;
+  const roundComplete = Boolean(session && ['locked', 'reveal', 'leaderboard'].includes(session.status));
 
   useEffect(() => {
     if (!session || session.status !== 'question' || busy) return;
@@ -158,6 +181,27 @@ export const LiveQuizHost: React.FC = () => {
   const revealAnswer = () => setStatus('reveal');
   const lockAnswers = () => setStatus('locked');
   const endGame = () => setStatus('ended');
+  const exitHost = async () => {
+    if (!session) {
+      navigate('/games');
+      return;
+    }
+
+    if (session.status === 'ended') {
+      navigate('/games');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Leaving the host screen will end this live quiz and disconnect all participants. Students will need a new live quiz link or code to play again. Continue?'
+    );
+    if (!confirmed) return;
+
+    setBusy(true);
+    await updateLiveQuizStatus(session.id, 'ended');
+    setBusy(false);
+    navigate('/games');
+  };
   const nextQuestion = () => {
     if (!session) return;
     const nextIndex = session.currentQuestionIndex + 1;
@@ -177,6 +221,19 @@ export const LiveQuizHost: React.FC = () => {
     }
     await load();
     setBusy(false);
+  };
+
+  const removeParticipant = async (participant: LiveQuizParticipant) => {
+    if (!session || removingParticipantId) return;
+    const confirmed = window.confirm(`Remove ${participant.displayName} from this live quiz? Their answers and score will be removed.`);
+    if (!confirmed) return;
+    setRemovingParticipantId(participant.id);
+    const result = await removeLiveQuizParticipant(session.id, participant.id);
+    if (!result.success) {
+      alert(result.error || 'Could not remove this player.');
+    }
+    await load();
+    setRemovingParticipantId(null);
   };
 
   const copyJoinLink = async () => {
@@ -224,6 +281,64 @@ export const LiveQuizHost: React.FC = () => {
         isMobileViewport={isMobileViewport}
         onPlayAgain={() => void replayToLobby()}
         onExit={() => navigate('/games')}
+      >
+        <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Final positions</h2>
+            <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{finalRanking.length} teams</p>
+          </div>
+          <div className="grid gap-3">
+            {finalRanking.map((entry, index) => {
+              const rank = index + 1;
+              const rankStyle =
+                rank === 1
+                  ? 'border-yellow-300/60 bg-yellow-300 text-slate-950'
+                  : rank === 2
+                    ? 'border-slate-200/60 bg-slate-200 text-slate-950'
+                    : rank === 3
+                      ? 'border-orange-300/60 bg-orange-300 text-slate-950'
+                      : 'border-white/15 bg-white/10 text-white';
+              return (
+                <div
+                  key={`${entry.name}-${entry.index}`}
+                  className={`grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 shadow-lg sm:grid-cols-[90px_minmax(0,1fr)_180px] sm:p-4 ${rankStyle}`}
+                >
+                  <div className="font-display text-3xl font-black sm:text-4xl">#{rank}</div>
+                  <div className="min-w-0">
+                    <div className="truncate font-display text-2xl font-black sm:text-3xl">{entry.name}</div>
+                    <div className={`text-xs font-black uppercase tracking-wide ${rank <= 3 ? 'text-slate-700' : 'text-cyan-200'}`}>Final rank</div>
+                  </div>
+                  <div className="text-right font-display text-2xl font-black sm:text-3xl">{entry.score.toLocaleString()} pts</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </WinnerCeremonyHero>
+    );
+  }
+
+  if (session.status === 'leaderboard') {
+    return (
+      <LiveQuizLeaderboardStage
+        participants={participants}
+        submissions={submissions}
+        questionIndex={session.currentQuestionIndex}
+        title="Leaderboard"
+        subtitle={`Question ${session.currentQuestionIndex + 1} results`}
+        removingParticipantId={removingParticipantId}
+        onRemoveParticipant={(participant) => void removeParticipant(participant)}
+        controls={
+          <>
+            <button onClick={nextQuestion} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">
+              <SkipForward size={18} />
+              {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Next Question'}
+            </button>
+            <button onClick={() => void endGame()} disabled={busy} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-black text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50">
+              End Game
+            </button>
+          </>
+        }
       />
     );
   }
@@ -232,7 +347,7 @@ export const LiveQuizHost: React.FC = () => {
     <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617]">
       <div className="mx-auto max-w-7xl">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <button onClick={() => navigate('/games')} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
+          <button onClick={() => void exitHost()} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
             <ArrowLeft size={16} />
             Games
           </button>
@@ -268,8 +383,18 @@ export const LiveQuizHost: React.FC = () => {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {participants.map((participant) => (
-                  <div key={participant.id} className="rounded-2xl bg-white p-4 font-black text-slate-900 shadow-lg ring-2 ring-white/50">
-                    {participant.displayName}
+                  <div key={participant.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 font-black text-slate-900 shadow-lg ring-2 ring-white/50">
+                    <span className="min-w-0 truncate">{participant.displayName}</span>
+                    <button
+                      type="button"
+                      onClick={() => void removeParticipant(participant)}
+                      disabled={removingParticipantId === participant.id}
+                      title={`Remove ${participant.displayName}`}
+                      aria-label={`Remove ${participant.displayName}`}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <UserMinus size={17} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -284,9 +409,6 @@ export const LiveQuizHost: React.FC = () => {
                   <div className="text-xs font-black uppercase tracking-wide text-brand-blue">
                     Question {(session.currentQuestionIndex || 0) + 1} of {questions.length}
                   </div>
-                  <div className="text-sm font-bold text-slate-500">
-                    {currentSubmissions.length}/{participants.length} answered{allPlayersAnswered && session.status === 'question' ? ' - locking...' : ''}
-                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {session.status === 'question' && (
@@ -294,7 +416,18 @@ export const LiveQuizHost: React.FC = () => {
                       {timeLeft}s
                     </div>
                   )}
-                  <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black capitalize">{session.status}</div>
+                  <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black ${
+                    roundComplete ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {roundComplete ? (
+                      <>
+                        <Check size={16} />
+                        Round complete
+                      </>
+                    ) : (
+                      `${currentSubmissions.length}/${participants.length} answered`
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -343,7 +476,7 @@ export const LiveQuizHost: React.FC = () => {
                     Reveal Answer
                   </button>
                 )}
-                {['locked', 'reveal'].includes(session.status) && (
+                {session.status === 'reveal' && (
                   <button onClick={() => void showLeaderboard()} disabled={busy} className="rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900">
                     Show Leaderboard
                   </button>
@@ -373,8 +506,20 @@ export const LiveQuizHost: React.FC = () => {
                         {index === 0 ? <Crown size={17} className="shrink-0 text-amber-500" /> : <span className="w-4 shrink-0 text-sm text-slate-400">#{index + 1}</span>}
                         <span className="truncate">{participant.displayName}</span>
                       </div>
-                      <div className="font-mono text-lg font-black">
-                        <AnimatedScore value={participant.displayScore} />
+                      <div className="flex shrink-0 items-center gap-2">
+                        <div className="font-mono text-lg font-black">
+                          <AnimatedScore value={participant.displayScore} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void removeParticipant(participant)}
+                          disabled={removingParticipantId === participant.id}
+                          title={`Remove ${participant.displayName}`}
+                          aria-label={`Remove ${participant.displayName}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <UserMinus size={15} />
+                        </button>
                       </div>
                     </div>
                     {showRoundScores && participant.roundGain > 0 && (

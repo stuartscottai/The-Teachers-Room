@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, LogIn } from 'lucide-react';
-import { getLiveQuizSessionByCode, joinLiveQuizSession } from '../utils/liveQuizUtils';
-import { LiveQuizSession } from '../types';
+import { AlertTriangle, LogIn, RotateCcw } from 'lucide-react';
+import {
+  getLiveQuizSessionByCode,
+  getRememberedLiveQuizParticipantId,
+  joinLiveQuizSession,
+  reconnectLiveQuizParticipant,
+} from '../utils/liveQuizUtils';
+import { LiveQuizParticipant, LiveQuizSession } from '../types';
 
 export const LiveQuizJoin: React.FC = () => {
   const { joinCode = '' } = useParams();
@@ -12,6 +17,8 @@ export const LiveQuizJoin: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [joining, setJoining] = useState(false);
+  const [rememberedParticipant, setRememberedParticipant] = useState<LiveQuizParticipant | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -20,7 +27,18 @@ export const LiveQuizJoin: React.FC = () => {
       .then((loaded) => {
         if (disposed) return;
         setSession(loaded);
+        setRememberedParticipant(null);
         setLoading(false);
+        if (loaded) {
+          const participantId = getRememberedLiveQuizParticipantId(loaded.id);
+          if (participantId) {
+            void reconnectLiveQuizParticipant(loaded.id, participantId).then((result) => {
+              if (!disposed && result.success && result.participant) {
+                setRememberedParticipant(result.participant);
+              }
+            });
+          }
+        }
       })
       .catch(() => {
         if (disposed) return;
@@ -40,6 +58,20 @@ export const LiveQuizJoin: React.FC = () => {
     setJoining(false);
     if (!result.success || !result.participant) {
       setError(result.error || 'Unable to join this game.');
+      return;
+    }
+    navigate(`/live/play/${session.id}/${result.participant.id}`);
+  };
+
+  const handleReconnect = async () => {
+    if (!session || !rememberedParticipant) return;
+    setError('');
+    setReconnecting(true);
+    const result = await reconnectLiveQuizParticipant(session.id, rememberedParticipant.id);
+    setReconnecting(false);
+    if (!result.success || !result.participant) {
+      setRememberedParticipant(null);
+      setError(result.error || 'Could not reconnect. Join again to continue as a new player.');
       return;
     }
     navigate(`/live/play/${session.id}/${result.participant.id}`);
@@ -76,6 +108,22 @@ export const LiveQuizJoin: React.FC = () => {
         </div>
         <h1 className="text-3xl font-black leading-tight">{session.title}</h1>
         <p className="mt-2 text-sm font-bold text-slate-500">Code {session.joinCode}</p>
+
+        {rememberedParticipant && (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="text-sm font-black text-slate-900">Continue as {rememberedParticipant.displayName}</div>
+            <p className="mt-1 text-xs font-bold text-slate-600">Use this if your connection dropped or you refreshed the page.</p>
+            <button
+              type="button"
+              onClick={() => void handleReconnect()}
+              disabled={reconnecting}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow px-4 py-3 font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RotateCcw size={17} />
+              {reconnecting ? 'Reconnecting...' : 'Rejoin game'}
+            </button>
+          </div>
+        )}
 
         <form
           className="mt-6 space-y-4"

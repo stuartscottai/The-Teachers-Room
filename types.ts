@@ -143,6 +143,7 @@ export interface LiveQuizSession {
   questionStartedAt?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
+  hostLastSeenAt?: string | null;
   createdAt?: string;
 }
 

@@ -154,6 +154,11 @@ export const ShareGame: React.FC = () => {
     setSessionGame(gameToPlay);
     setPlayReturnStep('preview');
 
+    if (gameToPlay.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
+      setLiveQuizSelectedItems([]);
+      return;
+    }
+
     if (gameToPlay.config.type === GameType.MILLIONAIRE) {
       setPlayOptions({
         players: 1,
@@ -231,7 +236,7 @@ export const ShareGame: React.FC = () => {
   const handlePreviewStudentShare = async (selectedItemIds: string[]) => {
     if (!game) return;
 
-    if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN, GameType.LIVE_QUIZ_CHALLENGE].includes(game.config.type)) {
+    if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(game.config.type)) {
       alert('Student practice sharing is not available for this game type.');
       return;
     }
@@ -292,7 +297,8 @@ export const ShareGame: React.FC = () => {
 
   const handleCreateLiveQuiz = async (options: { timerSeconds: number; randomize: boolean }) => {
     if (!game || !user || !liveQuizSelectedItems) return;
-    const result = await createLiveQuizSession(game, user.id, liveQuizSelectedItems, options);
+    const liveQuizGame = liveQuizSelectedItems.length === 0 && sessionGame ? sessionGame : game;
+    const result = await createLiveQuizSession(liveQuizGame, user.id, liveQuizSelectedItems, options);
     if (!result.success || !result.sessionId) {
       alert(result.error || 'Failed to create live quiz. Make sure selected questions are multiple choice with a saved correct answer.');
       return;
@@ -418,7 +424,7 @@ export const ShareGame: React.FC = () => {
         />
         <LiveQuizSetupModal
           isOpen={Boolean(liveQuizSelectedItems)}
-          game={game}
+          game={liveQuizSelectedItems?.length === 0 && sessionGame ? sessionGame : game}
           selectedItemIds={liveQuizSelectedItems || []}
           onClose={() => setLiveQuizSelectedItems(null)}
           onStart={handleCreateLiveQuiz}
@@ -439,6 +445,10 @@ export const ShareGame: React.FC = () => {
           setGame(updated);
           setSessionGame(updated);
           setPlayReturnStep('editor');
+          if (updated.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
+            setLiveQuizSelectedItems([]);
+            return;
+          }
           if (updated.config.type === GameType.MILLIONAIRE) {
             setPlayOptions({
               players: 1,

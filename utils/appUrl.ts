@@ -3,6 +3,10 @@ const DEFAULT_PUBLIC_APP_URL = 'https://www.theteachersroom.app';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 export const getPublicAppUrl = () => {
+  if (typeof window !== 'undefined' && import.meta.env.DEV) {
+    return trimTrailingSlash(window.location.origin);
+  }
+
   const configuredUrl = import.meta.env.VITE_APP_URL?.trim();
   if (configuredUrl) return trimTrailingSlash(configuredUrl);
 

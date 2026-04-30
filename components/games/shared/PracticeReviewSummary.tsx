@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, CheckCircle2, RotateCcw, Target, Trophy, XCircle } from 'lucide-react';
 import { PracticeReviewItem } from '../../../types';
 
@@ -28,9 +29,15 @@ export const PracticeReviewSummary: React.FC<PracticeReviewSummaryProps> = ({
     background: `conic-gradient(#10b981 ${percent * 3.6}deg, #e2e8f0 0deg)`,
   };
 
-  return (
-    <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[800] overflow-y-auto overscroll-contain bg-slate-100">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+  const reviewButtonLabel = missedItems.length === 0
+    ? 'No wrong answers to review'
+    : showReview
+    ? 'Hide review'
+    : 'Review wrong answers';
+
+  const content = (
+    <div className="fixed inset-x-0 bottom-0 top-16 z-[90] overflow-y-auto overscroll-contain bg-slate-100 pt-4">
+      <div className="mx-auto max-w-5xl px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] sm:px-6">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="relative bg-slate-900 px-5 py-7 text-white sm:px-8 sm:py-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.28),transparent_32%),radial-gradient(circle_at_82%_28%,rgba(16,185,129,0.24),transparent_30%)]" />
@@ -70,22 +77,25 @@ export const PracticeReviewSummary: React.FC<PracticeReviewSummaryProps> = ({
 
           <div className="flex flex-col justify-center gap-3 border-b border-slate-200 bg-white p-4 sm:flex-row sm:p-5">
             <button
+              type="button"
               onClick={onReplay}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-5 py-3 font-black text-white hover:brightness-110"
+              className="relative z-10 inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-brand-blue px-5 py-3 font-black text-white hover:brightness-110"
             >
               <RotateCcw size={17} />
               Try again
             </button>
             <button
+              type="button"
               onClick={() => setShowReview((prev) => !prev)}
               disabled={missedItems.length === 0}
-              className="rounded-xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="relative z-10 touch-manipulation rounded-xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Review wrong answers
+              {reviewButtonLabel}
             </button>
             <button
+              type="button"
               onClick={onExit}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-700 hover:bg-slate-100"
+              className="relative z-10 touch-manipulation rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 font-black text-slate-700 hover:bg-slate-100"
             >
               Exit
             </button>
@@ -119,4 +129,8 @@ export const PracticeReviewSummary: React.FC<PracticeReviewSummaryProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return content;
+
+  return createPortal(content, document.body);
 };

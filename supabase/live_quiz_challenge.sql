@@ -19,6 +19,9 @@ create table if not exists public.live_quiz_sessions (
     check (jsonb_typeof(selected_items) = 'array')
 );
 
+alter table public.live_quiz_sessions
+  add column if not exists host_last_seen_at timestamptz not null default now();
+
 create table if not exists public.live_quiz_questions (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.live_quiz_sessions (id) on delete cascade,
@@ -144,7 +147,7 @@ create policy live_quiz_participants_insert_open
       select 1
       from public.live_quiz_sessions s
       where s.id = live_quiz_participants.session_id
-        and s.status = 'lobby'
+        and s.status <> 'ended'
     )
   );
 
@@ -158,6 +161,19 @@ create policy live_quiz_participants_update_seen
       from public.live_quiz_sessions s
       where s.id = live_quiz_participants.session_id
         and (s.teacher_id = auth.uid() or s.status <> 'ended')
+    )
+  );
+
+drop policy if exists live_quiz_participants_delete_teacher on public.live_quiz_participants;
+create policy live_quiz_participants_delete_teacher
+  on public.live_quiz_participants
+  for delete
+  using (
+    exists (
+      select 1
+      from public.live_quiz_sessions s
+      where s.id = live_quiz_participants.session_id
+        and s.teacher_id = auth.uid()
     )
   );
 
@@ -303,6 +319,36 @@ begin
     and session_id = p_session_id;
 
   return query select v_correct, v_points, v_response_ms;
+end;
+$$;
+
+create or replace function public.remove_live_quiz_participant(
+  p_session_id uuid,
+  p_participant_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_teacher_id uuid;
+begin
+  select teacher_id into v_teacher_id
+  from public.live_quiz_sessions
+  where id = p_session_id;
+
+  if not found then
+    raise exception 'Live quiz session not found';
+  end if;
+
+  if auth.uid() is null or auth.uid() <> v_teacher_id then
+    raise exception 'Only the host teacher can remove players from this live quiz';
+  end if;
+
+  delete from public.live_quiz_participants
+  where id = p_participant_id
+    and session_id = p_session_id;
 end;
 $$;
 

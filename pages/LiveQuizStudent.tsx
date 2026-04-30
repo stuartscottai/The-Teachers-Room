@@ -1,15 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { CheckCircle, CheckCircle2, Clock, Sparkles, Trophy, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { CheckCircle, CheckCircle2, Clock, Crown, Home, Trophy, WifiOff, XCircle } from 'lucide-react';
 import {
   getCurrentStudentQuestion,
   getLiveQuizParticipants,
   getLiveQuizSession,
   getLiveQuizSubmissions,
+  rememberLiveQuizParticipant,
   submitLiveQuizAnswer,
 } from '../utils/liveQuizUtils';
 import { LiveQuizParticipant, LiveQuizSession, LiveQuizSubmission, StudentSafeLiveQuizQuestion } from '../types';
 import { resolveGameImageUrl } from '../utils/gameImage';
+import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
 
 const normalizeAnswer = (value?: string | null) => String(value || '').trim().toLowerCase();
 
@@ -20,42 +22,34 @@ const ANSWER_TILE_STYLES = [
   'border-violet-300 bg-violet-50 text-violet-900',
 ];
 
-const AnimatedScore: React.FC<{ value: number; className?: string }> = ({ value, className }) => {
-  const [displayValue, setDisplayValue] = useState(value);
-  const previousValueRef = useRef(value);
+const HOST_DISCONNECTED_AFTER_MS = 20000;
 
-  useEffect(() => {
-    const start = previousValueRef.current;
-    const delta = value - start;
-    if (delta === 0) {
-      setDisplayValue(value);
-      return;
-    }
-
-    const startedAt = performance.now();
-    const duration = 750;
-    let frameId = 0;
-
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(start + delta * eased));
-      if (progress < 1) {
-        frameId = window.requestAnimationFrame(tick);
-      } else {
-        previousValueRef.current = value;
-      }
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [value]);
-
-  return <span className={className}>{displayValue}</span>;
+const StudentExitScreen: React.FC<{ icon: React.ReactNode; title: string; message: string }> = ({ icon, title, message }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-7 text-center text-slate-900 shadow-2xl">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+          {icon}
+        </div>
+        <h1 className="text-2xl font-black">{title}</h1>
+        <p className="mt-2 text-sm font-semibold text-slate-500">{message}</p>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
+        >
+          <Home size={18} />
+          Go to homepage
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export const LiveQuizStudent: React.FC = () => {
   const { sessionId = '', participantId = '' } = useParams();
+  const navigate = useNavigate();
   const [session, setSession] = useState<LiveQuizSession | null>(null);
   const [question, setQuestion] = useState<StudentSafeLiveQuizQuestion | null>(null);
   const [participants, setParticipants] = useState<LiveQuizParticipant[]>([]);
@@ -65,6 +59,11 @@ export const LiveQuizStudent: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [nowMs, setNowMs] = useState(Date.now());
+  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
+
+  useEffect(() => {
+    if (sessionId && participantId) rememberLiveQuizParticipant(sessionId, participantId);
+  }, [participantId, sessionId]);
 
   useEffect(() => {
     let disposed = false;
@@ -80,6 +79,7 @@ export const LiveQuizStudent: React.FC = () => {
       setQuestion(nextQuestion);
       setParticipants(nextParticipants);
       setSubmissions(nextSubmissions);
+      setHasLoadedSnapshot(true);
       if (nextSession && submittedQuestion !== null && nextSession.currentQuestionIndex !== submittedQuestion) {
         setSubmittedQuestion(null);
         setSelectedAnswer('');
@@ -112,12 +112,20 @@ export const LiveQuizStudent: React.FC = () => {
   const hasSubmitted = Boolean(question && (submittedQuestion === question.questionIndex || effectiveSelectedAnswer));
   const revealVisible = Boolean(question?.revealedAnswer && ['reveal', 'leaderboard'].includes(session?.status || ''));
   const isOwnAnswerCorrect = revealVisible && ownSubmission ? ownSubmission.isCorrect : false;
+  const didSubmitAnswer = Boolean(ownSubmission);
   const imageUrl = resolveGameImageUrl(question?.image?.url, question?.image?.thumbUrl);
   const elapsedMs = session?.questionStartedAt ? Math.max(0, nowMs - new Date(session.questionStartedAt).getTime()) : 0;
   const timeLeft = session?.status === 'question'
     ? Math.max(0, Math.ceil(((session.timerSeconds * 1000) - elapsedMs) / 1000))
     : 0;
   const canAnswer = session?.status === 'question' && timeLeft > 0 && question && !hasSubmitted && !submitting;
+  const hostLastSeenAtMs = session?.hostLastSeenAt ? new Date(session.hostLastSeenAt).getTime() : Date.now();
+  const hostDisconnected = Boolean(
+    session &&
+    session.status !== 'ended' &&
+    Number.isFinite(hostLastSeenAtMs) &&
+    nowMs - hostLastSeenAtMs > HOST_DISCONNECTED_AFTER_MS
+  );
 
   const handleAnswer = async (answer: string) => {
     if (!question || !canAnswer) return;
@@ -137,11 +145,41 @@ export const LiveQuizStudent: React.FC = () => {
     setSubmittedQuestion(question.questionIndex);
   };
 
+  if (!session && hasLoadedSnapshot) {
+    return (
+      <StudentExitScreen
+        icon={<WifiOff size={24} />}
+        title="Live quiz unavailable"
+        message="The live quiz is no longer available. Your teacher may have closed the session."
+      />
+    );
+  }
+
   if (!session) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-yellow border-t-transparent" />
       </div>
+    );
+  }
+
+  if (hostDisconnected) {
+    return (
+      <StudentExitScreen
+        icon={<WifiOff size={24} />}
+        title="Teacher disconnected"
+        message="The host screen is no longer connected, so this live quiz has paused or ended."
+      />
+    );
+  }
+
+  if (hasLoadedSnapshot && !me) {
+    return (
+      <StudentExitScreen
+        icon={<XCircle size={24} />}
+        title="You have been removed"
+        message="Ask your teacher for the join code if you need to rejoin."
+      />
     );
   }
 
@@ -162,15 +200,101 @@ export const LiveQuizStudent: React.FC = () => {
 
   if (session.status === 'ended') {
     const myRank = ranking.findIndex((participant) => participant.id === participantId) + 1;
+    const winner = ranking[0];
+    const confettiPieces = Array.from({ length: 44 }, (_, index) => ({
+      id: index,
+      left: `${(index * 23) % 100}%`,
+      delay: `${(index % 11) * 0.18}s`,
+      duration: `${3.6 + (index % 6) * 0.28}s`,
+      color: ['#facc15', '#22d3ee', '#fb7185', '#34d399', '#fb923c'][index % 5],
+      width: index % 3 === 0 ? 8 : 5,
+      height: index % 2 === 0 ? 16 : 10,
+    }));
     return (
-      <div className="min-h-screen bg-slate-950 p-4 text-white flex items-center justify-center">
-        <div className="w-full max-w-lg text-center">
-          <Trophy className="mx-auto mb-4 text-brand-yellow" size={54} />
-          <h1 className="text-4xl font-black">Game Over</h1>
-          <p className="mt-2 text-white/70 font-bold">
-            {me ? `${me.displayName}: ${me.score} points` : 'Final scores are in.'}
-          </p>
-          {myRank > 0 && <div className="mt-4 rounded-2xl bg-white/10 p-5 text-2xl font-black">Rank #{myRank}</div>}
+      <div className="relative min-h-screen overflow-hidden bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.3),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.2),transparent_34%),#020617]">
+        <style>{`
+          @keyframes live-quiz-final-confetti {
+            0% { transform: translate3d(0, -18vh, 0) rotate(0deg); opacity: 0; }
+            12% { opacity: 1; }
+            100% { transform: translate3d(24px, 118vh, 0) rotate(540deg); opacity: 0.85; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .live-quiz-final-confetti { animation: none !important; opacity: 0.28; }
+          }
+        `}</style>
+        {confettiPieces.map((piece) => (
+          <span
+            key={piece.id}
+            className="live-quiz-final-confetti pointer-events-none absolute top-0 z-0 rounded-sm"
+            style={{
+              left: piece.left,
+              width: piece.width,
+              height: piece.height,
+              backgroundColor: piece.color,
+              animation: `live-quiz-final-confetti ${piece.duration} linear ${piece.delay} infinite`,
+            }}
+          />
+        ))}
+
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col justify-center py-8">
+          <div className="mb-5 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-brand-yellow text-slate-950 shadow-xl shadow-yellow-950/30">
+              <Trophy size={42} />
+            </div>
+            <h1 className="font-display text-4xl font-black sm:text-5xl">Final standings</h1>
+            <p className="mt-2 text-lg font-bold text-white/75">
+              {winner ? `${winner.displayName} wins with ${winner.score.toLocaleString()} points` : 'Final scores are in.'}
+            </p>
+          </div>
+
+          {myRank > 0 && me && (
+            <div className="mb-5 rounded-3xl border border-yellow-300/35 bg-yellow-300 p-5 text-center text-slate-950 shadow-2xl shadow-yellow-950/25">
+              <div className="text-sm font-black uppercase tracking-wide text-slate-700">Your result</div>
+              <div className="mt-1 font-display text-4xl font-black">Rank #{myRank}</div>
+              <div className="mt-1 text-lg font-black">{me.displayName}: {me.score.toLocaleString()} points</div>
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-3 shadow-2xl backdrop-blur sm:p-4">
+            <div className="mb-3 flex items-center justify-between px-2">
+              <h2 className="text-xl font-black">All participants</h2>
+              <Crown className="text-brand-yellow" size={24} />
+            </div>
+            <div className="grid gap-2">
+              {ranking.map((participant, index) => {
+                const rank = index + 1;
+                const isMe = participant.id === participantId;
+                return (
+                  <div
+                    key={participant.id}
+                    className={`grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 ${
+                      isMe
+                        ? 'border-yellow-300 bg-yellow-300 text-slate-950'
+                        : rank === 1
+                          ? 'border-yellow-300/50 bg-white/15 text-white'
+                          : 'border-white/10 bg-slate-950/45 text-white'
+                    }`}
+                  >
+                    <div className={`font-display text-2xl font-black ${rank === 1 && !isMe ? 'text-brand-yellow' : ''}`}>#{rank}</div>
+                    <div className="min-w-0">
+                      <div className="truncate text-lg font-black">{participant.displayName}</div>
+                      {isMe && <div className="text-xs font-black uppercase tracking-wide text-slate-700">You</div>}
+                    </div>
+                    <div className="text-right text-lg font-black">{participant.score.toLocaleString()} pts</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-6 py-4 text-lg font-black text-slate-950 shadow-xl shadow-yellow-950/25 hover:bg-yellow-300 sm:mx-auto sm:w-auto"
+          >
+            <Home size={18} />
+            Go to homepage
+          </button>
         </div>
       </div>
     );
@@ -178,90 +302,17 @@ export const LiveQuizStudent: React.FC = () => {
 
   if (session.status === 'leaderboard') {
     const myRank = ranking.findIndex((participant) => participant.id === participantId) + 1;
-    const roundGain = ownSubmission?.pointsAwarded || 0;
-    const leaderboardRows = ranking.slice(0, 8).map((participant) => ({
-      ...participant,
-      roundGain: submissions.find(
-        (submission) => submission.participantId === participant.id && submission.questionIndex === session.currentQuestionIndex
-      )?.pointsAwarded || 0,
-    }));
-
     return (
-      <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.18),transparent_34%),#020617]">
-        <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col justify-center">
-          <div className="mb-4 rounded-3xl bg-white p-5 text-slate-900 shadow-2xl">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-brand-blue">
-                  <Sparkles size={15} />
-                  Round result
-                </div>
-                <h1 className="text-3xl font-black sm:text-4xl">
-                  {myRank > 0 ? `You are #${myRank}` : 'Leaderboard'}
-                </h1>
-              </div>
-              <div className="text-right">
-                <div className="text-xs font-black uppercase text-slate-400">Total score</div>
-                <div className="font-mono text-4xl font-black text-slate-950">
-                  <AnimatedScore value={me?.score || 0} />
-                </div>
-              </div>
-            </div>
-            <div className={`mt-4 rounded-2xl px-4 py-3 text-center font-black ${
-              roundGain > 0 ? 'bg-lime-100 text-lime-950 ring-2 ring-lime-300' : 'bg-slate-100 text-slate-600'
-            }`}>
-              {roundGain > 0 ? `+${roundGain} points this question` : 'No points this question'}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {leaderboardRows.map((participant, index) => (
-              <div
-                key={participant.id}
-                className={`rounded-2xl px-4 py-3 shadow-xl ${
-                  participant.id === participantId
-                    ? 'bg-brand-yellow text-slate-950 ring-4 ring-white/40'
-                    : index === 0
-                    ? 'bg-amber-50 text-amber-950'
-                    : 'bg-white text-slate-900'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${
-                      participant.id === participantId ? 'bg-slate-950 text-brand-yellow' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                      #{index + 1}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-base font-black sm:text-lg">{participant.displayName}</div>
-                      <div className={`mt-0.5 text-xs font-black ${
-                        participant.roundGain > 0
-                          ? participant.id === participantId ? 'text-slate-800' : 'text-lime-700'
-                          : participant.id === participantId ? 'text-slate-700' : 'text-slate-400'
-                      }`}>
-                        {participant.roundGain > 0 ? `+${participant.roundGain} last round` : 'No points last round'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="font-mono text-2xl font-black sm:text-3xl">
-                      <AnimatedScore value={participant.score} />
-                    </div>
-                    <div className={`text-[10px] font-black uppercase ${
-                      participant.id === participantId ? 'text-slate-700' : 'text-slate-400'
-                    }`}>
-                      points
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-5 text-center text-sm font-bold text-white/70">Waiting for the next question...</p>
-        </div>
-      </div>
+      <LiveQuizLeaderboardStage
+        participants={participants}
+        submissions={submissions}
+        questionIndex={session.currentQuestionIndex}
+        title={myRank > 0 ? `You are #${myRank}` : 'Leaderboard'}
+        subtitle="Round result"
+        currentParticipantId={participantId}
+        maxRows={8}
+        controls={<p className="text-center text-sm font-bold text-white/70">Waiting for the next question...</p>}
+      />
     );
   }
 
@@ -340,7 +391,7 @@ export const LiveQuizStudent: React.FC = () => {
           )}
           {revealVisible && (
             <div className={`mt-5 rounded-xl p-4 text-center font-black ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-              {isOwnAnswerCorrect ? `Correct +${ownSubmission?.pointsAwarded || 0}` : 'No points this round'}
+              {didSubmitAnswer ? (isOwnAnswerCorrect ? 'Correct' : 'Incorrect') : 'No answer submitted'}
             </div>
           )}
           {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}

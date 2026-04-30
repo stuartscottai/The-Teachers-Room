@@ -19,7 +19,6 @@ type StudentPhase = 'start' | 'play';
 const UNSUPPORTED_STUDENT_TYPES = new Set<GameType>([
   GameType.STOP_THE_FIRE,
   GameType.SURVEY_SHOWDOWN,
-  GameType.LIVE_QUIZ_CHALLENGE,
 ]);
 
 const countPlayableQuestions = (game: GeneratedGame) => {
@@ -233,7 +232,7 @@ export const StudentGame: React.FC = () => {
   };
 
   if (game.config.type === GameType.JEOPARDY) return <JeopardyGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.TRIVIA) return <TriviaGame key={playKey} {...commonProps} />;
+  if (game.config.type === GameType.TRIVIA || game.config.type === GameType.LIVE_QUIZ_CHALLENGE) return <TriviaGame key={playKey} {...commonProps} />;
   if (game.config.type === GameType.PUB_QUIZ) return <PubQuizGame key={playKey} {...commonProps} />;
   if (game.config.type === GameType.DARTS) return <DartsGame key={playKey} {...commonProps} />;
   if (game.config.type === GameType.SNAKES_LADDERS) return <SnakesLaddersGame key={playKey} {...commonProps} />;

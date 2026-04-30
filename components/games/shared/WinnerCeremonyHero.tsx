@@ -351,7 +351,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     const formatCeremonyScore = (score: number) => `${new Intl.NumberFormat('en-US').format(score)} PTS`;
 
     return (
-        <>
+        <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-slate-950 text-white [background:radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.24),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(34,197,94,0.16),transparent_32%),radial-gradient(circle_at_50%_82%,rgba(250,204,21,0.16),transparent_38%),#020617]">
             <style>{`
                 @keyframes wordwheel-winner-aurora {
                     0%, 100% { transform: scale(1); opacity: 0.58; }
@@ -363,9 +363,9 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                 }
                 .wordwheel-winner-aurora {
                     background:
-                        radial-gradient(circle at 18% 16%, rgba(56,189,248,0.16), transparent 46%),
-                        radial-gradient(circle at 82% 20%, rgba(34,197,94,0.1), transparent 48%),
-                        radial-gradient(circle at 50% 72%, rgba(250,204,21,0.08), transparent 58%);
+                        radial-gradient(circle at 18% 16%, rgba(56,189,248,0.28), transparent 46%),
+                        radial-gradient(circle at 82% 20%, rgba(34,197,94,0.16), transparent 48%),
+                        radial-gradient(circle at 50% 72%, rgba(250,204,21,0.14), transparent 58%);
                     animation: wordwheel-winner-aurora 10s ease-in-out infinite;
                     will-change: transform, opacity;
                 }
@@ -384,12 +384,12 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             <WinnerCeremonyConfetti active={winnerAnimationStage === 'complete'} />
 
             <div
-                className="relative z-10 w-full h-full overflow-y-auto"
+                className="relative z-10 w-full min-h-[calc(100vh-4rem)] overflow-y-auto"
                 style={{ paddingTop: winnerHeroTopClearance, scrollPaddingTop: winnerHeroTopClearance }}
             >
                 <div className="max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-10 flex flex-col items-center text-center">
-                    <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2">{winnerHeadline}</h1>
-                    <p className="text-cyan-100 text-base sm:text-xl mb-6">{subtitle}</p>
+                    <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)]">{winnerHeadline}</h1>
+                    <p className="text-cyan-100 text-base sm:text-xl mb-6 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]">{subtitle}</p>
 
                     <div className="relative w-full max-w-6xl mb-8 px-2 sm:px-4">
                         <div className="relative z-20 mx-auto w-fit max-w-full flex items-end justify-center gap-0 sm:gap-1 md:gap-1 pt-14 sm:pt-20 md:pt-24 pb-6 min-h-[300px] sm:min-h-[390px]">
@@ -484,21 +484,21 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-8">
-                        <button onClick={restartWinnerCeremony} className="px-6 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-bold hover:bg-white/15 transition-all">
+                    {children && <div className="mb-8 w-full">{children}</div>}
+
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+                        <button onClick={restartWinnerCeremony} className="px-6 py-3 rounded-xl bg-slate-900/85 border border-white/25 text-white font-bold hover:bg-slate-800 transition-all shadow-lg">
                             <RefreshCw size={18} className="inline mr-2" /> Replay Ceremony
                         </button>
-                        <button onClick={onPlayAgain} className="px-8 py-3 rounded-xl bg-brand-yellow text-slate-900 font-bold flex items-center justify-center hover:brightness-105 transition-all">
+                        <button onClick={onPlayAgain} className="px-8 py-3 rounded-xl bg-brand-yellow text-slate-950 font-black flex items-center justify-center hover:brightness-105 transition-all shadow-lg shadow-yellow-950/25">
                             <RefreshCw size={18} className="mr-2" /> Play Again
                         </button>
-                        <button onClick={onExit} className="px-8 py-3 rounded-xl bg-white text-slate-900 font-bold hover:bg-slate-100 transition-all">
+                        <button onClick={onExit} className="px-8 py-3 rounded-xl bg-white text-slate-950 font-black hover:bg-slate-100 transition-all shadow-lg">
                             Exit to Game Hub
                         </button>
                     </div>
-
-                    {children}
                 </div>
             </div>
-        </>
+        </div>
     );
 };

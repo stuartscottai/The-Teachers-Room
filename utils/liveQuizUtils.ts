@@ -15,6 +15,7 @@ import { isUUID } from './gameUtils';
 import { createSignedUrlForGameAsset, createSignedUrlsForGameAssets } from './gameAssetStorage';
 
 const JOIN_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const LIVE_QUIZ_PLAYER_STORAGE_KEY = 'liveQuizPlayersBySession';
 
 const normalizeValue = (value: string) =>
   String(value || '')
@@ -88,6 +89,7 @@ const mapSession = (row: any): LiveQuizSession => ({
   questionStartedAt: row.question_started_at,
   startedAt: row.started_at,
   endedAt: row.ended_at,
+  hostLastSeenAt: row.host_last_seen_at,
   createdAt: row.created_at,
 });
 
@@ -99,6 +101,35 @@ const mapParticipant = (row: any): LiveQuizParticipant => ({
   joinedAt: row.joined_at,
   lastSeenAt: row.last_seen_at,
 });
+
+const readStoredLiveQuizPlayers = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(LIVE_QUIZ_PLAYER_STORAGE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+export const rememberLiveQuizParticipant = (sessionId: string, participantId: string) => {
+  if (typeof window === 'undefined' || !sessionId || !participantId) return;
+  const stored = readStoredLiveQuizPlayers();
+  stored[sessionId] = participantId;
+  window.localStorage.setItem(LIVE_QUIZ_PLAYER_STORAGE_KEY, JSON.stringify(stored));
+};
+
+export const forgetLiveQuizParticipant = (sessionId: string) => {
+  if (typeof window === 'undefined' || !sessionId) return;
+  const stored = readStoredLiveQuizPlayers();
+  delete stored[sessionId];
+  window.localStorage.setItem(LIVE_QUIZ_PLAYER_STORAGE_KEY, JSON.stringify(stored));
+};
+
+export const getRememberedLiveQuizParticipantId = (sessionId: string): string => {
+  if (!sessionId) return '';
+  return readStoredLiveQuizPlayers()[sessionId] || '';
+};
 
 const mapSubmission = (row: any): LiveQuizSubmission => ({
   id: row.id,
@@ -313,6 +344,34 @@ export const getLiveQuizParticipants = async (sessionId: string): Promise<LiveQu
   return data.map(mapParticipant);
 };
 
+export const reconnectLiveQuizParticipant = async (
+  sessionId: string,
+  participantId: string
+): Promise<{ success: boolean; participant?: LiveQuizParticipant; error?: string }> => {
+  if (!sessionId || !participantId) return { success: false, error: 'No saved player was found for this quiz.' };
+
+  const session = await getLiveQuizSession(sessionId);
+  if (!session || session.status === 'ended') {
+    forgetLiveQuizParticipant(sessionId);
+    return { success: false, error: 'This live quiz has ended.' };
+  }
+
+  const { data, error } = await supabase
+    .from('live_quiz_participants')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('session_id', sessionId)
+    .eq('id', participantId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    forgetLiveQuizParticipant(sessionId);
+    return { success: false, error: 'Your previous player could not be found. Join again to continue as a new player.' };
+  }
+
+  return { success: true, participant: mapParticipant(data) };
+};
+
 export const getLiveQuizSubmissions = async (sessionId: string): Promise<LiveQuizSubmission[]> => {
   const { data, error } = await supabase
     .from('live_quiz_submissions')
@@ -334,8 +393,26 @@ export const joinLiveQuizSession = async (
     .insert({ session_id: sessionId, display_name: cleanName })
     .select('*')
     .single();
-  if (error || !data) return { success: false, error: error?.message || 'Unable to join this game.' };
+  if (error || !data) {
+    const message = String(error?.message || '');
+    if (message.toLowerCase().includes('row-level security')) {
+      return { success: false, error: 'This live quiz is not accepting new players right now.' };
+    }
+    return { success: false, error: message || 'Unable to join this game.' };
+  }
+  rememberLiveQuizParticipant(sessionId, data.id);
   return { success: true, participant: mapParticipant(data) };
+};
+
+export const removeLiveQuizParticipant = async (
+  sessionId: string,
+  participantId: string
+): Promise<{ success: boolean; error?: string }> => {
+  const { error } = await supabase.rpc('remove_live_quiz_participant', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
+  return { success: !error, error: error?.message };
 };
 
 export const updateLiveQuizStatus = async (
@@ -365,6 +442,14 @@ export const updateLiveQuizStatus = async (
     payload.ended_at = new Date().toISOString();
   }
   const { error } = await supabase.from('live_quiz_sessions').update(payload).eq('id', sessionId);
+  return { success: !error, error: error?.message };
+};
+
+export const updateLiveQuizHostHeartbeat = async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
+  const { error } = await supabase
+    .from('live_quiz_sessions')
+    .update({ host_last_seen_at: new Date().toISOString() })
+    .eq('id', sessionId);
   return { success: !error, error: error?.message };
 };
 
