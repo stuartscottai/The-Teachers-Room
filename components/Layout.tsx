@@ -235,7 +235,7 @@ const Navbar: React.FC = () => {
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Plan
+                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Access
                         </SafeLink>
                         <SafeLink 
                           to="/games" 
@@ -324,7 +324,7 @@ const Navbar: React.FC = () => {
                         My Profile
                     </SafeLink>
                     <SafeLink to="/change-plan" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        Change Plan
+                        Change Access
                     </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games

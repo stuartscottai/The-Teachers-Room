@@ -1,37 +1,44 @@
 import { buildStockImageProxyPath, extractPixabaySourceUrl, toCoepSafeStockImageUrl } from './stockImageUrl';
 
-export const resolveGameImageUrl = (value?: string, fallbackValue?: string): string => {
+const uniqueUrls = (values: string[]) => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const next = String(value || '').trim();
+    if (!next || seen.has(next)) continue;
+    seen.add(next);
+    out.push(next);
+  }
+  return out;
+};
+
+export const resolveGameImageUrls = (value?: string, fallbackValue?: string): string[] => {
   const primaryRaw = String(value || '').trim();
   const fallbackRaw = String(fallbackValue || '').trim();
-  if (!primaryRaw && !fallbackRaw) return '';
+  if (!primaryRaw && !fallbackRaw) return [];
 
   const preferServerProxy = !import.meta.env.DEV;
+  const primarySource = extractPixabaySourceUrl(primaryRaw);
+  const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
+  const urls: string[] = [];
 
   if (preferServerProxy) {
-    const primarySource = extractPixabaySourceUrl(primaryRaw);
-    const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
     if (primarySource && fallbackSource && primarySource !== fallbackSource) {
-      return buildStockImageProxyPath(primarySource, fallbackSource);
+      urls.push(buildStockImageProxyPath(primarySource, fallbackSource));
     }
-    if (!primarySource && fallbackSource) {
-      return buildStockImageProxyPath(fallbackSource);
-    }
+    if (primarySource) urls.push(buildStockImageProxyPath(primarySource));
+    if (fallbackSource) urls.push(buildStockImageProxyPath(fallbackSource));
+  } else {
+    if (fallbackSource) urls.push(toCoepSafeStockImageUrl(fallbackRaw, false));
+    if (primarySource) urls.push(toCoepSafeStockImageUrl(primaryRaw, false));
   }
 
-  // Local Vite dev reliability for stock images: old saved games can contain a
-  // stale primary Pixabay URL while thumbUrl remains valid. For uploaded/signed
-  // game images, prefer the full image first so a bad thumbnail cannot hide it.
-  if (!preferServerProxy) {
-    const primarySource = extractPixabaySourceUrl(primaryRaw);
-    const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
-    if (primarySource && fallbackSource) {
-      const fallbackFirst = toCoepSafeStockImageUrl(fallbackRaw, false);
-      if (fallbackFirst) return fallbackFirst;
-    }
-  }
+  if (primaryRaw) urls.push(toCoepSafeStockImageUrl(primaryRaw, preferServerProxy));
+  if (fallbackRaw) urls.push(toCoepSafeStockImageUrl(fallbackRaw, preferServerProxy));
 
-  const primary = primaryRaw ? toCoepSafeStockImageUrl(primaryRaw, preferServerProxy) : '';
-  if (primary) return primary;
+  return uniqueUrls(urls);
+};
 
-  return fallbackRaw ? toCoepSafeStockImageUrl(fallbackRaw, preferServerProxy) : '';
+export const resolveGameImageUrl = (value?: string, fallbackValue?: string): string => {
+  return resolveGameImageUrls(value, fallbackValue)[0] || '';
 };

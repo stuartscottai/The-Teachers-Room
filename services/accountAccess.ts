@@ -219,16 +219,16 @@ export const dispatchEmailConfirmationPrompt = (detail: EmailConfirmationDetail)
 export const promptSignupForFree = (message?: string) => {
   dispatchAuthPrompt({
     kind: 'signup-free',
-    title: 'Create A Free Account',
-    message: message || 'Sign up for free to continue.'
+    title: 'Create A Free Teacher Account',
+    message: message || 'Teacher Access is currently free during early access. Sign up to continue.'
   });
 };
 
 export const promptUpgradeForAi = (message?: string) => {
   dispatchAuthPrompt({
     kind: 'upgrade-ai',
-    title: 'Upgrade To Use AI',
-    message: message || 'Free accounts can use all manual tools, but AI generation requires Teacher or School.'
+    title: 'Activate Free Teacher Access',
+    message: message || 'AI generation is included with Teacher Access, which is currently free during early access.'
   });
 };
 

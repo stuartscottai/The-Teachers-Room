@@ -320,7 +320,7 @@ export const ShareGame: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-lg max-w-lg w-full p-8 text-center">
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Sign in to view this shared game</h1>
           <p className="text-slate-500 mb-6">
-            Shared games are available to registered users. Create a free account to continue.
+            Shared games are available to registered users. Create a free Teacher Access account to continue.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button

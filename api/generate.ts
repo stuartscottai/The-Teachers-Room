@@ -875,7 +875,7 @@ export default async function handler(req: any, res: any) {
         modelVersion: null
       };
       return sendJson(403, {
-        error: 'AI generation is not included in the Free plan. Upgrade to Teacher or School.',
+        error: 'AI generation is included with Teacher Access, which is currently free during early access. Activate Teacher Access to continue.',
         code: 'AI_NOT_INCLUDED_IN_FREE',
         accountType: resolvedAccountType
       });

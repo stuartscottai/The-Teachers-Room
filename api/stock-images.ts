@@ -107,8 +107,9 @@ export default async function handler(req: any, res: any) {
 
   try {
     const query = String(req.query?.q || '').trim();
-    if (!query) {
-      res.status(400).json({ error: 'Missing query parameter: q' });
+    const imageId = String(req.query?.id || '').trim();
+    if (!query && !imageId) {
+      res.status(400).json({ error: 'Missing query parameter: q or id' });
       return;
     }
 
@@ -124,7 +125,11 @@ export default async function handler(req: any, res: any) {
 
     const url = new URL('https://pixabay.com/api/');
     url.searchParams.set('key', apiKey);
-    url.searchParams.set('q', query);
+    if (imageId) {
+      url.searchParams.set('id', imageId);
+    } else {
+      url.searchParams.set('q', query);
+    }
     url.searchParams.set('per_page', String(perPage));
     url.searchParams.set('page', String(page));
     url.searchParams.set('safesearch', 'true');
@@ -143,7 +148,7 @@ export default async function handler(req: any, res: any) {
         id: String(item.id),
         url: toProxyUrl(item.largeImageURL || item.webformatURL || item.previewURL),
         thumbUrl: toProxyUrl(item.webformatURL || item.previewURL || item.largeImageURL),
-        alt: (item.tags || query).split(',')[0]?.trim() || query,
+        alt: (item.tags || query || imageId).split(',')[0]?.trim() || query || imageId,
         kind: item.type || 'photo',
         tags: item.tags || '',
         width: parseOptionalDimension(item.imageWidth),
@@ -151,7 +156,7 @@ export default async function handler(req: any, res: any) {
       }))
       .filter((item) => item.url);
 
-    const items = strict ? strictSort(baseItems, query) : baseItems;
+    const items = strict && query ? strictSort(baseItems, query) : baseItems;
 
     res.status(200).json({
       items,

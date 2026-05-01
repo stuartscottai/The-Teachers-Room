@@ -8,6 +8,8 @@ export type StockImageSelection = {
   url: string;
   thumbUrl: string;
   label: string;
+  searchQuery?: string;
+  tags?: string;
 };
 
 export const StockImagePicker: React.FC<{
@@ -160,6 +162,8 @@ export const StockImagePicker: React.FC<{
           url: item.url,
           thumbUrl: item.thumbUrl,
           label: defaultLabel,
+          searchQuery: activeQuery || trimmedQuery,
+          tags: item.tags,
         },
       ]);
       return;
@@ -176,6 +180,8 @@ export const StockImagePicker: React.FC<{
         url: item.url,
         thumbUrl: item.thumbUrl,
         label: defaultLabel,
+        searchQuery: activeQuery || trimmedQuery,
+        tags: item.tags,
       },
     ]);
   };

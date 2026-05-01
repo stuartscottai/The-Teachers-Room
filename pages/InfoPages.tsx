@@ -293,8 +293,8 @@ export const Pricing: React.FC = () => {
     if (!user) {
       promptSignupForFree(
         targetPlan === 'free'
-          ? 'Create a free account to save and share your classroom games.'
-          : `Create a free account first, then choose the ${targetPlan === 'teacher' ? 'Teacher Pro' : 'School'} plan.`
+          ? 'Create a free Teacher Access account to save and share your classroom games.'
+          : `Create a free Teacher Access account first, then choose ${targetPlan === 'teacher' ? 'Teacher Access' : 'School Access'}.`
       );
       return;
     }
@@ -306,8 +306,8 @@ export const Pricing: React.FC = () => {
     <div className="py-20 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-16">
-          <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">Pricing That Fits Your Teaching Needs</h1>
-          <p className="text-slate-600">Choose a plan built around how you create and teach.</p>
+          <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">Early Access For Teachers</h1>
+          <p className="text-slate-600">Teacher Access and School Access are currently free while payment is not live.</p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
@@ -338,11 +338,12 @@ export const Pricing: React.FC = () => {
 
           {/* Pro */}
           <div className="bg-white p-8 rounded-2xl shadow-xl border-2 border-brand-yellow relative transform scale-105">
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-yellow px-4 py-1 rounded-full text-xs font-bold text-slate-800 uppercase tracking-wide">Best Value</div>
-            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Pro</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-6">$7.99<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-yellow px-4 py-1 rounded-full text-xs font-bold text-slate-800 uppercase tracking-wide">Recommended</div>
+            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Access</h3>
+            <p className="text-4xl font-bold text-teal-600 mb-1">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">free during early access</p>
             <ul className="space-y-4 mb-8">
-              {['Credits for approximately 50 AI-created games per month', 'Unlimited manual game creation', 'Unlimited private library storage', 'Priority support'].map(item => (
+              {['Credits for approximately 50 AI-created games per month', 'Unlimited manual game creation', 'Unlimited private library storage', 'No payment required during early access'].map(item => (
                 <li key={item} className="flex items-center text-slate-800 font-medium">
                   <Check size={18} className="text-brand-accent mr-2 shrink-0" /> {item}
                 </li>
@@ -353,15 +354,15 @@ export const Pricing: React.FC = () => {
               onClick={() => handlePlanCta('teacher')}
               className="w-full py-3 bg-brand-yellow rounded-xl font-bold text-slate-800 hover:bg-yellow-300 transition-colors shadow-md"
             >
-              Go Pro
+              Activate Teacher Access
             </button>
           </div>
 
            {/* School */}
            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School</h3>
-            <p className="text-4xl font-bold text-teal-600 mb-1">from $29.99<span className="text-sm text-slate-400 font-normal">/mo</span></p>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">minimum 5 teachers</p>
+            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School Access</h3>
+            <p className="text-4xl font-bold text-teal-600 mb-1">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">free during early access</p>
             <ul className="space-y-4 mb-8">
               {['AI game credits for each teacher account', 'Minimum 5 teacher seats', 'School-level teacher spot allocation', 'School admin dashboard', 'Shared school resource management', '100 MB shared school storage'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
@@ -374,7 +375,7 @@ export const Pricing: React.FC = () => {
               onClick={() => handlePlanCta('school')}
               className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors"
             >
-              Set Up School
+              Set Up School Access
             </button>
           </div>
         </div>

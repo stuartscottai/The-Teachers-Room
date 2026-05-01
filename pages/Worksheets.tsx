@@ -2079,12 +2079,12 @@ const WorksheetBuilder: React.FC<{
         }
 
         if (!user) {
-            promptSignupForFree('Create a free account to create and save worksheets.');
+            promptSignupForFree('Create a free Teacher Access account to create and save worksheets.');
             return;
         }
 
         if (user.accountType === 'free') {
-            promptUpgradeForAi('Worksheet AI generation is available on Teacher and School plans.');
+            promptUpgradeForAi('Worksheet AI generation is included with free Teacher Access during early access.');
             return;
         }
 
@@ -2248,12 +2248,12 @@ const WorksheetBuilder: React.FC<{
 
     const requestAiBlocksForActivity = async (rawActivity: ActivityConfig): Promise<WorksheetBlock[]> => {
         if (!user) {
-            promptSignupForFree('Create a free account to continue.');
-            throw new Error("Please sign up for a free account to continue.");
+            promptSignupForFree('Create a free Teacher Access account to continue.');
+            throw new Error("Please sign up for a free Teacher Access account to continue.");
         }
         if (user.accountType === 'free') {
-            promptUpgradeForAi('AI block generation is available on Teacher and School plans.');
-            throw new Error("Upgrade required: AI block generation is not included in the Free plan.");
+            promptUpgradeForAi('AI block generation is included with free Teacher Access during early access.');
+            throw new Error("Activate Teacher Access to use AI block generation. Teacher Access is currently free during early access.");
         }
 
         const activity: ActivityConfig = normalizeActivityForAi({
@@ -2548,7 +2548,7 @@ const WorksheetBuilder: React.FC<{
 
     const handleSave = (docOverride?: WorksheetDesignerDocV1) => {
         if (!user) {
-            promptSignupForFree('Create a free account to save worksheets to your library.');
+            promptSignupForFree('Create a free Teacher Access account to save worksheets to your library.');
             return;
         }
         if (!generatedWs) return;
@@ -2655,7 +2655,7 @@ const WorksheetBuilder: React.FC<{
 
     const handleVisibilityToggle = () => {
         if (!user) {
-            promptSignupForFree('Create a free account to publish worksheets to the community.');
+            promptSignupForFree('Create a free Teacher Access account to publish worksheets to the community.');
             return;
         }
         setIsPublic(!isPublic);

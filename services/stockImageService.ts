@@ -214,3 +214,71 @@ export const searchStockImages = async (
     perPage,
   };
 };
+
+export const refreshStockImage = async (params: {
+  stockId?: string;
+  searchQuery?: string;
+  fallbackQuery?: string;
+  signal?: AbortSignal;
+}): Promise<StockImageResult | null> => {
+  const stockId = String(params.stockId || '').trim();
+  const searchQuery = String(params.searchQuery || params.fallbackQuery || '').trim();
+
+  if (stockId) {
+    const proxyUrl = new URL(STOCK_IMAGE_API_URL, window.location.origin);
+    proxyUrl.searchParams.set('id', stockId);
+    proxyUrl.searchParams.set('perPage', '3');
+    proxyUrl.searchParams.set('strict', 'false');
+
+    try {
+      const response = await fetch(proxyUrl.toString(), {
+        method: 'GET',
+        cache: 'no-store',
+        signal: params.signal,
+      });
+      if (response.ok) {
+        const data = (await response.json()) as StockImageSearchResult;
+        const first = Array.isArray(data.items) ? data.items[0] : null;
+        if (first) return sanitizeResult(first);
+      }
+    } catch {
+      // Fall through to query refresh.
+    }
+
+    if (PUBLIC_PIXABAY_API_KEY) {
+      try {
+        const directUrl = new URL('https://pixabay.com/api/');
+        directUrl.searchParams.set('key', PUBLIC_PIXABAY_API_KEY);
+        directUrl.searchParams.set('id', stockId);
+        directUrl.searchParams.set('safesearch', 'true');
+        directUrl.searchParams.set('image_type', 'all');
+        const directResponse = await fetch(directUrl.toString(), {
+          method: 'GET',
+          cache: 'no-store',
+          signal: params.signal,
+        });
+        if (directResponse.ok) {
+          const directData = (await directResponse.json()) as PixabayApiPayload;
+          const mapped = mapPixabayPayload(directData, searchQuery || stockId, false);
+          if (mapped.items[0]) return mapped.items[0];
+        }
+      } catch {
+        // Fall through to query refresh.
+      }
+    }
+  }
+
+  if (!searchQuery) return null;
+
+  try {
+    const result = await searchStockImages(searchQuery, {
+      page: 1,
+      perPage: 12,
+      strict: false,
+      signal: params.signal,
+    });
+    return result.items[0] || null;
+  } catch {
+    return null;
+  }
+};

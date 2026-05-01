@@ -400,6 +400,27 @@ export const playSound = (type: 'correct' | 'incorrect' | 'select' | 'win' | 'bo
 // --- DATA ACCESS LAYER ---
 
 export const isUUID = (str?: string) => !!str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+const questionHasImage = (question: any) => {
+    const image = question?.image;
+    if (!image) return false;
+    if (typeof image === 'string') return Boolean(image.trim());
+    if (typeof image !== 'object') return false;
+
+    return Boolean(
+        String(image.url || '').trim() ||
+        String(image.thumbUrl || image.thumbnailUrl || '').trim() ||
+        String(image.storagePath || image.storage_path || '').trim()
+    );
+};
+
+export const gameHasQuestionImages = (game: GeneratedGame) => {
+    if ((game.questions || []).some(questionHasImage)) return true;
+    if ((game.jeopardyBoard || []).some((category) => (category.questions || []).some(questionHasImage))) return true;
+    if ((game.pubQuizRounds || []).some((round) => (round.questions || []).some(questionHasImage))) return true;
+    return false;
+};
+
 let hasLoggedMissingPlayCountColumn = false;
 let hasLoggedMissingPlayEventRpc = false;
 
@@ -659,6 +680,7 @@ export const getCommunityGames = async (
     typeFilter: string = 'all', 
     sort: string = 'newest',
     sourceFilter: 'all' | 'ai' | 'manual' = 'all',
+    imageFilter: 'all' | 'with-images' | 'without-images' = 'all',
     authorId?: string,
     schoolId?: string
 ): Promise<{ data: GeneratedGame[], count: number, error: string | null }> => {
@@ -699,7 +721,11 @@ export const getCommunityGames = async (
 
         const from = (page - 1) * limit;
         const to = from + limit - 1;
-        query = query.range(from, to);
+        if (imageFilter === 'all') {
+            query = query.range(from, to);
+        } else {
+            query = query.range(0, 999);
+        }
 
         const { data, error, count } = await query;
         
@@ -719,6 +745,13 @@ export const getCommunityGames = async (
             stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
             createdAt: d.created_at
         }));
+
+        if (imageFilter !== 'all') {
+            const filteredData = mappedData.filter((game) =>
+                imageFilter === 'with-images' ? gameHasQuestionImages(game) : !gameHasQuestionImages(game)
+            );
+            return { data: filteredData.slice(from, to + 1), count: filteredData.length, error: null };
+        }
 
         return { data: mappedData, count: count || 0, error: null };
     } catch (e: any) {

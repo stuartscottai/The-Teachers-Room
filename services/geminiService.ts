@@ -51,7 +51,7 @@ const getRequiredAccessToken = async () => {
   if (userId) {
     const entitlements = await getMyEntitlements(userId);
     if (!entitlements.canUseAi) {
-      throw new Error('AI generation is not included in the Free plan. Upgrade to Teacher or School.');
+      throw new Error('AI generation is included with Teacher Access, which is currently free during early access. Activate Teacher Access to continue.');
     }
   }
 

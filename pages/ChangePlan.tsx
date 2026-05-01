@@ -12,28 +12,28 @@ type Feedback = { type: 'success' | 'error'; text: string } | null;
 
 const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features: string[] }> = {
   free: {
-    title: 'Free',
-    subtitle: 'Manual tools for everything, no AI generation.',
+    title: 'Starter',
+    subtitle: 'Manual tools for everything, no built-in AI generation.',
     features: [
       'Access to all manual creation tools',
       'Save and share games',
       'Community library access',
-      'AI generation locked'
+      'Built-in AI generation not included'
     ]
   },
   teacher: {
-    title: 'Teacher',
-    subtitle: '$7.99/month with monthly AI game credits for one teacher.',
+    title: 'Teacher Access',
+    subtitle: 'Currently free during early access. Includes AI game credits for one teacher.',
     features: [
       'Credits for approximately 50 AI-created games per month',
       'Unlimited manual game creation',
       'Manual tools stay fully available',
-      'Single-teacher plan'
+      'No payment required during early access'
     ]
   },
   school: {
-    title: 'School',
-    subtitle: 'From $29.99/month with a minimum of 5 teachers.',
+    title: 'School Access',
+    subtitle: 'Currently free during early access for schools testing the platform.',
     features: [
       'AI game credits for each teacher account',
       'Minimum 5 teacher seats',
@@ -126,8 +126,8 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     if (user.accountType === 'school' && (target === 'teacher' || target === 'free')) {
       const isSchoolTeacher = user.schoolAccess?.role === 'teacher';
       const confirmationMessage = isSchoolTeacher
-        ? `Switch to ${target === 'teacher' ? 'Teacher' : 'Free'}? This removes your school membership for this account.`
-        : `Switch to ${target === 'teacher' ? 'Teacher' : 'Free'}? This removes your active school membership for this account. Downgrades are only allowed when all school members are inactive. If you own the school, affiliated members are moved to Free.`;
+        ? `Switch to ${target === 'teacher' ? 'Teacher Access' : 'Starter'}? This removes your school membership for this account.`
+        : `Switch to ${target === 'teacher' ? 'Teacher Access' : 'Starter'}? This removes your active school membership for this account. Downgrades are only allowed when all school members are inactive. If you own the school, affiliated members are moved to Starter.`;
       const confirmed = window.confirm(
         confirmationMessage
       );
@@ -155,7 +155,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     }
 
     setPendingTarget(null);
-    setFeedback({ type: 'success', text: `Plan switched to ${PLAN_DEFS[target].title}.` });
+    setFeedback({ type: 'success', text: `Access level switched to ${PLAN_DEFS[target].title}.` });
   };
 
   const handlePickSchoolLogo = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,7 +191,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
     if (error) {
       setPendingTarget(null);
-      setFeedback({ type: 'error', text: getErrorMessage(error, 'Could not switch to School.') });
+      setFeedback({ type: 'error', text: getErrorMessage(error, 'Could not switch to School Access.') });
       return;
     }
 
@@ -204,7 +204,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         await refreshUserAccess();
         setFeedback({
           type: 'error',
-          text: `Plan switched to School, but logo upload failed: ${getErrorMessage(logoError, 'Please try again.')}`
+          text: `Access level switched to School Access, but logo upload failed: ${getErrorMessage(logoError, 'Please try again.')}`
         });
         return;
       }
@@ -222,16 +222,16 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     }
 
     setPendingTarget(null);
-    setFeedback({ type: 'success', text: 'Plan switched to School.' });
+    setFeedback({ type: 'success', text: 'Access level switched to School Access.' });
   };
 
-  const pageTitle = isOnboarding ? 'Choose Your Account Tier' : 'Change Plan';
+  const pageTitle = isOnboarding ? 'Choose Your Access Level' : 'Change Access Level';
   const pageDescription = isOnboarding
-    ? 'Your account is confirmed. Stay on Free for now, or upgrade to Teacher or School.'
-    : 'Choose the plan that fits now. You can move up or down between plans.';
+    ? 'Your account is confirmed. Teacher Access is free during early access, so you can start creating games straight away.'
+    : 'Choose the access level that fits now. Teacher Access is currently free while payment is not live.';
   const badgeText =
-    isOnboarding && user?.accountType === 'free'
-      ? 'Default: Free'
+    isOnboarding && user?.accountType === 'teacher'
+      ? 'Default: Teacher Access'
       : `Current: ${PLAN_DEFS[user?.accountType || 'free'].title}`;
 
   if (!user) {
@@ -241,12 +241,12 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{pageTitle}</h1>
           <p className="text-slate-500 mb-6">
             {isOnboarding
-              ? 'Sign up or log in first to choose an account tier.'
-              : 'Sign up or log in first to change your plan.'}
+              ? 'Sign up or log in first to choose an access level.'
+              : 'Sign up or log in first to change your access level.'}
           </p>
           <button
             type="button"
-            onClick={() => promptSignupForFree('Create a free account to continue.')}
+            onClick={() => promptSignupForFree('Create a free Teacher Access account to continue.')}
             className="px-6 py-3 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
           >
             Sign Up Free
@@ -275,9 +275,9 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               imageClassName="h-16 w-16 object-contain"
               nameClassName="mt-2 font-display text-xl font-bold text-slate-800"
             />
-            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Beta Trial Period</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Early Access Period</h2>
             <p className="text-sm leading-relaxed text-slate-600">
-              The website is currently in a beta trial period. All tiers are available for free for a limited time so teachers and schools can try everything out.
+              Teacher Access and School Access are currently free while payment is not live. You will get advance notice before any billing is introduced.
             </p>
             <button
               type="button"
@@ -321,12 +321,12 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               user.accountType === 'free' ? 'border-brand-blue' : 'border-slate-200'
             }`}
           >
-            <h2 className="text-xl font-bold text-slate-800 mb-1">Free</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-1">Starter</h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.free.subtitle}</p>
             <ul className="space-y-2 mb-6">
               {PLAN_DEFS.free.features.map((feature) => (
                 <li key={feature} className="flex items-start text-sm text-slate-600">
-                  {feature.includes('locked') ? (
+                  {feature.includes('not included') ? (
                     <X size={15} className="text-red-500 mt-0.5 mr-2 shrink-0" />
                   ) : (
                     <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
@@ -349,13 +349,13 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                 ? pendingTarget === 'free'
                   ? 'Continuing...'
                   : user.accountType === 'free'
-                    ? 'Continue With Free'
-                    : 'Switch To Free'
+                    ? 'Continue With Starter'
+                    : 'Switch To Starter'
                 : user.accountType === 'free'
-                  ? 'Current Plan'
+                  ? 'Current Access'
                   : pendingTarget === 'free'
                     ? 'Switching...'
-                    : 'Switch To Free'}
+                    : 'Switch To Starter'}
             </button>
           </section>
 
@@ -365,7 +365,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             }`}
           >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
-              <GraduationCap size={18} className="mr-2 text-brand-blue" /> Teacher
+              <GraduationCap size={18} className="mr-2 text-brand-blue" /> Teacher Access
             </h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.teacher.subtitle}</p>
             <ul className="space-y-2 mb-6">
@@ -392,13 +392,13 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                     ? 'Continuing...'
                     : 'Upgrading...'
                   : user.accountType === 'teacher'
-                    ? 'Continue With Teacher'
-                    : 'Upgrade To Teacher'
+                    ? 'Continue With Teacher Access'
+                    : 'Activate Teacher Access'
                 : user.accountType === 'teacher'
-                  ? 'Current Plan'
+                  ? 'Current Access'
                   : pendingTarget === 'teacher'
                     ? 'Switching...'
-                    : 'Switch To Teacher'}
+                    : 'Switch To Teacher Access'}
             </button>
           </section>
 
@@ -408,7 +408,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             }`}
           >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
-              <Building2 size={18} className="mr-2 text-brand-blue" /> School
+              <Building2 size={18} className="mr-2 text-brand-blue" /> School Access
             </h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.school.subtitle}</p>
             <ul className="space-y-2 mb-6">
@@ -425,7 +425,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                 disabled
                 className="w-full py-2.5 rounded-lg font-bold bg-slate-100 text-slate-500 cursor-not-allowed"
               >
-                Current Plan
+                Current Access
               </button>
             ) : (
               <button
@@ -443,13 +443,13 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                   ? user.accountType === 'school'
                     ? pendingTarget === 'school'
                       ? 'Continuing...'
-                      : 'Continue With School'
+                      : 'Continue With School Access'
                     : showSchoolSetup
                       ? 'Hide School Setup'
-                      : 'Upgrade To School'
+                      : 'Set Up School Access'
                   : showSchoolSetup
                     ? 'Hide School Setup'
-                    : 'Switch To School'}
+                    : 'Switch To School Access'}
               </button>
             )}
           </section>
@@ -461,7 +461,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             <p className="text-sm text-slate-500 mb-4">
               {isOnboarding
                 ? 'Add the basics for your school account. You can adjust the rest later.'
-                : 'Add initial school details to switch to the School plan.'}
+                : 'Add initial school details to switch to School Access.'}
             </p>
             <form onSubmit={handleConfirmSchoolPlan} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -523,8 +523,8 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                     ? 'Creating...'
                     : 'Switching...'
                   : isOnboarding
-                    ? 'Continue With School'
-                    : 'Confirm School Plan'}
+                    ? 'Continue With School Access'
+                    : 'Confirm School Access'}
               </button>
             </form>
           </section>
@@ -533,7 +533,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         {user.accountType === 'school' && user.schoolAccess?.role === 'admin' && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 text-sm flex items-start">
             <AlertCircle size={16} className="mr-2 mt-0.5 shrink-0" />
-            School accounts can downgrade only when all school members are inactive. If the owner downgrades, affiliated members move to Free.
+            School accounts can switch away from School Access only when all school members are inactive. If the owner switches away, affiliated members move to Starter.
           </div>
         )}
       </div>

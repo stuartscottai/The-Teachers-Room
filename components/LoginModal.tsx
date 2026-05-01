@@ -146,7 +146,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     if (isForgotPassword) {
       return "Enter your email and we'll send a reset link if an account exists.";
     }
-    return messageOverride || (isLogin ? 'Login to access your saved games' : 'Create an account to start saving');
+    return messageOverride || (isLogin ? 'Login to access your saved games' : 'Create a free Teacher Access account to start saving and creating');
   };
 
   return (

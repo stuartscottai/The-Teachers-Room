@@ -580,6 +580,8 @@ const getQuestionFallbackImage = async (
       url: pickedCandidate.url,
       thumbUrl: pickedCandidate.thumbUrl,
       source: 'stock' as const,
+      stockId: pickedCandidate.id,
+      searchQuery: QUESTION_FALLBACK_QUERY,
       alt: QUESTION_FALLBACK_QUERY,
     };
     imageCache.set(QUESTION_FALLBACK_CACHE_KEY, picked);
@@ -697,6 +699,8 @@ export const autoPickImagesForQuestions = async (
           url: pickedCandidate.url,
           thumbUrl: pickedCandidate.thumbUrl,
           source: 'stock' as const,
+          stockId: pickedCandidate.id,
+          searchQuery: pickedQuery || query || pickedCandidate.alt || QUESTION_FALLBACK_QUERY,
           alt: (pickedQuery || query || pickedCandidate.alt || QUESTION_FALLBACK_QUERY).trim(),
         };
         imageCache.set(key, picked);

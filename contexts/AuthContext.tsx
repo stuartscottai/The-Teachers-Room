@@ -94,7 +94,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await ensureProfileRow({
         userId: authUser.id,
         fullName: baseUser.name,
-        avatarUrl: baseUser.avatar || null
+        avatarUrl: baseUser.avatar || null,
+        accountType: baseUser.accountType !== 'free' ? baseUser.accountType : undefined
       });
       if (typeof window !== 'undefined') {
         const pendingCodeFromStorage = normalizeSchoolCode(window.localStorage.getItem(PENDING_SCHOOL_CODE_STORAGE_KEY));
@@ -201,8 +202,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanSchoolCode = normalizeSchoolCode(schoolCode);
     const signupMeta: Record<string, any> = {
       full_name: name,
-      account_type: 'free',
-      needs_plan_selection: true
+      account_type: 'teacher',
+      needs_plan_selection: false
     };
     if (cleanSchoolCode) {
       signupMeta.pending_school_code = cleanSchoolCode;
@@ -224,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: data.user.id,
         fullName: name,
         avatarUrl: null,
-        accountType: 'free'
+        accountType: 'teacher'
       });
     }
 

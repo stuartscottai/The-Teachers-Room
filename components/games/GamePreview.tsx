@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameImageUrl, resolveGameImageUrls } from '../../utils/gameImage';
+import { refreshStockImage } from '../../services/stockImageService';
 
 type PreviewItem = {
   id: string;
@@ -13,16 +14,32 @@ type PreviewItem = {
   options?: string[];
   group?: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
+  image?: GeneratedQuestion['image'];
+  refreshQuery?: string;
 };
 
-const PreviewQuestionImage: React.FC<{ src: string; label: string }> = ({ src, label }) => {
+const PreviewQuestionImage: React.FC<{
+  sources: string[];
+  label: string;
+  image?: GeneratedQuestion['image'];
+  refreshQuery?: string;
+}> = ({ sources, label, image, refreshQuery }) => {
+  const initialUrls = useMemo(() => sources.map((src) => String(src || '').trim()).filter(Boolean), [sources]);
+  const [urls, setUrls] = useState<string[]>(initialUrls);
+  const [sourceIndex, setSourceIndex] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [refreshAttempted, setRefreshAttempted] = useState(false);
+  const src = urls[sourceIndex] || '';
 
   useEffect(() => {
+    setUrls(initialUrls);
     setFailed(false);
-  }, [src]);
+    setSourceIndex(0);
+    setRefreshAttempted(false);
+  }, [initialUrls]);
 
-  if (failed) return null;
+  if (!src || failed) return null;
 
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
@@ -30,7 +47,32 @@ const PreviewQuestionImage: React.FC<{ src: string; label: string }> = ({ src, l
         src={src}
         alt={`Preview image for ${label}`}
         className="h-24 w-full object-cover"
-        onError={() => setFailed(true)}
+        onError={async () => {
+          if (sourceIndex < urls.length - 1) {
+            setSourceIndex((current) => current + 1);
+            return;
+          }
+
+          if (!refreshAttempted && image?.source === 'stock') {
+            setRefreshAttempted(true);
+            const refreshed = await refreshStockImage({
+              stockId: image.stockId,
+              searchQuery: image.searchQuery,
+              fallbackQuery: refreshQuery || image.alt || label,
+            });
+            if (refreshed) {
+              const refreshedUrls = resolveGameImageUrls(refreshed.url, refreshed.thumbUrl);
+              if (refreshedUrls.length) {
+                setUrls(refreshedUrls);
+                setSourceIndex(0);
+                return;
+              }
+            }
+          }
+
+          setFailed(true);
+          console.warn('Preview image failed to load:', { label, sources: urls });
+        }}
       />
     </div>
   );
@@ -147,6 +189,17 @@ const buildCompactOptionsText = (options?: string[]) =>
     .map((option, index) => `${String.fromCharCode(65 + index)}. ${option}`)
     .join(' | ');
 
+const getLegacyImageRefreshQuery = (question: GeneratedQuestion, gameType?: GameType) => {
+  const imageAlt = String(question.image?.alt || '').trim();
+  if (imageAlt) return imageAlt;
+
+  const keywords = (question.imageKeywords || []).map((item) => String(item || '').trim()).filter(Boolean);
+  if (keywords.length) return keywords.slice(0, 2).join(' ');
+
+  if (gameType === GameType.WORD_WHEEL && question.answer) return question.answer;
+  return question.question || question.answer || '';
+};
+
 const buildStandardQuestionItem = (question: GeneratedQuestion, index: number, gameType?: GameType): PreviewItem => ({
   id: `std-${index}`,
   title:
@@ -158,6 +211,9 @@ const buildStandardQuestionItem = (question: GeneratedQuestion, index: number, g
   answer: buildAnswerSummary(question, gameType),
   options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
   imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
+  imageUrls: resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
+  image: question.image,
+  refreshQuery: question.image?.searchQuery || getLegacyImageRefreshQuery(question, gameType),
 });
 
 const buildGroupedItems = (
@@ -175,6 +231,9 @@ const buildGroupedItems = (
       answer: buildAnswerSummary(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
       options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
       imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
+      imageUrls: resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
+      image: question.image,
+      refreshQuery: question.image?.searchQuery || getLegacyImageRefreshQuery(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
     }))
   );
 
@@ -412,7 +471,14 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
             </div>
           )}
 
-          {item.imageUrl && <PreviewQuestionImage src={item.imageUrl} label={item.title} />}
+          {item.imageUrl && (
+            <PreviewQuestionImage
+              sources={item.imageUrls?.length ? item.imageUrls : [item.imageUrl]}
+              label={item.title}
+              image={item.image}
+              refreshQuery={item.refreshQuery || item.prompt}
+            />
+          )}
         </div>
 
         <div
@@ -713,15 +779,18 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white/86 px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
   const selectActionButtonClass =
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+  const liveQuizActionButtonClass =
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-sky-500 bg-sky-600 px-2.5 text-[11px] font-bold text-white shadow-md transition-colors hover:border-sky-600 hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
   const playActionButtonClass =
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
-  const topActionCount = [onSave, onShare, onStudentShare, onLiveQuiz].filter(Boolean).length + 1;
+  const topActionCount = [onSave, onShare, onStudentShare].filter(Boolean).length + 1;
   const topActionGridClass =
-    topActionCount >= 5
-      ? 'grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5 sm:gap-3'
-      : topActionCount === 4
+    topActionCount === 4
       ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
       : 'grid grid-cols-3 gap-2 sm:gap-3';
+  const selectionActionGridClass = onLiveQuiz
+    ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
+    : 'grid grid-cols-3 gap-2 sm:gap-3';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
@@ -846,21 +915,8 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                     <span className="hidden sm:inline">Student share</span>
                   </button>
                 )}
-                {onLiveQuiz && (
-                  <button
-                    type="button"
-                    onClick={() => void onLiveQuiz(Array.from(selectedIds))}
-                    disabled={selectedCount === 0}
-                    className={secondaryActionButtonClass}
-                    aria-label="Live quiz"
-                    title="Live quiz"
-                  >
-                    <Radio size={16} />
-                    <span className="hidden sm:inline">Live quiz</span>
-                  </button>
-                )}
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className={selectionActionGridClass}>
                 <button
                   type="button"
                   onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}
@@ -879,6 +935,19 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   <Square size={15} />
                   <span>Clear</span>
                 </button>
+                {onLiveQuiz && (
+                  <button
+                    type="button"
+                    onClick={() => void onLiveQuiz(Array.from(selectedIds))}
+                    disabled={selectedCount === 0}
+                    className={liveQuizActionButtonClass}
+                    aria-label="Live quiz"
+                    title="Live quiz"
+                  >
+                    <Radio size={16} />
+                    <span className="hidden sm:inline">Live quiz</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handlePlay}

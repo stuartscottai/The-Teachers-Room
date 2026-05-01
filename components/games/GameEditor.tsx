@@ -232,7 +232,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return null;
         }
         if (!user) {
-            promptSignupForFree('Create a free account to save games to your profile.');
+            promptSignupForFree('Create a free Teacher Access account to save games to your profile.');
             return null;
         }
         setSaveStatus('saving');
@@ -315,7 +315,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     const handleVisibilityToggle = () => {
         if (!user) {
-            promptSignupForFree('Create a free account to publish games to the community.');
+            promptSignupForFree('Create a free Teacher Access account to publish games to the community.');
             return;
         }
         if (!isPublic && editedGame.sourceGameId && !hasEdits) {
@@ -352,7 +352,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return;
         }
         if (!user) {
-            promptSignupForFree('Create a free account to share games.');
+            promptSignupForFree('Create a free Teacher Access account to share games.');
             return;
         }
 
@@ -416,7 +416,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         }
 
         if (!user) {
-            promptSignupForFree('Create a free account to share games with students.');
+            promptSignupForFree('Create a free Teacher Access account to share games with students.');
             return;
         }
 
@@ -463,6 +463,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 url: question.image.url,
                 thumbUrl: question.image.thumbUrl || question.image.url,
                 label: question.image.alt || '',
+                searchQuery: question.image.searchQuery || '',
             }]
             : [];
         setImagePickerSelection(initialSelection);
@@ -509,6 +510,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 url: first.url,
                 thumbUrl: first.thumbUrl,
                 source: 'stock',
+                stockId: first.id,
+                searchQuery: first.searchQuery || imagePickerQuery || first.label,
                 alt: first.label,
             });
         }

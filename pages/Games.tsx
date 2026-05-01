@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { createSelectedStudentGameShare, deleteSavedGame, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createSelectedStudentGameShare, deleteSavedGame, gameHasQuestionImages, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
@@ -302,6 +302,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     const [typeFilter, setTypeFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
+    const [imageFilter, setImageFilter] = useState<'all' | 'with-images' | 'without-images'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const pageSizeOptions = [10, 20, 30, 40, 50];
@@ -319,7 +320,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search, typeFilter, sortBy, sourceFilter, itemsPerPage]);
+    }, [search, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -345,6 +346,10 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
         // Source
         if (sourceFilter === 'ai' && !g.config.isAI) return false;
         if (sourceFilter === 'manual' && g.config.isAI) return false;
+
+        // Image status
+        if (imageFilter === 'with-images' && !gameHasQuestionImages(g)) return false;
+        if (imageFilter === 'without-images' && gameHasQuestionImages(g)) return false;
 
         return true;
     }).sort((a, b) => {
@@ -411,6 +416,19 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <option value="all">All Sources</option>
                         <option value="ai">AI Generated</option>
                         <option value="manual">Handcrafted</option>
+                    </select>
+                </div>
+
+                <div className="relative min-w-[170px] w-full md:w-auto">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <select
+                        value={imageFilter}
+                        onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="all">Any Image Status</option>
+                        <option value="with-images">With Images</option>
+                        <option value="without-images">Without Images</option>
                     </select>
                 </div>
 
@@ -568,26 +586,90 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 };
 
 // --- COMMUNITY LIBRARY COMPONENT ---
+const COMMUNITY_LIBRARY_STATE_KEY = 'ttr-community-library-state-v1';
+
+type CommunityImageFilter = 'all' | 'with-images' | 'without-images';
+type CommunitySourceFilter = 'all' | 'ai' | 'manual';
+type CommunityScopeFilter = 'all' | 'school';
+
+interface CommunityLibraryState {
+    searchInput: string;
+    searchQuery: string;
+    isSearchAutoFilled: boolean;
+    typeFilter: string;
+    sortBy: string;
+    sourceFilter: CommunitySourceFilter;
+    imageFilter: CommunityImageFilter;
+    communityScope: CommunityScopeFilter;
+    authorFilter: { id: string; name: string } | null;
+    currentPage: number;
+    itemsPerPage: number;
+}
+
+const communityLibraryDefaults: CommunityLibraryState = {
+    searchInput: '',
+    searchQuery: '',
+    isSearchAutoFilled: false,
+    typeFilter: 'all',
+    sortBy: 'newest',
+    sourceFilter: 'all',
+    imageFilter: 'all',
+    communityScope: 'all',
+    authorFilter: null,
+    currentPage: 1,
+    itemsPerPage: 10
+};
+
+const readCommunityLibraryState = (): CommunityLibraryState => {
+    if (typeof window === 'undefined') return communityLibraryDefaults;
+
+    try {
+        const raw = window.localStorage.getItem(COMMUNITY_LIBRARY_STATE_KEY);
+        if (!raw) return communityLibraryDefaults;
+
+        const parsed = JSON.parse(raw) as Partial<CommunityLibraryState>;
+        return {
+            ...communityLibraryDefaults,
+            ...parsed,
+            searchInput: typeof parsed.searchInput === 'string' ? parsed.searchInput : '',
+            searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : '',
+            typeFilter: typeof parsed.typeFilter === 'string' ? parsed.typeFilter : 'all',
+            sortBy: typeof parsed.sortBy === 'string' ? parsed.sortBy : 'newest',
+            sourceFilter: ['all', 'ai', 'manual'].includes(parsed.sourceFilter || '') ? parsed.sourceFilter as CommunitySourceFilter : 'all',
+            imageFilter: ['all', 'with-images', 'without-images'].includes(parsed.imageFilter || '') ? parsed.imageFilter as CommunityImageFilter : 'all',
+            communityScope: ['all', 'school'].includes(parsed.communityScope || '') ? parsed.communityScope as CommunityScopeFilter : 'all',
+            authorFilter: parsed.authorFilter?.id && parsed.authorFilter?.name ? parsed.authorFilter : null,
+            currentPage: Number.isFinite(parsed.currentPage) && Number(parsed.currentPage) > 0 ? Number(parsed.currentPage) : 1,
+            itemsPerPage: [10, 20, 30, 40, 50].includes(Number(parsed.itemsPerPage)) ? Number(parsed.itemsPerPage) : 10
+        };
+    } catch {
+        return communityLibraryDefaults;
+    }
+};
+
 const CommunityLibrary: React.FC<{
     onLoadGame: (game: GeneratedGame) => void;
     initialAuthorFilter?: { id?: string; name: string } | null;
     initialSearch?: string;
 }> = ({ onLoadGame, initialAuthorFilter, initialSearch }) => {
     const { user } = useAuth();
+    const savedState = useRef(readCommunityLibraryState()).current;
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchInput, setSearchInput] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchAutoFilled, setIsSearchAutoFilled] = useState(false);
-    const [typeFilter, setTypeFilter] = useState('all');
-    const [sortBy, setSortBy] = useState('newest');
-    const [sourceFilter, setSourceFilter] = useState<'all' | 'ai' | 'manual'>('all');
-    const [communityScope, setCommunityScope] = useState<'all' | 'school'>('all');
-    const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [searchInput, setSearchInput] = useState(savedState.searchInput);
+    const [searchQuery, setSearchQuery] = useState(savedState.searchQuery);
+    const [isSearchAutoFilled, setIsSearchAutoFilled] = useState(savedState.isSearchAutoFilled);
+    const [typeFilter, setTypeFilter] = useState(savedState.typeFilter);
+    const [sortBy, setSortBy] = useState(savedState.sortBy);
+    const [sourceFilter, setSourceFilter] = useState<CommunitySourceFilter>(savedState.sourceFilter);
+    const [imageFilter, setImageFilter] = useState<CommunityImageFilter>(savedState.imageFilter);
+    const [communityScope, setCommunityScope] = useState<CommunityScopeFilter>(savedState.communityScope);
+    const [authorFilter, setAuthorFilter] = useState<{ id: string; name: string } | null>(savedState.authorFilter);
+    const [currentPage, setCurrentPage] = useState(savedState.currentPage);
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(savedState.itemsPerPage);
+    const hasMountedForPageReset = useRef(false);
     const pageSizeOptions = [10, 20, 30, 40, 50];
     const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
     const schoolCommunityName = user?.accountType === 'school' ? user.schoolAccess?.schoolName : '';
@@ -605,6 +687,7 @@ const CommunityLibrary: React.FC<{
             typeFilter,
             sortBy,
             sourceFilter,
+            imageFilter,
             authorFilter?.id,
             communityScope === 'school' ? schoolCommunityId : undefined
         );
@@ -621,15 +704,39 @@ const CommunityLibrary: React.FC<{
     };
 
     useEffect(() => {
+        if (!hasMountedForPageReset.current) {
+            hasMountedForPageReset.current = true;
+            return;
+        }
         setCurrentPage(1);
-    }, [searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter, communityScope]);
+    }, [searchQuery, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage, authorFilter, communityScope]);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(COMMUNITY_LIBRARY_STATE_KEY, JSON.stringify({
+                searchInput,
+                searchQuery,
+                isSearchAutoFilled,
+                typeFilter,
+                sortBy,
+                sourceFilter,
+                imageFilter,
+                communityScope,
+                authorFilter,
+                currentPage,
+                itemsPerPage
+            }));
+        } catch {
+            // Local storage is a convenience only; the library still works without it.
+        }
+    }, [searchInput, searchQuery, isSearchAutoFilled, typeFilter, sortBy, sourceFilter, imageFilter, communityScope, authorFilter, currentPage, itemsPerPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGames();
         }, 500); 
         return () => clearTimeout(timer);
-    }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
+    }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
 
     useEffect(() => {
         if (!canFilterBySchool && communityScope === 'school') {
@@ -725,6 +832,19 @@ const CommunityLibrary: React.FC<{
                         <option value="all">All Sources</option>
                         <option value="ai">AI Generated</option>
                         <option value="manual">Handcrafted</option>
+                    </select>
+                </div>
+
+                <div className="relative min-w-[170px] w-full md:w-auto">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <select
+                        value={imageFilter}
+                        onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
+                        className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
+                    >
+                        <option value="all">Any Image Status</option>
+                        <option value="with-images">With Images</option>
+                        <option value="without-images">Without Images</option>
                     </select>
                 </div>
 
@@ -1304,7 +1424,7 @@ export const Games: React.FC = () => {
 
     const handleSelect = (type: GameType) => {
         if (!user) {
-            promptSignupForFree('Create a free account to start creating games.');
+            promptSignupForFree('Create a free Teacher Access account to start creating games.');
             return;
         }
         setSelectedType(type);
@@ -1316,7 +1436,7 @@ export const Games: React.FC = () => {
 
     const handleModeSelect = (mode: 'ai' | 'manual' | 'bank') => {
         if (mode === 'ai' && user?.accountType === 'free') {
-            promptUpgradeForAi('AI game generation is available on Teacher and School plans.');
+            promptUpgradeForAi('AI game generation is included with free Teacher Access during early access.');
             return;
         }
         setCreationMode(mode);
@@ -1349,7 +1469,7 @@ export const Games: React.FC = () => {
 
         if (updatedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
             if (!user) {
-                promptSignupForFree('Create a free account to host live quiz challenges.');
+                promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
                 return;
             }
             setLiveQuizSelectedItems([]);
@@ -1400,7 +1520,7 @@ export const Games: React.FC = () => {
 
     const handleLoadPersonalGame = (game: GeneratedGame) => {
         if (!user) {
-            promptSignupForFree('Create a free account to use saved game features.');
+            promptSignupForFree('Create a free Teacher Access account to use saved game features.');
             return;
         }
         setGeneratedGame(game);
@@ -1413,7 +1533,7 @@ export const Games: React.FC = () => {
 
     const handleLoadCommunityGame = (game: GeneratedGame) => {
         if (!user) {
-            promptSignupForFree('Create a free account to copy and play community games.');
+            promptSignupForFree('Create a free Teacher Access account to copy and play community games.');
             return;
         }
         // Strip ID to treat as template (avoid overwriting public game or confusing local store)
@@ -1473,7 +1593,7 @@ export const Games: React.FC = () => {
     const handlePreviewSave = async () => {
         if (!generatedGame) return;
         if (!user) {
-            promptSignupForFree('Create a free account to save games to your library.');
+            promptSignupForFree('Create a free Teacher Access account to save games to your library.');
             return;
         }
         const savedGame = await persistPreviewGame(generatedGame);
@@ -1495,7 +1615,7 @@ export const Games: React.FC = () => {
         }
 
         if (!user) {
-            promptSignupForFree('Create a free account to share games with colleagues.');
+            promptSignupForFree('Create a free Teacher Access account to share games with colleagues.');
             return;
         }
 
@@ -1534,7 +1654,7 @@ export const Games: React.FC = () => {
         }
 
         if (!user) {
-            promptSignupForFree('Create a free account to share games with students.');
+            promptSignupForFree('Create a free Teacher Access account to share games with students.');
             return;
         }
 
@@ -1581,7 +1701,7 @@ export const Games: React.FC = () => {
         if (!generatedGame) return;
 
         if (!user) {
-            promptSignupForFree('Create a free account to host live quiz challenges.');
+            promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
             return;
         }
 
@@ -1628,7 +1748,7 @@ export const Games: React.FC = () => {
 
         if (gameToPlay.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
             if (!user) {
-                promptSignupForFree('Create a free account to host live quiz challenges.');
+                promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
                 return;
             }
             setLiveQuizSelectedItems([]);
@@ -1801,11 +1921,11 @@ export const Games: React.FC = () => {
                     onLoadPersonalGame={handleLoadPersonalGame}
                     onOpenAiAssistant={() => {
                         if (!user) {
-                            promptSignupForFree('Create a free account to use the AI Assistant.');
+                            promptSignupForFree('Create a free Teacher Access account to use the AI Assistant.');
                             return;
                         }
                         if (user.accountType === 'free') {
-                            promptUpgradeForAi('The AI Assistant is available on Teacher and School plans.');
+                            promptUpgradeForAi('The AI Assistant is included with free Teacher Access during early access.');
                             return;
                         }
                         setIsAssistantOpen(true);

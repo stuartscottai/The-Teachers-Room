@@ -195,6 +195,8 @@ export interface GeneratedQuestion {
     storagePath?: string;
     thumbUrl?: string;
     source?: 'stock' | 'upload';
+    stockId?: string;
+    searchQuery?: string;
     alt?: string;
   };
   imageKeywords?: string[];
