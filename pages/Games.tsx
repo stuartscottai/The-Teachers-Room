@@ -9,22 +9,12 @@ import { createSelectedStudentGameShare, deleteSavedGame, getCommunityGames, get
 import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 
-// Import Modular Components
-import { JeopardyGame } from '../components/games/JeopardyGame';
-import { TriviaGame } from '../components/games/TriviaGame';
-import { PubQuizGame } from '../components/games/PubQuizGame';
-import { DartsGame } from '../components/games/DartsGame';
-import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
-import { MillionaireGame } from '../components/games/MillionaireGame';
-import { TimeBombGame } from '../components/games/TimeBombGame';
-import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
-import { StopTheFireGame } from '../components/games/StopTheFireGame';
-import { WordWheelGame } from '../components/games/WordWheelGame';
 import { GameEditor } from '../components/games/GameEditor';
 import { GamePreview } from '../components/games/GamePreview';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
+import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { Avatar } from '../components/Avatar';
 import { StudentShareModal } from '../components/games/StudentShareModal';
 import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
@@ -1878,103 +1868,13 @@ export const Games: React.FC = () => {
             )}
 
             {step === 'play' && (sessionGame || generatedGame) && playOptions && (
-                selectedType === GameType.JEOPARDY ? (
-                    <JeopardyGame 
-                        game={sessionGame || generatedGame!} 
-                        options={playOptions}
-                        onBack={handleGameEnd} 
-                        onFinish={() => setStep('hub')} 
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.TRIVIA ? (
-                    <TriviaGame 
-                        game={sessionGame || generatedGame!} 
-                        options={playOptions}
-                        onBack={handleGameEnd} 
-                        onFinish={() => setStep('hub')} 
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.PUB_QUIZ ? (
-                    <PubQuizGame 
-                        game={sessionGame || generatedGame!} 
-                        options={playOptions}
-                        onBack={handleGameEnd} 
-                        onFinish={() => setStep('hub')} 
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.DARTS ? (
-                    <DartsGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.SNAKES_LADDERS ? (
-                    <SnakesLaddersGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.MILLIONAIRE ? (
-                    <MillionaireGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.TIME_BOMB ? (
-                    <TimeBombGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.SURVEY_SHOWDOWN ? (
-                    <SurveyShowdownGame
-                        game={sessionGame || generatedGame!} 
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')} 
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.STOP_THE_FIRE ? (
-                    <StopTheFireGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : selectedType === GameType.WORD_WHEEL ? (
-                    <WordWheelGame
-                        game={sessionGame || generatedGame!}
-                        options={playOptions}
-                        onBack={handleGameEnd}
-                        onFinish={() => setStep('hub')}
-                        onReplay={handleReplay}
-                    />
-                ) : (
-                    <div className="max-w-6xl mx-auto px-4 py-12">
-                         <div className="flex items-center justify-between mb-8">
-                            <button onClick={handleGameEnd} className="flex items-center text-slate-500 hover:text-sky-600">
-                                <ArrowLeft size={18} className="mr-2" /> Exit Game
-                            </button>
-                        </div>
-                        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-                            <div className="bg-slate-800 p-6 text-white">
-                                <h1 className="text-2xl font-display font-bold">{(sessionGame || generatedGame)!.title}</h1>
-                            </div>
-                            <div className="p-8 text-center text-slate-500">
-                                Standard game mode under construction.
-                            </div>
-                        </div>
-                    </div>
-                )
+                <LazyGameRunner
+                    game={sessionGame || generatedGame!}
+                    options={playOptions}
+                    onBack={handleGameEnd}
+                    onFinish={() => setStep('hub')}
+                    onReplay={handleReplay}
+                />
             )}
 
             {isAssistantOpen && (

@@ -38,7 +38,7 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
   await expect(page.getByTestId('game-smoke-root')).toHaveAttribute('data-mode', 'snakes');
 
   await page.getByRole('button', { name: /Start Game/i }).click();
-  await page.getByLabel('Roll Dice').click({ force: true });
+  await page.getByRole('button', { name: /Roll Dice/i }).last().dispatchEvent('click');
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 8_000 });
   await expectLoadedSmokeImage(page);
   await page.getByRole('button', { name: /Correct/i }).first().click();

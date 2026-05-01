@@ -9,16 +9,7 @@ import { LoginModal } from '../components/LoginModal';
 import { GameSetup } from '../components/games/GameSetup';
 import { GamePreview } from '../components/games/GamePreview';
 import { GameEditor } from '../components/games/GameEditor';
-import { JeopardyGame } from '../components/games/JeopardyGame';
-import { TriviaGame } from '../components/games/TriviaGame';
-import { PubQuizGame } from '../components/games/PubQuizGame';
-import { DartsGame } from '../components/games/DartsGame';
-import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
-import { MillionaireGame } from '../components/games/MillionaireGame';
-import { TimeBombGame } from '../components/games/TimeBombGame';
-import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
-import { StopTheFireGame } from '../components/games/StopTheFireGame';
-import { WordWheelGame } from '../components/games/WordWheelGame';
+import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { StudentShareModal } from '../components/games/StudentShareModal';
 import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 
@@ -511,36 +502,5 @@ export const ShareGame: React.FC = () => {
     onReplay: handleReplay,
   };
 
-  if (game.config.type === GameType.JEOPARDY) {
-    return <JeopardyGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.TRIVIA) {
-    return <TriviaGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.PUB_QUIZ) {
-    return <PubQuizGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.DARTS) {
-    return <DartsGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.SNAKES_LADDERS) {
-    return <SnakesLaddersGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.MILLIONAIRE) {
-    return <MillionaireGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.TIME_BOMB) {
-    return <TimeBombGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.SURVEY_SHOWDOWN) {
-    return <SurveyShowdownGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.STOP_THE_FIRE) {
-    return <StopTheFireGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-  if (game.config.type === GameType.WORD_WHEEL) {
-    return <WordWheelGame key={playKey} {...commonProps} onBack={handleGameEnd} />;
-  }
-
-  return null;
+  return <LazyGameRunner key={playKey} {...commonProps} onBack={handleGameEnd} />;
 };

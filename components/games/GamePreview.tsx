@@ -15,6 +15,27 @@ type PreviewItem = {
   imageUrl?: string | null;
 };
 
+const PreviewQuestionImage: React.FC<{ src: string; label: string }> = ({ src, label }) => {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (failed) return null;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+      <img
+        src={src}
+        alt={`Preview image for ${label}`}
+        className="h-24 w-full object-cover"
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+};
+
 const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
   [GameType.TRIVIA]: '/assets/games/trivia.png',
   [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
@@ -391,11 +412,7 @@ const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, 
             </div>
           )}
 
-          {item.imageUrl && (
-            <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-              <img src={item.imageUrl} alt="" className="h-24 w-full object-cover" />
-            </div>
-          )}
+          {item.imageUrl && <PreviewQuestionImage src={item.imageUrl} label={item.title} />}
         </div>
 
         <div

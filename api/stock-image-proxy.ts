@@ -13,6 +13,12 @@ const normalizeTargetUrl = (value: string): URL | null => {
   }
 };
 
+const buildWeservFallbackUrl = (target: URL): URL => {
+  const fallback = new URL('https://images.weserv.nl/');
+  fallback.searchParams.set('url', `${target.hostname}${target.pathname}${target.search}`);
+  return fallback;
+};
+
 const fetchImage = async (target: URL): Promise<
   | { ok: true; contentType: string; bytes: Buffer }
   | { ok: false; status: number; error: string }
@@ -29,6 +35,16 @@ const fetchImage = async (target: URL): Promise<
 
   const bytes = Buffer.from(await upstream.arrayBuffer());
   return { ok: true, contentType, bytes };
+};
+
+const fetchImageWithFallback = async (target: URL) => {
+  const direct = await fetchImage(target);
+  if (direct.ok) return direct;
+
+  const viaWeserv = await fetchImage(buildWeservFallbackUrl(target));
+  if (viaWeserv.ok) return viaWeserv;
+
+  return direct;
 };
 
 export default async function handler(req: any, res: any) {
@@ -57,10 +73,10 @@ export default async function handler(req: any, res: any) {
   const fallbackTarget = normalizeTargetUrl(String(requestedFallback || ''));
 
   try {
-    const primary = await fetchImage(target);
+    const primary = await fetchImageWithFallback(target);
 
     if (!primary.ok && fallbackTarget) {
-      const fallback = await fetchImage(fallbackTarget);
+      const fallback = await fetchImageWithFallback(fallbackTarget);
       if (fallback.ok) {
         res.setHeader('Content-Type', fallback.contentType);
         res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=2592000');

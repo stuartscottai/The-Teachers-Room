@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Calendar } from 'lucide-react';
 import { Avatar } from '../components/Avatar';
-import { TriviaGame } from '../components/games/TriviaGame';
+import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 
 const smokeImage =
@@ -82,7 +82,7 @@ export const StudentPracticeSmokeTest: React.FC = () => {
 
   if (phase === 'play') {
     return (
-      <TriviaGame
+      <LazyGameRunner
         key={playKey}
         game={game}
         options={playOptions}

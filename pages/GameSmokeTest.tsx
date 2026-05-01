@@ -1,15 +1,6 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { DartsGame } from '../components/games/DartsGame';
-import { JeopardyGame } from '../components/games/JeopardyGame';
-import { MillionaireGame } from '../components/games/MillionaireGame';
-import { PubQuizGame } from '../components/games/PubQuizGame';
-import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
-import { StopTheFireGame } from '../components/games/StopTheFireGame';
-import { SurveyShowdownGame } from '../components/games/SurveyShowdownGame';
-import { TimeBombGame } from '../components/games/TimeBombGame';
-import { TriviaGame } from '../components/games/TriviaGame';
-import { WordWheelGame } from '../components/games/WordWheelGame';
+import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion } from '../types';
 
 const smokeImage =
@@ -131,16 +122,7 @@ export const GameSmokeTest: React.FC = () => {
 
   return (
     <div data-testid="game-smoke-root" data-mode={mode}>
-      {type === GameType.DARTS && <DartsGame {...props} />}
-      {type === GameType.JEOPARDY && <JeopardyGame {...props} />}
-      {type === GameType.MILLIONAIRE && <MillionaireGame {...props} />}
-      {type === GameType.PUB_QUIZ && <PubQuizGame {...props} />}
-      {type === GameType.SNAKES_LADDERS && <SnakesLaddersGame {...props} />}
-      {type === GameType.STOP_THE_FIRE && <StopTheFireGame {...props} />}
-      {type === GameType.SURVEY_SHOWDOWN && <SurveyShowdownGame {...props} />}
-      {type === GameType.TIME_BOMB && <TimeBombGame {...props} />}
-      {type === GameType.TRIVIA && <TriviaGame {...props} />}
-      {type === GameType.WORD_WHEEL && <WordWheelGame {...props} />}
+      <LazyGameRunner {...props} />
     </div>
   );
 };

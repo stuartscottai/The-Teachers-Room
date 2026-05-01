@@ -1343,7 +1343,7 @@ export const getGlobalStats = async () => {
             gamesPlayed
         };
     } catch (e) {
-        console.error("Stats Fetch Error:", e);
+        console.warn("Stats Fetch Warning:", e);
         // Fallback for safety
         return { games: 0, gamesPlayed: 0 };
     }

@@ -3,15 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Calendar } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
 import { getSelectedStudentGameShare, getSharedGame, recordGamePlay } from '../utils/gameUtils';
-import { DartsGame } from '../components/games/DartsGame';
-import { JeopardyGame } from '../components/games/JeopardyGame';
-import { MillionaireGame } from '../components/games/MillionaireGame';
-import { PubQuizGame } from '../components/games/PubQuizGame';
-import { SnakesLaddersGame } from '../components/games/SnakesLaddersGame';
-import { TimeBombGame } from '../components/games/TimeBombGame';
-import { TriviaGame } from '../components/games/TriviaGame';
-import { WordWheelGame } from '../components/games/WordWheelGame';
 import { Avatar } from '../components/Avatar';
+import { LazyGameRunner } from '../components/games/LazyGameRunner';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 type StudentPhase = 'start' | 'play';
@@ -233,14 +226,5 @@ export const StudentGame: React.FC = () => {
     onReplay: startGame,
   };
 
-  if (game.config.type === GameType.JEOPARDY) return <JeopardyGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.TRIVIA || game.config.type === GameType.LIVE_QUIZ_CHALLENGE) return <TriviaGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.PUB_QUIZ) return <PubQuizGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.DARTS) return <DartsGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.SNAKES_LADDERS) return <SnakesLaddersGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.MILLIONAIRE) return <MillionaireGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.TIME_BOMB) return <TimeBombGame key={playKey} {...commonProps} />;
-  if (game.config.type === GameType.WORD_WHEEL) return <WordWheelGame key={playKey} {...commonProps} />;
-
-  return null;
+  return <LazyGameRunner key={playKey} {...commonProps} />;
 };
