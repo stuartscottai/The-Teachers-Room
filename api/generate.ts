@@ -875,7 +875,7 @@ export default async function handler(req: any, res: any) {
         modelVersion: null
       };
       return sendJson(403, {
-        error: 'AI generation is included with Teacher Access, which is currently free during early access. Activate Teacher Access to continue.',
+        error: 'AI generation is included with the Teacher Plan, which is currently free during early access. Activate Teacher Plan to continue.',
         code: 'AI_NOT_INCLUDED_IN_FREE',
         accountType: resolvedAccountType
       });
@@ -1902,6 +1902,7 @@ RULES:
         7. Time Bomb (rapid fluency drills, verbal recall, quick vocabulary/list retrieval)
         8. Survey Showdown (prediction, discussion, social reasoning and speaking)
         9. Word Wheel (A-Z clue race, excellent for definitions, glossary terms, key vocabulary and terminology recall)
+        10. Live Quiz Challenge (whole-class live quiz, students join by QR/code, every learner answers on their own device, leaderboard reveal)
 
         BEHAVIOR:
         - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions.
@@ -1909,7 +1910,10 @@ RULES:
         - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
         - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
         - If the user asks for definitions, vocabulary, glossary, terminology, or key terms, prioritize Word Wheel in the top 1-2 options.
+        - If the user asks for Kahoot-style play, live class play, QR joining, phones/devices, every student answering, or a leaderboard, prioritize Live Quiz Challenge.
+        - Live Quiz Challenge should use questionType "multiple-choice" because it is auto-scored.
         - Default to at least 25 questions unless the game format caps it (e.g. Millionaire Maker is always 15) or the user explicitly asks for a different count.
+        - Live Quiz Challenge is usually best with 10-20 multiple-choice questions unless the user asks for a different count.
         - For Jeopardy or Pub Quiz, set rows/rounds so the total questions are at least 25 unless the user explicitly asks for fewer.
         
         TONE: Professional, encouraging, concise.

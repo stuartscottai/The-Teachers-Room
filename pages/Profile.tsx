@@ -58,9 +58,9 @@ export const Profile: React.FC = () => {
 
     const accountLabel =
         user?.accountType === 'school'
-            ? `School Access (${user.schoolAccess?.role === 'admin' ? 'Admin' : 'Teacher'})`
+            ? `School Plan (${user.schoolAccess?.role === 'admin' ? 'Admin' : 'Teacher'})`
             : user?.accountType === 'teacher'
-                ? 'Teacher Access'
+                ? 'Teacher Plan'
                 : 'Starter Account';
     const showSchoolHeroLogo = user?.accountType === 'school' && Boolean(user.schoolAccess);
 
@@ -509,28 +509,28 @@ export const Profile: React.FC = () => {
                 {/* PLAN & UPGRADES */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="px-8 py-6 border-b border-slate-100">
-                        <h2 className="text-xl font-bold text-slate-800">Access Management</h2>
-                        <p className="text-slate-500 text-sm">View access features and change your access level from one place.</p>
+                        <h2 className="text-xl font-bold text-slate-800">Plan Management</h2>
+                        <p className="text-slate-500 text-sm">View plan features and change your plan from one place.</p>
                     </div>
                     <div className="p-8 space-y-6">
                         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wide">Current Access</p>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wide">Current Plan</p>
                             <p className="font-bold text-slate-800 mt-1">{accountLabel}</p>
                             {user.accountType === 'free' && (
-                                <p className="text-xs text-slate-500 mt-1">Manual creation is enabled. Teacher Access is free during early access if you want AI generation.</p>
+                                <p className="text-xs text-slate-500 mt-1">Manual creation is enabled. The Teacher Plan is free during early access if you want AI generation.</p>
                             )}
                         </div>
 
                         <div className="rounded-xl border border-brand-yellow/40 bg-brand-yellow/10 p-4">
-                            <h3 className="font-bold text-slate-800 mb-2">Change Access Level</h3>
+                            <h3 className="font-bold text-slate-800 mb-2">Change Plan</h3>
                             <p className="text-sm text-slate-600 mb-4">
-                                Compare Starter, Teacher Access, and School Access. Teacher Access is currently free while payment is not live.
+                                Compare Starter, Teacher Plan, and School Plan. The Teacher Plan is free during early access, and no credit card information is required to sign up.
                             </p>
                             <Link
                                 to="/change-plan"
                                 className="inline-flex items-center px-5 py-2.5 rounded-lg font-bold text-white bg-brand-blue hover:bg-sky-600 transition-colors"
                             >
-                                Change Access
+                                Change Plan
                             </Link>
                         </div>
 

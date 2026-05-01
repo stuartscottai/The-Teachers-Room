@@ -2079,12 +2079,12 @@ const WorksheetBuilder: React.FC<{
         }
 
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to create and save worksheets.');
+            promptSignupForFree('Create a free account on the Teacher Plan to create and save worksheets.');
             return;
         }
 
         if (user.accountType === 'free') {
-            promptUpgradeForAi('Worksheet AI generation is included with free Teacher Access during early access.');
+            promptUpgradeForAi('Worksheet AI generation is included with the Teacher Plan during early access.');
             return;
         }
 
@@ -2248,12 +2248,12 @@ const WorksheetBuilder: React.FC<{
 
     const requestAiBlocksForActivity = async (rawActivity: ActivityConfig): Promise<WorksheetBlock[]> => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to continue.');
-            throw new Error("Please sign up for a free Teacher Access account to continue.");
+            promptSignupForFree('Create a free account on the Teacher Plan to continue.');
+            throw new Error("Please sign up for a free account on the Teacher Plan to continue.");
         }
         if (user.accountType === 'free') {
-            promptUpgradeForAi('AI block generation is included with free Teacher Access during early access.');
-            throw new Error("Activate Teacher Access to use AI block generation. Teacher Access is currently free during early access.");
+            promptUpgradeForAi('AI block generation is included with the Teacher Plan during early access.');
+            throw new Error("Activate Teacher Plan to use AI block generation. The Teacher Plan is currently free during early access.");
         }
 
         const activity: ActivityConfig = normalizeActivityForAi({
@@ -2548,7 +2548,7 @@ const WorksheetBuilder: React.FC<{
 
     const handleSave = (docOverride?: WorksheetDesignerDocV1) => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to save worksheets to your library.');
+            promptSignupForFree('Create a free account on the Teacher Plan to save worksheets to your library.');
             return;
         }
         if (!generatedWs) return;
@@ -2585,7 +2585,7 @@ const WorksheetBuilder: React.FC<{
                 const div = document.createElement('div');
                 div.className = 'forced-page-break';
                 div.contentEditable = 'false';
-                div.innerHTML = `<span class="break-label">PAGE BREAK</span><button class="delete-break-btn" title="Remove">×</button>`;
+                div.innerHTML = `<span class="break-label">PAGE BREAK</span><button class="delete-break-btn" title="Remove">Ã—</button>`;
                 range.deleteContents(); range.insertNode(div); range.setStartAfter(div); range.setEndAfter(div);
                 selection.removeAllRanges(); selection.addRange(range);
                 addToHistory(contentDiv.innerHTML);
@@ -2655,7 +2655,7 @@ const WorksheetBuilder: React.FC<{
 
     const handleVisibilityToggle = () => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to publish worksheets to the community.');
+            promptSignupForFree('Create a free account on the Teacher Plan to publish worksheets to the community.');
             return;
         }
         setIsPublic(!isPublic);

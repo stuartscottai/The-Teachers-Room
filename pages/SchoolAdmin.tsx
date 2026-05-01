@@ -568,10 +568,10 @@ export const SchoolAdmin: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full text-center">
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">School Admin Access</h1>
-          <p className="text-slate-500 mb-6">Create a free Teacher Access account first, then set up School Access to manage teachers.</p>
+          <p className="text-slate-500 mb-6">Create a free account on the Teacher Plan first, then set up the School Plan to manage teachers.</p>
           <button
             type="button"
-            onClick={() => promptSignupForFree('Create a free Teacher Access account to continue.')}
+            onClick={() => promptSignupForFree('Create a free account on the Teacher Plan to continue.')}
             className="px-6 py-3 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
           >
             Sign Up Free
@@ -974,4 +974,3 @@ export const SchoolAdmin: React.FC = () => {
     </div>
   );
 };
-

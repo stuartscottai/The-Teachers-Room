@@ -220,15 +220,15 @@ export const promptSignupForFree = (message?: string) => {
   dispatchAuthPrompt({
     kind: 'signup-free',
     title: 'Create A Free Teacher Account',
-    message: message || 'Teacher Access is currently free during early access. Sign up to continue.'
+    message: message || 'The Teacher Plan is currently free during early access. Sign up to continue.'
   });
 };
 
 export const promptUpgradeForAi = (message?: string) => {
   dispatchAuthPrompt({
     kind: 'upgrade-ai',
-    title: 'Activate Free Teacher Access',
-    message: message || 'AI generation is included with Teacher Access, which is currently free during early access.'
+    title: 'Activate Teacher Plan',
+    message: message || 'AI generation is included with the Teacher Plan, which is currently free during early access.'
   });
 };
 

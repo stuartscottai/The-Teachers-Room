@@ -38,23 +38,23 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
 
         <div className="p-8">
           <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
-            {title || 'Activate Free Teacher Access'}
+            {title || 'Activate Teacher Plan'}
           </h2>
           <p className="text-sm text-slate-600 mb-6">
             {message ||
-              'Teacher Access includes AI generation and is currently free during early access. No payment is required.'}
+              'The Teacher Plan includes AI generation and is currently free during early access. No payment is required.'}
           </p>
 
           <div className="grid sm:grid-cols-2 gap-3 mb-6">
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
-                <GraduationCap size={16} className="text-brand-blue" /> Teacher Access
+                <GraduationCap size={16} className="text-brand-blue" /> Teacher Plan
               </div>
               <p className="text-xs text-slate-500">AI game credits for one teacher account. Free during early access.</p>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
-                <Building2 size={16} className="text-brand-blue" /> School Access
+                <Building2 size={16} className="text-brand-blue" /> School Plan
               </div>
               <p className="text-xs text-slate-500">School-wide teacher management with AI credits per teacher.</p>
             </div>
@@ -65,7 +65,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
             onClick={goToPlanPage}
             className="w-full rounded-xl bg-brand-blue py-3 font-bold text-white hover:bg-sky-600 transition-colors"
           >
-            View Access Options
+            View Plans
           </button>
         </div>
       </div>

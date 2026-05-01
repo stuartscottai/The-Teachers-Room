@@ -734,14 +734,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         }
 
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to create games and save your work.');
+            promptSignupForFree('Create a free account on the Teacher Plan to create games and save your work.');
             return;
         }
         
         // AI MODE
         if (mode === 'ai') {
             if (user.accountType === 'free') {
-                promptUpgradeForAi('AI game generation is included with free Teacher Access during early access.');
+                promptUpgradeForAi('AI game generation is included with the Teacher Plan during early access.');
                 return;
             }
             if (type === GameType.STOP_THE_FIRE) {

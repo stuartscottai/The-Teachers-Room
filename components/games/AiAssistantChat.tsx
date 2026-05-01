@@ -120,11 +120,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         if (e) e.preventDefault();
         if (!input.trim()) return;
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to use classroom tools and save progress.');
+            promptSignupForFree('Create a free account on the Teacher Plan to use classroom tools and save progress.');
             return;
         }
         if (user.accountType === 'free') {
-            promptUpgradeForAi('The AI Assistant is included with free Teacher Access during early access.');
+            promptUpgradeForAi('The AI Assistant is included with the Teacher Plan during early access.');
             return;
         }
 
@@ -171,11 +171,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
 
     const handleCreateGame = async (suggestion: WizardSuggestion) => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to start creating and saving games.');
+            promptSignupForFree('Create a free account on the Teacher Plan to start creating and saving games.');
             return;
         }
         if (user.accountType === 'free') {
-            promptUpgradeForAi('AI game generation is included with free Teacher Access during early access.');
+            promptUpgradeForAi('AI game generation is included with the Teacher Plan during early access.');
             return;
         }
         setIsGenerating(true);

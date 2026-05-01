@@ -51,7 +51,7 @@ const getRequiredAccessToken = async () => {
   if (userId) {
     const entitlements = await getMyEntitlements(userId);
     if (!entitlements.canUseAi) {
-      throw new Error('AI generation is included with Teacher Access, which is currently free during early access. Activate Teacher Access to continue.');
+      throw new Error('AI generation is included with the Teacher Plan, which is currently free during early access. Activate Teacher Plan to continue.');
     }
   }
 
@@ -173,8 +173,11 @@ const getKeywordRecommendationOrder = (message: string): GameType[] => {
   if (/\b(definition|definitions|define|vocab|vocabulary|glossary|terminology|key terms?)\b/.test(text)) {
     return [GameType.WORD_WHEEL, GameType.TIME_BOMB, GameType.TRIVIA, GameType.JEOPARDY];
   }
+  if (/\b(live|real[-\s]?time|kahoot|device|devices|phone|phones|qr|join code|leaderboard|whole[-\s]?class|all students|everyone answers)\b/.test(text)) {
+    return [GameType.LIVE_QUIZ_CHALLENGE, GameType.TRIVIA, GameType.PUB_QUIZ, GameType.MILLIONAIRE];
+  }
   if (/\b(revision|review|exam|test prep|assessment|retrieval practice)\b/.test(text)) {
-    return [GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.TRIVIA, GameType.WORD_WHEEL];
+    return [GameType.JEOPARDY, GameType.LIVE_QUIZ_CHALLENGE, GameType.PUB_QUIZ, GameType.TRIVIA, GameType.WORD_WHEEL];
   }
   if (/\b(speaking|oral|fluency|quickfire|fast|speed)\b/.test(text)) {
     return [GameType.TIME_BOMB, GameType.WORD_WHEEL, GameType.PUB_QUIZ, GameType.TRIVIA];
@@ -186,7 +189,7 @@ const getKeywordRecommendationOrder = (message: string): GameType[] => {
     return [GameType.SNAKES_LADDERS, GameType.TRIVIA, GameType.WORD_WHEEL];
   }
 
-  return [GameType.TRIVIA, GameType.JEOPARDY, GameType.WORD_WHEEL, GameType.PUB_QUIZ];
+  return [GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.WORD_WHEEL, GameType.PUB_QUIZ];
 };
 
 const normalizeQuestionType = (value: unknown): GameConfig['questionType'] | undefined => {
@@ -232,13 +235,14 @@ const normalizeWizardSuggestion = (raw: any, topicFallback: string): WizardSugge
 const fallbackSuggestionForType = (type: GameType, topic: string): WizardSuggestion => {
   const isWordWheel = type === GameType.WORD_WHEEL;
   const isMillionaire = type === GameType.MILLIONAIRE;
+  const isLiveQuiz = type === GameType.LIVE_QUIZ_CHALLENGE;
   return {
     type,
     title: WIZARD_TITLE_BY_TYPE[type],
     topic,
     reason: WIZARD_REASON_BY_TYPE[type],
-    questionCount: isWordWheel ? 26 : isMillionaire ? 15 : 25,
-    questionType: isWordWheel ? 'open' : isMillionaire ? 'multiple-choice' : 'mixed',
+    questionCount: isWordWheel ? 26 : isMillionaire ? 15 : isLiveQuiz ? 10 : 25,
+    questionType: isWordWheel ? 'open' : isMillionaire || isLiveQuiz ? 'multiple-choice' : 'mixed',
     ...(isWordWheel
       ? {
           wordWheelLetterRule: 'contains-hard' as const,
@@ -274,7 +278,7 @@ const normalizeWizardResponse = (raw: any, userMessage: string): ChatWizardRespo
     seenTypes.add(type);
   }
 
-  const universalFallback: GameType[] = [GameType.WORD_WHEEL, GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ];
+  const universalFallback: GameType[] = [GameType.WORD_WHEEL, GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.PUB_QUIZ];
   for (const type of universalFallback) {
     if (suggestions.length >= 3) break;
     if (seenTypes.has(type)) continue;
@@ -2120,6 +2124,7 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     7. Time Bomb (rapid fluency drills, verbal recall, quick vocabulary/list retrieval)
     8. Survey Showdown (prediction, discussion, social reasoning and speaking)
     9. Word Wheel (A-Z clue race, excellent for definitions, glossary terms, key vocabulary and terminology recall)
+    10. Live Quiz Challenge (whole-class live quiz, students join by QR/code, every learner answers on their own device, leaderboard reveal)
 
     BEHAVIOR:
     - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions (e.g. "What topic? What grade? Do they like competition?").
@@ -2127,7 +2132,10 @@ export const chatWithGameWizard = async (message: string, history: {role: string
     - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
     - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
     - If the user asks for definitions, vocabulary, glossary, terminology, or key terms, prioritize Word Wheel in the top 1-2 options.
+    - If the user asks for Kahoot-style play, live class play, QR joining, phones/devices, every student answering, or a leaderboard, prioritize Live Quiz Challenge.
+    - Live Quiz Challenge should use questionType "multiple-choice" because it is auto-scored.
     - Default to at least 25 questions unless the game format caps it (e.g. Millionaire Maker is always 15) or the user explicitly asks for a different count.
+    - Live Quiz Challenge is usually best with 10-20 multiple-choice questions unless the user asks for a different count.
     - For Jeopardy or Pub Quiz, set rows/rounds so the total questions are at least 25 unless the user explicitly asks for fewer.
     
     TONE: Professional, encouraging, concise.

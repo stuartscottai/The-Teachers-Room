@@ -1424,7 +1424,7 @@ export const Games: React.FC = () => {
 
     const handleSelect = (type: GameType) => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to start creating games.');
+            promptSignupForFree('Create a free account on the Teacher Plan to start creating games.');
             return;
         }
         setSelectedType(type);
@@ -1436,7 +1436,7 @@ export const Games: React.FC = () => {
 
     const handleModeSelect = (mode: 'ai' | 'manual' | 'bank') => {
         if (mode === 'ai' && user?.accountType === 'free') {
-            promptUpgradeForAi('AI game generation is included with free Teacher Access during early access.');
+            promptUpgradeForAi('AI game generation is included with the Teacher Plan during early access.');
             return;
         }
         setCreationMode(mode);
@@ -1469,7 +1469,7 @@ export const Games: React.FC = () => {
 
         if (updatedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
             if (!user) {
-                promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
+                promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
                 return;
             }
             setLiveQuizSelectedItems([]);
@@ -1520,7 +1520,7 @@ export const Games: React.FC = () => {
 
     const handleLoadPersonalGame = (game: GeneratedGame) => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to use saved game features.');
+            promptSignupForFree('Create a free account on the Teacher Plan to use saved game features.');
             return;
         }
         setGeneratedGame(game);
@@ -1533,7 +1533,7 @@ export const Games: React.FC = () => {
 
     const handleLoadCommunityGame = (game: GeneratedGame) => {
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to copy and play community games.');
+            promptSignupForFree('Create a free account on the Teacher Plan to copy and play community games.');
             return;
         }
         // Strip ID to treat as template (avoid overwriting public game or confusing local store)
@@ -1593,7 +1593,7 @@ export const Games: React.FC = () => {
     const handlePreviewSave = async () => {
         if (!generatedGame) return;
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to save games to your library.');
+            promptSignupForFree('Create a free account on the Teacher Plan to save games to your library.');
             return;
         }
         const savedGame = await persistPreviewGame(generatedGame);
@@ -1615,7 +1615,7 @@ export const Games: React.FC = () => {
         }
 
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to share games with colleagues.');
+            promptSignupForFree('Create a free account on the Teacher Plan to share games with colleagues.');
             return;
         }
 
@@ -1654,7 +1654,7 @@ export const Games: React.FC = () => {
         }
 
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to share games with students.');
+            promptSignupForFree('Create a free account on the Teacher Plan to share games with students.');
             return;
         }
 
@@ -1701,7 +1701,7 @@ export const Games: React.FC = () => {
         if (!generatedGame) return;
 
         if (!user) {
-            promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
+            promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
             return;
         }
 
@@ -1748,7 +1748,7 @@ export const Games: React.FC = () => {
 
         if (gameToPlay.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
             if (!user) {
-                promptSignupForFree('Create a free Teacher Access account to host live quiz challenges.');
+                promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
                 return;
             }
             setLiveQuizSelectedItems([]);
@@ -1921,11 +1921,11 @@ export const Games: React.FC = () => {
                     onLoadPersonalGame={handleLoadPersonalGame}
                     onOpenAiAssistant={() => {
                         if (!user) {
-                            promptSignupForFree('Create a free Teacher Access account to use the AI Assistant.');
+                            promptSignupForFree('Create a free account on the Teacher Plan to use the AI Assistant.');
                             return;
                         }
                         if (user.accountType === 'free') {
-                            promptUpgradeForAi('The AI Assistant is included with free Teacher Access during early access.');
+                            promptUpgradeForAi('The AI Assistant is included with the Teacher Plan during early access.');
                             return;
                         }
                         setIsAssistantOpen(true);

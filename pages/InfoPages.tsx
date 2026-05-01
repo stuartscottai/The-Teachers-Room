@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Send, Loader, ChevronDown, X } from 'lucide-react';
+import { Check, AlertCircle, Send, Loader, ChevronDown, X, Search } from 'lucide-react';
 import { sendContactMessage } from '../utils/gameUtils';
 import { BrandName } from '../components/BrandName';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,11 +17,16 @@ export const Info: React.FC = () => {
     faqs: false,
   });
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const faqs = [
     {
       question: 'Which game types are available right now?',
-      answer: 'You can create Snakes and Ladders, Trivia Quiz, Jeopardy, Pub Quiz, Darts, Millionaire Maker, Time Bomb, Survey Showdown, Stop the Fire!, and Word Wheel.'
+      answer: 'You can create Snakes and Ladders, Trivia Quiz, Jeopardy, Pub Quiz, Darts, Millionaire Maker, Time Bomb, Survey Showdown, Stop the Fire!, Word Wheel, and Live Quiz Challenge.'
+    },
+    {
+      question: 'How does Live Quiz Challenge work?',
+      answer: 'Live Quiz Challenge lets a teacher host a real-time quiz on the big screen while students join from their own devices using a code or QR link. It currently works with auto-scored multiple-choice questions, shows answer reveals, and finishes with a live leaderboard.'
     },
     {
       question: 'Can I create a game manually without AI?',
@@ -42,6 +47,10 @@ export const Info: React.FC = () => {
     {
       question: 'Do students need teacher accounts to use shared games?',
       answer: 'No. Student share links are designed for playing/reviewing a specific game. Teacher account features such as creating, saving, editing, and school admin tools stay separate.'
+    },
+    {
+      question: 'Do students need accounts to join a live quiz?',
+      answer: 'No. Students can join a Live Quiz Challenge with the code or QR link shown by the teacher. They do not need a teacher account to take part.'
     },
     {
       question: 'What do School accounts include?',
@@ -89,6 +98,77 @@ export const Info: React.FC = () => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const searchableSections: Array<{ type: 'section'; section: SectionKey; title: string; body: string }> = [
+    {
+      type: 'section',
+      section: 'story',
+      title: 'Our Story',
+      body: 'How The Teachers Room started, ESL teaching, classroom games, prep time, surprise lesson time, coursebook photos, quick game creation.'
+    },
+    {
+      type: 'section',
+      section: 'how-to',
+      title: 'How to Use the Site',
+      body: 'Create games, manual mode, AI mode, upload files, source materials, images, editor, save to library, student share links, QR codes, Live Quiz Challenge.'
+    },
+    {
+      type: 'section',
+      section: 'prompt-guide',
+      title: 'Prompt Guide',
+      body: 'Prompt writing, AI instructions, level, age, objective, question count, source files, image prompts, specific classroom needs.'
+    },
+    {
+      type: 'section',
+      section: 'faqs',
+      title: 'FAQs',
+      body: 'Frequently asked questions about games, school accounts, student accounts, live quiz, images, AI generation, editing, sharing, saving, remixing.'
+    }
+  ];
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const searchTerms = normalizedSearch.split(/\s+/).filter(Boolean);
+  const searchResults = useMemo(() => {
+    if (!searchTerms.length) return [];
+
+    const matchesAllTerms = (text: string) => {
+      const searchableText = text.toLowerCase();
+      return searchTerms.every((term) => searchableText.includes(term));
+    };
+
+    const sectionResults = searchableSections
+      .filter((entry) => matchesAllTerms(`${entry.title} ${entry.body}`))
+      .map((entry) => ({
+        type: entry.type,
+        section: entry.section,
+        title: entry.title,
+        snippet: entry.body
+      }));
+
+    const faqResults = faqs
+      .map((faq, index) => ({ faq, index }))
+      .filter(({ faq }) => matchesAllTerms(`${faq.question} ${faq.answer}`))
+      .map(({ faq, index }) => ({
+        type: 'faq' as const,
+        section: 'faqs' as SectionKey,
+        faqIndex: index,
+        title: faq.question,
+        snippet: faq.answer
+      }));
+
+    return [...sectionResults, ...faqResults].slice(0, 8);
+  }, [searchTerms.join('|')]);
+
+  const handleSearchResultClick = (result: (typeof searchResults)[number]) => {
+    setOpenSections((prev) => ({ ...prev, [result.section]: true }));
+    if (result.type === 'faq') {
+      setOpenFaq(result.faqIndex);
+    }
+
+    window.setTimeout(() => {
+      document.getElementById(`info-${result.section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-20">
       <div className="text-center mb-10">
@@ -96,6 +176,65 @@ export const Info: React.FC = () => {
         <p className="text-slate-600 max-w-3xl mx-auto">
           Explore how to get the best from <BrandName />, from quick setup tips to detailed prompt strategy and practical FAQs.
         </p>
+      </div>
+
+      <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+        <label htmlFor="info-search" className="block text-sm font-bold text-slate-700 mb-2">
+          Search the Info Hub
+        </label>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input
+            id="info-search"
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search live quiz, images, student links, school accounts..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-12 pr-12 text-slate-800 outline-none transition focus:border-brand-blue focus:bg-white focus:ring-4 focus:ring-sky-100"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Clear search"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        {normalizedSearch && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            {searchResults.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
+                </p>
+                {searchResults.map((result) => (
+                  <button
+                    key={`${result.type}-${result.title}`}
+                    type="button"
+                    onClick={() => handleSearchResultClick(result)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-brand-blue hover:bg-sky-50"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-800">{result.title}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        {result.type === 'faq' ? 'FAQ' : 'Guide'}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{result.snippet}</p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                No matching help topics found. Try a shorter search, or use the Contact page if you need a specific answer.
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -156,7 +295,7 @@ export const Info: React.FC = () => {
               <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 mt-4">
                 <h3 className="font-bold text-slate-800 mb-3">Games: from idea to classroom in minutes</h3>
                 <ol className="list-decimal pl-5 space-y-2 text-sm">
-                  <li>Open <strong>Games</strong> and pick a mode: Snakes & Ladders, Trivia, Jeopardy, Pub Quiz, Darts, Millionaire, Time Bomb, Survey Showdown, Stop the Fire, or Word Wheel.</li>
+                  <li>Open <strong>Games</strong> and pick a mode: Snakes & Ladders, Trivia, Jeopardy, Pub Quiz, Darts, Millionaire, Time Bomb, Survey Showdown, Stop the Fire, Word Wheel, or Live Quiz Challenge.</li>
                   <li>If you are not sure where to start, open the <strong>AI Assistant</strong>, explain your idea in plain English, and it will recommend suitable game types based on your class and goals.</li>
                   <li>Choose <strong>Manual</strong> (build from scratch) or <strong>AI</strong> (instant first draft).</li>
                   <li>In Manual mode, open <strong>Import from Another AI Tool</strong> if you want to use your own LLM. Copy the custom prompt template, paste it into your AI tool, then import the returned JSON.</li>
@@ -164,6 +303,7 @@ export const Info: React.FC = () => {
                   <li>Optional but powerful: upload source files (PDF/images, max 3 files, 4MB each) so AI uses your actual material.</li>
                   <li>If you enable images, <strong>Auto-pick</strong> grabs stock visuals from question/answer keywords, or choose <strong>Pick later</strong> and add them manually in the editor.</li>
                   <li>Generate, then polish in the editor: fix wording, change answers, replace images, save to library, and hit Play.</li>
+                  <li>For whole-class play, use <strong>Live Quiz Challenge</strong> so students can join with a code or QR link and answer from their own devices.</li>
                   <li>For independent review, share a saved game with students using a link or QR code so they can practise outside class.</li>
                 </ol>
               </div>
@@ -293,8 +433,8 @@ export const Pricing: React.FC = () => {
     if (!user) {
       promptSignupForFree(
         targetPlan === 'free'
-          ? 'Create a free Teacher Access account to save and share your classroom games.'
-          : `Create a free Teacher Access account first, then choose ${targetPlan === 'teacher' ? 'Teacher Access' : 'School Access'}.`
+          ? 'Create a free account on the Teacher Plan to save and share your classroom games.'
+          : `Create a free account on the Teacher Plan first, then choose ${targetPlan === 'teacher' ? 'Teacher Plan' : 'School Plan'}.`
       );
       return;
     }
@@ -307,7 +447,7 @@ export const Pricing: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-16">
           <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">Early Access For Teachers</h1>
-          <p className="text-slate-600">Teacher Access and School Access are currently free while payment is not live.</p>
+          <p className="text-slate-600">The Teacher Plan and School Plan are free during early access, and no credit card information is required to sign up.</p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
@@ -316,7 +456,7 @@ export const Pricing: React.FC = () => {
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Starter</h3>
             <p className="text-4xl font-bold text-teal-600 mb-6">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <ul className="space-y-4 mb-8">
-              {['Access to all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games', 'Community library access', 'Built-in AI generation not included'].map(item => (
+              {['Use all manual creation tools', 'Import games from your own LLM using our template', 'Save and share games', 'Community library browsing', 'Built-in AI generation not included'].map(item => (
                 <li key={item} className="flex items-center text-slate-600">
                   {item.includes('not included') ? (
                     <X size={18} className="text-red-500 mr-2 shrink-0" />
@@ -339,11 +479,11 @@ export const Pricing: React.FC = () => {
           {/* Pro */}
           <div className="bg-white p-8 rounded-2xl shadow-xl border-2 border-brand-yellow relative transform scale-105">
              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-yellow px-4 py-1 rounded-full text-xs font-bold text-slate-800 uppercase tracking-wide">Recommended</div>
-            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Access</h3>
+            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">Teacher Plan</h3>
             <p className="text-4xl font-bold text-teal-600 mb-1">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">free during early access</p>
             <ul className="space-y-4 mb-8">
-              {['Credits for approximately 50 AI-created games per month', 'Unlimited manual game creation', 'Unlimited private library storage', 'No payment required during early access'].map(item => (
+              {['Credits for approximately 50 AI-created games per month', 'Unlimited manual game creation', 'Unlimited private library storage', 'No credit card information required to sign up'].map(item => (
                 <li key={item} className="flex items-center text-slate-800 font-medium">
                   <Check size={18} className="text-brand-accent mr-2 shrink-0" /> {item}
                 </li>
@@ -354,13 +494,13 @@ export const Pricing: React.FC = () => {
               onClick={() => handlePlanCta('teacher')}
               className="w-full py-3 bg-brand-yellow rounded-xl font-bold text-slate-800 hover:bg-yellow-300 transition-colors shadow-md"
             >
-              Activate Teacher Access
+              Activate Teacher Plan
             </button>
           </div>
 
            {/* School */}
            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School Access</h3>
+            <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">School Plan</h3>
             <p className="text-4xl font-bold text-teal-600 mb-1">$0<span className="text-sm text-slate-400 font-normal">/mo</span></p>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-6">free during early access</p>
             <ul className="space-y-4 mb-8">
@@ -375,7 +515,7 @@ export const Pricing: React.FC = () => {
               onClick={() => handlePlanCta('school')}
               className="w-full py-3 border-2 border-slate-200 rounded-xl font-bold text-slate-600 hover:border-teal-500 hover:text-teal-600 transition-colors"
             >
-              Set Up School Access
+              Set Up School Plan
             </button>
           </div>
         </div>

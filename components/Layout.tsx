@@ -235,7 +235,7 @@ const Navbar: React.FC = () => {
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Access
+                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Plan
                         </SafeLink>
                         <SafeLink 
                           to="/games" 
@@ -324,7 +324,7 @@ const Navbar: React.FC = () => {
                         My Profile
                     </SafeLink>
                     <SafeLink to="/change-plan" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        Change Access
+                        Change Plan
                     </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
                         My Saved Games
@@ -476,7 +476,7 @@ const Footer: React.FC = () => {
           </div>
         </div>
         <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-xs text-slate-500">© 2025 <BrandName />.</p>
+          <p className="text-xs text-slate-500">&copy; 2025 <BrandName />.</p>
           <p className="text-xs text-slate-500 mt-2 md:mt-0">Designed and managed by 3P Machine digital.</p>
         </div>
       </div>
