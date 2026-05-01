@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Radio } from 'lucide-react';
+import { ArrowRight, Radio, X } from 'lucide-react';
 
 export const LiveQuizCodeEntry: React.FC = () => {
   const navigate = useNavigate();
@@ -10,7 +10,16 @@ export const LiveQuizCodeEntry: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 text-white flex items-center justify-center">
-      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
+      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Go back to homepage"
+          title="Go back to homepage"
+        >
+          <X size={20} />
+        </button>
         <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
           <Radio size={14} />
           Join Live Quiz

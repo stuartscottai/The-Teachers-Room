@@ -438,7 +438,7 @@ export const Home: React.FC = () => {
                      { icon: Clock, title: "Less Prep", desc: "Cut planning time in half with AI generation." },
                      { icon: Smile, title: "More Fun", desc: "Engage students with interactive formats." },
                      { icon: Star, title: "High Quality", desc: "Curriculum-aligned content every time." },
-                     { icon: Zap, title: "Instant Use", desc: "No signup required to try basic tools." }
+                     { icon: Zap, title: "Free to Join", desc: "Sign up free during early access to create and play every game mode." }
                  ].map((feature, idx) => (
                      <div key={idx} className="text-center group">
                          <div className="w-20 h-20 mx-auto bg-brand-yellow rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-yellow-100 border-2 border-transparent group-hover:border-brand-blue">

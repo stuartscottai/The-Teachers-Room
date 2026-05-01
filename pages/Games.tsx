@@ -109,8 +109,9 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
     ],
     [GameType.LIVE_QUIZ_CHALLENGE]: [
         "/assets/games/livequiz.png",
-        "/assets/games/trivia1..png",
-        "/assets/games/trivia2.png"
+        "/assets/games/livequiz1.png",
+        "/assets/games/livequiz2.png",
+        "/assets/games/livequiz3.png"
     ]
 };
 
