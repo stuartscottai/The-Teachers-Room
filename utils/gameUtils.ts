@@ -959,7 +959,6 @@ export const recordGamePlay = async (gameId?: string): Promise<void> => {
             .from('saved_games')
             .select('play_count')
             .eq('id', gameId)
-            .eq('is_public', true)
             .single();
 
         if (error) {
@@ -972,8 +971,7 @@ export const recordGamePlay = async (gameId?: string): Promise<void> => {
         const { error: updateError } = await supabase
             .from('saved_games')
             .update({ play_count: currentPlayCount + 1 })
-            .eq('id', gameId)
-            .eq('is_public', true);
+            .eq('id', gameId);
 
         if (updateError) throw updateError;
     } catch (e: any) {
@@ -984,7 +982,6 @@ export const recordGamePlay = async (gameId?: string): Promise<void> => {
                     .from('saved_games')
                     .select('config')
                     .eq('id', gameId)
-                    .eq('is_public', true)
                     .single();
 
                 if (configReadError) {
@@ -997,8 +994,7 @@ export const recordGamePlay = async (gameId?: string): Promise<void> => {
                 const { error: configUpdateError } = await supabase
                     .from('saved_games')
                     .update({ config: { ...currentConfig, playCount: nextCount } })
-                    .eq('id', gameId)
-                    .eq('is_public', true);
+                    .eq('id', gameId);
 
                 if (configUpdateError) throw configUpdateError;
             } catch (fallbackError) {

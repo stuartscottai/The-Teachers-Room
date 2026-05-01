@@ -406,6 +406,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const letterRule = options.wordWheelLetterRule || game.config.wordWheelLetterRule || 'contains-hard';
     const hasTimer = options.timerSeconds > 0;
     const activeEntry = activeIndex >= 0 ? entries[activeIndex] : null;
+    const cardPlayable = Boolean(activeEntry && activeEntry.question && activeEntry.answer);
     const activeRelation = activeEntry ? getLetterRelation(letterRule, activeEntry.letter, activeEntry.answer) : 'starts-with';
     const activeRelationHeader = activeRelation === 'contains' ? 'Contains the letter' : 'Starts with the letter';
     const solvedCount = entries.filter((entry) => entry.status === 'solved').length;
@@ -1174,7 +1175,6 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const questionImageUrl = resolveGameImageUrl(activeEntry?.image?.url, activeEntry?.image?.thumbUrl);
     const questionImageAlt = activeEntry?.image?.alt || 'Clue image';
     const timerProgress = hasTimer ? Math.max(0, Math.min(1, timeLeft / Math.max(options.timerSeconds, 1))) : 0;
-    const cardPlayable = Boolean(activeEntry && activeEntry.question && activeEntry.answer);
     const activeHintBaseline = activeEntry ? getBaselineHintIndices(activeEntry) : new Set<number>();
     const currentTeamClues = teamCluesLeft[currentTeam] || 0;
     const canPassCurrent = Boolean(

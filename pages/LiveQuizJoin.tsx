@@ -7,6 +7,7 @@ import {
   joinLiveQuizSession,
   reconnectLiveQuizParticipant,
 } from '../utils/liveQuizUtils';
+import { recordGamePlay } from '../utils/gameUtils';
 import { LiveQuizParticipant, LiveQuizSession } from '../types';
 
 export const LiveQuizJoin: React.FC = () => {
@@ -60,6 +61,7 @@ export const LiveQuizJoin: React.FC = () => {
       setError(result.error || 'Unable to join this game.');
       return;
     }
+    if (session.sourceGameId) void recordGamePlay(session.sourceGameId);
     navigate(`/live/play/${session.id}/${result.participant.id}`);
   };
 

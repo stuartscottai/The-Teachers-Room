@@ -10,6 +10,9 @@ import { BlogPostPage } from './pages/BlogPost';
 import { Profile } from './pages/Profile';
 import { ChangePlan } from './pages/ChangePlan';
 import { TestBench } from './pages/TestBench';
+import { GameSmokeTest } from './pages/GameSmokeTest';
+import { StudentPracticeSmokeTest } from './pages/StudentPracticeSmokeTest';
+import { LiveQuizSmokeTest } from './pages/LiveQuizSmokeTest';
 import { ShareGame } from './pages/ShareGame';
 import { StudentGame } from './pages/StudentGame';
 import { LiveQuizHost } from './pages/LiveQuizHost';
@@ -93,6 +96,9 @@ const App: React.FC = () => {
               <Route path="/change-plan" element={<ChangePlan />} />
               <Route path="/school-admin" element={<SchoolAdmin />} />
               <Route path="/test" element={<TestBench />} />
+              <Route path="/test/game-smoke" element={import.meta.env.DEV ? <GameSmokeTest /> : <Navigate to="/" replace />} />
+              <Route path="/test/student-practice-smoke" element={import.meta.env.DEV ? <StudentPracticeSmokeTest /> : <Navigate to="/" replace />} />
+              <Route path="/test/live-quiz-smoke" element={import.meta.env.DEV ? <LiveQuizSmokeTest /> : <Navigate to="/" replace />} />
               <Route path="/share/game/:id" element={<ShareGame />} />
               <Route path="/student/game/:id" element={<StudentGame />} />
               <Route path="/student/share/:shareId" element={<StudentGame />} />

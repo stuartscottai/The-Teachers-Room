@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Calendar } from 'lucide-react';
 import { GameRunOptions, GameType, GeneratedGame } from '../types';
-import { getSelectedStudentGameShare, getSharedGame } from '../utils/gameUtils';
+import { getSelectedStudentGameShare, getSharedGame, recordGamePlay } from '../utils/gameUtils';
 import { DartsGame } from '../components/games/DartsGame';
 import { JeopardyGame } from '../components/games/JeopardyGame';
 import { MillionaireGame } from '../components/games/MillionaireGame';
@@ -114,6 +114,8 @@ export const StudentGame: React.FC = () => {
 
   const startGame = () => {
     if (!game || UNSUPPORTED_STUDENT_TYPES.has(game.config.type)) return;
+    const gameIdToTrack = game.sourceGameId || game.id;
+    if (gameIdToTrack) void recordGamePlay(gameIdToTrack);
     setPlayOptions(buildStudentOptions(game, studentName));
     setPlayKey((prev) => prev + 1);
     setPhase('play');

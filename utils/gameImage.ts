@@ -18,11 +18,16 @@ export const resolveGameImageUrl = (value?: string, fallbackValue?: string): str
     }
   }
 
-  // Local Vite dev reliability: use thumbnail/fallback first.
-  // Old saved games can contain a stale primary stock URL while thumbUrl remains valid.
+  // Local Vite dev reliability for stock images: old saved games can contain a
+  // stale primary Pixabay URL while thumbUrl remains valid. For uploaded/signed
+  // game images, prefer the full image first so a bad thumbnail cannot hide it.
   if (!preferServerProxy) {
-    const fallbackFirst = fallbackRaw ? toCoepSafeStockImageUrl(fallbackRaw, false) : '';
-    if (fallbackFirst) return fallbackFirst;
+    const primarySource = extractPixabaySourceUrl(primaryRaw);
+    const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
+    if (primarySource && fallbackSource) {
+      const fallbackFirst = toCoepSafeStockImageUrl(fallbackRaw, false);
+      if (fallbackFirst) return fallbackFirst;
+    }
   }
 
   const primary = primaryRaw ? toCoepSafeStockImageUrl(primaryRaw, preferServerProxy) : '';

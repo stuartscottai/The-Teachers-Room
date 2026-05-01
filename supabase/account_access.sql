@@ -373,11 +373,10 @@ begin
     return;
   end if;
 
-  -- Only public games contribute to community/trending counts.
+  -- All saved game plays contribute to the global Games Played counter.
   update public.saved_games sg
   set play_count = coalesce(sg.play_count, 0) + 1
-  where sg.id = p_game_id
-    and sg.is_public = true;
+  where sg.id = p_game_id;
 end;
 $$;
 
@@ -2410,6 +2409,8 @@ grant execute on function public.get_school_teacher_spot_summary(uuid) to authen
 grant execute on function public.change_school_teacher_spots(uuid, integer) to authenticated;
 grant execute on function public.increment_game_play(uuid) to authenticated;
 grant execute on function public.record_game_play_event(uuid) to authenticated;
+grant execute on function public.increment_game_play(uuid) to anon;
+grant execute on function public.record_game_play_event(uuid) to anon;
 grant execute on function public.get_school_teacher_directory(uuid) to authenticated;
 grant execute on function public.list_school_teacher_play_events(uuid, uuid, integer) to authenticated;
 grant execute on function public.set_school_member_role(uuid, uuid, text) to authenticated;

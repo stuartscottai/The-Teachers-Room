@@ -712,7 +712,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     question: currentQuestion.question,
                     correctAnswer: currentQuestion.answer,
                     studentAnswer: selectedMcAnswer || undefined,
-                    context: `Square ${positions[currentPlayer] + 1}`,
+                    context: `Square ${positions[currentTeamId] + 1}`,
                 },
             ]);
             setTimeout(() => {
