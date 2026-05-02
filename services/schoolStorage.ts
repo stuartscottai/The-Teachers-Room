@@ -379,6 +379,16 @@ export const downloadSchoolStorageFileBlob = async (file: Pick<SchoolStorageFile
   return data;
 };
 
+export const createSchoolStorageFileViewUrl = async (
+  file: Pick<SchoolStorageFile, 'storagePath' | 'mimeType'>
+) => {
+  const blob = await downloadSchoolStorageFileBlob(file);
+  const typedBlob = file.mimeType && blob.type !== file.mimeType
+    ? new Blob([blob], { type: file.mimeType })
+    : blob;
+  return URL.createObjectURL(typedBlob);
+};
+
 export const downloadSchoolStorageFileAsUpload = async (file: SchoolStorageFile): Promise<UploadedFile> => {
   const blob = await downloadSchoolStorageFileBlob(file);
   const mimeType = file.mimeType || normalizeMimeType(blob, file.name);

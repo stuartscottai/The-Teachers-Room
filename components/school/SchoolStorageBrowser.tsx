@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, FileText, Folder, FolderOpen, HardDrive, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ExternalLink, FileText, Folder, FolderOpen, HardDrive, RefreshCw, X } from 'lucide-react';
 import { UploadedFile } from '../../types';
 import {
   SchoolStorageFile,
   SchoolStorageFolder,
+  createSchoolStorageFileViewUrl,
   downloadSchoolStorageFilesAsUploads,
   loadSchoolStorageSnapshot,
 } from '../../services/schoolStorage';
@@ -38,6 +39,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const folderById = useMemo(
@@ -101,6 +103,30 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
     [currentFolderId, folders]
   );
 
+  const folderDocCounts = useMemo(() => {
+    const childFolderIdsByParent = new Map<string | null, string[]>();
+    folders.forEach((folder) => {
+      const key = folder.parentId || null;
+      childFolderIdsByParent.set(key, [...(childFolderIdsByParent.get(key) || []), folder.id]);
+    });
+
+    const directFileCountByFolder = new Map<string | null, number>();
+    files.forEach((file) => {
+      const key = file.folderId || null;
+      directFileCountByFolder.set(key, (directFileCountByFolder.get(key) || 0) + 1);
+    });
+
+    const countDocs = (folderId: string): number => {
+      const childFolderIds = childFolderIdsByParent.get(folderId) || [];
+      return (
+        (directFileCountByFolder.get(folderId) || 0) +
+        childFolderIds.reduce((sum, childFolderId) => sum + countDocs(childFolderId), 0)
+      );
+    };
+
+    return new Map(folders.map((folder) => [folder.id, countDocs(folder.id)]));
+  }, [files, folders]);
+
   const visibleFiles = useMemo(
     () =>
       files
@@ -136,6 +162,35 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
       setError(err instanceof Error ? err.message : 'Could not attach school files.');
     } finally {
       setAttaching(false);
+    }
+  };
+
+  const handleOpenFile = async (file: SchoolStorageFile) => {
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+      previewWindow.document.write('<!doctype html><title>Opening file...</title><p style="font-family: system-ui, sans-serif;">Opening file...</p>');
+      previewWindow.document.close();
+    }
+    setOpeningFileId(file.id);
+    setError(null);
+    try {
+      const url = await createSchoolStorageFileViewUrl(file);
+      if (previewWindow) {
+        previewWindow.opener = null;
+        previewWindow.location.href = url;
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+    } catch (err) {
+      if (previewWindow) previewWindow.close();
+      setError(err instanceof Error ? err.message : 'Could not open this file.');
+    } finally {
+      setOpeningFileId(null);
     }
   };
 
@@ -236,7 +291,9 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                           )}
                           <span className="truncate text-sm font-medium text-slate-700">{folder.name}</span>
                         </span>
-                        <span className="text-xs text-slate-400">Open</span>
+                        <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                          {folderDocCounts.get(folder.id) || 0} doc{(folderDocCounts.get(folder.id) || 0) === 1 ? '' : 's'}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -259,7 +316,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                       const checked = selectedFileIds.includes(file.id);
                       const disabled = !checked && existingCount + selectedFileIds.length >= maxFiles;
                       return (
-                        <label
+                        <div
                           key={file.id}
                           className={`flex items-center justify-between rounded-xl border px-3 py-2 ${
                             checked
@@ -283,7 +340,20 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                               </span>
                             </span>
                           </span>
-                        </label>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              void handleOpenFile(file);
+                            }}
+                            disabled={openingFileId === file.id}
+                            className="ml-3 inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <ExternalLink size={13} />
+                            {openingFileId === file.id ? 'Opening...' : 'Open'}
+                          </button>
+                        </div>
                       );
                     })}
                   </div>

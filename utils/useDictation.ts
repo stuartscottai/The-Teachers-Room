@@ -22,6 +22,15 @@ const appendSegment = (base: string, segment: string) => {
   return /\s$/.test(base) ? `${base}${clean}` : `${base} ${clean}`;
 };
 
+const isMicrosoftEdge = () => {
+  if (typeof navigator === 'undefined') return false;
+  const brands = (navigator as any).userAgentData?.brands;
+  if (Array.isArray(brands) && brands.some((brand) => /Microsoft Edge/i.test(String(brand?.brand || '')))) {
+    return true;
+  }
+  return /\bEdg\//.test(navigator.userAgent || '');
+};
+
 export const useDictation = (options: UseDictationOptions = {}) => {
   const [status, setStatus] = useState<DictationStatus>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -242,10 +251,25 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       refreshTarget();
     };
 
-    recognition.onerror = () => {
-      setStatus('error');
-      setStatusMessage('Speech recognition failed.');
+    recognition.onerror = (event: { error?: string }) => {
+      const error = event?.error || '';
       cleanupStreams();
+      if (error === 'not-allowed' || error === 'service-not-allowed') {
+        setStatus('error');
+        setStatusMessage('Microphone access was blocked. Allow the microphone in your browser and try again.');
+        return;
+      }
+      if (error === 'audio-capture') {
+        setStatus('error');
+        setStatusMessage('No microphone was found. Check your microphone and try again.');
+        return;
+      }
+      if (targetRef.current) {
+        void startWhisper();
+        return;
+      }
+      setStatus('error');
+      setStatusMessage('Speech recognition failed. Please try again.');
     };
 
     recognition.onend = () => {
@@ -258,13 +282,18 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       }
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      cleanupStreams();
+      return false;
+    }
     listeningRef.current = true;
     setEngine('speech');
     setStatus('listening');
     setStatusMessage('Listening...');
     return true;
-  }, [cleanupStreams, refreshTarget]);
+  }, [cleanupStreams, refreshTarget, startWhisper]);
 
   const start = useCallback(
     async (target: DictationTarget) => {
@@ -275,7 +304,7 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       setStatusMessage('Starting dictation...');
       setProgress(null);
 
-      const startedSpeech = startSpeech();
+      const startedSpeech = isMicrosoftEdge() ? false : startSpeech();
       if (!startedSpeech) {
         await startWhisper();
       }

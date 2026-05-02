@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Folder, HardDrive, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, HardDrive, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import {
   calculateSchoolStorageUsage,
   ensureSchoolStorageCapacity,
@@ -8,6 +8,7 @@ import {
   SchoolStorageFolder,
   SCHOOL_STORAGE_LIMIT_LABEL,
   createSchoolStorageFolder,
+  createSchoolStorageFileViewUrl,
   deleteSchoolStorageFile,
   deleteSchoolStorageFolder,
   loadSchoolStorageSnapshot,
@@ -32,6 +33,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [expandedFolderIds, setExpandedFolderIds] = useState<string[]>([]);
   const [hasInitializedFolderTree, setHasInitializedFolderTree] = useState(false);
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
 
   const folderById = useMemo(
     () => new Map<string, SchoolStorageFolder>(folders.map((folder) => [folder.id, folder])),
@@ -377,6 +379,38 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
     }
   };
 
+  const handleOpenFile = async (file: SchoolStorageFile) => {
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+      previewWindow.document.write('<!doctype html><title>Opening file...</title><p style="font-family: system-ui, sans-serif;">Opening file...</p>');
+      previewWindow.document.close();
+    }
+    setOpeningFileId(file.id);
+    setFeedback(null);
+    try {
+      const url = await createSchoolStorageFileViewUrl(file);
+      if (previewWindow) {
+        previewWindow.opener = null;
+        previewWindow.location.href = url;
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60 * 1000);
+    } catch (err) {
+      if (previewWindow) previewWindow.close();
+      setFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Could not open this file.',
+      });
+    } finally {
+      setOpeningFileId(null);
+    }
+  };
+
   const handleDeleteFolder = async (folder: SchoolStorageFolder) => {
     const childFolders = childFoldersByParent.get(folder.id) || [];
     const fileCount = fileCountByFolder.get(folder.id) || 0;
@@ -615,14 +649,26 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                             </div>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => void handleDeleteFile(file)}
-                          className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          title="Delete file"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleOpenFile(file)}
+                            disabled={openingFileId === file.id}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            title="Open file"
+                          >
+                            <ExternalLink size={13} />
+                            {openingFileId === file.id ? 'Opening...' : 'Open'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteFile(file)}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                            title="Delete file"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
