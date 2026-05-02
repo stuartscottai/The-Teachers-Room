@@ -22,13 +22,14 @@ const appendSegment = (base: string, segment: string) => {
   return /\s$/.test(base) ? `${base}${clean}` : `${base} ${clean}`;
 };
 
-const isMicrosoftEdge = () => {
+const isGoogleChrome = () => {
   if (typeof navigator === 'undefined') return false;
   const brands = (navigator as any).userAgentData?.brands;
-  if (Array.isArray(brands) && brands.some((brand) => /Microsoft Edge/i.test(String(brand?.brand || '')))) {
-    return true;
+  if (Array.isArray(brands)) {
+    return brands.some((brand) => /Google Chrome/i.test(String(brand?.brand || '')));
   }
-  return /\bEdg\//.test(navigator.userAgent || '');
+  const userAgent = navigator.userAgent || '';
+  return /\bChrome\//.test(userAgent) && !/\b(Edg|OPR|Opera)\//.test(userAgent);
 };
 
 export const useDictation = (options: UseDictationOptions = {}) => {
@@ -264,9 +265,9 @@ export const useDictation = (options: UseDictationOptions = {}) => {
         setStatusMessage('No microphone was found. Check your microphone and try again.');
         return;
       }
-      if (isMicrosoftEdge()) {
+      if (!isGoogleChrome()) {
         setStatus('error');
-        setStatusMessage('Live dictation is not available in Edge on this device. Please use Chrome for live dictation.');
+        setStatusMessage('Please use Chrome for live dictation.');
         return;
       }
       if (targetRef.current) {
@@ -309,9 +310,9 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       setStatusMessage('Starting dictation...');
       setProgress(null);
 
-      if (isMicrosoftEdge()) {
+      if (!isGoogleChrome()) {
         setStatus('error');
-        setStatusMessage('Live dictation is not reliable in Edge. Please use Chrome for dictation.');
+        setStatusMessage('Please use Chrome for live dictation.');
         return;
       }
 

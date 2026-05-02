@@ -363,7 +363,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                         </button>
                     </form>
                     {dictation.statusMessage && (
-                        <p className="mt-2 text-xs text-slate-500">{dictation.statusMessage}</p>
+                        <p className={`mt-2 text-xs ${dictation.isListening || dictation.status === 'error' ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
+                            {dictation.statusMessage}
+                        </p>
                     )}
                 </div>
             </div>

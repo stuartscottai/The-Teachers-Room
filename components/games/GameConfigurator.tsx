@@ -1722,7 +1722,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     />
                                     <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. PDFs, Word docs, and images are supported.</p>
                                     {dictation.statusMessage && (
-                                        <p className="mt-1 text-xs text-slate-500">{dictation.statusMessage}</p>
+                                        <p className={`mt-1 text-xs ${dictation.isListening || dictation.status === 'error' ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
+                                            {dictation.statusMessage}
+                                        </p>
                                     )}
                                     {canUseSchoolStorage && hasLocalUploads && (
                                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
