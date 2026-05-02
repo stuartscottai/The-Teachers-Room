@@ -264,6 +264,11 @@ export const useDictation = (options: UseDictationOptions = {}) => {
         setStatusMessage('No microphone was found. Check your microphone and try again.');
         return;
       }
+      if (isMicrosoftEdge()) {
+        setStatus('error');
+        setStatusMessage('Live dictation is not available in Edge on this device. Please use Chrome for live dictation.');
+        return;
+      }
       if (targetRef.current) {
         void startWhisper();
         return;
@@ -304,7 +309,7 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       setStatusMessage('Starting dictation...');
       setProgress(null);
 
-      const startedSpeech = isMicrosoftEdge() ? false : startSpeech();
+      const startedSpeech = startSpeech();
       if (!startedSpeech) {
         await startWhisper();
       }
