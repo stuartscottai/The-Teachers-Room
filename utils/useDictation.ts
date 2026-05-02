@@ -309,6 +309,12 @@ export const useDictation = (options: UseDictationOptions = {}) => {
       setStatusMessage('Starting dictation...');
       setProgress(null);
 
+      if (isMicrosoftEdge()) {
+        setStatus('error');
+        setStatusMessage('Live dictation is not reliable in Edge. Please use Chrome for dictation.');
+        return;
+      }
+
       const startedSpeech = startSpeech();
       if (!startedSpeech) {
         await startWhisper();
