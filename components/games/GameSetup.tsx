@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GeneratedGame, GameRunOptions, GameType } from '../../types';
+import { BonusCardType, GeneratedGame, GameRunOptions, GameType } from '../../types';
 import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
@@ -17,6 +17,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     players: 2,
     timerSeconds: game.config.type === GameType.TIME_BOMB ? 60 : 30, // Default for time bomb
     enableBonuses: false,
+    bonusOptions: ['double', 'bust', 'steal', 'lose-all', 'reset-score', 'first-place', 'last-place'],
     strictMode: game.config.strictMode || false,
     questionLimit: game.questions?.length || 0,
     teamNames: ['Team 1', 'Team 2'],
@@ -110,111 +111,125 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
   const showRandomizeOption = ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.WORD_WHEEL].includes(game.config.type);
   const playerOptions = game.config.type === GameType.WORD_WHEEL ? [1, 2, 3, 4] : [1, 2, 3, 4, 5, 6];
+  const bonusChoices: { id: BonusCardType; label: string; description: string }[] = [
+    { id: 'double', label: 'Double points', description: 'Current team gets double this card value.' },
+    { id: 'bust', label: 'Lose card value', description: 'Current team loses this card value.' },
+    { id: 'steal', label: 'Point steal', description: 'Current team steals points from the leader.' },
+    { id: 'lose-all', label: 'Lose all points', description: 'Current team drops to 0 points.' },
+    { id: 'reset-score', label: 'Reset score', description: 'Current team goes back to 0 points.' },
+    { id: 'first-place', label: 'Go into first place', description: 'Current team jumps just ahead of the leader.' },
+    { id: 'last-place', label: 'Go to last place', description: 'Current team drops just behind the lowest team.' },
+  ];
+  const toggleBonusChoice = (bonusType: BonusCardType) => {
+    setOptions((prev) => {
+      const current = prev.bonusOptions?.length ? prev.bonusOptions : bonusChoices.map((choice) => choice.id);
+      const next = current.includes(bonusType)
+        ? current.filter((item) => item !== bonusType)
+        : [...current, bonusType];
+      return { ...prev, bonusOptions: next.length ? next : current };
+    });
+  };
+  const setupCardClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
+  const setupLabelClass = 'mb-3 flex items-center text-sm font-black uppercase tracking-wide text-slate-600';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row">
-        
-        {/* Left Side - Hero/Summary */}
-        <div className="bg-brand-blue text-white p-8 md:w-1/3 flex flex-col justify-between">
-          <div>
+    <div className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-5 flex items-center justify-between gap-3">
             <button 
               onClick={onBack} 
-              className="text-sky-200 hover:text-white flex items-center mb-6 text-sm font-bold"
+            className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
             >
-              <ArrowLeft size={16} className="mr-1" /> {backLabel}
+            <ArrowLeft size={16} className="mr-2" /> {backLabel}
             </button>
-            <h1 className="font-display font-bold text-[clamp(1.6875rem,2.4vw,2.8125rem)] leading-[1.08] pb-[0.08em] max-w-full line-clamp-2 break-words overflow-hidden mb-2">
-              {game.title}
-            </h1>
-            <p className="text-sky-100 text-sm">{game.config.type}</p>
+              <button 
+                onClick={() => setOptions({ ...options, muted: !options.muted })}
+            className={`inline-flex items-center rounded-xl px-4 py-2 text-sm font-black shadow-sm transition-colors ${options.muted ? 'bg-white text-slate-400 border border-slate-200' : 'bg-sky-50 text-brand-blue border border-sky-100'}`}
+                title="Toggle Sound"
+              >
+            {options.muted ? <VolumeX size={18} className="mr-2" /> : <Volume2 size={18} className="mr-2" />}
+            {options.muted ? 'Sound Off' : 'Sound On'}
+              </button>
           </div>
-          <div className="mt-8">
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-wider font-bold text-sky-300 mb-1">Topic</p>
-              <p className="font-medium">{game.config.topic || "General Knowledge"}</p>
+
+        <div className="mb-6 rounded-3xl bg-brand-blue p-6 text-white shadow-xl shadow-sky-100">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+            <div className="min-w-0">
+              <p className="mb-2 text-sm font-black uppercase tracking-wide text-sky-100">{game.config.type}</p>
+              <h1 className="font-display text-4xl font-black leading-tight sm:text-5xl">{game.title}</h1>
+              <p className="mt-4 max-w-3xl text-base font-semibold text-sky-50">
+                Topic: {game.config.topic || 'General Knowledge'}
+              </p>
             </div>
-            {/* Sound Lab Entry */}
             <button 
-                onClick={() => setShowSoundLab(true)}
-                className="mt-6 w-full py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-bold flex items-center justify-center transition-colors"
+              onClick={() => setShowSoundLab(true)}
+              className="inline-flex h-14 items-center justify-center rounded-2xl bg-white/16 px-5 font-black text-white ring-1 ring-white/20 transition-colors hover:bg-white/24"
             >
-                <Settings2 size={16} className="mr-2" /> Configure Sounds
+              <Settings2 size={18} className="mr-2" /> Configure Sounds
             </button>
           </div>
         </div>
 
-        {/* Right Side - Configuration */}
-        <div className="p-8 md:w-2/3">
-          <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">Game Setup</h2>
-              <button 
-                onClick={() => setOptions({ ...options, muted: !options.muted })}
-                className={`p-2 rounded-full transition-colors ${options.muted ? 'bg-slate-100 text-slate-400' : 'bg-sky-50 text-brand-blue'}`}
-                title="Toggle Sound"
-              >
-                  {options.muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-              </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                {/* Teams Count */}
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+        <div className="grid gap-5 lg:grid-cols-2">
+          <section className={setupCardClass}>
+            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Teams</h2>
+            <div className="space-y-6">
+              <div>
+                <label className={setupLabelClass}>
                     <Users size={16} className="mr-2 text-brand-blue" /> Players / Teams
                   </label>
-                  <div className="flex space-x-2">
+                <div className="grid grid-cols-6 gap-2">
                     {playerOptions.map(num => (
                       <button
                         key={num}
                         onClick={() => setOptions({ ...options, players: num })}
-                        className={`w-10 h-10 rounded-lg font-bold transition-all
+                      className={`h-12 rounded-xl font-black transition-all
                           ${options.players === num 
-                            ? 'bg-brand-blue text-white shadow-md scale-110' 
+                          ? 'bg-brand-blue text-white shadow-md shadow-sky-100' 
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                       >
                         {num}
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Team Names Inputs */}
-                <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+              </div>
+              <div>
+                <label className={setupLabelClass}>
                         <Edit3 size={16} className="mr-2 text-brand-blue" /> Names
                     </label>
-                    <div className="grid grid-cols-1 gap-2 max-h-[160px] overflow-y-auto pr-2">
+                <div className="grid max-h-[245px] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
                         {options.teamNames?.map((name, idx) => (
-                            <div key={idx} className="flex items-center">
-                                <span className="text-xs font-bold text-slate-400 w-6">{idx + 1}.</span>
+                    <div key={idx} className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-400">{idx + 1}</span>
                                 <input 
                                     type="text" 
                                     value={name}
                                     onChange={(e) => handleTeamNameChange(idx, e.target.value)}
-                                    className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue outline-none"
+                        className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none"
                                 />
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
+          </section>
 
-            <div className="space-y-6">
+          <section className={setupCardClass}>
+            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Game Rules</h2>
+            <div className="grid gap-5">
                 
                 {/* CONFIGURATION OPTIONS BASED ON GAME TYPE */}
                 
                 {game.config.type === GameType.TIME_BOMB ? (
                     <>
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <label className={setupLabelClass}>
                                 <Zap size={16} className="mr-2 text-brand-blue" /> Initial Bomb Time
                             </label>
                             <select 
                                 value={options.bombDuration}
                                 onChange={(e) => setOptions({ ...options, bombDuration: Number(e.target.value) })}
-                                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold"
+                                className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold outline-none focus:ring-2 focus:ring-brand-blue"
                             >
                                 <option value={30}>30 Seconds (Blitz)</option>
                                 <option value={45}>45 Seconds (Fast)</option>
@@ -224,15 +239,15 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <label className={setupLabelClass}>
                                 <Heart size={16} className="mr-2 text-brand-blue" /> Lives per Team
                             </label>
-                            <div className="flex space-x-2">
+                            <div className="grid grid-cols-4 gap-2">
                                 {[1, 2, 3, 5].map(num => (
                                     <button
                                         key={num}
                                         onClick={() => setOptions({ ...options, teamLives: num })}
-                                        className={`flex-1 py-2 rounded-lg font-bold transition-all border
+                                        className={`rounded-xl border py-3 font-bold transition-all
                                         ${options.teamLives === num 
                                             ? 'bg-red-100 text-red-600 border-red-300' 
                                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
@@ -245,13 +260,13 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     </>
                 ) : (
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                        <label className={setupLabelClass}>
                             <Clock size={16} className="mr-2 text-brand-blue" /> Answer Timer
                         </label>
                         <select 
                             value={options.timerSeconds}
                             onChange={(e) => setOptions({ ...options, timerSeconds: Number(e.target.value) })}
-                            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white"
+                            className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold outline-none focus:ring-2 focus:ring-brand-blue"
                         >
                             <option value={0}>No Timer</option>
                             <option value={15}>15 Seconds</option>
@@ -263,20 +278,20 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
                 {/* Question Randomization Toggle (Where applicable) */}
                 {showRandomizeOption && (
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <label className={setupLabelClass}>
                             <Shuffle size={16} className="mr-2 text-brand-blue" /> Question Order
                         </label>
-                        <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                             <button
                                 onClick={() => setOptions({...options, randomizeQuestions: true})}
-                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                className={`py-3 text-sm font-black transition-colors ${options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Random
                             </button>
                             <button
                                 onClick={() => setOptions({...options, randomizeQuestions: false})}
-                                className={`flex-1 py-2 text-xs font-bold transition-colors ${!options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                className={`py-3 text-sm font-black transition-colors ${!options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Sequential
                             </button>
@@ -287,17 +302,24 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     </div>
                 )}
 
+            </div>
+          </section>
+
+          <section className={`${setupCardClass} lg:col-span-2`}>
+            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Game Options</h2>
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="space-y-5">
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
-                    <div className="space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <label className={setupLabelClass}>
                                 <Target size={16} className="mr-2 text-brand-blue" /> Game Mode
                             </label>
                             <select 
                                 value={options.dartsMode}
                                 onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
-                                className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                                className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                             >
                                 <option value="high-score">High Score (Standard)</option>
                                 <option value="301">301 (Double Out)</option>
@@ -305,14 +327,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         </div>
                         
                         {options.dartsMode === 'high-score' && (
-                            <div className="animate-fade-in">
-                                <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                            <div className="mt-4 animate-fade-in">
+                                <label className={setupLabelClass}>
                                     <Hash size={16} className="mr-2 text-brand-blue" /> Turns per Player
                                 </label>
                                 <select 
                                     value={options.dartsLegs}
                                     onChange={(e) => setOptions({ ...options, dartsLegs: Number(e.target.value) })}
-                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                                    className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                 >
                                     <option value={3}>3 Turns (Short)</option>
                                     <option value={5}>5 Turns (Standard)</option>
@@ -321,7 +343,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                 </select>
                             </div>
                         )}
-                        <p className="text-xs text-slate-500">
+                        <p className="mt-3 text-xs font-semibold text-slate-500">
                             {options.dartsMode === '301' 
                                 ? "Start at 301, finish exactly on 0. Must end with a Double."
                                 : `Players take turns scoring. Highest score after ${options.dartsLegs} turns wins.`}
@@ -332,15 +354,15 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 {/* Trivia Specific: Grid Size Selection */}
                 {game.config.type === GameType.TRIVIA && (
                     <>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <label className={setupLabelClass}>
                                 <Grid size={16} className="mr-2 text-brand-blue" /> Grid Size (Questions)
                             </label>
                             {validQuestionCounts.length > 0 ? (
                                 <select 
                                     value={options.questionLimit}
                                     onChange={(e) => setOptions({ ...options, questionLimit: Number(e.target.value) })}
-                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white font-bold text-slate-800"
+                                    className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                 >
                                     {validQuestionCounts.map(count => (
                                         <option key={count} value={count}>
@@ -349,35 +371,33 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                     ))}
                                 </select>
                             ) : (
-                                <div className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded flex items-center">
+                                <div className="flex rounded-xl bg-red-50 p-3 text-xs font-bold text-red-500">
                                     <AlertCircle size={14} className="mr-1" />
                                     Can't split {game.questions?.length} Qs evenly among {options.players} teams.
                                 </div>
                             )}
-                            <p className="text-[10px] text-slate-400 mt-1">
-                               * We enforce fairness: Total questions must be divisible by the number of teams.
+                            <p className="mt-2 text-xs font-semibold text-slate-400">
+                               Total questions must divide evenly by the number of teams.
                             </p>
                         </div>
 
-                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">
-                                Question Points
-                            </label>
-                            <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <label className={setupLabelClass}>Question Points</label>
+                            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                                 <button
                                     onClick={() => setOptions({ ...options, triviaRandomPoints: false })}
-                                    className={`flex-1 py-2 text-xs font-bold transition-colors ${!options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                    className={`py-3 text-sm font-black transition-colors ${!options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                                 >
-                                    Use Saved Points
+                                    Saved Points
                                 </button>
                                 <button
                                     onClick={() => setOptions({ ...options, triviaRandomPoints: true })}
-                                    className={`flex-1 py-2 text-xs font-bold transition-colors ${options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                    className={`py-3 text-sm font-black transition-colors ${options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                                 >
-                                    Random 25/50/75/100
+                                    Random
                                 </button>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1">
+                            <p className="mt-2 text-xs font-semibold text-slate-400">
                                 {options.triviaRandomPoints
                                     ? 'Each card gets a random value at game start.'
                                     : 'Keep the points currently saved in this game.'}
@@ -387,77 +407,118 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 )}
 
                 {game.config.type === GameType.WORD_WHEEL && (
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                        <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <label className={setupLabelClass}>
                             <Zap size={16} className="mr-2 text-brand-blue" /> Scoring Mode
                         </label>
-                        <div className="flex rounded-lg overflow-hidden border border-slate-300">
+                        <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                             <button
                                 onClick={() => setOptions({ ...options, wordWheelScoringMode: 'classic' })}
-                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.wordWheelScoringMode !== 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode !== 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Classic
                             </button>
                             <button
                                 onClick={() => setOptions({ ...options, wordWheelScoringMode: 'speed-bonus' })}
-                                className={`flex-1 py-2 text-xs font-bold transition-colors ${options.wordWheelScoringMode === 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode === 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Speed Bonus
                             </button>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="mt-2 text-xs font-semibold text-slate-400">
                             {options.wordWheelScoringMode === 'speed-bonus'
                                 ? 'Correct answers can earn up to 10 extra points based on remaining time.'
                                 : 'Each correct answer gives fixed points.'}
                         </p>
-                        <p className="text-[10px] text-slate-500 mt-2">
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
                             Letter rule: {(options.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
-                                ? 'Q/V/X/Y/Z can contain or start with the letter (contains is preferred for challenge); others start with the letter.'
+                                ? 'Q/V/X/Y/Z can contain or start with the letter; others start with the letter.'
                                 : 'All letters use starts with.'}
                         </p>
                     </div>
                 )}
 
-                {/* Random Bonuses - Hidden for Pub Quiz, Time Bomb, and Survey Showdown */}
-                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL && (
-                    <div 
-                      className={`p-4 rounded-xl border-2 cursor-pointer transition-all
-                        ${options.enableBonuses 
-                          ? 'border-brand-yellow bg-yellow-50' 
-                          : 'border-slate-100 hover:border-slate-200'}`}
-                      onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
-                    >
-                      <div className="flex items-center justify-between">
-                         <div className="flex items-center">
-                            <div className={`p-2 rounded-full mr-3 ${options.enableBonuses ? 'bg-brand-yellow text-slate-900' : 'bg-slate-100 text-slate-400'}`}>
-                              <Gift size={20} />
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-slate-800">Chaos Mode</h3>
-                              <p className="text-xs text-slate-500">Hides 20% bonuses behind questions.</p>
-                            </div>
-                         </div>
-                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center
-                            ${options.enableBonuses ? 'border-brand-blue bg-brand-blue' : 'border-slate-300'}`}>
-                            {options.enableBonuses && <div className="w-2 h-2 bg-white rounded-full" />}
-                         </div>
-                      </div>
-                    </div>
+                {![
+                  GameType.DARTS,
+                  GameType.TRIVIA,
+                  GameType.WORD_WHEEL,
+                ].includes(game.config.type) && (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                    <p className="font-bold text-slate-500">No extra setup needed for this game type.</p>
+                  </div>
                 )}
-            </div>
-          </div>
+              </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100">
+              <div>
+                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
+                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-brand-yellow bg-yellow-50' : 'border-slate-200 bg-slate-50'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        className="flex min-w-0 items-center text-left"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                      >
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-brand-yellow text-slate-900' : 'bg-white text-slate-400'}`}>
+                          <Gift size={22} />
+                        </div>
+                        <div>
+                          <h3 className="font-display text-xl font-black text-slate-900">Chaos Mode</h3>
+                          <p className="text-sm font-semibold text-slate-500">Hide bonus cards behind questions.</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'}`}
+                      >
+                        {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
+                      </button>
+                    </div>
+                    {options.enableBonuses && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {bonusChoices.map((choice) => {
+                          const checked = (options.bonusOptions || []).includes(choice.id);
+                          return (
+                            <button
+                              key={choice.id}
+                              type="button"
+                              onClick={() => toggleBonusChoice(choice.id)}
+                              className={`flex min-h-[78px] items-start gap-2 rounded-xl border p-3 text-left transition-colors ${checked ? 'border-brand-blue bg-white text-slate-800' : 'border-slate-200 bg-white/70 text-slate-500'}`}
+                            >
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'}`}>
+                                {checked && <span className="h-2 w-2 rounded-sm bg-white" />}
+                              </span>
+                              <span>
+                                <span className="block text-sm font-black">{choice.label}</span>
+                                <span className="block text-xs leading-4">{choice.description}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                    <Gift className="mx-auto mb-2 text-slate-300" size={28} />
+                    <p className="font-bold text-slate-500">Bonus cards are not used in this game type.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+
+          <div className="mt-6">
             <button 
               onClick={() => onStart(options)}
               disabled={game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0}
-              className={`w-full py-4 bg-brand-blue text-white text-lg font-bold rounded-xl shadow-lg hover:bg-sky-600 hover:shadow-xl transition-all flex items-center justify-center transform hover:-translate-y-1
+            className={`flex w-full items-center justify-center rounded-2xl bg-brand-blue py-5 text-xl font-black text-white shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl
                 ${game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Play size={20} className="mr-2" /> Start Game
             </button>
           </div>
-        </div>
       </div>
 
       {/* SOUND LAB MODAL */}

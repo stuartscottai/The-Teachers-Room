@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
+import { BonusCardType, GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
@@ -113,16 +113,24 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const optionKey = activeQ?.options?.join('|') || '';
     const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url, activeQ?.image?.thumbUrl);
     const questionImageAlt = activeQ?.image?.alt || '';
-    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
-    const isNegativeBonus = activeQ?.bonusType === 'bust';
+    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
+    const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
     const bonusEffectText =
         activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
         activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
-        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
+        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' :
+        activeQ?.bonusType === 'lose-all' ? 'LOSE ALL POINTS!' :
+        activeQ?.bonusType === 'reset-score' ? 'RESET SCORE!' :
+        activeQ?.bonusType === 'first-place' ? 'FIRST PLACE!' :
+        activeQ?.bonusType === 'last-place' ? 'LAST PLACE!' : '';
     const bonusDetailText =
         activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
         activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
-        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
+        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" :
+        activeQ?.bonusType === 'lose-all' ? 'Your team loses every point it has.' :
+        activeQ?.bonusType === 'reset-score' ? 'Your team score goes back to 0.' :
+        activeQ?.bonusType === 'first-place' ? 'Your team jumps just ahead of the current leader.' :
+        activeQ?.bonusType === 'last-place' ? 'Your team drops just behind the lowest score.' : '';
     const timerProgress = options.timerSeconds > 0
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
@@ -133,7 +141,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = selectedQuestion !== null || isGameOver || editingTeamIndex !== null;
+        const shouldLock = selectedQuestion !== null || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
     }, [selectedQuestion, isGameOver, editingTeamIndex]);
@@ -208,10 +216,12 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             // Select ~15% of tiles as bonuses (min 3)
             const bonusCount = Math.max(3, Math.floor(flatCoords.length * 0.15));
             const selectedCoords = flatCoords.slice(0, bonusCount);
-            const bonusTypes = ['double', 'bust', 'steal', 'double'];
+            const selectedBonusTypes: BonusCardType[] = options.bonusOptions?.length
+                ? options.bonusOptions
+                : ['double', 'bust', 'steal'];
 
             selectedCoords.forEach((coord, i) => {
-                const type = bonusTypes[i % bonusTypes.length] as 'double' | 'bust' | 'steal';
+                const type = selectedBonusTypes[i % selectedBonusTypes.length];
                 const q = boardCopy[coord.c].questions[coord.q];
                 q.bonusType = type;
                 q.isBonus = true;
@@ -219,7 +229,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         }
         
         setGameBoard(boardCopy);
-    }, [game, options.enableBonuses]);
+    }, [game, options.bonusOptions, options.enableBonuses]);
 
     // Toggle Fullscreen
     const toggleFullscreen = () => {
@@ -367,6 +377,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             newScores[currentTeam] += (points * 2);
         } else if (type === 'bust') {
             newScores[currentTeam] -= points;
+        } else if (type === 'lose-all' || type === 'reset-score') {
+            newScores[currentTeam] = 0;
         } else if (type === 'steal') {
              // Steal from leader
              let victimIdx = -1;
@@ -384,6 +396,12 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
              } else {
                  newScores[currentTeam] += points;
              }
+        } else if (type === 'first-place') {
+            const leaderScore = Math.max(...scores.filter((_, i) => i !== currentTeam), 0);
+            newScores[currentTeam] = Math.max(newScores[currentTeam], leaderScore + points);
+        } else if (type === 'last-place') {
+            const lowestScore = Math.min(...scores.filter((_, i) => i !== currentTeam), 0);
+            newScores[currentTeam] = Math.min(newScores[currentTeam], lowestScore - points);
         }
 
         setScores(newScores);
@@ -409,7 +427,6 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         if (!gameBoard || isGameOver) return;
         const totalQuestions = gameBoard.reduce((acc: number, cat: any) => acc + cat.questions.length, 0);
         if (totalQuestions > 0 && answeredQuestions.length >= totalQuestions) {
-             playSound('win', isMuted, options.soundConfig?.win);
              setIsGameOver(true);
         }
     };
@@ -652,13 +669,14 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
@@ -1221,7 +1239,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                             {hasOptions ? (
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
-                                                    className={`flex-1 text-white font-bold text-lg sm:text-2xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
+                                                    className={`flex-1 text-white font-black text-2xl sm:text-4xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
                                                         ${mcResult === 'correct' 
                                                             ? 'bg-green-500 hover:bg-green-600 border-green-700' 
                                                             : 'bg-red-500 hover:bg-red-600 border-red-700'}`}

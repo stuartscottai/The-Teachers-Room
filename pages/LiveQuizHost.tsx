@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCircle, Copy, Crown, Play, SkipForward, Trophy, UserMinus, Users } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, Copy, Crown, Music, Play, SkipForward, Trophy, UserMinus, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getLiveQuizJoinUrl,
@@ -39,6 +39,50 @@ const ANSWER_TILE_STYLES = [
   'border-amber-300 bg-amber-50 text-amber-900',
   'border-violet-300 bg-violet-50 text-violet-900',
 ];
+
+const LOBBY_TRACKS = [
+  { id: 'chill', label: 'Chill', src: '/assets/audio/live-quiz/chill.mp3' },
+  { id: 'relax', label: 'Relax', src: '/assets/audio/live-quiz/relax.mp3' },
+  { id: 'mystery', label: 'Mystery', src: '/assets/audio/live-quiz/mystery.mp3' },
+  { id: 'pop', label: 'Pop', src: '/assets/audio/live-quiz/pop.mp3' },
+  { id: 'strings', label: 'Strings', src: '/assets/audio/live-quiz/strings.mp3' },
+  { id: 'cello', label: 'Cello', src: '/assets/audio/live-quiz/cello.mp3' },
+] as const;
+
+type LobbyTrackId = typeof LOBBY_TRACKS[number]['id'];
+
+const useLiveQuizMusic = (enabled: boolean, mode: 'lobby' | 'focus' | 'off', lobbyTrack: LobbyTrackId) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    if (!enabled || mode === 'off') return;
+
+    const selectedLobbyTrack = LOBBY_TRACKS.find((track) => track.id === lobbyTrack) || LOBBY_TRACKS[0];
+    const src = mode === 'focus'
+      ? '/assets/audio/live-quiz/focus.mp3'
+      : selectedLobbyTrack.src;
+    const audio = new Audio(src);
+    audio.loop = true;
+    audio.volume = mode === 'focus' ? 0.28 : 0.32;
+    audioRef.current = audio;
+    void audio.play().catch(() => {
+      // Browsers can block autoplay until the teacher clicks a control.
+    });
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+    };
+  }, [enabled, lobbyTrack, mode]);
+};
 
 const AnimatedScore: React.FC<{ value: number; className?: string }> = ({ value, className }) => {
   const [displayValue, setDisplayValue] = useState(value);
@@ -87,6 +131,8 @@ export const LiveQuizHost: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
   const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [lobbyTrack, setLobbyTrack] = useState<LobbyTrackId>('menu');
 
   const load = async () => {
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
@@ -161,6 +207,19 @@ export const LiveQuizHost: React.FC = () => {
     ? Math.max(0, Math.ceil((((session.timerSeconds || 20) * 1000) - elapsedMs) / 1000))
     : 0;
   const roundComplete = Boolean(session && ['locked', 'reveal', 'leaderboard'].includes(session.status));
+  const musicMode = session?.status === 'lobby' || session?.status === 'leaderboard'
+    ? 'lobby'
+    : session?.status === 'question'
+      ? 'focus'
+      : 'off';
+  useLiveQuizMusic(musicEnabled, musicMode, lobbyTrack);
+
+  useEffect(() => {
+    if (session?.status !== 'ended') return;
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+  }, [session?.status]);
 
   useEffect(() => {
     if (!session || session.status !== 'question' || busy) return;
@@ -246,6 +305,32 @@ export const LiveQuizHost: React.FC = () => {
     }
   };
 
+  const AudioControls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setMusicEnabled((value) => !value)}
+        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-black ${musicEnabled ? 'bg-sky-100 text-sky-800' : 'bg-white/10 text-white'}`}
+        title="Turn live quiz music on or off"
+      >
+        <Music size={16} />
+        Music {musicEnabled ? 'On' : 'Off'}
+      </button>
+      {(session?.status === 'lobby' || session?.status === 'leaderboard') && (
+        <select
+          value={lobbyTrack}
+          onChange={(event) => setLobbyTrack(event.target.value as LobbyTrackId)}
+          className="h-10 rounded-xl border border-white/20 bg-white px-3 text-sm font-black text-slate-900"
+          aria-label="Lobby music"
+        >
+          {LOBBY_TRACKS.map((track) => (
+            <option key={track.id} value={track.id}>{track.label}</option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+
   if (!session) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
@@ -274,47 +359,50 @@ export const LiveQuizHost: React.FC = () => {
     const winnerScore = finalRanking[0]?.score ?? 0;
     const winners = finalRanking.filter((entry) => entry.score === winnerScore);
     return (
-      <WinnerCeremonyHero
-        winnerHeadline={winners.length > 1 ? `WINNERS: ${winners.map((winner) => winner.name).join(' & ')}` : `${winners[0]?.name || 'Winner'} wins!`}
-        subtitle="Live Quiz Challenge final standings"
+      <div className="relative min-h-[calc(100vh-4rem)] bg-slate-950">
+        <WinnerCeremonyHero
+          winnerHeadline={winners.length > 1 ? `WINNERS: ${winners.map((winner) => winner.name).join(' & ')}` : `${winners[0]?.name || 'Winner'} wins!`}
+          subtitle="Live Quiz Challenge final standings"
         ranking={finalRanking}
         isMobileViewport={isMobileViewport}
+        musicEnabled={musicEnabled}
         onPlayAgain={() => void replayToLobby()}
         onExit={() => navigate('/games')}
-      >
-        <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Final positions</h2>
-            <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{finalRanking.length} teams</p>
-          </div>
-          <div className="grid gap-3">
-            {finalRanking.map((entry, index) => {
-              const rank = index + 1;
-              const rankStyle =
-                rank === 1
-                  ? 'border-yellow-300/60 bg-yellow-300 text-slate-950'
-                  : rank === 2
-                    ? 'border-slate-200/60 bg-slate-200 text-slate-950'
-                    : rank === 3
-                      ? 'border-orange-300/60 bg-orange-300 text-slate-950'
-                      : 'border-white/15 bg-white/10 text-white';
-              return (
-                <div
-                  key={`${entry.name}-${entry.index}`}
-                  className={`grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 shadow-lg sm:grid-cols-[90px_minmax(0,1fr)_180px] sm:p-4 ${rankStyle}`}
-                >
-                  <div className="font-display text-3xl font-black sm:text-4xl">#{rank}</div>
-                  <div className="min-w-0">
-                    <div className="truncate font-display text-2xl font-black sm:text-3xl">{entry.name}</div>
-                    <div className={`text-xs font-black uppercase tracking-wide ${rank <= 3 ? 'text-slate-700' : 'text-cyan-200'}`}>Final rank</div>
+        >
+          <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Final positions</h2>
+              <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{finalRanking.length} teams</p>
+            </div>
+            <div className="grid gap-3">
+              {finalRanking.map((entry, index) => {
+                const rank = index + 1;
+                const rankStyle =
+                  rank === 1
+                    ? 'border-yellow-300/60 bg-yellow-300 text-slate-950'
+                    : rank === 2
+                      ? 'border-slate-200/60 bg-slate-200 text-slate-950'
+                      : rank === 3
+                        ? 'border-orange-300/60 bg-orange-300 text-slate-950'
+                        : 'border-white/15 bg-white/10 text-white';
+                return (
+                  <div
+                    key={`${entry.name}-${entry.index}`}
+                    className={`grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 shadow-lg sm:grid-cols-[90px_minmax(0,1fr)_180px] sm:p-4 ${rankStyle}`}
+                  >
+                    <div className="font-display text-3xl font-black sm:text-4xl">#{rank}</div>
+                    <div className="min-w-0">
+                      <div className="truncate font-display text-2xl font-black sm:text-3xl">{entry.name}</div>
+                      <div className={`text-xs font-black uppercase tracking-wide ${rank <= 3 ? 'text-slate-700' : 'text-cyan-200'}`}>Final rank</div>
+                    </div>
+                    <div className="text-right font-display text-2xl font-black sm:text-3xl">{entry.score.toLocaleString()} pts</div>
                   </div>
-                  <div className="text-right font-display text-2xl font-black sm:text-3xl">{entry.score.toLocaleString()} pts</div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </WinnerCeremonyHero>
+        </WinnerCeremonyHero>
+      </div>
     );
   }
 
@@ -328,6 +416,7 @@ export const LiveQuizHost: React.FC = () => {
         subtitle={`Question ${session.currentQuestionIndex + 1} results`}
         removingParticipantId={removingParticipantId}
         onRemoveParticipant={(participant) => void removeParticipant(participant)}
+        topControls={AudioControls}
         controls={
           <>
             <button onClick={nextQuestion} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">
@@ -344,18 +433,19 @@ export const LiveQuizHost: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617]">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div className="flex h-[calc(100dvh-4.25rem)] overflow-hidden bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617] lg:p-4">
+      <div className="flex h-full w-full flex-col">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <button onClick={() => void exitHost()} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
             <ArrowLeft size={16} />
             Games
           </button>
+          {AudioControls}
           <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">Code {session.joinCode}</div>
         </div>
 
         {session.status === 'lobby' ? (
-          <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+          <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
             <div className="rounded-3xl bg-white p-5 text-slate-900 shadow-2xl">
               <h1 className="text-3xl font-black">{session.title}</h1>
               <p className="mt-1 text-sm font-bold text-slate-500">{questions.length} live questions</p>
@@ -402,9 +492,9 @@ export const LiveQuizHost: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="rounded-3xl bg-white p-5 text-slate-900 shadow-2xl">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="flex min-h-0 flex-col rounded-3xl bg-white p-4 text-slate-900 shadow-2xl lg:p-5">
+              <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-wide text-brand-blue">
                     Question {(session.currentQuestionIndex || 0) + 1} of {questions.length}
@@ -432,21 +522,21 @@ export const LiveQuizHost: React.FC = () => {
               </div>
 
               {currentQuestion ? (
-                <>
+                <div className="flex min-h-0 flex-1 flex-col">
                   {imageUrl && (
-                    <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                      <img src={imageUrl} alt="" className="h-56 w-full object-contain" />
+                    <div className="mb-3 max-h-[18vh] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                      <img src={imageUrl} alt="" className="h-full max-h-[18vh] w-full object-contain" />
                     </div>
                   )}
                   {currentQuestion.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">{currentQuestion.category}</div>}
-                  <h1 className="text-3xl font-black leading-tight sm:text-5xl">{currentQuestion.question}</h1>
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <h1 className="shrink-0 text-[clamp(2.4rem,4.35vw,5.7rem)] font-black leading-[1.04]">{currentQuestion.question}</h1>
+                  <div className="mt-4 grid min-h-0 flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
                     {currentQuestion.options.map((option, index) => {
                       const isAnswer = option.trim().toLowerCase() === String(currentQuestion.answer || '').trim().toLowerCase();
                       return (
                         <div
                           key={option}
-                          className={`rounded-2xl border-2 p-5 text-xl font-black shadow-sm ${
+                          className={`flex min-h-0 items-start rounded-2xl border-2 p-4 text-[clamp(1.9rem,3vw,3.75rem)] font-black leading-tight shadow-sm lg:p-5 ${
                             ['reveal', 'leaderboard'].includes(session.status) && isAnswer
                               ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
                               : ['reveal', 'leaderboard'].includes(session.status)
@@ -460,12 +550,12 @@ export const LiveQuizHost: React.FC = () => {
                       );
                     })}
                   </div>
-                </>
+                </div>
               ) : (
                 <div className="p-8 text-center font-black text-slate-500">No question loaded.</div>
               )}
 
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-4 flex shrink-0 flex-wrap gap-3">
                 {session.status === 'question' && (
                   <button onClick={() => void lockAnswers()} disabled={busy} className="rounded-xl bg-slate-900 px-5 py-3 font-black text-white">
                     Lock Answers
@@ -477,8 +567,12 @@ export const LiveQuizHost: React.FC = () => {
                   </button>
                 )}
                 {session.status === 'reveal' && (
-                  <button onClick={() => void showLeaderboard()} disabled={busy} className="rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900">
-                    Show Leaderboard
+                  <button
+                    onClick={() => session.currentQuestionIndex + 1 >= questions.length ? void endGame() : void showLeaderboard()}
+                    disabled={busy}
+                    className="rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900"
+                  >
+                    {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Show Leaderboard'}
                   </button>
                 )}
                 {session.status === 'leaderboard' && (
@@ -493,7 +587,7 @@ export const LiveQuizHost: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-2xl backdrop-blur-md">
+            <div className="min-h-0 overflow-y-auto rounded-3xl border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-md lg:p-5">
               <div className="mb-4 flex items-center gap-2 text-xl font-black">
                 <Trophy size={22} className="text-brand-yellow" />
                 Leaderboard

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, CheckCircle2, Clock, Crown, Home, Trophy, WifiOff, XCircle } from 'lucide-react';
 import {
@@ -12,6 +12,7 @@ import {
 import { LiveQuizParticipant, LiveQuizSession, LiveQuizSubmission, StudentSafeLiveQuizQuestion } from '../types';
 import { resolveGameImageUrl } from '../utils/gameImage';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
+import { playSound } from '../utils/gameUtils';
 
 const normalizeAnswer = (value?: string | null) => String(value || '').trim().toLowerCase();
 
@@ -60,6 +61,7 @@ export const LiveQuizStudent: React.FC = () => {
   const [error, setError] = useState('');
   const [nowMs, setNowMs] = useState(Date.now());
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
+  const playedRevealSoundRef = useRef<string>('');
 
   useEffect(() => {
     if (sessionId && participantId) rememberLiveQuizParticipant(sessionId, participantId);
@@ -126,6 +128,14 @@ export const LiveQuizStudent: React.FC = () => {
     Number.isFinite(hostLastSeenAtMs) &&
     nowMs - hostLastSeenAtMs > HOST_DISCONNECTED_AFTER_MS
   );
+
+  useEffect(() => {
+    if (!session || !question || !revealVisible) return;
+    const key = `${session.id}-${question.questionIndex}`;
+    if (playedRevealSoundRef.current === key) return;
+    playedRevealSoundRef.current = key;
+    playSound(isOwnAnswerCorrect ? 'correct' : 'incorrect', false, isOwnAnswerCorrect ? 'LevelUp' : 'WompWomp');
+  }, [isOwnAnswerCorrect, question, revealVisible, session]);
 
   const handleAnswer = async (answer: string) => {
     if (!question || !canAnswer) return;
@@ -325,9 +335,9 @@ export const LiveQuizStudent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.24),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617]">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-3xl flex-col">
-        <div className="mb-4 flex items-center justify-between gap-3">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.24),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617] md:h-[calc(100dvh-4rem)] md:overflow-hidden md:p-4">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem-1.5rem)] max-w-6xl flex-col md:h-full md:min-h-0 md:max-w-none">
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3 md:mx-auto md:w-[clamp(720px,55vw,1200px)]">
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">
             Question {question.questionIndex + 1}
           </div>
@@ -339,16 +349,16 @@ export const LiveQuizStudent: React.FC = () => {
           {me && ['leaderboard', 'ended'].includes(session.status) && <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">{me.score} pts</div>}
         </div>
 
-        <div className="flex flex-1 flex-col justify-center rounded-3xl bg-white p-5 text-slate-900 shadow-2xl">
+        <div className="flex min-h-0 flex-1 flex-col justify-center rounded-3xl bg-white p-4 text-slate-900 shadow-2xl md:mx-auto md:aspect-[2/1] md:h-auto md:max-h-[calc(100dvh-8.5rem)] md:w-[clamp(720px,55vw,1200px)] md:flex-none md:p-5">
           {imageUrl && (
-            <div className="mb-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <img src={imageUrl} alt="" className="h-44 w-full object-contain" />
+            <div className="mb-3 max-h-[18vh] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              <img src={imageUrl} alt="" className="h-full max-h-[18vh] w-full object-contain" />
             </div>
           )}
           {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
-          <h1 className="text-2xl font-black leading-tight sm:text-4xl">{question.question}</h1>
+          <h1 className="min-h-0 shrink overflow-hidden break-words text-[clamp(1.55rem,min(2.65vw,4.6vh),3.6rem)] font-black leading-[1.05]">{question.question}</h1>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid min-h-0 flex-[1.15] auto-rows-fr gap-3 sm:grid-cols-2">
             {question.options.map((option, index) => {
               const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
               const isCorrectAnswer = revealVisible && normalizeAnswer(question.revealedAnswer) === normalizeAnswer(option);
@@ -369,7 +379,7 @@ export const LiveQuizStudent: React.FC = () => {
                   type="button"
                   disabled={!canAnswer}
                   onClick={() => void handleAnswer(option)}
-                  className={`relative min-h-[84px] rounded-2xl border-2 p-5 pr-12 text-left text-xl font-black shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed ${optionClass} ${!revealVisible && !canAnswer && !isSelected && !isCorrectAnswer ? 'opacity-60' : ''}`}
+                  className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left text-[clamp(1.1rem,min(1.75vw,2.9vh),2.35rem)] font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${optionClass} ${!revealVisible && !canAnswer && !isSelected && !isCorrectAnswer ? 'opacity-60' : ''}`}
                 >
                   <span className={`mr-2 ${isCorrectAnswer ? 'text-lime-800' : isWrongSelection ? 'text-red-600' : revealVisible ? 'text-slate-400' : 'text-brand-blue'}`}>
                     {String.fromCharCode(65 + index)}.
@@ -384,13 +394,13 @@ export const LiveQuizStudent: React.FC = () => {
           </div>
 
           {hasSubmitted && !revealVisible && (
-            <div className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center font-black text-slate-700">
+            <div className="mt-3 flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 p-3 text-center font-black text-slate-700">
               <CheckCircle size={18} className="text-emerald-600" />
               Submitted
             </div>
           )}
           {revealVisible && (
-            <div className={`mt-5 rounded-xl p-4 text-center font-black ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
+            <div className={`mt-3 shrink-0 rounded-xl p-3 text-center font-black ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
               {didSubmitAnswer ? (isOwnAnswerCorrect ? 'Correct' : 'Incorrect') : 'No answer submitted'}
             </div>
           )}

@@ -111,9 +111,9 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     // Scroll Lock
     useEffect(() => {
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = gameState === 'gameover' ? '' : 'hidden';
         return () => { document.body.style.overflow = ''; };
-    }, []);
+    }, [gameState]);
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -369,7 +369,6 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 const survivors = finalLives.map((l, i) => l > 0).filter(Boolean).length;
                 if (survivors <= 1 && options.players > 1) {
                     setGameState('gameover');
-                    playSound('win', isMuted);
                 } else {
                     passBombToNextSurvivor();
                     setBombTime(options.bombDuration || 60);
@@ -410,7 +409,6 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         if (available.length === 0) {
             if (options.studentPractice) {
                 setGameState('gameover');
-                playSound('win', isMuted);
                 return;
             }
             setUsedQuestionIds([]);
@@ -696,13 +694,14 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final survival standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
@@ -1354,7 +1353,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                         
                         <button 
                             onClick={handleContinueAfterExplosion}
-                            className="bg-white text-red-900 text-2xl font-bold py-4 px-12 rounded-full shadow-xl hover:bg-red-50 transition-transform hover:scale-105 active:scale-95 border-b-4 border-slate-300 active:border-b-0 active:translate-y-1"
+                            className="bg-white text-red-900 text-3xl sm:text-4xl font-black py-4 px-12 rounded-full shadow-xl hover:bg-red-50 transition-transform hover:scale-105 active:scale-95 border-b-4 border-slate-300 active:border-b-0 active:translate-y-1"
                         >
                             Continue
                         </button>

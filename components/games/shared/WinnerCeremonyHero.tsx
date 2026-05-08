@@ -248,6 +248,7 @@ interface WinnerCeremonyHeroProps {
     isMobileViewport: boolean;
     onPlayAgain: () => void;
     onExit: () => void;
+    musicEnabled?: boolean;
     children?: React.ReactNode;
 }
 
@@ -258,10 +259,38 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     isMobileViewport,
     onPlayAgain,
     onExit,
+    musicEnabled = true,
     children,
 }) => {
     const [winnerAnimationStage, setWinnerAnimationStage] = useState<AnimationStage>('idle');
     const winnerStageTimeoutsRef = useRef<number[]>([]);
+    const winnerMusicRef = useRef<HTMLAudioElement | null>(null);
+
+    const stopWinnerMusic = useCallback(() => {
+        if (!winnerMusicRef.current) return;
+        winnerMusicRef.current.pause();
+        winnerMusicRef.current.src = '';
+        winnerMusicRef.current = null;
+    }, []);
+
+    const playWinnerMusic = useCallback(() => {
+        stopWinnerMusic();
+        if (!musicEnabled) return;
+
+        const firstTrack = new Audio('/assets/audio/live-quiz/triumph1.mp3');
+        firstTrack.volume = 0.5;
+        winnerMusicRef.current = firstTrack;
+        firstTrack.addEventListener('ended', () => {
+            if (winnerMusicRef.current !== firstTrack) return;
+            const secondTrack = new Audio('/assets/audio/live-quiz/triumph2.mp3');
+            secondTrack.volume = 0.5;
+            winnerMusicRef.current = secondTrack;
+            void secondTrack.play().catch(() => {});
+        }, { once: true });
+        void firstTrack.play().catch(() => {
+            // Browsers can block autoplay until the teacher clicks a control.
+        });
+    }, [musicEnabled, stopWinnerMusic]);
 
     const clearWinnerCeremonyTimers = useCallback(() => {
         winnerStageTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -270,6 +299,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
 
     const restartWinnerCeremony = useCallback(() => {
         clearWinnerCeremonyTimers();
+        playWinnerMusic();
         setWinnerAnimationStage('bronze-light');
 
         const scheduleStage = (delayMs: number, stage: AnimationStage) => {
@@ -285,12 +315,15 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
         scheduleStage(2400, 'gold-light');
         scheduleStage(3000, 'gold-rise');
         scheduleStage(3800, 'complete');
-    }, [clearWinnerCeremonyTimers]);
+    }, [clearWinnerCeremonyTimers, playWinnerMusic]);
 
     useEffect(() => {
         restartWinnerCeremony();
-        return () => clearWinnerCeremonyTimers();
-    }, [restartWinnerCeremony, clearWinnerCeremonyTimers]);
+        return () => {
+            clearWinnerCeremonyTimers();
+            stopWinnerMusic();
+        };
+    }, [restartWinnerCeremony, clearWinnerCeremonyTimers, stopWinnerMusic]);
 
     const stageIndex = WINNER_STAGE_ORDER[winnerAnimationStage];
     const isStageAtLeast = (stage: AnimationStage) => stageIndex >= WINNER_STAGE_ORDER[stage];
@@ -312,7 +345,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             rank,
             team,
         };
-    });
+    }).filter((slot): slot is { key: string; rank: 1 | 2 | 3; team: WinnerCeremonyRankingEntry } => Boolean(slot));
 
     const isRankSpotlightVisible = (rank: 1 | 2 | 3) => {
         if (rank === 1) return isStageAtLeast('gold-light');
@@ -351,7 +384,10 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     const formatCeremonyScore = (score: number) => `${new Intl.NumberFormat('en-US').format(score)} PTS`;
 
     return (
-        <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-slate-950 text-white [background:radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.24),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(34,197,94,0.16),transparent_32%),radial-gradient(circle_at_50%_82%,rgba(250,204,21,0.16),transparent_38%),#020617]">
+        <div
+            className="relative min-h-[calc(100vh-4rem)] bg-slate-950 text-white [background:radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.24),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(34,197,94,0.16),transparent_32%),radial-gradient(circle_at_50%_82%,rgba(250,204,21,0.16),transparent_38%),#020617]"
+            style={{ overflowX: 'clip', overflowY: 'visible' }}
+        >
             <style>{`
                 @keyframes wordwheel-winner-aurora {
                     0%, 100% { transform: scale(1); opacity: 0.58; }
@@ -384,7 +420,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             <WinnerCeremonyConfetti active={winnerAnimationStage === 'complete'} />
 
             <div
-                className="relative z-10 w-full min-h-[calc(100vh-4rem)] overflow-y-auto"
+                className="relative z-10 w-full min-h-[calc(100vh-4rem)]"
                 style={{ paddingTop: winnerHeroTopClearance, scrollPaddingTop: winnerHeroTopClearance }}
             >
                 <div className="max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-10 flex flex-col items-center text-center">
@@ -396,10 +432,6 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                             <div className="absolute left-[-2%] right-[-2%] bottom-1 h-5 rounded-full bg-gradient-to-b from-slate-300/35 to-slate-900/65 border border-slate-200/35 shadow-[0_10px_24px_rgba(2,6,23,0.45)] pointer-events-none z-0" />
                             <div className="absolute left-[4%] right-[4%] bottom-1.5 h-3 rounded-full bg-cyan-300/20 blur-md pointer-events-none z-0" />
                             {ceremonySlots.map((slot, slotIndex) => {
-                                if (!slot) {
-                                    return <div key={`ceremony-empty-${slotIndex}`} className="w-[124px] sm:w-[168px] md:w-[210px] flex-none" />;
-                                }
-
                                 const spotlightActive = isRankSpotlightVisible(slot.rank);
                                 const active = isRankPodiumActive(slot.rank);
                                 const palette = getPodiumPalette(slot.rank);
@@ -484,7 +516,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                         </div>
                     </div>
 
-                    {children && <div className="mb-8 w-full">{children}</div>}
+                    {children && <div className="mb-8 flex w-full justify-center">{children}</div>}
 
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                         <button onClick={restartWinnerCeremony} className="px-6 py-3 rounded-xl bg-slate-900/85 border border-white/25 text-white font-bold hover:bg-slate-800 transition-all shadow-lg">

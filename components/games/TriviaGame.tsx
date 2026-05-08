@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
+import { BonusCardType, GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
@@ -117,25 +117,33 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
     const optionKey = activeQ?.options?.join('|') || '';
-    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal';
-    const isNegativeBonus = activeQ?.bonusType === 'bust';
+    const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
+    const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
     const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url, activeQ?.image?.thumbUrl);
     const questionImageAlt = activeQ?.image?.alt || '';
     const bonusEffectText =
         activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
         activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
-        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' : '';
+        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' :
+        activeQ?.bonusType === 'lose-all' ? 'LOSE ALL POINTS!' :
+        activeQ?.bonusType === 'reset-score' ? 'RESET SCORE!' :
+        activeQ?.bonusType === 'first-place' ? 'FIRST PLACE!' :
+        activeQ?.bonusType === 'last-place' ? 'LAST PLACE!' : '';
     const bonusDetailText =
         activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
         activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
-        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" : '';
+        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" :
+        activeQ?.bonusType === 'lose-all' ? 'Your team loses every point it has.' :
+        activeQ?.bonusType === 'reset-score' ? 'Your team score goes back to 0.' :
+        activeQ?.bonusType === 'first-place' ? 'Your team jumps just ahead of the current leader.' :
+        activeQ?.bonusType === 'last-place' ? 'Your team drops just behind the lowest score.' : '';
     const timerProgress = options.timerSeconds > 0
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = activeQuestionIndex !== null || isGameOver || editingTeamIndex !== null;
+        const shouldLock = activeQuestionIndex !== null || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
     }, [activeQuestionIndex, isGameOver, editingTeamIndex]);
@@ -258,18 +266,20 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             }
             
             const bonusCount = Math.max(2, Math.floor(questionsCopy.length * 0.20));
-            const bonusTypes = ['double', 'bust', 'steal', 'double'];
+            const selectedBonusTypes: BonusCardType[] = options.bonusOptions?.length
+                ? options.bonusOptions
+                : ['double', 'bust', 'steal'];
             
             for (let i = 0; i < bonusCount; i++) {
                 const targetIndex = indices[i];
                 if (questionsCopy[targetIndex]) {
                     questionsCopy[targetIndex].isBonus = true;
-                    questionsCopy[targetIndex].bonusType = bonusTypes[i % bonusTypes.length];
+                    questionsCopy[targetIndex].bonusType = selectedBonusTypes[i % selectedBonusTypes.length];
                 }
             }
         }
         setGameQuestions(questionsCopy);
-    }, [game, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions, options.triviaRandomPoints]);
+    }, [game, options.bonusOptions, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions, options.triviaRandomPoints]);
 
     // Calculate Optimal Grid Dimensions (Perfect Rectangles Priority)
     const gridStyle = useMemo(() => {
@@ -463,6 +473,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             newScores[currentTeam] += (points * 2);
         } else if (q.bonusType === 'bust') {
             newScores[currentTeam] -= points;
+        } else if (q.bonusType === 'lose-all' || q.bonusType === 'reset-score') {
+            newScores[currentTeam] = 0;
         } else if (q.bonusType === 'steal') {
              let victimIdx = -1;
              let maxS = -Infinity;
@@ -479,6 +491,12 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
              } else {
                  newScores[currentTeam] += points;
              }
+        } else if (q.bonusType === 'first-place') {
+            const leaderScore = Math.max(...scores.filter((_, i) => i !== currentTeam), 0);
+            newScores[currentTeam] = Math.max(newScores[currentTeam], leaderScore + points);
+        } else if (q.bonusType === 'last-place') {
+            const lowestScore = Math.min(...scores.filter((_, i) => i !== currentTeam), 0);
+            newScores[currentTeam] = Math.min(newScores[currentTeam], lowestScore - points);
         }
         
         setScores(newScores);
@@ -522,7 +540,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     // Check Winner
     useEffect(() => {
         if (gameQuestions.length > 0 && answeredIndices.length === gameQuestions.length && !isGameOver) {
-            playSound('win', isMuted, options.soundConfig?.win);
             setIsGameOver(true);
         }
     }, [answeredIndices, gameQuestions, isGameOver, isMuted, options.soundConfig]);
@@ -702,13 +719,14 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
@@ -1254,7 +1272,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                 // Multiple Choice Footer
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
-                                                    className={`flex-1 text-white font-bold text-lg sm:text-2xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
+                                                    className={`flex-1 text-white font-black text-2xl sm:text-4xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50
                                                         ${mcResult === 'correct' 
                                                             ? 'bg-green-500 hover:bg-green-600 border-green-700' 
                                                             : 'bg-red-500 hover:bg-red-600 border-red-700'}`}

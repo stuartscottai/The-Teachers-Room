@@ -798,7 +798,6 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
             if (is301 && !isBust && scores[currentTeam] - dart.scoreResult === 0) {
                 setPhase('gameover');
-                playSound('win', isMuted);
             } else {
                 setTimeout(() => {
                     const isRoundComplete = currentTeam === options.players - 1;
@@ -808,7 +807,6 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     // End Game Check
                     if (!is301 && questionsLimitReached && isRoundComplete) {
                          setPhase('gameover');
-                         playSound('win', isMuted);
                     } else {
                         // Continue Game
                         setCurrentTeam(prev => (prev + 1) % options.players);
@@ -1143,13 +1141,14 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle={is301 ? 'Final checkout standings' : 'Final score standings'}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >

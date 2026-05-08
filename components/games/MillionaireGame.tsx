@@ -169,7 +169,6 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         setWinnings(ladder[lastLevelIndex] || 0);
                         setGameState('result');
                         setIsGameOver(true);
-                        playSound('win', isMuted);
                     } else {
                         setCurrentLevel(prev => prev + 1);
                         setGameState('question');
@@ -209,7 +208,6 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         setWinnings(currentAmount);
         setGameState('walkaway');
         setIsGameOver(true);
-        playSound('win', isMuted); // Mild win sound
     };
 
     const useFiftyFifty = () => {

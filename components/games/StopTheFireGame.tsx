@@ -477,7 +477,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const letterPool = useMemo(() => buildLetterPool(), []);
 
     useEffect(() => {
-        const shouldLock = isFlipped || showReview || showRoundSummary || showWinner || showTieBreakerResolve;
+        const shouldLock = isFlipped || showReview || showRoundSummary || showTieBreakerResolve;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => {
             document.body.style.overflow = 'auto';
@@ -770,14 +770,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         }
 
         setShowWinner(true);
-        playSound('win', isMuted, options.soundConfig?.win);
     };
 
     const resolveTieBreaker = (winner: number) => {
         setScores((prev) => prev.map((score, idx) => (idx === winner ? score + 1 : score)));
         setShowTieBreakerResolve(false);
         setShowWinner(true);
-        playSound('win', isMuted, options.soundConfig?.win);
     };
 
     const canEditTeams = scores.every((score) => score === 0) && roundIndex === 1 && !isTieBreaker;
@@ -848,13 +846,14 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-[#1d0d08] via-[#2a1108] to-[#0f0a08] text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-[#1d0d08] via-[#2a1108] to-[#0f0a08] text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final score standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >

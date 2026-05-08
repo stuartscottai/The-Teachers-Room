@@ -527,11 +527,11 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const winners = ranking.filter((team) => team.score === winnerScore);
 
     useEffect(() => {
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = phase === 'gameover' ? '' : 'hidden';
         return () => {
             document.body.style.overflow = '';
         };
-    }, []);
+    }, [phase]);
 
     useEffect(() => {
         scoresRef.current = scores;
@@ -892,7 +892,6 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         setReviewEntryId(null);
         setShowEndGameConfirm(false);
         setPhase('gameover');
-        playSound('win', isMuted, options.soundConfig?.win);
     };
 
     const openEditTeam = (index: number) => {
@@ -954,7 +953,6 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             setEndGameRevealList([]);
             setReviewEntryId(null);
             setPhase('gameover');
-            playSound('win', isMuted, options.soundConfig?.win);
             return;
         }
 
@@ -1067,13 +1065,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
@@ -1611,7 +1610,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     <div className="mt-4 flex justify-end">
                                         <button
                                             onClick={handleReturnToWheel}
-                                            className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-brand-blue text-white font-black text-base sm:text-xl hover:brightness-110 transition-all"
+                                            className="px-5 sm:px-8 py-3 sm:py-4 rounded-xl bg-brand-blue text-white font-black text-2xl sm:text-4xl hover:brightness-110 transition-all"
                                         >
                                             Continue
                                         </button>

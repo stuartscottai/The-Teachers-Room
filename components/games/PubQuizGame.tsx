@@ -295,7 +295,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     // Body Scroll Lock
     useEffect(() => {
-        const shouldLock = phase === 'play' || phase === 'gameover' || editingTeamIndex !== null;
+        const shouldLock = phase === 'play' || editingTeamIndex !== null;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
     }, [phase, editingTeamIndex]);
@@ -515,13 +515,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final standings"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >

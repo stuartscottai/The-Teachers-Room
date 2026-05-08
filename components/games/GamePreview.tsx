@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
 import { resolveGameImageUrl, resolveGameImageUrls } from '../../utils/gameImage';
@@ -725,10 +725,12 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
+  const [randomSelectionCount, setRandomSelectionCount] = useState(20);
 
   useEffect(() => {
     setSelectedIds(new Set(items.map((item) => item.id)));
     setFlippedIds(new Set());
+    setRandomSelectionCount(Math.min(20, Math.max(1, items.length)));
   }, [items]);
 
   const selectedCount = selectedIds.size;
@@ -756,6 +758,16 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
     const nextGame = buildPlayableGameFromSelection(game, selectedIds, items);
     if (!nextGame) return;
     onPlay(nextGame);
+  };
+
+  const selectRandomItems = () => {
+    const targetCount = Math.max(1, Math.min(items.length, randomSelectionCount || 1));
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    setSelectedIds(new Set(shuffled.slice(0, targetCount).map((item) => item.id)));
   };
 
   const sourceLabel = source === 'community' ? 'Community' : 'My Library';
@@ -789,8 +801,8 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
       ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
       : 'grid grid-cols-3 gap-2 sm:gap-3';
   const selectionActionGridClass = onLiveQuiz
-    ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
-    : 'grid grid-cols-3 gap-2 sm:gap-3';
+    ? 'grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3'
+    : 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
@@ -935,6 +947,28 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   <Square size={15} />
                   <span>Clear</span>
                 </button>
+                <div className="flex h-12 min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <input
+                    type="number"
+                    min={1}
+                    max={Math.max(1, items.length)}
+                    value={randomSelectionCount}
+                    onChange={(event) => setRandomSelectionCount(Math.max(1, Math.min(items.length || 1, Number(event.target.value) || 1)))}
+                    className="min-w-0 flex-1 border-0 px-2 text-center text-sm font-black text-slate-700 outline-none"
+                    aria-label="Random question count"
+                    title="How many questions to choose"
+                  />
+                  <button
+                    type="button"
+                    onClick={selectRandomItems}
+                    disabled={items.length === 0}
+                    className="inline-flex w-12 items-center justify-center border-l border-slate-200 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Choose random questions"
+                    title="Choose random questions"
+                  >
+                    <Shuffle size={15} />
+                  </button>
+                </div>
                 {onLiveQuiz && (
                   <button
                     type="button"

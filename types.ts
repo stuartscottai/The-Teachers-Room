@@ -82,6 +82,7 @@ export interface GameRunOptions {
   players: number;
   timerSeconds: number;
   enableBonuses: boolean;
+  bonusOptions?: BonusCardType[];
   strictMode: boolean; // Can override config
   questionLimit?: number; // For Trivia: ensure divisible by players
   triviaRandomPoints?: boolean; // Trivia-only runtime option
@@ -110,6 +111,8 @@ export interface GameRunOptions {
   wordWheelLetterRule?: 'starts-with' | 'contains-hard';
   studentPractice?: boolean;
 }
+
+export type BonusCardType = 'double' | 'bust' | 'steal' | 'lose-all' | 'reset-score' | 'first-place' | 'last-place';
 
 export type LiveQuizSessionStatus = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'ended';
 
@@ -201,7 +204,7 @@ export interface GeneratedQuestion {
   };
   imageKeywords?: string[];
   // New bonus types for hidden tiles
-  bonusType?: 'none' | 'double' | 'bust' | 'steal'; 
+  bonusType?: 'none' | BonusCardType; 
   difficulty?: 'easy' | 'medium' | 'hard';
   // Word Wheel specific
   letter?: string;

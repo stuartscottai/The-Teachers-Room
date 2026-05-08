@@ -43,6 +43,7 @@ interface LiveQuizLeaderboardStageProps {
   currentParticipantId?: string;
   maxRows?: number;
   controls?: React.ReactNode;
+  topControls?: React.ReactNode;
   removingParticipantId?: string | null;
   onRemoveParticipant?: (participant: LiveQuizParticipant) => void;
 }
@@ -56,6 +57,7 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
   currentParticipantId,
   maxRows,
   controls,
+  topControls,
   removingParticipantId,
   onRemoveParticipant,
 }) => {
@@ -100,7 +102,12 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.18),transparent_34%),#020617]">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col justify-center">
+      {topControls && (
+        <div className="mx-auto mb-4 flex w-full max-w-5xl justify-center">
+          {topControls}
+        </div>
+      )}
+      <div className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-5xl flex-col justify-center">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-brand-yellow">

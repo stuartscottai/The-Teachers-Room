@@ -59,7 +59,16 @@ const normalizeDifficulty = (value: unknown): GeneratedQuestion['difficulty'] | 
 
 const normalizeBonusType = (value: unknown): GeneratedQuestion['bonusType'] | undefined => {
   const text = asText(value).toLowerCase();
-  if (text === 'none' || text === 'double' || text === 'bust' || text === 'steal') return text;
+  if (
+    text === 'none' ||
+    text === 'double' ||
+    text === 'bust' ||
+    text === 'steal' ||
+    text === 'lose-all' ||
+    text === 'reset-score' ||
+    text === 'first-place' ||
+    text === 'last-place'
+  ) return text;
   return undefined;
 };
 

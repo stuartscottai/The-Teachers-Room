@@ -311,7 +311,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     // SCROLL LOCK EFFECT
     useEffect(() => {
-        const shouldLock = (phase === 'question' && isQuestionVisible) || phase === 'gameover';
+        const shouldLock = phase === 'question' && isQuestionVisible;
         document.body.style.overflow = shouldLock ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
     }, [phase, isQuestionVisible]);
@@ -630,7 +630,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         let q: GeneratedQuestion;
         if (available.length === 0) {
             if (options.studentPractice) {
-                playSound('win', isMuted);
                 setPhase('gameover');
                 return;
             }
@@ -791,7 +790,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         setPhase('turn-complete');
                         return;
                     }
-                    playSound('win', isMuted);
                     setPhase('gameover');
                 }, 500);
                 return;
@@ -852,7 +850,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     setPhase('turn-complete');
                     return;
                 }
-                playSound('win', isMuted);
                 setPhase('gameover');
             }, 1000);
         } else {
@@ -940,13 +937,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white overflow-hidden`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
                     subtitle="Final board positions"
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
+                    musicEnabled={!isMuted}
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
@@ -1556,7 +1554,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         <button 
                                             disabled={flipLock || isProcessing}
                                             onClick={() => handleAnswer(mcResult === 'correct')} 
-                                            className={`flex-1 text-white font-bold text-2xl transition-colors ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            className={`flex-1 text-white font-black text-3xl sm:text-4xl transition-colors ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
                                             Continue
                                         </button>
