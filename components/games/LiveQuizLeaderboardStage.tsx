@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, Crown, Trophy } from 'lucide-react';
 import { LiveQuizParticipant, LiveQuizSubmission } from '../../types';
-import { LiveQuizPlayerName, parseLiveQuizDisplayName } from './liveQuizAvatars';
+import { LiveQuizAvatarIcon, LiveQuizPlayerName, parseLiveQuizDisplayName } from './liveQuizAvatars';
 
 const getRoundGain = (submissions: LiveQuizSubmission[], participantId: string, questionIndex: number) =>
   submissions.find((submission) => submission.participantId === participantId && submission.questionIndex === questionIndex)?.pointsAwarded || 0;
@@ -132,6 +132,8 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
               const movedUp = showFinalOrder && participant.movement > 0;
               const movedDown = showFinalOrder && participant.movement < 0;
               const unchanged = showFinalOrder && participant.movement === 0;
+              const player = parseLiveQuizDisplayName(participant.displayName);
+
               return (
                 <motion.div
                   layout
@@ -165,17 +167,14 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
                           type="button"
                           onClick={() => onRemoveParticipant(participant)}
                           disabled={removingParticipantId === participant.id}
-                          title={`Remove ${parseLiveQuizDisplayName(participant.displayName).name}`}
-                          aria-label={`Remove ${parseLiveQuizDisplayName(participant.displayName).name}`}
-                          className="group block w-full min-w-0 max-w-full text-left disabled:cursor-not-allowed disabled:opacity-50"
+                          title={`Remove ${player.name}`}
+                          aria-label={`Remove ${player.name}`}
+                          className="group flex w-full min-w-0 max-w-full items-center gap-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <LiveQuizPlayerName
-                            displayName={participant.displayName}
-                            className="w-full overflow-hidden"
-                            nameClassName={`${preferSingleLineRows ? 'text-2xl sm:text-3xl xl:text-4xl' : 'text-2xl sm:text-4xl'} font-black group-hover:line-through`}
-                            avatarClassName="h-10 w-10 sm:h-11 sm:w-11"
-                            iconSize={23}
-                          />
+                          {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" iconSize={23} />}
+                          <span className={`min-w-0 truncate ${preferSingleLineRows ? 'text-2xl sm:text-3xl xl:text-4xl' : 'text-2xl sm:text-4xl'} font-black group-hover:line-through`}>
+                            {player.name}
+                          </span>
                         </button>
                       ) : (
                         <LiveQuizPlayerName

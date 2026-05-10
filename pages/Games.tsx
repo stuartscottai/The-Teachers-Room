@@ -306,6 +306,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     const [imageFilter, setImageFilter] = useState<'all' | 'with-images' | 'without-images'>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const pageSizeOptions = [10, 20, 30, 40, 50];
 
     const loadGames = async () => {
@@ -379,18 +380,29 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             </div>
 
             {/* Control Bar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
-                <div className="relative flex-grow w-full md:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input 
-                        type="text" 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search my games..." 
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
-                    />
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
+                <div className="flex w-full gap-2">
+                    <div className="relative min-w-0 flex-grow">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input 
+                            type="text" 
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search my games..." 
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowMobileFilters((value) => !value)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                        <Filter size={18} />
+                        Filters
+                    </button>
                 </div>
 
+                <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-4 xl:grid-cols-5`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <select 
@@ -447,6 +459,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                     </select>
                 </div>
 
+                </div>
             </div>
 
             <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
@@ -670,6 +683,7 @@ const CommunityLibrary: React.FC<{
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [itemsPerPage, setItemsPerPage] = useState(savedState.itemsPerPage);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const hasMountedForPageReset = useRef(false);
     const pageSizeOptions = [10, 20, 30, 40, 50];
     const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
@@ -791,22 +805,33 @@ const CommunityLibrary: React.FC<{
     return (
         <div className="animate-fade-in">
             {/* Control Bar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8 flex flex-col md:flex-row gap-4 items-center">
-                <div className="relative flex-grow w-full md:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input 
-                        type="text" 
-                        value={searchInput}
-                        onChange={(e) => {
-                            setSearchInput(e.target.value);
-                            setSearchQuery(e.target.value);
-                            setIsSearchAutoFilled(false);
-                        }}
-                        placeholder="Search community games..." 
-                        className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
-                    />
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8">
+                <div className="flex w-full gap-2">
+                    <div className="relative min-w-0 flex-grow">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input 
+                            type="text" 
+                            value={searchInput}
+                            onChange={(e) => {
+                                setSearchInput(e.target.value);
+                                setSearchQuery(e.target.value);
+                                setIsSearchAutoFilled(false);
+                            }}
+                            placeholder="Search community games..." 
+                            className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowMobileFilters((value) => !value)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                        <Filter size={18} />
+                        Filters
+                    </button>
                 </div>
 
+                <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-3 xl:grid-cols-6`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <select 
@@ -880,11 +905,12 @@ const CommunityLibrary: React.FC<{
 
                 <button 
                     onClick={fetchGames}
-                    className="p-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200"
+                    className="flex w-full items-center justify-center p-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 md:w-auto"
                     title="Refresh List"
                 >
                     <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
                 </button>
+                </div>
             </div>
             {authorFilter && (
                 <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
