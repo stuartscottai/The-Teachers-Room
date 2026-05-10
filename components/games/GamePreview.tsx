@@ -788,21 +788,21 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const pageTheme = PREVIEW_PAGE_THEME;
   const previewSaveLabel = saveLabel || (source === 'community' ? 'Save copy' : 'Save game');
   const secondaryActionButtonClass =
-    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white/86 px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white/86 px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 sm:text-sm';
   const selectActionButtonClass =
-    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 sm:text-sm';
   const liveQuizActionButtonClass =
     'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-sky-500 bg-sky-600 px-2.5 text-[11px] font-bold text-white shadow-md transition-colors hover:border-sky-600 hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
   const playActionButtonClass =
-    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-4 sm:text-sm';
+    'inline-flex h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 sm:text-sm';
   const topActionCount = [onSave, onShare, onStudentShare].filter(Boolean).length + 1;
   const topActionGridClass =
     topActionCount === 4
       ? 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3'
       : 'grid grid-cols-3 gap-2 sm:gap-3';
   const selectionActionGridClass = onLiveQuiz
-    ? 'grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3'
-    : 'grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3';
+    ? 'grid grid-cols-2 gap-2 sm:grid-cols-[1.05fr_0.85fr_1.08fr_1.1fr_1.18fr] sm:gap-3'
+    : 'grid grid-cols-2 gap-2 sm:grid-cols-[0.85fr_0.85fr_1fr_1.25fr] sm:gap-3';
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
@@ -935,7 +935,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   disabled={items.length === 0 || allSelected}
                   className={secondaryActionButtonClass}
                 >
-                  <CheckSquare size={15} />
+                  <CheckSquare size={17} className="shrink-0" />
                   <span>Select all</span>
                 </button>
                 <button
@@ -944,7 +944,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   disabled={selectedCount === 0}
                   className={selectActionButtonClass}
                 >
-                  <Square size={15} />
+                  <Square size={17} className="shrink-0" />
                   <span>Clear</span>
                 </button>
                 <div className="flex h-12 min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -978,7 +978,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                     aria-label="Live quiz"
                     title="Live quiz"
                   >
-                    <Radio size={16} />
+                    <Radio size={16} className="shrink-0" />
                     <span className="hidden sm:inline">Live quiz</span>
                   </button>
                 )}
@@ -991,7 +991,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   aria-label="Play selected"
                   title="Play selected"
                 >
-                  <Play size={16} fill="currentColor" />
+                  <Play size={17} className="shrink-0" fill="currentColor" />
                   <span className="hidden sm:inline">Play selected</span>
                 </button>
               </div>

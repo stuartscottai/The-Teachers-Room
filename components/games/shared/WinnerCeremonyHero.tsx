@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { LiveQuizAvatarIcon } from '../liveQuizAvatars';
 
 type AnimationStage =
     | 'idle'
@@ -239,6 +240,8 @@ export interface WinnerCeremonyRankingEntry {
     index: number;
     score: number;
     name: string;
+    id?: string;
+    avatarId?: string;
 }
 
 interface WinnerCeremonyHeroProps {
@@ -475,6 +478,11 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                                                     <WinnerCeremonyTrophy rank={slot.rank} size={trophySize} className="drop-shadow-[0_15px_25px_rgba(0,0,0,0.6)]" />
                                                 </div>
                                                 <div className="text-center mt-1">
+                                                    {slot.team.avatarId && (
+                                                        <div className="mb-1 flex justify-center">
+                                                            <LiveQuizAvatarIcon avatarId={slot.team.avatarId} className={slot.rank === 1 ? 'h-14 w-14' : 'h-11 w-11'} iconSize={24} />
+                                                        </div>
+                                                    )}
                                                     <h3 className="text-white font-display font-black text-base sm:text-xl md:text-2xl tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] max-w-[210px] truncate">
                                                         {teamName}
                                                     </h3>

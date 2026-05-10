@@ -19,9 +19,17 @@ const LIVE_QUIZ_PLAYER_STORAGE_KEY = 'liveQuizPlayersBySession';
 
 const normalizeValue = (value: string) =>
   String(value || '')
+    .replace(/\s*\((\d+)\)\s*$/g, '')
+    .replace(/^[A-D]\.\s*/i, '')
+    .replace(/^["']|["']$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+
+const normalizeAnswerLetter = (value: string) => {
+  const match = String(value || '').trim().match(/^([A-D])(?:[.)\s]|$)/i);
+  return match ? match[1].toUpperCase().charCodeAt(0) - 65 : -1;
+};
 
 const normalizeLiveQuizImage = (value: any): LiveQuizQuestion['image'] | undefined => {
   if (!value) return undefined;
@@ -169,7 +177,11 @@ const mapStudentQuestion = (row: any): StudentSafeLiveQuizQuestion => ({
 const answerMatchesOptions = (question: GeneratedQuestion) => {
   const options = (question.options || []).map((option) => String(option || '').trim()).filter(Boolean);
   const answer = String(question.answer || '').trim();
-  return options.length >= 2 && options.some((option) => normalizeValue(option) === normalizeValue(answer));
+  const answerIndex = normalizeAnswerLetter(answer);
+  return options.length >= 2 && (
+    options.some((option) => normalizeValue(option) === normalizeValue(answer)) ||
+    (answerIndex >= 0 && answerIndex < options.length)
+  );
 };
 
 const toLiveQuestion = (
@@ -180,7 +192,9 @@ const toLiveQuestion = (
 ): LiveQuizQuestion | null => {
   if (!question?.question?.trim() || !answerMatchesOptions(question)) return null;
   const options = (question.options || []).map((option) => String(option || '').trim()).filter(Boolean);
-  const answer = options.find((option) => normalizeValue(option) === normalizeValue(question.answer)) || question.answer;
+  const answerIndex = normalizeAnswerLetter(String(question.answer || ''));
+  const answer = options.find((option) => normalizeValue(option) === normalizeValue(question.answer)) ||
+    (answerIndex >= 0 && answerIndex < options.length ? options[answerIndex] : question.answer);
   return {
     questionIndex,
     sourceItemId,
@@ -402,6 +416,29 @@ export const joinLiveQuizSession = async (
   }
   rememberLiveQuizParticipant(sessionId, data.id);
   return { success: true, participant: mapParticipant(data) };
+};
+
+export const updateLiveQuizParticipantDisplayName = async (
+  sessionId: string,
+  participantId: string,
+  displayName: string
+): Promise<{ success: boolean; participant?: LiveQuizParticipant; error?: string }> => {
+  const cleanName = displayName.trim().slice(0, 40);
+  if (!cleanName) return { success: false, error: 'Enter a name to join.' };
+
+  const { data, error } = await supabase
+    .from('live_quiz_participants')
+    .update({ display_name: cleanName, last_seen_at: new Date().toISOString() })
+    .eq('session_id', sessionId)
+    .eq('id', participantId)
+    .select('*')
+    .single();
+
+  return {
+    success: !error && Boolean(data),
+    participant: data ? mapParticipant(data) : undefined,
+    error: error?.message || (!data ? 'Could not update your avatar.' : undefined),
+  };
 };
 
 export const removeLiveQuizParticipant = async (

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle, CheckCircle2, Clock, Crown, Home, Trophy, WifiOff, XCircle } from 'lucide-react';
+import { CheckCircle, CheckCircle2, Clock, Crown, Home, Pencil, Trophy, WifiOff, XCircle } from 'lucide-react';
 import {
   getCurrentStudentQuestion,
   getLiveQuizParticipants,
@@ -8,11 +8,13 @@ import {
   getLiveQuizSubmissions,
   rememberLiveQuizParticipant,
   submitLiveQuizAnswer,
+  updateLiveQuizParticipantDisplayName,
 } from '../utils/liveQuizUtils';
 import { LiveQuizParticipant, LiveQuizSession, LiveQuizSubmission, StudentSafeLiveQuizQuestion } from '../types';
 import { resolveGameImageUrl } from '../utils/gameImage';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
 import { playSound } from '../utils/gameUtils';
+import { LIVE_QUIZ_AVATAR_OPTIONS, LiveQuizAvatarIcon, LiveQuizPlayerName, makeLiveQuizDisplayName, parseLiveQuizDisplayName } from '../components/games/liveQuizAvatars';
 
 const normalizeAnswer = (value?: string | null) => String(value || '').trim().toLowerCase();
 
@@ -61,6 +63,10 @@ export const LiveQuizStudent: React.FC = () => {
   const [error, setError] = useState('');
   const [nowMs, setNowMs] = useState(Date.now());
   const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState('');
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
   const playedRevealSoundRef = useRef<string>('');
 
   useEffect(() => {
@@ -103,7 +109,7 @@ export const LiveQuizStudent: React.FC = () => {
 
   const me = useMemo(() => participants.find((participant) => participant.id === participantId), [participantId, participants]);
   const ranking = useMemo(
-    () => [...participants].sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName)),
+    () => [...participants].sort((a, b) => b.score - a.score || parseLiveQuizDisplayName(a.displayName).name.localeCompare(parseLiveQuizDisplayName(b.displayName).name)),
     [participants]
   );
   const ownSubmission = useMemo(
@@ -130,6 +136,13 @@ export const LiveQuizStudent: React.FC = () => {
   );
 
   useEffect(() => {
+    if (!me || showAvatarPicker) return;
+    const parsed = parseLiveQuizDisplayName(me.displayName);
+    setSelectedAvatar(parsed.avatarId || LIVE_QUIZ_AVATAR_OPTIONS[0]?.id || '');
+    setAvatarError('');
+  }, [me, showAvatarPicker]);
+
+  useEffect(() => {
     if (!session || !question || !revealVisible) return;
     const key = `${session.id}-${question.questionIndex}`;
     if (playedRevealSoundRef.current === key) return;
@@ -153,6 +166,25 @@ export const LiveQuizStudent: React.FC = () => {
       return;
     }
     setSubmittedQuestion(question.questionIndex);
+  };
+
+  const handleSaveAvatar = async (avatarId = selectedAvatar) => {
+    if (!me || !avatarId) return;
+    const parsed = parseLiveQuizDisplayName(me.displayName);
+    setAvatarSaving(true);
+    setAvatarError('');
+    const result = await updateLiveQuizParticipantDisplayName(
+      sessionId,
+      participantId,
+      makeLiveQuizDisplayName(avatarId, parsed.name || 'Player')
+    );
+    setAvatarSaving(false);
+    if (!result.success || !result.participant) {
+      setAvatarError(result.error || 'Could not update your avatar.');
+      return;
+    }
+    setParticipants((current) => current.map((participant) => (participant.id === result.participant?.id ? result.participant : participant)));
+    setShowAvatarPicker(false);
   };
 
   if (!session && hasLoadedSnapshot) {
@@ -194,15 +226,64 @@ export const LiveQuizStudent: React.FC = () => {
   }
 
   if (session.status === 'lobby') {
+    const parsedMe = me ? parseLiveQuizDisplayName(me.displayName) : null;
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white">
+      <div className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-6 text-white sm:items-center">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-brand-yellow text-slate-900">
             <Clock size={28} />
           </div>
           <h1 className="text-3xl font-black">You are in</h1>
           <p className="mt-2 text-lg font-bold text-white/70">Waiting for the teacher to start...</p>
-          {me && <div className="mt-6 rounded-xl bg-white/10 p-4 font-black">{me.displayName}</div>}
+          {me && (
+            <div className="mt-6 flex items-center justify-center gap-4 rounded-xl bg-white/10 p-5 font-black">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAvatarPicker((value) => !value);
+                  setSelectedAvatar(parsedMe?.avatarId || LIVE_QUIZ_AVATAR_OPTIONS[0]?.id || '');
+                  setAvatarError('');
+                }}
+                className="group relative shrink-0 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-brand-yellow/70"
+                aria-label="Change avatar"
+              >
+                <LiveQuizAvatarIcon avatarId={parsedMe?.avatarId} className="h-16 w-16" iconSize={28} />
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/55 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <Pencil size={24} className="text-white" />
+                </span>
+              </button>
+              <div className="min-w-0 truncate text-left text-3xl font-black sm:text-4xl">
+                {parsedMe?.name || 'Player'}
+              </div>
+            </div>
+          )}
+          {me && showAvatarPicker && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white p-4 text-slate-900 shadow-2xl">
+              <div className="mb-3 text-left text-sm font-black text-slate-700">{avatarSaving ? 'Saving avatar...' : 'Choose a new avatar'}</div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {LIVE_QUIZ_AVATAR_OPTIONS.map((avatar) => (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAvatar(avatar.id);
+                      void handleSaveAvatar(avatar.id);
+                    }}
+                    disabled={avatarSaving}
+                    className={`flex aspect-square items-center justify-center rounded-xl border transition ${
+                      selectedAvatar === avatar.id
+                        ? 'border-brand-yellow bg-yellow-50 ring-2 ring-brand-yellow'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    } disabled:cursor-not-allowed disabled:opacity-70`}
+                    aria-label="Choose avatar"
+                  >
+                    <LiveQuizAvatarIcon avatarId={avatar.id} className="h-11 w-11" iconSize={23} />
+                  </button>
+                ))}
+              </div>
+              {avatarError && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{avatarError}</div>}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -253,7 +334,7 @@ export const LiveQuizStudent: React.FC = () => {
             </div>
             <h1 className="font-display text-4xl font-black sm:text-5xl">Final standings</h1>
             <p className="mt-2 text-lg font-bold text-white/75">
-              {winner ? `${winner.displayName} wins with ${winner.score.toLocaleString()} points` : 'Final scores are in.'}
+              {winner ? `${parseLiveQuizDisplayName(winner.displayName).name} wins with ${winner.score.toLocaleString()} points` : 'Final scores are in.'}
             </p>
           </div>
 
@@ -261,7 +342,10 @@ export const LiveQuizStudent: React.FC = () => {
             <div className="mb-5 rounded-3xl border border-yellow-300/35 bg-yellow-300 p-5 text-center text-slate-950 shadow-2xl shadow-yellow-950/25">
               <div className="text-sm font-black uppercase tracking-wide text-slate-700">Your result</div>
               <div className="mt-1 font-display text-4xl font-black">Rank #{myRank}</div>
-              <div className="mt-1 text-lg font-black">{me.displayName}: {me.score.toLocaleString()} points</div>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-lg font-black">
+                <LiveQuizPlayerName displayName={me.displayName} avatarClassName="h-12 w-12" iconSize={22} nameClassName="text-2xl" />
+                <span className="text-2xl">{me.score.toLocaleString()} points</span>
+              </div>
             </div>
           )}
 
@@ -287,8 +371,7 @@ export const LiveQuizStudent: React.FC = () => {
                   >
                     <div className={`font-display text-2xl font-black ${rank === 1 && !isMe ? 'text-brand-yellow' : ''}`}>#{rank}</div>
                     <div className="min-w-0">
-                      <div className="truncate text-lg font-black">{participant.displayName}</div>
-                      {isMe && <div className="text-xs font-black uppercase tracking-wide text-slate-700">You</div>}
+                      <LiveQuizPlayerName displayName={participant.displayName} nameClassName="text-xl font-black" avatarClassName="h-10 w-10" iconSize={18} />
                     </div>
                     <div className="text-right text-lg font-black">{participant.score.toLocaleString()} pts</div>
                   </div>

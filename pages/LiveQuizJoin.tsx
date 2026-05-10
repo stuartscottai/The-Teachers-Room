@@ -9,6 +9,7 @@ import {
 } from '../utils/liveQuizUtils';
 import { recordGamePlay } from '../utils/gameUtils';
 import { LiveQuizParticipant, LiveQuizSession } from '../types';
+import { LIVE_QUIZ_AVATAR_OPTIONS, LIVE_QUIZ_NAME_MAX_LENGTH, LiveQuizAvatarIcon, makeLiveQuizDisplayName, parseLiveQuizDisplayName } from '../components/games/liveQuizAvatars';
 
 export const LiveQuizJoin: React.FC = () => {
   const { joinCode = '' } = useParams();
@@ -20,6 +21,7 @@ export const LiveQuizJoin: React.FC = () => {
   const [joining, setJoining] = useState(false);
   const [rememberedParticipant, setRememberedParticipant] = useState<LiveQuizParticipant | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [selectedAvatar, setSelectedAvatar] = useState(() => LIVE_QUIZ_AVATAR_OPTIONS[Math.floor(Math.random() * LIVE_QUIZ_AVATAR_OPTIONS.length)].id);
 
   useEffect(() => {
     let disposed = false;
@@ -55,7 +57,7 @@ export const LiveQuizJoin: React.FC = () => {
     if (!session) return;
     setError('');
     setJoining(true);
-    const result = await joinLiveQuizSession(session.id, name);
+    const result = await joinLiveQuizSession(session.id, makeLiveQuizDisplayName(selectedAvatar, name));
     setJoining(false);
     if (!result.success || !result.participant) {
       setError(result.error || 'Unable to join this game.');
@@ -102,18 +104,18 @@ export const LiveQuizJoin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white flex items-center justify-center">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl">
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-6 text-white">
+      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-white p-5 text-slate-900 shadow-2xl sm:p-6">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
           <LogIn size={14} />
           Live Quiz
         </div>
-        <h1 className="text-3xl font-black leading-tight">{session.title}</h1>
+        <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-black leading-tight">{session.title}</h1>
         <p className="mt-2 text-sm font-bold text-slate-500">Code {session.joinCode}</p>
 
         {rememberedParticipant && (
           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <div className="text-sm font-black text-slate-900">Continue as {rememberedParticipant.displayName}</div>
+            <div className="text-sm font-black text-slate-900">Continue as {parseLiveQuizDisplayName(rememberedParticipant.displayName).name}</div>
             <p className="mt-1 text-xs font-bold text-slate-600">Use this if your connection dropped or you refreshed the page.</p>
             <button
               type="button"
@@ -141,8 +143,31 @@ export const LiveQuizJoin: React.FC = () => {
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-xl border border-slate-300 p-4 text-lg font-bold outline-none focus:ring-2 focus:ring-brand-yellow"
               placeholder="Enter your name"
-              maxLength={40}
+              maxLength={LIVE_QUIZ_NAME_MAX_LENGTH}
             />
+            <div className="mt-1 text-right text-xs font-bold text-slate-400">
+              {name.length}/{LIVE_QUIZ_NAME_MAX_LENGTH}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 text-sm font-black text-slate-700">Choose an avatar</div>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+              {LIVE_QUIZ_AVATAR_OPTIONS.map((avatar) => (
+                <button
+                  key={avatar.id}
+                  type="button"
+                  onClick={() => setSelectedAvatar(avatar.id)}
+                  className={`flex aspect-square items-center justify-center rounded-xl border transition ${
+                    selectedAvatar === avatar.id
+                      ? 'border-brand-yellow bg-yellow-50 ring-2 ring-brand-yellow'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                  aria-label="Choose avatar"
+                >
+                  <LiveQuizAvatarIcon avatarId={avatar.id} className="h-11 w-11" iconSize={23} />
+                </button>
+              ))}
+            </div>
           </div>
           {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
           <button

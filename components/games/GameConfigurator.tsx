@@ -1545,7 +1545,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     How To Use It
                                                 </label>
                                                 <p className="text-sm text-slate-600">
-                                                    Copy the prompt after you finish the settings above. Paste it into your AI tool, then add your topic, lesson notes, or source material underneath it. The prompt already tells the AI how to return the game in the correct format so it can be imported here.
+                                                    Complete the information above first. Then copy the prompt, paste it into your AI tool, and copy the response it gives you back into the box below.
                                                 </p>
                                                 <p className="mt-2 text-xs text-slate-500">
                                                     Accepted formats: <span className="font-mono">.json</span>, <span className="font-mono">.txt</span>, or <span className="font-mono">.md</span> containing JSON.
