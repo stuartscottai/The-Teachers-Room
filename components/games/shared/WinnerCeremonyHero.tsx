@@ -23,6 +23,33 @@ const WINNER_STAGE_ORDER: Record<AnimationStage, number> = {
     complete: 7,
 };
 
+const WINNER_CEREMONY_MUSIC_OPTIONS = [
+    {
+        id: 'triumph-sequence',
+        tracks: ['/assets/audio/live-quiz/triumph1.mp3', '/assets/audio/live-quiz/triumph2.mp3'],
+    },
+    {
+        id: 'champion-of-the-class',
+        tracks: ['/assets/audio/live-quiz/Champion of the class.mp3'],
+    },
+    {
+        id: 'winners-on-the-board',
+        tracks: ['/assets/audio/live-quiz/Winners on the board.mp3'],
+    },
+    {
+        id: 'winner-of-the-game',
+        tracks: ['/assets/audio/live-quiz/You are the winner of the game.mp3'],
+    },
+    {
+        id: 'winner-of-the-game-1',
+        tracks: ['/assets/audio/live-quiz/You are the winner of the game (1).mp3'],
+    },
+    {
+        id: 'winner-of-the-game-2',
+        tracks: ['/assets/audio/live-quiz/You are the winner of the game (2).mp3'],
+    },
+];
+
 const CEREMONY_COLORS = {
     gold: { light: '#FFFBD0', mid: '#F5BD02', dark: '#8B6508' },
     silver: { light: '#F5F5F5', mid: '#A0A0A0', dark: '#4A4A4A' },
@@ -268,6 +295,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     const [winnerAnimationStage, setWinnerAnimationStage] = useState<AnimationStage>('idle');
     const winnerStageTimeoutsRef = useRef<number[]>([]);
     const winnerMusicRef = useRef<HTMLAudioElement | null>(null);
+    const lastWinnerMusicChoiceRef = useRef<string>('');
 
     const stopWinnerMusic = useCallback(() => {
         if (!winnerMusicRef.current) return;
@@ -280,19 +308,29 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
         stopWinnerMusic();
         if (!musicEnabled) return;
 
-        const firstTrack = new Audio('/assets/audio/live-quiz/triumph1.mp3');
-        firstTrack.volume = 0.5;
-        winnerMusicRef.current = firstTrack;
-        firstTrack.addEventListener('ended', () => {
-            if (winnerMusicRef.current !== firstTrack) return;
-            const secondTrack = new Audio('/assets/audio/live-quiz/triumph2.mp3');
-            secondTrack.volume = 0.5;
-            winnerMusicRef.current = secondTrack;
-            void secondTrack.play().catch(() => {});
-        }, { once: true });
-        void firstTrack.play().catch(() => {
+        const availableOptions = WINNER_CEREMONY_MUSIC_OPTIONS.filter((option) => option.id !== lastWinnerMusicChoiceRef.current);
+        const options = availableOptions.length ? availableOptions : WINNER_CEREMONY_MUSIC_OPTIONS;
+        const selectedOption = options[Math.floor(Math.random() * options.length)];
+        lastWinnerMusicChoiceRef.current = selectedOption.id;
+
+        const playTrackAtIndex = (trackIndex: number) => {
+            const trackSrc = selectedOption.tracks[trackIndex];
+            if (!trackSrc) return;
+
+            const track = new Audio(trackSrc);
+            track.volume = 0.5;
+            winnerMusicRef.current = track;
+            track.addEventListener('ended', () => {
+                if (winnerMusicRef.current !== track) return;
+                playTrackAtIndex(trackIndex + 1);
+            }, { once: true });
+            void track.play().catch(() => {});
+        };
+
+        playTrackAtIndex(0);
+        if (!winnerMusicRef.current) {
             // Browsers can block autoplay until the teacher clicks a control.
-        });
+        }
     }, [musicEnabled, stopWinnerMusic]);
 
     const clearWinnerCeremonyTimers = useCallback(() => {
