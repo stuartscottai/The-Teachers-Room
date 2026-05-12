@@ -18,6 +18,14 @@ import { LIVE_QUIZ_AVATAR_OPTIONS, LiveQuizAvatarIcon, LiveQuizPlayerName, makeL
 
 const normalizeAnswer = (value?: string | null) => String(value || '').trim().toLowerCase();
 
+const getLiveQuizOptionTextClass = (option: string) => {
+  const length = option.trim().length;
+  if (length > 115) return 'text-[clamp(1rem,2.65vw,1.65rem)]';
+  if (length > 80) return 'text-[clamp(1.1rem,3.15vw,1.95rem)]';
+  if (length > 48) return 'text-[clamp(1.25rem,3.9vw,2.35rem)]';
+  return 'text-[clamp(1.75rem,6.2vw,3.25rem)]';
+};
+
 const ANSWER_TILE_STYLES = [
   'border-red-300 bg-red-50 text-red-900',
   'border-sky-300 bg-sky-50 text-sky-900',
@@ -462,7 +470,7 @@ export const LiveQuizStudent: React.FC = () => {
                   type="button"
                   disabled={!canAnswer}
                   onClick={() => void handleAnswer(option)}
-                  className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left text-[clamp(1.1rem,min(1.75vw,2.9vh),2.35rem)] font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${optionClass} ${!revealVisible && !canAnswer && !isSelected && !isCorrectAnswer ? 'opacity-60' : ''}`}
+                  className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left ${getLiveQuizOptionTextClass(option)} font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${optionClass} ${!revealVisible && !canAnswer && !isSelected && !isCorrectAnswer ? 'opacity-60' : ''}`}
                 >
                   <span className={`mr-2 ${isCorrectAnswer ? 'text-lime-800' : isWrongSelection ? 'text-red-600' : revealVisible ? 'text-slate-400' : 'text-brand-blue'}`}>
                     {String.fromCharCode(65 + index)}.

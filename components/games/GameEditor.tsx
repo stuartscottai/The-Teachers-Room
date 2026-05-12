@@ -9,9 +9,10 @@ import { optimizeImageForUpload } from '../../utils/imageOptimize';
 import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/gameAssetStorage';
 import { resolveGameImageUrl } from '../../utils/gameImage';
 import { getGameImageQuery } from '../../utils/gameAutoImages';
+import { buildLiveQuizQuestionsFromGame } from '../../utils/liveQuizUtils';
 import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
 import { Avatar } from '../Avatar';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Calendar } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Calendar, Radio } from 'lucide-react';
 import { promptSignupForFree } from '../../services/accountAccess';
 import { StudentShareModal } from './StudentShareModal';
 import { getPublicAppUrl } from '../../utils/appUrl';
@@ -20,6 +21,7 @@ interface GameEditorProps {
     game: GeneratedGame;
     onSave: (g: GeneratedGame) => void;
     onPlay: (g: GeneratedGame) => void;
+    onLiveQuiz?: (g: GeneratedGame) => void;
     onBack: () => void;
 }
 
@@ -30,6 +32,16 @@ type QuestionImageTarget =
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 const AI_PROMPT_MODAL_MAX_HEIGHT = 'min(75dvh, calc(100dvh - 2rem))';
+const GAME_EDITOR_PAGE_SIZE_KEY = 'teachersRoomGameEditorPageSize';
+const GAME_EDITOR_PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50];
+const editorPageSizeSelectClass = 'w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer';
+const editorPageButtonClass = 'p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+
+const getSavedEditorPageSize = () => {
+    if (typeof window === 'undefined') return 10;
+    const saved = Number(window.localStorage.getItem(GAME_EDITOR_PAGE_SIZE_KEY));
+    return GAME_EDITOR_PAGE_SIZE_OPTIONS.includes(saved) ? saved : 10;
+};
 
 const formatCreatedDate = (value?: string) => {
     if (!value) return 'Date unavailable';
@@ -65,7 +77,7 @@ const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: str
     return `answer should start with "${letter}"`;
 };
 
-export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onBack }) => {
+export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [activeTab, setActiveTab] = useState<number>(0);
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
@@ -76,6 +88,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [hasEdits, setHasEdits] = useState(false);
     const tabsScrollRef = useRef<HTMLDivElement>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(getSavedEditorPageSize);
     const prevIsPublicRef = useRef(isPublic);
     const [bulkCategoryInput, setBulkCategoryInput] = useState('');
 
@@ -103,6 +116,10 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setHasEdits(false);
         prevIsPublicRef.current = game.config.isPublic || false;
     }, [game.id, game.createdAt]);
+
+    useEffect(() => {
+        window.localStorage.setItem(GAME_EDITOR_PAGE_SIZE_KEY, String(itemsPerPage));
+    }, [itemsPerPage]);
 
     const didMountRef = useRef(false);
 
@@ -311,6 +328,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setIsDirty(true);
         setHasEdits(true);
         setSaveStatus('idle');
+    };
+
+    const handleTitleChange = (title: string) => {
+        handleChange((prev) => ({ ...prev, title }));
+    };
+
+    const handleItemsPerPageChange = (value: number) => {
+        setItemsPerPage(value);
+        setCurrentPage(1);
     };
 
     const handleVisibilityToggle = () => {
@@ -595,7 +621,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 }
             ]
         }));
-        setCurrentPage(Math.ceil((displayQuestions.length + 1) / QUESTIONS_PER_PAGE));
+        setCurrentPage(Math.ceil((displayQuestions.length + 1) / itemsPerPage));
     };
 
     const removeQuestion = (index: number) => {
@@ -708,6 +734,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
     const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
     const isWordWheel = editedGame.config.type === GameType.WORD_WHEEL;
+    const isLiveQuiz = editedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE;
+    const liveQuizCompatibleCount = buildLiveQuizQuestionsFromGame(editedGame, []).questions.length;
+    const canPlayLiveQuiz = Boolean(onLiveQuiz && liveQuizCompatibleCount > 0);
     const createdById = editedGame.config.originalCreatorId || editedGame.authorId;
     const createdByName = editedGame.config.originalCreatorName || editedGame.authorName;
     const createdByAvatar = editedGame.config.originalCreatorAvatar || editedGame.authorAvatar || editedGame.config.authorAvatar || null;
@@ -723,16 +752,22 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const displayQuestions = (editedGame.config.type === GameType.DARTS) 
         ? baseQuestions.slice(0, editedGame.config.questionCount) 
         : baseQuestions;
-    const QUESTIONS_PER_PAGE = 10;
-    const totalPages = Math.max(1, Math.ceil(displayQuestions.length / QUESTIONS_PER_PAGE));
-    const pageStart = (currentPage - 1) * QUESTIONS_PER_PAGE;
-    const pagedQuestions = displayQuestions.slice(pageStart, pageStart + QUESTIONS_PER_PAGE);
+    const groupedQuestions = groups?.[activeTab]?.questions ?? [];
+    const activeQuestionCount = isGrouped ? groupedQuestions.length : displayQuestions.length;
+    const totalPages = Math.max(1, Math.ceil(activeQuestionCount / itemsPerPage));
+    const pageStart = (currentPage - 1) * itemsPerPage;
+    const pagedQuestions = displayQuestions.slice(pageStart, pageStart + itemsPerPage);
+    const pagedGroupedQuestions = groupedQuestions.slice(pageStart, pageStart + itemsPerPage);
 
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
         }
     }, [currentPage, totalPages]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, itemsPerPage]);
 
     return (
         <div className="fixed inset-0 top-16 bg-slate-50 z-50 overflow-hidden flex flex-col">
@@ -805,12 +840,22 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         <Calendar size={13} />
                                         <span>Date created: <span className="font-bold text-slate-700">{createdDate}</span></span>
                                     </div>
+                                    <div className="mt-4 max-w-3xl">
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">Game title</label>
+                                        <input
+                                            type="text"
+                                            value={editedGame.title}
+                                            onChange={(event) => handleTitleChange(event.target.value)}
+                                            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-xl font-black text-slate-900 outline-none transition focus:border-brand-blue focus:ring-4 focus:ring-sky-100"
+                                            placeholder="Enter game title"
+                                        />
+                                    </div>
                                 </div>
                                 
-                                <div className="w-full shrink-0 grid grid-cols-5 gap-0.5 pb-1 sm:gap-1.5 lg:w-auto lg:flex lg:items-center lg:pb-0">
+                                <div className="w-full shrink-0 grid grid-cols-2 gap-2 pb-1 sm:grid-cols-3 lg:w-auto lg:min-w-[430px] lg:grid-cols-2 lg:pb-0 xl:min-w-[780px] xl:grid-cols-6">
                                     {/* VISIBILITY TOGGLE */}
                                     <div
-                                        className={`w-full min-w-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-10 lg:h-9 lg:w-[136px] ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        className={`w-full min-w-0 flex items-center bg-slate-200 rounded-full select-none p-0.5 h-10 lg:h-9 ${!user || publicToggleLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                                         onClick={handleVisibilityToggle}
                                         title={publicToggleLocked ? 'Make at least one edit before setting this game to Public.' : undefined}
                                     >
@@ -825,7 +870,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <button
                                         onClick={handleShare}
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`w-full min-w-0 h-10 lg:h-9 bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Teacher share"
                                         aria-label="Teacher share"
                                     >
@@ -837,7 +882,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <button
                                         onClick={handleStudentShare}
                                         disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
-                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        className={`w-full min-w-0 h-10 lg:h-9 bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Student share"
                                         aria-label="Student share"
                                     >
@@ -849,7 +894,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <button 
                                         onClick={handleSave} 
                                         disabled={saveStatus === 'saving' || isStopTheFireBank}
-                                        className={`w-full min-w-0 h-10 lg:h-9 lg:w-[136px] font-bold leading-none flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 transition-all shadow-sm border cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight
+                                        className={`w-full min-w-0 h-10 lg:h-9 font-bold leading-none flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 transition-all shadow-sm border cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
                                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-brand-blue'} ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -863,9 +908,22 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         {saveStatus === 'idle' && <Save size={12} className="hidden shrink-0 sm:block" />}
                                         <span className="truncate">{isStopTheFireBank ? 'Save Off' : saveStatus === 'saving' ? 'Saving' : saveStatus === 'saved' ? 'Saved' : 'Save'}</span>
                                     </button>
+                                    {canPlayLiveQuiz && (
+                                        <button
+                                            onClick={() => onLiveQuiz?.(editedGame)}
+                                            className={`w-full min-w-0 h-10 lg:h-9 bg-brand-blue text-white font-bold leading-none shadow-md hover:bg-sky-600 flex items-center justify-center gap-1.5 px-2 hover:scale-[1.02] transition-transform cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isLiveQuiz ? 'sm:col-span-2 lg:col-span-1' : ''}`}
+                                            title="Play live quiz"
+                                            aria-label="Play live quiz"
+                                        >
+                                            <Radio size={13} className="shrink-0 sm:hidden" />
+                                            <Radio size={12} className="hidden shrink-0 sm:block" />
+                                            <span className="truncate">Live quiz</span>
+                                        </button>
+                                    )}
+                                    {!isLiveQuiz && (
                                     <button 
                                         onClick={handlePlay} 
-                                        className="w-full min-w-0 h-10 lg:h-9 lg:w-[136px] bg-brand-yellow text-slate-900 font-bold leading-none shadow-md hover:bg-yellow-300 flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 hover:scale-105 transition-transform cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight"
+                                        className="w-full min-w-0 h-10 lg:h-9 bg-brand-yellow text-slate-900 font-bold leading-none shadow-md hover:bg-yellow-300 flex items-center justify-center gap-1.5 px-2 hover:scale-[1.02] transition-transform cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight"
                                         title="Play game"
                                         aria-label="Play game"
                                     >
@@ -873,6 +931,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         <Play size={12} className="hidden shrink-0 sm:block" />
                                         <span className="truncate">Play</span>
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1050,8 +1109,36 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         />
                                     </div>
 
+                                    <div className="mb-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                                        <p className="text-xs font-medium text-slate-500">
+                                            Showing {groupedQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, groupedQuestions.length)} of {groupedQuestions.length} questions
+                                        </p>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                                className={editorPageButtonClass}
+                                            >
+                                                <ChevronLeft size={18} />
+                                            </button>
+                                            <span className="text-sm font-bold text-slate-600">
+                                                Page {currentPage} of {totalPages}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className={editorPageButtonClass}
+                                            >
+                                                <ChevronRight size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-6">
-                                        {groups[activeTab].questions.map((q, qIdx) => {
+                                        {pagedGroupedQuestions.map((q, index) => {
+                                            const qIdx = pageStart + index;
                                             const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
@@ -1216,6 +1303,42 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             </div>
                                         )})}
                                     </div>
+
+                                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                                className={editorPageButtonClass}
+                                            >
+                                                <ChevronLeft size={18} />
+                                            </button>
+                                            <span className="text-sm font-bold text-slate-600">
+                                                Page {currentPage} of {totalPages}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className={editorPageButtonClass}
+                                            >
+                                                <ChevronRight size={18} />
+                                            </button>
+                                        </div>
+                                        <div className="relative ml-auto min-w-[120px]">
+                                            <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                            <select
+                                                value={itemsPerPage}
+                                                onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
+                                                className={editorPageSizeSelectClass}
+                                            >
+                                                {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
+                                                    <option key={size} value={size}>{size} per page</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
@@ -1223,27 +1346,27 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                             <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden p-6">
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
                                     <p className="text-xs text-slate-500 font-medium">
-                                        Showing {displayQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + QUESTIONS_PER_PAGE, displayQuestions.length)} of {displayQuestions.length} questions
+                                        Showing {displayQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, displayQuestions.length)} of {displayQuestions.length} questions
                                     </p>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         <button
                                             type="button"
                                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                             disabled={currentPage === 1}
-                                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                            className={editorPageButtonClass}
                                         >
-                                            <ChevronLeft size={14} className="mr-1" /> Prev
+                                            <ChevronLeft size={18} />
                                         </button>
-                                        <span className="text-xs font-bold text-slate-600">
+                                        <span className="text-sm font-bold text-slate-600">
                                             Page {currentPage} of {totalPages}
                                         </span>
                                         <button
                                             type="button"
                                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                             disabled={currentPage === totalPages}
-                                            className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
+                                            className={editorPageButtonClass}
                                         >
-                                            Next <ChevronRight size={14} className="ml-1" />
+                                            <ChevronRight size={18} />
                                         </button>
                                     </div>
                                 </div>
@@ -1564,26 +1687,40 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     )})}
                                 </div>
 
-                                <div className="flex items-center justify-center gap-2 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                                        disabled={currentPage === 1}
-                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
-                                    >
-                                        <ChevronLeft size={14} className="mr-1" /> Prev
-                                    </button>
-                                    <span className="text-xs font-bold text-slate-600">
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                                        disabled={currentPage === totalPages}
-                                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-500 text-xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center"
-                                    >
-                                        Next <ChevronRight size={14} className="ml-1" />
-                                    </button>
+                                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                            className={editorPageButtonClass}
+                                        >
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                        <span className="text-sm font-bold text-slate-600">
+                                            Page {currentPage} of {totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                            disabled={currentPage === totalPages}
+                                            className={editorPageButtonClass}
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                    <div className="relative ml-auto min-w-[120px]">
+                                        <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <select
+                                            value={itemsPerPage}
+                                            onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
+                                            className={editorPageSizeSelectClass}
+                                        >
+                                            {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
+                                                <option key={size} value={size}>{size} per page</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 
                                 {!isWordWheel && (

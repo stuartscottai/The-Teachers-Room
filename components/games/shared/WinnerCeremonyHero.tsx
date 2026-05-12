@@ -400,9 +400,9 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     };
     const winnerHeroTopClearance = 'clamp(12px, 2.5vh, 20px)';
     const getPodiumHeight = (rank: 1 | 2 | 3) => {
-        if (rank === 1) return 'clamp(150px, 26vw, 270px)';
-        if (rank === 2) return 'clamp(120px, 20vw, 190px)';
-        return 'clamp(96px, 16vw, 136px)';
+        if (rank === 1) return 'clamp(140px, 22vw, 230px)';
+        if (rank === 2) return 'clamp(112px, 17vw, 170px)';
+        return 'clamp(90px, 14vw, 124px)';
     };
     const getPodiumPalette = (rank: 1 | 2 | 3) => {
         if (rank === 1) {
@@ -464,19 +464,19 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                 className="relative z-10 w-full min-h-[calc(100vh-4rem)]"
                 style={{ paddingTop: winnerHeroTopClearance, scrollPaddingTop: winnerHeroTopClearance }}
             >
-                <div className="max-w-6xl mx-auto px-4 pt-10 sm:pt-14 pb-10 flex flex-col items-center text-center">
+                <div className="max-w-6xl mx-auto px-4 pt-6 sm:pt-8 pb-10 flex flex-col items-center text-center">
                     <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)]">{winnerHeadline}</h1>
-                    <p className="text-cyan-100 text-base sm:text-xl mb-6 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]">{subtitle}</p>
+                    <p className="text-cyan-100 text-base sm:text-xl mb-3 sm:mb-4 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]">{subtitle}</p>
 
                     <div className="relative w-full max-w-6xl mb-8 px-2 sm:px-4">
-                        <div className="relative z-20 mx-auto w-fit max-w-full flex items-end justify-center gap-0 sm:gap-1 md:gap-1 pt-14 sm:pt-20 md:pt-24 pb-6 min-h-[300px] sm:min-h-[390px]">
+                        <div className="relative z-20 mx-auto w-fit max-w-full flex items-end justify-center gap-0 sm:gap-1 md:gap-1 pt-8 sm:pt-12 md:pt-14 pb-6 min-h-[270px] sm:min-h-[340px]">
                             <div className="absolute left-[-2%] right-[-2%] bottom-1 h-5 rounded-full bg-gradient-to-b from-slate-300/35 to-slate-900/65 border border-slate-200/35 shadow-[0_10px_24px_rgba(2,6,23,0.45)] pointer-events-none z-0" />
                             <div className="absolute left-[4%] right-[4%] bottom-1.5 h-3 rounded-full bg-cyan-300/20 blur-md pointer-events-none z-0" />
                             {ceremonySlots.map((slot, slotIndex) => {
                                 const spotlightActive = isRankSpotlightVisible(slot.rank);
                                 const active = isRankPodiumActive(slot.rank);
                                 const palette = getPodiumPalette(slot.rank);
-                                const trophySize = slot.rank === 1 ? (isMobileViewport ? 128 : 146) : (isMobileViewport ? 94 : 112);
+                                const trophySize = slot.rank === 1 ? (isMobileViewport ? 112 : 124) : (isMobileViewport ? 84 : 96);
                                 const teamName = slot.team.name || `Team ${slot.team.index + 1}`;
                                 const spotlightColor =
                                     slot.rank === 1 ? 'rgba(255,215,0,0.52)' : slot.rank === 2 ? 'rgba(192,192,192,0.44)' : 'rgba(205,127,50,0.45)';
@@ -509,7 +509,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                                             }}
                                         >
                                             <div
-                                                className={`mb-3 sm:mb-4 flex flex-col items-center transition-all duration-700 ${active ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+                                                className={`mb-2 sm:mb-3 flex flex-col items-center transition-all duration-700 ${active ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
                                                 style={{ transitionDelay: '180ms' }}
                                             >
                                                 <div className={`relative wordwheel-winner-float ${slot.rank === 1 ? 'scale-[1.15]' : 'scale-100'}`} style={{ animationDelay: `${slotIndex * 180}ms` }}>
@@ -518,14 +518,14 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                                                 <div className="text-center mt-1">
                                                     {slot.team.avatarId && (
                                                         <div className="mb-1 flex justify-center">
-                                                            <LiveQuizAvatarIcon avatarId={slot.team.avatarId} className={slot.rank === 1 ? 'h-14 w-14' : 'h-11 w-11'} iconSize={24} />
+                                                            <LiveQuizAvatarIcon avatarId={slot.team.avatarId} className={slot.rank === 1 ? 'h-14 w-14 sm:h-16 sm:w-16' : 'h-11 w-11 sm:h-12 sm:w-12'} iconSize={26} />
                                                         </div>
                                                     )}
-                                                    <h3 className="text-white font-display font-black text-base sm:text-xl md:text-2xl tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] max-w-[210px] truncate">
+                                                    <h3 className="text-white font-display font-black text-lg sm:text-2xl md:text-3xl tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] max-w-[240px] truncate">
                                                         {teamName}
                                                     </h3>
-                                                    <div className="h-1 w-12 mx-auto my-1 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.75)]" style={{ backgroundColor: CEREMONY_COLORS.accent }} />
-                                                    <p className="text-cyan-200 font-bold text-[9px] sm:text-xs tracking-[0.18em] uppercase">
+                                                    <div className="h-1 w-14 mx-auto my-1 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.75)]" style={{ backgroundColor: CEREMONY_COLORS.accent }} />
+                                                    <p className="text-cyan-200 font-black text-[11px] sm:text-sm tracking-[0.16em] uppercase">
                                                         {formatCeremonyScore(slot.team.score)}
                                                     </p>
                                                 </div>

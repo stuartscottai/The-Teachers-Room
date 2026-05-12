@@ -37,6 +37,14 @@ const getRoundGain = (submissions: LiveQuizSubmission[], participantId: string, 
 const getCorrectCount = (submissions: LiveQuizSubmission[], participantId: string) =>
   submissions.filter((submission) => submission.participantId === participantId && submission.isCorrect).length;
 
+const getLiveQuizOptionTextClass = (option: string) => {
+  const length = option.trim().length;
+  if (length > 115) return 'text-[clamp(1.1rem,2.7vw,1.9rem)] lg:text-[clamp(1.25rem,min(1.75vw,2.8vh),2.55rem)]';
+  if (length > 80) return 'text-[clamp(1.25rem,3.4vw,2.25rem)] lg:text-[clamp(1.45rem,min(2.15vw,3.35vh),3.1rem)]';
+  if (length > 48) return 'text-[clamp(1.45rem,4.4vw,2.7rem)] lg:text-[clamp(1.8rem,min(2.8vw,4.6vh),4rem)]';
+  return 'text-[clamp(2rem,7vw,3.7rem)] lg:text-[clamp(2.7rem,min(4vw,7vh),5.25rem)]';
+};
+
 const ANSWER_TILE_STYLES = [
   'border-red-300 bg-red-50 text-red-900',
   'border-sky-300 bg-sky-50 text-sky-900',
@@ -275,6 +283,35 @@ export const LiveQuizHost: React.FC = () => {
     }
     void setStatus('question', nextIndex);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space' || event.repeat || busy || !session) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.closest('input, textarea, select, button') || target.isContentEditable)) return;
+
+      if (['question', 'locked'].includes(session.status)) {
+        if (!canRevealAnswer) return;
+        event.preventDefault();
+        void revealAnswer();
+        return;
+      }
+
+      if (session.status === 'reveal') {
+        event.preventDefault();
+        session.currentQuestionIndex + 1 >= questions.length ? void endGame() : void showLeaderboard();
+        return;
+      }
+
+      if (session.status === 'leaderboard') {
+        event.preventDefault();
+        nextQuestion();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [busy, canRevealAnswer, questions.length, session]);
 
   const replayToLobby = async () => {
     if (!session) return;
@@ -569,7 +606,7 @@ export const LiveQuizHost: React.FC = () => {
                       return (
                         <div
                           key={option}
-                          className={`flex min-h-[76px] items-center overflow-hidden rounded-2xl border-2 p-3 text-[clamp(1.15rem,5vw,2rem)] font-black leading-tight shadow-sm lg:min-h-0 lg:p-5 lg:text-[clamp(1.35rem,min(2.2vw,3.2vh),3rem)] ${
+                          className={`flex min-h-[76px] items-center overflow-hidden rounded-2xl border-2 p-3 ${getLiveQuizOptionTextClass(option)} font-black leading-tight shadow-sm lg:min-h-0 lg:p-5 ${
                             ['reveal', 'leaderboard'].includes(session.status) && isAnswer
                               ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
                               : ['reveal', 'leaderboard'].includes(session.status)

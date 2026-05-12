@@ -1539,6 +1539,19 @@ export const Games: React.FC = () => {
         }
     };
 
+    const handleEditorLiveQuiz = (updatedGame: GeneratedGame) => {
+        setGeneratedGame(updatedGame);
+        setSessionGame(updatedGame);
+        setIsDirty(false);
+
+        if (!user) {
+            promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
+            return;
+        }
+
+        setLiveQuizSelectedItems([]);
+    };
+
     const handleGameStart = (options: GameRunOptions) => {
         trackStartedGame(sessionGame || generatedGame);
         setPlayOptions(options);
@@ -2001,6 +2014,7 @@ export const Games: React.FC = () => {
                     game={generatedGame} 
                     onSave={handleEditorSave} 
                     onPlay={handleEditorPlay} 
+                    onLiveQuiz={handleEditorLiveQuiz}
                     onBack={handleBack}
                 />
             )}
