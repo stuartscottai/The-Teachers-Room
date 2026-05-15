@@ -2,7 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, ArrowRight, RotateCcw, CheckCircle, XCircle, Plus, Minus, List, Play, Check, Edit2, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Star, X, Flag } from 'lucide-react';
 
@@ -526,16 +526,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">{team.score}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable ranking={ranking} />
                 </WinnerCeremonyHero>
             </div>
         );

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Target, FileQuestion, AlertTriangle, Flag } from 'lucide-react';
 
@@ -1152,18 +1152,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">
-                                        {is301 ? `Remaining ${Math.max(0, team.remaining ?? 0)}` : team.score}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable
+                        ranking={ranking}
+                        formatScore={(score, entry) => is301 ? `Remaining ${Math.max(0, entry.remaining ?? 0)}` : `${new Intl.NumberFormat('en-US').format(score)} pts`}
+                    />
                 </WinnerCeremonyHero>
             </div>
         );

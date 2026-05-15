@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft, X, Flag } from 'lucide-react';
 
@@ -948,16 +948,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">Square {team.score}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable
+                        ranking={ranking}
+                        formatScore={(score) => `Square ${score}`}
+                    />
                 </WinnerCeremonyHero>
             </div>
         );

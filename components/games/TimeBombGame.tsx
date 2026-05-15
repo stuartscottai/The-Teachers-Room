@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull, Flag } from 'lucide-react';
 
@@ -63,6 +63,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const [resizeTick, setResizeTick] = useState(0);
     const [explosionKey, setExplosionKey] = useState(0);
     const explosionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const eliminationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [mcFeedback, setMcFeedback] = useState<{ index: number; status: 'correct' | 'wrong' } | null>(null);
     const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
     const [correctCount, setCorrectCount] = useState(0);
@@ -78,6 +79,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const [explosionOrigin, setExplosionOrigin] = useState({ x: 0, y: 0 });
     const arenaRef = useRef<HTMLDivElement>(null);
     const dynamiteRef = useRef<HTMLDivElement>(null);
+    const gameStateRef = useRef(gameState);
 
     // Initial Question Setup
     const currentQuestion = questions[currentQuestionIndex];
@@ -109,10 +111,52 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const fusePath = buildFusePath(fuseWidth, fuseHeight);
     const fuseViewBox = `0 0 ${fuseWidth} ${fuseHeight}`;
 
+    useEffect(() => {
+        gameStateRef.current = gameState;
+    }, [gameState]);
+
+    const stopActiveTimers = () => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+        if (explosionTimerRef.current) {
+            clearTimeout(explosionTimerRef.current);
+            explosionTimerRef.current = null;
+        }
+        if (eliminationTimerRef.current) {
+            clearTimeout(eliminationTimerRef.current);
+            eliminationTimerRef.current = null;
+        }
+        if (mcFeedbackTimerRef.current) {
+            clearTimeout(mcFeedbackTimerRef.current);
+            mcFeedbackTimerRef.current = null;
+        }
+    };
+
+    const finishGame = () => {
+        stopActiveTimers();
+        setIsTicking(false);
+        setIsPaused(false);
+        setIsExploded(false);
+        setShowExplosionModal(false);
+        setMcFeedback(null);
+        setIsResolvingMc(false);
+        setGameState('gameover');
+    };
+
     // Scroll Lock
     useEffect(() => {
         document.body.style.overflow = gameState === 'gameover' ? '' : 'hidden';
         return () => { document.body.style.overflow = ''; };
+    }, [gameState]);
+
+    useEffect(() => {
+        if (gameState !== 'gameover') return;
+        stopActiveTimers();
+        setIsTicking(false);
+        setIsExploded(false);
+        setShowExplosionModal(false);
     }, [gameState]);
 
     useEffect(() => {
@@ -206,6 +250,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     const handleExplosion = () => {
+        if (gameStateRef.current === 'gameover') return;
         captureExplosionOrigin();
         setIsTicking(false);
         setIsExploded(true);
@@ -295,6 +340,9 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             if (explosionTimerRef.current) {
                 clearTimeout(explosionTimerRef.current);
             }
+            if (eliminationTimerRef.current) {
+                clearTimeout(eliminationTimerRef.current);
+            }
         };
     }, []);
     useEffect(() => {
@@ -364,11 +412,15 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         });
 
         // Small delay to allow state update before checking winner
-        setTimeout(() => {
+        if (eliminationTimerRef.current) {
+            clearTimeout(eliminationTimerRef.current);
+        }
+        eliminationTimerRef.current = setTimeout(() => {
+            if (gameStateRef.current === 'gameover') return;
             setTeamLives(finalLives => {
                 const survivors = finalLives.map((l, i) => l > 0).filter(Boolean).length;
                 if (survivors <= 1 && options.players > 1) {
-                    setGameState('gameover');
+                    finishGame();
                 } else {
                     passBombToNextSurvivor();
                     setBombTime(options.bombDuration || 60);
@@ -408,7 +460,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         
         if (available.length === 0) {
             if (options.studentPractice) {
-                setGameState('gameover');
+                finishGame();
                 return;
             }
             setUsedQuestionIds([]);
@@ -705,18 +757,10 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">
-                                        {team.score} {team.score === 1 ? 'life' : 'lives'}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable
+                        ranking={ranking}
+                        formatScore={(score) => `${score} ${score === 1 ? 'life' : 'lives'}`}
+                    />
                 </WinnerCeremonyHero>
             </div>
         );
@@ -728,7 +772,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const mobileUsesButtonGrid = mobileUsesTwoRowHeader && mobileControlCount >= 4;
 
     return (
-        <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
+        <div ref={containerRef} className={`bg-slate-950 flex flex-col ${isFullscreen ? 'h-[100dvh]' : 'h-[calc(100dvh-4rem)]'} overflow-hidden relative text-white font-sans`}>
             <style>{`
                 @keyframes timeBombBlast {
                     0% { transform: translate(-50%, -50%) scale(0.05); opacity: 0.9; }
@@ -762,7 +806,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             `}</style>
             
             {/* 1. HEADER */}
-            <div className={`bg-slate-900/90 backdrop-blur-md px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-slate-800 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[140px] shadow-2xl relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+            <div className={`bg-slate-900/90 backdrop-blur-md px-2 py-2 sm:p-2.5 lg:p-3 shrink-0 z-50 border-b border-slate-800 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[88px] lg:min-h-[92px] shadow-2xl relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                 <div className={`min-w-fit shrink-0 sm:hidden gap-1.5 ${mobileUsesButtonGrid ? 'grid grid-cols-2' : mobileUsesTwoRowHeader ? 'flex flex-col items-start' : 'flex flex-row items-center'}`}>
                     <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-slate-400 hover:text-red-500 bg-slate-800 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
                         <ArrowLeft size={17} />
@@ -815,7 +859,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <div 
                                 key={idx} 
                                 className={`
-                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:min-h-[5rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center text-center
+                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:min-h-[4.25rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center text-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
                                       isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
                                       'border-slate-700 bg-slate-800/80 text-slate-400'}
@@ -940,13 +984,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 ) : (
                     <>
                         {/* MAIN CONTENT */}
-                        <div className="flex-1 min-h-0 p-2 sm:p-4 flex flex-col items-center justify-start sm:justify-center relative z-10">
-                            <div className="w-full flex flex-col items-center gap-2 sm:gap-4">
+                        <div className="flex-1 min-h-0 p-2 sm:p-3 flex flex-col items-center justify-start relative z-10">
+                            <div className="w-full min-h-0 flex-1 flex flex-col items-center justify-center gap-3 sm:gap-5 md:gap-6">
                                 {(gameState === 'play' || gameState === 'exploded') && (
                                     <div className="relative flex items-center justify-center w-full">
                                         <div
                                             ref={dynamiteRef}
-                                            className="relative w-[min(140px,38vw)] sm:w-[min(210px,40vw)] md:w-[min(260px,30vw)] transition-transform duration-200 origin-center"
+                                            className="relative w-[min(120px,34vw)] sm:w-[min(170px,32vw)] md:w-[min(210px,22vw)] transition-transform duration-200 origin-center"
                                             style={{ transform: `scale(${getBombScale()})` }}
                                         >
                                             <img
@@ -954,9 +998,9 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 alt="Dynamite"
                                                 className="w-full h-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.6)]"
                                             />
-                                            <div className="absolute left-[46%] top-1/2 -translate-x-1/2 -translate-y-[45%]">
+                                            <div className="absolute left-[47%] top-1/2 -translate-x-1/2 -translate-y-[45%]">
                                                 <span
-                                                    className="font-mono text-[clamp(22px,5.6vw,34px)] sm:text-4xl tracking-widest drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                                                    className="font-mono text-[clamp(19px,4.7vw,28px)] sm:text-[1.85rem] tracking-normal drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
                                                     style={{ color: getTimerColor() }}
                                                 >
                                                     {formatBombTime(bombTime)}
@@ -969,7 +1013,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                 {!isExploded && gameState === 'play' && (
                                     <div
                                         ref={cardFrameRef}
-                                        className="relative w-full max-w-[92vw] h-[min(56vh,520px)] sm:max-w-[560px] sm:h-full sm:max-h-[68vh] md:max-w-6xl md:h-auto md:max-h-[60vh] md:aspect-[16/9] [perspective:1000px] overflow-visible"
+                                        className="relative w-full max-w-[92vw] h-[min(56vh,500px)] sm:max-w-[min(92vw,860px)] sm:h-[min(54vh,500px)] md:max-w-5xl md:h-[min(50vh,500px)] [perspective:1000px] overflow-visible"
                                     >
                                         <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
                                             <svg
@@ -1027,10 +1071,10 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                             )}
                                             </svg>
                                         </div>
-                                        <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
+                                        <div className="relative w-full h-full">
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
-                                        <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                        <div className={`absolute inset-0 rounded-3xl shadow-2xl overflow-hidden flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
                                             <div className="bg-indigo-900/50 px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 border-b border-indigo-800 flex justify-between items-center shrink-0">
                                                 <span className="font-bold text-indigo-300 uppercase tracking-widest text-[clamp(9px,2vw,12px)] sm:text-sm">Question</span>
                                                 <div className="flex items-center gap-2">
@@ -1262,10 +1306,10 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         </div>
 
                                         {/* BACK: ANSWER & SCORING */}
-                                        <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-3xl shadow-2xl overflow-hidden flex flex-col bg-slate-900 border-4 border-indigo-500 ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                        <div className={`absolute inset-0 rounded-3xl shadow-2xl overflow-hidden flex-col bg-slate-900 border-4 border-indigo-500 ${!isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
                                             <div className="bg-indigo-900/50 p-3 sm:p-4 border-b border-indigo-800 flex justify-between items-center">
                                                 <span className="font-bold text-indigo-300 uppercase tracking-widest text-[10px] sm:text-sm">Answer</span>
-                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-indigo-800 rounded-full text-indigo-200 hover:text-white transition-colors" title="Flip Back">
+                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-indigo-800 rounded-full text-indigo-200 hover:text-white transition-colors" title="Back to question">
                                                     <RotateCcw size={20} />
                                                 </button>
                                             </div>
@@ -1433,7 +1477,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
-                                    setGameState('gameover');
+                                    finishGame();
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-500"
                             >

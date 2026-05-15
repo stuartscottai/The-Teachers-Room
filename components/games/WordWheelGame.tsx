@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import {
     ArrowLeft,
@@ -1076,18 +1076,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, index) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">
-                                        {index + 1}. {team.name}
-                                    </div>
-                                    <div className="font-mono font-black text-xl">{team.score}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable ranking={ranking} />
 
                     <div className="w-full max-w-5xl mt-6 bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
                         <h3 className="text-lg sm:text-2xl font-black">Revealed Answers</h3>

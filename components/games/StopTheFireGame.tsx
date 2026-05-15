@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { GameRunOptions, GeneratedGame, StopTheFireDifficulty } from '../../types';
 import { STOP_THE_FIRE_CATEGORIES } from '../../data/stopTheFireCategories';
 import { playSound } from '../../utils/gameUtils';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { ArrowLeft, Maximize2, Minimize2, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 
 interface StopTheFireGameProps {
@@ -857,16 +857,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">{team.score}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable ranking={ranking} />
                 </WinnerCeremonyHero>
             </div>
         );

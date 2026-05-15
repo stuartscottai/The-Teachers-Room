@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameImageUrl } from '../../utils/gameImage';
-import { WinnerCeremonyHero } from './shared/WinnerCeremonyHero';
+import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Plus, Minus, AlertTriangle, Flag } from 'lucide-react';
 
 interface SurveyShowdownGameProps {
@@ -446,16 +446,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     onPlayAgain={onReplay}
                     onExit={onFinish}
                 >
-                    <div className="w-full max-w-4xl bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <div className="space-y-3">
-                            {ranking.map((team, idx) => (
-                                <div key={team.index} className="bg-white/10 rounded-xl px-4 py-3 flex items-center justify-between">
-                                    <div className="font-bold">#{idx + 1} {team.name}</div>
-                                    <div className="font-mono font-black text-xl">{team.score}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <WinnerCeremonyStandingsTable ranking={ranking} />
                 </WinnerCeremonyHero>
             </div>
         );

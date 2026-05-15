@@ -269,7 +269,61 @@ export interface WinnerCeremonyRankingEntry {
     name: string;
     id?: string;
     avatarId?: string;
+    remaining?: number;
 }
+
+interface WinnerCeremonyStandingsTableProps {
+    ranking: WinnerCeremonyRankingEntry[];
+    title?: string;
+    countLabel?: string;
+    formatScore?: (score: number, entry: WinnerCeremonyRankingEntry) => string;
+}
+
+export const WinnerCeremonyStandingsTable: React.FC<WinnerCeremonyStandingsTableProps> = ({
+    ranking,
+    title = 'Final positions',
+    countLabel,
+    formatScore = (score) => `${new Intl.NumberFormat('en-US').format(score)} pts`,
+}) => {
+    return (
+        <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+                <h2 className="font-display text-2xl font-black text-white sm:text-3xl">{title}</h2>
+                <p className="text-sm font-black uppercase tracking-wide text-cyan-200">
+                    {countLabel || `${ranking.length} ${ranking.length === 1 ? 'team' : 'teams'}`}
+                </p>
+            </div>
+            <div className="grid gap-3">
+                {ranking.map((entry, index) => {
+                    const rank = index + 1;
+                    const rankStyle =
+                        rank === 1
+                            ? 'border-yellow-300/60 bg-yellow-300 text-slate-950'
+                            : rank === 2
+                                ? 'border-slate-200/60 bg-slate-200 text-slate-950'
+                                : rank === 3
+                                    ? 'border-orange-300/60 bg-orange-300 text-slate-950'
+                                    : 'border-white/15 bg-white/10 text-white';
+
+                    return (
+                        <div
+                            key={`${entry.index}-${entry.name}`}
+                            className={`grid grid-cols-[70px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 shadow-lg sm:grid-cols-[90px_minmax(0,1fr)_180px] sm:p-4 ${rankStyle}`}
+                        >
+                            <div className="font-display text-3xl font-black sm:text-4xl">#{rank}</div>
+                            <div className="min-w-0 truncate font-display text-3xl font-black sm:text-4xl">
+                                {entry.name || `Team ${entry.index + 1}`}
+                            </div>
+                            <div className="text-right font-display text-2xl font-black sm:text-3xl">
+                                {formatScore(entry.score, entry)}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
 interface WinnerCeremonyHeroProps {
     winnerHeadline: string;
