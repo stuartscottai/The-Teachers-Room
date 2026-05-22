@@ -131,33 +131,33 @@ const WinnerCeremonySpotlight: React.FC<{
 
     return (
         <div
-            className="absolute inset-0 pointer-events-none z-[5] overflow-visible transition-all duration-800 ease-out"
+            className="absolute inset-0 pointer-events-none z-0 overflow-visible transition-all duration-800 ease-out"
             style={{
                 opacity: active ? 1 : 0,
                 transform: `scale(${active ? 1 : 0.96})`,
                 transitionDelay: `${delay}ms`,
-                WebkitMaskImage: 'linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.78) 48%, rgba(0,0,0,0.32) 78%, rgba(0,0,0,0) 100%)',
-                maskImage: 'linear-gradient(180deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.78) 48%, rgba(0,0,0,0.32) 78%, rgba(0,0,0,0) 100%)',
+                WebkitMaskImage: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 12%, rgba(0,0,0,0.58) 28%, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.24) 82%, rgba(0,0,0,0) 100%)',
+                maskImage: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 12%, rgba(0,0,0,0.58) 28%, rgba(0,0,0,0.7) 52%, rgba(0,0,0,0.24) 82%, rgba(0,0,0,0) 100%)',
             }}
         >
             <div
-                className="absolute left-0 right-0 top-0 h-[132%]"
+                className="absolute left-0 right-0 top-0 h-[116%]"
                 style={{
-                    background: `radial-gradient(ellipse at ${sourceX}% 0%, ${color} 0%, rgba(255,255,255,0.38) 14%, rgba(255,255,255,0.2) 30%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 72%, rgba(255,255,255,0) 92%)`,
+                    background: `radial-gradient(ellipse at ${sourceX}% 0%, ${color} 0%, rgba(255,255,255,0.28) 16%, rgba(255,255,255,0.16) 34%, rgba(255,255,255,0.08) 56%, rgba(255,255,255,0.02) 76%, rgba(255,255,255,0) 94%)`,
                     clipPath: `polygon(${left}% 0%, ${right}% 0%, ${baseRight}% 100%, ${baseLeft}% 100%)`,
                     filter: 'blur(7px)',
                 }}
             />
             <div
-                className="absolute left-0 right-0 top-0 h-[132%] opacity-40"
+                className="absolute left-0 right-0 top-0 h-[116%] opacity-28"
                 style={{
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.46) 18%, rgba(255,255,255,0.24) 42%, rgba(255,255,255,0.11) 64%, rgba(255,255,255,0.04) 80%, rgba(255,255,255,0) 100%)',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.32) 24%, rgba(255,255,255,0.2) 48%, rgba(255,255,255,0.08) 70%, rgba(255,255,255,0) 100%)',
                     clipPath: `polygon(${left}% 0%, ${right}% 0%, ${coreRight}% 100%, ${coreLeft}% 100%)`,
                     filter: 'blur(2px)',
                 }}
             />
             <div
-                className="absolute left-0 right-0 top-0 h-[132%] opacity-22"
+                className="absolute left-0 right-0 top-0 h-[116%] opacity-16"
                 style={{
                     background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0) 100%)',
                     clipPath: `polygon(${left}% 0%, ${right}% 0%, ${softRight}% 100%, ${softLeft}% 100%)`,
@@ -519,8 +519,8 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                 style={{ paddingTop: winnerHeroTopClearance, scrollPaddingTop: winnerHeroTopClearance }}
             >
                 <div className="max-w-6xl mx-auto px-4 pt-6 sm:pt-8 pb-10 flex flex-col items-center text-center">
-                    <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.55)]">{winnerHeadline}</h1>
-                    <p className="text-cyan-100 text-base sm:text-xl mb-3 sm:mb-4 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.45)]">{subtitle}</p>
+                    <h1 className="relative z-40 font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">{winnerHeadline}</h1>
+                    <p className="relative z-40 text-cyan-100 text-base sm:text-xl mb-3 sm:mb-4 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]">{subtitle}</p>
 
                     <div className="relative w-full max-w-6xl mb-8 px-2 sm:px-4">
                         <div className="relative z-20 mx-auto w-fit max-w-full flex items-end justify-center gap-0 sm:gap-1 md:gap-1 pt-8 sm:pt-12 md:pt-14 pb-6 min-h-[270px] sm:min-h-[340px]">
@@ -537,7 +537,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                                 const spotlightSourceX = slot.rank === 2 ? 92 : slot.rank === 3 ? 8 : 50;
                                 const spotlightSourceWidth = slot.rank === 1 ? 7.4 : 6.8;
                                 const spotlightBaseInset = slot.rank === 1 ? 0.15 : 0.35;
-                                const spotlightHeight = 'clamp(330px, 40vw, 430px)';
+                                const spotlightHeight = 'clamp(240px, 29vw, 330px)';
 
                                 return (
                                     <div key={slot.key} className="relative flex w-[124px] sm:w-[168px] md:w-[210px] flex-none flex-col items-center">
