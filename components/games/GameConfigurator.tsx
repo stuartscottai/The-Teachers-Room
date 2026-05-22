@@ -1795,18 +1795,27 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 </div>
                             )}
 
-                            <button 
+                            <button
                                 onClick={handleGenerate}
                                 disabled={loading}
-                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-md transition-all flex items-center justify-center
-                                ${loading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-brand-blue text-white hover:bg-sky-600 hover:shadow-lg'}`}
+                                aria-busy={loading}
+                                className={`relative w-full overflow-hidden py-4 rounded-xl font-bold text-lg shadow-md transition-all flex items-center justify-center
+                                ${loading ? 'bg-brand-blue text-white cursor-wait shadow-lg' : 'bg-brand-blue text-white hover:bg-sky-600 hover:shadow-lg'}`}
                             >
+                                {loading && (
+                                    <span
+                                        aria-hidden="true"
+                                        className="absolute inset-0 bg-[linear-gradient(110deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.08)_28%,rgba(255,255,255,0.26)_28%,rgba(255,255,255,0.26)_48%,rgba(255,255,255,0.08)_48%,rgba(255,255,255,0.08)_100%)] bg-[length:48px_100%] animate-creating-game"
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center justify-center">
                                 {loading ? (
-                                    <>Generating Game Content...</>
+                                    <>Creating Game, please wait...</>
                                 ) : (
                                     <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />} 
                                     {mode === 'ai' ? 'Create Game' : 'Open Blank Editor'}</>
                                 )}
+                                </span>
                             </button>
                         </div>
                     </div>

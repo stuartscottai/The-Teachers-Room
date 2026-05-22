@@ -257,6 +257,14 @@ export const createLiveQuizSession = async (
   selectedItemIds: string[],
   options?: { timerSeconds?: number; randomize?: boolean }
 ): Promise<{ success: boolean; sessionId?: string; joinCode?: string; skipped?: number; error?: string }> => {
+  const savedGameId = game.sourceGameId || game.id;
+  if (!isUUID(savedGameId)) {
+    return {
+      success: false,
+      error: 'Please save this game to your library before starting a live quiz.',
+    };
+  }
+
   const built = buildLiveQuizQuestionsFromGame(game, selectedItemIds);
   const questions = options?.randomize ? [...built.questions].sort(() => Math.random() - 0.5) : built.questions;
   if (questions.length === 0) {
@@ -271,7 +279,7 @@ export const createLiveQuizSession = async (
       .from('live_quiz_sessions')
       .insert({
         teacher_id: teacherId,
-        source_game_id: isUUID(game.sourceGameId || game.id) ? game.sourceGameId || game.id : null,
+        source_game_id: savedGameId,
         title: game.title,
         join_code: joinCode,
         timer_seconds: options?.timerSeconds || 20,

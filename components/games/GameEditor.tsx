@@ -29,6 +29,7 @@ type QuestionImageTarget =
     | { scope: 'standard'; index: number }
     | { scope: 'grouped'; groupIndex: number; questionIndex: number };
 
+const isUuid = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const WORD_WHEEL_CONTAINS_HARD = new Set(['Q', 'V', 'X', 'Y', 'Z']);
 const AI_PROMPT_MODAL_MAX_HEIGHT = 'min(75dvh, calc(100dvh - 2rem))';
@@ -363,8 +364,6 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         const amount = Math.round(el.clientWidth * 0.6);
         el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     };
-
-    const isUuid = (value?: string) => !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
     const getShareUrl = (id: string) => {
         const base = (import.meta as any).env?.BASE_URL || '/';
@@ -737,6 +736,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isLiveQuiz = editedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE;
     const liveQuizCompatibleCount = buildLiveQuizQuestionsFromGame(editedGame, []).questions.length;
     const canPlayLiveQuiz = Boolean(onLiveQuiz && liveQuizCompatibleCount > 0);
+    const liveQuizSavedForHosting = Boolean(isUuid(editedGame.sourceGameId || editedGame.id)) && !hasEdits && saveStatus !== 'saving';
+    const liveQuizNeedsSave = canPlayLiveQuiz && !liveQuizSavedForHosting;
     const createdById = editedGame.config.originalCreatorId || editedGame.authorId;
     const createdByName = editedGame.config.originalCreatorName || editedGame.authorName;
     const createdByAvatar = editedGame.config.originalCreatorAvatar || editedGame.authorAvatar || editedGame.config.authorAvatar || null;
@@ -911,13 +912,18 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     {canPlayLiveQuiz && (
                                         <button
                                             onClick={() => onLiveQuiz?.(editedGame)}
-                                            className={`w-full min-w-0 h-10 lg:h-9 bg-brand-blue text-white font-bold leading-none shadow-md hover:bg-sky-600 flex items-center justify-center gap-1.5 px-2 hover:scale-[1.02] transition-transform cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isLiveQuiz ? 'sm:col-span-2 lg:col-span-1' : ''}`}
-                                            title="Play live quiz"
+                                            disabled={liveQuizNeedsSave}
+                                            className={`w-full min-w-0 h-10 lg:h-9 font-bold leading-none shadow-md flex items-center justify-center gap-1.5 px-2 transition-transform rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isLiveQuiz ? 'sm:col-span-2 lg:col-span-1' : ''} ${
+                                                liveQuizNeedsSave
+                                                    ? 'cursor-not-allowed bg-slate-200 text-slate-500 shadow-none'
+                                                    : 'cursor-pointer bg-brand-blue text-white hover:bg-sky-600 hover:scale-[1.02]'
+                                            }`}
+                                            title={liveQuizNeedsSave ? 'Save this game before starting a live quiz' : 'Play live quiz'}
                                             aria-label="Play live quiz"
                                         >
                                             <Radio size={13} className="shrink-0 sm:hidden" />
                                             <Radio size={12} className="hidden shrink-0 sm:block" />
-                                            <span className="truncate">Live quiz</span>
+                                            <span className="truncate">{liveQuizNeedsSave ? 'Save first' : 'Live quiz'}</span>
                                         </button>
                                     )}
                                     {!isLiveQuiz && (

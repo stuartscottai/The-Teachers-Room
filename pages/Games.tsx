@@ -1499,6 +1499,10 @@ export const Games: React.FC = () => {
                 promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
                 return;
             }
+            if (!isUUID(updatedGame.sourceGameId || updatedGame.id)) {
+                alert('Please save this game to your library before starting a live quiz.');
+                return;
+            }
             setLiveQuizSelectedItems([]);
             return;
         }
@@ -1546,6 +1550,11 @@ export const Games: React.FC = () => {
 
         if (!user) {
             promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
+            return;
+        }
+
+        if (!isUUID(updatedGame.sourceGameId || updatedGame.id)) {
+            alert('Please save this game to your library before starting a live quiz.');
             return;
         }
 
@@ -1747,6 +1756,11 @@ export const Games: React.FC = () => {
 
         if (selectedItemIds.length === 0) {
             alert('Select at least one question before starting a live quiz.');
+            return;
+        }
+
+        if (!isUUID(generatedGame.sourceGameId || generatedGame.id)) {
+            alert('Please save this game to your library before starting a live quiz.');
             return;
         }
 

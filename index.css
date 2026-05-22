@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes creating-game-progress {
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 48px 0;
+  }
+}
+
+@layer utilities {
+  .animate-creating-game {
+    animation: creating-game-progress 0.8s linear infinite;
+  }
+}

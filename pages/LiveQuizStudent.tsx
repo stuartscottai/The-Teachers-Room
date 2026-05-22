@@ -34,6 +34,152 @@ const ANSWER_TILE_STYLES = [
 ];
 
 const HOST_DISCONNECTED_AFTER_MS = 20000;
+const LIVE_QUIZ_TWO_LINE_OPTION_LENGTH = 30;
+
+const splitLiveQuizOptionText = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed.length < LIVE_QUIZ_TWO_LINE_OPTION_LENGTH) return [trimmed];
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return [trimmed];
+
+  const target = trimmed.length / 2;
+  let bestIndex = 1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let runningLength = 0;
+  for (let index = 1; index < words.length; index += 1) {
+    runningLength += words[index - 1].length + (index > 1 ? 1 : 0);
+    const distance = Math.abs(runningLength - target);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return [
+    words.slice(0, bestIndex).join(' '),
+    words.slice(bestIndex).join(' '),
+  ];
+};
+
+const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => {
+  const maxLength = Math.max(0, ...options.map((option) => option.trim().length));
+  const size = maxLength > 95 ? 24 :
+    maxLength > 78 ? 28 :
+    maxLength > 62 ? 32 :
+    maxLength > 48 ? 36 :
+    maxLength > 34 ? 40 :
+    maxLength >= LIVE_QUIZ_TWO_LINE_OPTION_LENGTH ? 44 :
+    50;
+  return compact ? Math.max(22, size - 4) : size;
+};
+
+const useIsLargeLiveQuizScreen = () => {
+  const [isLarge, setIsLarge] = useState(false);
+  useEffect(() => {
+    const update = () => setIsLarge(window.innerWidth >= 768);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return isLarge;
+};
+
+interface StudentAnswerOptionMeta {
+  option: string;
+  index: number;
+  isSelected: boolean;
+  isCorrectAnswer: boolean;
+  isWrongSelection: boolean;
+  optionClass: string;
+}
+
+const LiveQuizStudentAnswerButton: React.FC<{
+  meta: StudentAnswerOptionMeta;
+  questionIndex: number;
+  canAnswer: boolean;
+  revealVisible: boolean;
+  isLargeScreen: boolean;
+  sharedFontSize: number;
+  onAnswer: (answer: string) => void;
+}> = ({ meta, questionIndex, canAnswer, revealVisible, isLargeScreen, sharedFontSize, onAnswer }) => {
+  const optionLines = splitLiveQuizOptionText(meta.option);
+
+  return (
+    <button
+      key={`${questionIndex}-${meta.option}`}
+      type="button"
+      disabled={!canAnswer}
+      onClick={() => onAnswer(meta.option)}
+      className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left ${isLargeScreen ? '' : getLiveQuizOptionTextClass(meta.option)} font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass} ${!revealVisible && !canAnswer && !meta.isSelected && !meta.isCorrectAnswer ? 'opacity-60' : ''}`}
+    >
+      <div
+        className="flex w-full min-w-0 items-center leading-[1.05]"
+        style={isLargeScreen ? { fontSize: `${sharedFontSize}px` } : undefined}
+      >
+        <span className={`mr-2 shrink-0 ${meta.isCorrectAnswer ? 'text-lime-800' : meta.isWrongSelection ? 'text-red-600' : revealVisible ? 'text-slate-400' : 'text-brand-blue'}`}>
+          {String.fromCharCode(65 + meta.index)}.
+        </span>
+        <span
+          className={isLargeScreen ? 'min-w-0 flex-1 overflow-hidden break-words' : 'min-w-0 break-words'}
+        >
+          {isLargeScreen ? optionLines.map((line, lineIndex) => (
+            <span key={`${lineIndex}-${line}`} className="block">
+              {line}
+            </span>
+          )) : meta.option}
+        </span>
+      </div>
+      {meta.isCorrectAnswer && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 text-lime-800" size={26} />}
+      {meta.isWrongSelection && <XCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700" size={26} />}
+      {meta.isSelected && !revealVisible && <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-950" size={24} />}
+    </button>
+  );
+};
+
+const LiveQuizStudentAnswerGrid: React.FC<{
+  options: string[];
+  questionIndex: number;
+  effectiveSelectedAnswer: string;
+  revealedAnswer?: string | null;
+  revealVisible: boolean;
+  canAnswer: boolean;
+  isLargeScreen: boolean;
+  onAnswer: (answer: string) => void;
+}> = ({ options, questionIndex, effectiveSelectedAnswer, revealedAnswer, revealVisible, canAnswer, isLargeScreen, onAnswer }) => {
+  const sharedFontSize = getSharedLiveQuizOptionFontSize(options, revealVisible);
+
+  return (
+    <div className="mt-3 grid min-h-0 flex-[1.15] auto-rows-fr gap-3 sm:grid-cols-2">
+      {options.map((option, index) => {
+        const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
+        const isCorrectAnswer = revealVisible && normalizeAnswer(revealedAnswer) === normalizeAnswer(option);
+        const isWrongSelection = revealVisible && isSelected && !isCorrectAnswer;
+        const optionClass = isCorrectAnswer
+          ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
+          : isWrongSelection
+          ? 'border-red-700 bg-red-100 text-red-950 ring-4 ring-red-300'
+          : revealVisible
+          ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-60'
+          : isSelected
+          ? 'border-slate-950 bg-white text-slate-950 ring-4 ring-brand-yellow shadow-xl scale-[1.01]'
+          : `${ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]} opacity-95`;
+
+        return (
+          <LiveQuizStudentAnswerButton
+            key={`${questionIndex}-${option}`}
+            meta={{ option, index, isSelected, isCorrectAnswer, isWrongSelection, optionClass }}
+            questionIndex={questionIndex}
+            canAnswer={canAnswer}
+            revealVisible={revealVisible}
+            isLargeScreen={isLargeScreen}
+            sharedFontSize={sharedFontSize}
+            onAnswer={onAnswer}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 const StudentExitScreen: React.FC<{ icon: React.ReactNode; title: string; message: string }> = ({ icon, title, message }) => {
   const navigate = useNavigate();
@@ -76,6 +222,7 @@ export const LiveQuizStudent: React.FC = () => {
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const playedRevealSoundRef = useRef<string>('');
+  const isLargeAnswerScreen = useIsLargeLiveQuizScreen();
 
   useEffect(() => {
     if (sessionId && participantId) rememberLiveQuizParticipant(sessionId, participantId);
@@ -447,42 +594,18 @@ export const LiveQuizStudent: React.FC = () => {
             </div>
           )}
           {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
-          <h1 className="min-h-0 shrink overflow-hidden break-words text-[clamp(1.55rem,min(2.65vw,4.6vh),3.6rem)] font-black leading-[1.05]">{question.question}</h1>
+          <h1 className="min-h-0 max-h-[36vh] shrink overflow-hidden break-words text-[clamp(1.55rem,min(2.35vw,3.8vh),3.1rem)] font-black leading-[1.05]">{question.question}</h1>
 
-          <div className="mt-3 grid min-h-0 flex-[1.15] auto-rows-fr gap-3 sm:grid-cols-2">
-            {question.options.map((option, index) => {
-              const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
-              const isCorrectAnswer = revealVisible && normalizeAnswer(question.revealedAnswer) === normalizeAnswer(option);
-              const isWrongSelection = revealVisible && isSelected && !isCorrectAnswer;
-              const optionClass = isCorrectAnswer
-                ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
-                : isWrongSelection
-                ? 'border-red-700 bg-red-100 text-red-950 ring-4 ring-red-300'
-                : revealVisible
-                ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-60'
-                : isSelected
-                ? 'border-slate-950 bg-white text-slate-950 ring-4 ring-brand-yellow shadow-xl scale-[1.01]'
-                : `${ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]} opacity-95`;
-
-              return (
-                <button
-                  key={`${question.questionIndex}-${option}`}
-                  type="button"
-                  disabled={!canAnswer}
-                  onClick={() => void handleAnswer(option)}
-                  className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left ${getLiveQuizOptionTextClass(option)} font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${optionClass} ${!revealVisible && !canAnswer && !isSelected && !isCorrectAnswer ? 'opacity-60' : ''}`}
-                >
-                  <span className={`mr-2 ${isCorrectAnswer ? 'text-lime-800' : isWrongSelection ? 'text-red-600' : revealVisible ? 'text-slate-400' : 'text-brand-blue'}`}>
-                    {String.fromCharCode(65 + index)}.
-                  </span>
-                  {option}
-                  {isCorrectAnswer && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 text-lime-800" size={26} />}
-                  {isWrongSelection && <XCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700" size={26} />}
-                  {isSelected && !revealVisible && <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-950" size={24} />}
-                </button>
-              );
-            })}
-          </div>
+          <LiveQuizStudentAnswerGrid
+            options={question.options}
+            questionIndex={question.questionIndex}
+            effectiveSelectedAnswer={effectiveSelectedAnswer}
+            revealedAnswer={question.revealedAnswer}
+            revealVisible={revealVisible}
+            canAnswer={Boolean(canAnswer)}
+            isLargeScreen={isLargeAnswerScreen}
+            onAnswer={(option) => void handleAnswer(option)}
+          />
 
           {hasSubmitted && !revealVisible && (
             <div className="mt-3 flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 p-3 text-center font-black text-slate-700">

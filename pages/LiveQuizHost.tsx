@@ -37,12 +37,44 @@ const getRoundGain = (submissions: LiveQuizSubmission[], participantId: string, 
 const getCorrectCount = (submissions: LiveQuizSubmission[], participantId: string) =>
   submissions.filter((submission) => submission.participantId === participantId && submission.isCorrect).length;
 
-const getLiveQuizOptionTextClass = (option: string) => {
-  const length = option.trim().length;
-  if (length > 115) return 'text-[clamp(1.1rem,2.7vw,1.9rem)] lg:text-[clamp(1.25rem,min(1.75vw,2.8vh),2.55rem)]';
-  if (length > 80) return 'text-[clamp(1.25rem,3.4vw,2.25rem)] lg:text-[clamp(1.45rem,min(2.15vw,3.35vh),3.1rem)]';
-  if (length > 48) return 'text-[clamp(1.45rem,4.4vw,2.7rem)] lg:text-[clamp(1.8rem,min(2.8vw,4.6vh),4rem)]';
-  return 'text-[clamp(2rem,7vw,3.7rem)] lg:text-[clamp(2.7rem,min(4vw,7vh),5.25rem)]';
+const getLiveQuizOptionLabel = (value: string) => value.trim().toLowerCase();
+const LIVE_QUIZ_TWO_LINE_OPTION_LENGTH = 30;
+
+const splitLiveQuizOptionText = (value: string) => {
+  const trimmed = value.trim();
+  if (trimmed.length < LIVE_QUIZ_TWO_LINE_OPTION_LENGTH) return [trimmed];
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return [trimmed];
+
+  const target = trimmed.length / 2;
+  let bestIndex = 1;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let runningLength = 0;
+  for (let index = 1; index < words.length; index += 1) {
+    runningLength += words[index - 1].length + (index > 1 ? 1 : 0);
+    const distance = Math.abs(runningLength - target);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return [
+    words.slice(0, bestIndex).join(' '),
+    words.slice(bestIndex).join(' '),
+  ];
+};
+
+const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => {
+  const maxLength = Math.max(0, ...options.map((option) => option.trim().length));
+  const size = maxLength > 95 ? 26 :
+    maxLength > 78 ? 30 :
+    maxLength > 62 ? 34 :
+    maxLength > 48 ? 38 :
+    maxLength > 34 ? 42 :
+    maxLength >= LIVE_QUIZ_TWO_LINE_OPTION_LENGTH ? 46 :
+    52;
+  return compact ? Math.max(22, size - 4) : size;
 };
 
 const ANSWER_TILE_STYLES = [
@@ -130,6 +162,94 @@ const AnimatedScore: React.FC<{ value: number; className?: string }> = ({ value,
   return <span className={className}>{displayValue}</span>;
 };
 
+const LiveQuizAnswerTile: React.FC<{
+  option: string;
+  index: number;
+  isAnswer: boolean;
+  showRevealState: boolean;
+  chosenParticipants: LiveQuizParticipant[];
+  fontSize: number;
+}> = ({ option, index, isAnswer, showRevealState, chosenParticipants, fontSize }) => {
+  const showChosenParticipants = showRevealState && chosenParticipants.length > 0;
+  const optionLines = splitLiveQuizOptionText(option);
+
+  return (
+    <div
+      className={`relative flex min-h-[76px] items-center overflow-hidden rounded-2xl border-2 p-3 ${showChosenParticipants ? 'pb-11 sm:pb-12' : ''} font-black shadow-sm lg:min-h-0 lg:p-5 ${
+        showRevealState && isAnswer
+          ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
+          : showRevealState
+          ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-70'
+          : ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]
+      }`}
+    >
+      <div
+        className="flex w-full min-w-0 items-center leading-[1.05]"
+        style={{ fontSize: `${fontSize}px` }}
+      >
+        <span className="mr-2 shrink-0 opacity-70">{String.fromCharCode(65 + index)}.</span>
+        <span className="min-w-0 flex-1 overflow-hidden break-words">
+          {optionLines.map((line, lineIndex) => (
+            <span key={`${lineIndex}-${line}`} className="block">
+              {line}
+            </span>
+          ))}
+        </span>
+      </div>
+      {showChosenParticipants && (
+        <div className="absolute bottom-2 left-3 right-3 flex min-w-0 flex-wrap items-center gap-1.5">
+          {chosenParticipants.slice(0, 10).map((participant) => {
+            const player = parseLiveQuizDisplayName(participant.displayName);
+            return (
+              <LiveQuizAvatarIcon
+                key={participant.id}
+                avatarId={player.avatarId}
+                className="h-7 w-7 border-2 border-white shadow-sm sm:h-8 sm:w-8"
+                iconSize={16}
+              />
+            );
+          })}
+          {chosenParticipants.length > 10 && (
+            <span className="rounded-full bg-slate-900/80 px-2 py-1 text-xs font-black text-white shadow-sm">
+              +{chosenParticipants.length - 10}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LiveQuizAnswerGrid: React.FC<{
+  options: string[];
+  answer?: string;
+  status: LiveQuizSession['status'];
+  participantsByOption: Record<string, LiveQuizParticipant[]>;
+}> = ({ options, answer, status, participantsByOption }) => {
+  const showRevealState = ['reveal', 'leaderboard'].includes(status);
+  const sharedFontSize = getSharedLiveQuizOptionFontSize(options, showRevealState);
+
+  return (
+    <div className="mt-4 grid min-h-0 flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
+      {options.map((option, index) => {
+        const optionKey = getLiveQuizOptionLabel(option);
+        const isAnswer = optionKey === getLiveQuizOptionLabel(String(answer || ''));
+        return (
+          <LiveQuizAnswerTile
+            key={`${index}-${option}`}
+            option={option}
+            index={index}
+            isAnswer={isAnswer}
+            showRevealState={showRevealState}
+            chosenParticipants={participantsByOption[optionKey] || []}
+            fontSize={sharedFontSize}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
 export const LiveQuizHost: React.FC = () => {
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
@@ -198,7 +318,22 @@ export const LiveQuizHost: React.FC = () => {
     () => submissions.filter((submission) => submission.questionIndex === (session?.currentQuestionIndex || 0)),
     [session?.currentQuestionIndex, submissions]
   );
-  const allPlayersAnswered = participants.length > 0 && currentSubmissions.length >= participants.length;
+  const answeredParticipantIds = useMemo(
+    () => new Set(currentSubmissions.map((submission) => submission.participantId)),
+    [currentSubmissions]
+  );
+  const answeredCount = answeredParticipantIds.size;
+  const allPlayersAnswered = participants.length > 0 && answeredCount >= participants.length;
+  const participantsByOption = useMemo(() => {
+    const byId = new Map(participants.map((participant) => [participant.id, participant]));
+    return currentSubmissions.reduce<Record<string, LiveQuizParticipant[]>>((acc, submission) => {
+      const participant = byId.get(submission.participantId);
+      if (!participant) return acc;
+      const key = getLiveQuizOptionLabel(submission.answer);
+      acc[key] = [...(acc[key] || []), participant];
+      return acc;
+    }, {});
+  }, [currentSubmissions, participants]);
   const imageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
   const showRoundScores = ['leaderboard', 'ended'].includes(session?.status || '');
   const displayedRanking = useMemo(() => {
@@ -219,7 +354,7 @@ export const LiveQuizHost: React.FC = () => {
     ? Math.max(0, Math.ceil((((session.timerSeconds || 20) * 1000) - elapsedMs) / 1000))
     : 0;
   const roundComplete = Boolean(session && ['locked', 'reveal', 'leaderboard'].includes(session.status));
-  const canRevealAnswer = Boolean(session && (session.status === 'locked' || currentSubmissions.length > 0));
+  const canRevealAnswer = Boolean(session && (session.status === 'locked' || (session.status === 'question' && (allPlayersAnswered || timeLeft <= 0))));
   const musicMode = session?.status === 'lobby' || session?.status === 'leaderboard'
     ? 'lobby'
     : session?.status === 'question'
@@ -585,7 +720,7 @@ export const LiveQuizHost: React.FC = () => {
                         Round complete
                       </>
                     ) : (
-                      `${currentSubmissions.length}/${participants.length} answered`
+                      `${answeredCount}/${participants.length} answered`
                     )}
                   </div>
                 </div>
@@ -599,27 +734,13 @@ export const LiveQuizHost: React.FC = () => {
                     </div>
                   )}
                   {currentQuestion.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">{currentQuestion.category}</div>}
-                  <h1 className="shrink-0 break-words text-[clamp(1.75rem,8vw,5.7rem)] font-black leading-[1.04] lg:text-[clamp(2.4rem,4.35vw,5.7rem)]">{currentQuestion.question}</h1>
-                  <div className="mt-4 grid min-h-0 flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
-                    {currentQuestion.options.map((option, index) => {
-                      const isAnswer = option.trim().toLowerCase() === String(currentQuestion.answer || '').trim().toLowerCase();
-                      return (
-                        <div
-                          key={option}
-                          className={`flex min-h-[76px] items-center overflow-hidden rounded-2xl border-2 p-3 ${getLiveQuizOptionTextClass(option)} font-black leading-tight shadow-sm lg:min-h-0 lg:p-5 ${
-                            ['reveal', 'leaderboard'].includes(session.status) && isAnswer
-                              ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
-                              : ['reveal', 'leaderboard'].includes(session.status)
-                              ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-70'
-                              : ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]
-                          }`}
-                        >
-                          <span className="mr-2 shrink-0 opacity-70">{String.fromCharCode(65 + index)}.</span>
-                          <span className="min-w-0 break-words">{option}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <h1 className="max-h-[42vh] shrink-0 overflow-hidden break-words text-[clamp(1.75rem,7vw,4.7rem)] font-black leading-[1.04] lg:text-[clamp(2.2rem,3.45vw,4.7rem)]">{currentQuestion.question}</h1>
+                  <LiveQuizAnswerGrid
+                    options={currentQuestion.options}
+                    answer={currentQuestion.answer}
+                    status={session.status}
+                    participantsByOption={participantsByOption}
+                  />
                 </div>
               ) : (
                 <div className="p-8 text-center font-black text-slate-500">No question loaded.</div>
@@ -632,7 +753,7 @@ export const LiveQuizHost: React.FC = () => {
                   </button>
                 )}
                 {['question', 'locked'].includes(session.status) && (
-                  <button onClick={() => void revealAnswer()} disabled={busy || !canRevealAnswer} className="rounded-xl bg-brand-blue px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45" title={canRevealAnswer ? 'Reveal answer' : 'Wait for at least one answer, or lock answers first'}>
+                  <button onClick={() => void revealAnswer()} disabled={busy || !canRevealAnswer} className="rounded-xl bg-brand-blue px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45" title={canRevealAnswer ? 'Reveal answer' : 'Wait for every player to answer, for the timer to finish, or lock answers first'}>
                     Reveal Answer
                   </button>
                 )}
