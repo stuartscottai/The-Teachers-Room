@@ -50,6 +50,10 @@ const WINNER_CEREMONY_MUSIC_OPTIONS = [
     },
 ];
 
+type WinnerCeremonyEffect = 'confetti' | 'fireworks';
+
+const WINNER_CEREMONY_EFFECTS: WinnerCeremonyEffect[] = ['confetti', 'fireworks'];
+
 const CEREMONY_COLORS = {
     gold: { light: '#FFFBD0', mid: '#F5BD02', dark: '#8B6508' },
     silver: { light: '#F5F5F5', mid: '#A0A0A0', dark: '#4A4A4A' },
@@ -168,7 +172,7 @@ const WinnerCeremonySpotlight: React.FC<{
     );
 };
 
-const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
+const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: WinnerCeremonyEffect }> = ({ active, effect }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -182,8 +186,7 @@ const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
         let viewHeight = 0;
         let disposed = false;
         const colors = ['#FFD700', '#FF4500', '#00BFFF', '#7CFC00', '#FF1493', '#22D3EE'];
-        const particleCount = 150;
-        const particles = Array.from({ length: particleCount }, () => ({
+        const confetti = Array.from({ length: 150 }, () => ({
             x: 0,
             y: 0,
             r: Math.random() * 6 + 2,
@@ -193,10 +196,72 @@ const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
             tiltAngleIncremental: Math.random() * 0.07 + 0.05,
             tiltAngle: Math.random() * Math.PI * 2,
         }));
+        const rockets: Array<{
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            targetY: number;
+            color: string;
+            trail: Array<{ x: number; y: number; alpha: number }>;
+        }> = [];
+        const fireworks: Array<{
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            life: number;
+            maxLife: number;
+            color: string;
+            size: number;
+        }> = [];
+        let frame = 0;
+        let fireworkLaunchIndex = 0;
 
-        const resetParticle = (particle: (typeof particles)[number], randomY = true) => {
+        const resetConfetti = (particle: (typeof confetti)[number], randomY = true) => {
             particle.x = Math.random() * viewWidth;
             particle.y = randomY ? Math.random() * viewHeight - viewHeight : -20;
+        };
+        const launchFirework = () => {
+            const zones = [
+                { start: 0.22, targetMin: 0.12, targetMax: 0.3 },
+                { start: 0.5, targetMin: 0.34, targetMax: 0.66 },
+                { start: 0.78, targetMin: 0.7, targetMax: 0.88 },
+                { start: 0.34, targetMin: 0.2, targetMax: 0.48 },
+                { start: 0.66, targetMin: 0.52, targetMax: 0.8 },
+            ];
+            const zone = zones[fireworkLaunchIndex % zones.length];
+            fireworkLaunchIndex += 1;
+            const startX = viewWidth * (zone.start + (Math.random() - 0.5) * 0.1);
+            const targetX = viewWidth * (zone.targetMin + Math.random() * (zone.targetMax - zone.targetMin));
+            const targetY = viewHeight * (0.2 + Math.random() * 0.42);
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            rockets.push({
+                x: startX,
+                y: viewHeight + 28,
+                vx: (targetX - startX) / (58 + Math.random() * 18),
+                vy: -9.5 - Math.random() * 3.2,
+                targetY,
+                color,
+                trail: [],
+            });
+        };
+        const explodeFirework = (x: number, y: number, baseColor: string) => {
+            const particleCount = 72 + Math.floor(Math.random() * 42);
+            for (let i = 0; i < particleCount; i += 1) {
+                const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.12;
+                const speed = 1.4 + Math.random() * 4.1;
+                fireworks.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 0,
+                    maxLife: 62 + Math.random() * 34,
+                    color: Math.random() > 0.18 ? baseColor : colors[Math.floor(Math.random() * colors.length)],
+                    size: 0.85 + Math.random() * 1.75,
+                });
+            }
         };
 
         const resize = () => {
@@ -209,11 +274,11 @@ const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
             canvas.height = Math.max(1, Math.floor(viewHeight * dpr));
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
-            particles.forEach((particle) => {
+            confetti.forEach((particle) => {
                 if (!particle.x && !particle.y) {
-                    resetParticle(particle, true);
+                    resetConfetti(particle, true);
                 } else if (particle.x > viewWidth + 40 || particle.y > viewHeight + 40) {
-                    resetParticle(particle, false);
+                    resetConfetti(particle, false);
                 }
             });
         };
@@ -225,23 +290,96 @@ const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
         const draw = () => {
             if (disposed) return;
             ctx.clearRect(0, 0, viewWidth, viewHeight);
-            particles.forEach((particle) => {
-                particle.tiltAngle += particle.tiltAngleIncremental;
-                particle.y += (Math.cos(particle.d) + 3 + particle.r / 2) / 2;
-                particle.x += Math.sin(particle.d) * 0.6;
-                particle.tilt = Math.sin(particle.tiltAngle) * 15;
+            frame += 1;
 
-                ctx.beginPath();
-                ctx.lineWidth = particle.r;
-                ctx.strokeStyle = particle.color;
-                ctx.moveTo(particle.x + particle.tilt + particle.r / 2, particle.y);
-                ctx.lineTo(particle.x + particle.tilt, particle.y + particle.tilt + particle.r / 2);
-                ctx.stroke();
+            if (effect === 'confetti') {
+                confetti.forEach((particle) => {
+                    particle.tiltAngle += particle.tiltAngleIncremental;
+                    particle.y += (Math.cos(particle.d) + 3 + particle.r / 2) / 2;
+                    particle.x += Math.sin(particle.d) * 0.6;
+                    particle.tilt = Math.sin(particle.tiltAngle) * 15;
 
-                if (particle.y > viewHeight + 20 || particle.x < -40 || particle.x > viewWidth + 40) {
-                    resetParticle(particle, false);
+                    ctx.beginPath();
+                    ctx.lineWidth = particle.r;
+                    ctx.strokeStyle = particle.color;
+                    ctx.moveTo(particle.x + particle.tilt + particle.r / 2, particle.y);
+                    ctx.lineTo(particle.x + particle.tilt, particle.y + particle.tilt + particle.r / 2);
+                    ctx.stroke();
+
+                    if (particle.y > viewHeight + 20 || particle.x < -40 || particle.x > viewWidth + 40) {
+                        resetConfetti(particle, false);
+                    }
+                });
+            } else if (effect === 'fireworks') {
+                if (frame === 1) {
+                    for (let i = 0; i < 5; i += 1) {
+                        launchFirework();
+                    }
+                } else if (frame % 22 === 0) {
+                    launchFirework();
+                    launchFirework();
                 }
-            });
+
+                for (let i = rockets.length - 1; i >= 0; i -= 1) {
+                    const rocket = rockets[i];
+                    rocket.trail.unshift({ x: rocket.x, y: rocket.y, alpha: 1 });
+                    rocket.trail = rocket.trail.slice(0, 14).map((point, index) => ({ ...point, alpha: 1 - index / 14 }));
+                    rocket.x += rocket.vx;
+                    rocket.y += rocket.vy;
+                    rocket.vy += 0.09;
+
+                    ctx.save();
+                    rocket.trail.forEach((point, index) => {
+                        ctx.globalAlpha = point.alpha * 0.55;
+                        ctx.strokeStyle = index < 4 ? rocket.color : 'rgba(255,255,255,0.7)';
+                        ctx.lineWidth = Math.max(0.8, 2.2 - index * 0.12);
+                        ctx.beginPath();
+                        ctx.moveTo(point.x, point.y);
+                        ctx.lineTo(point.x - rocket.vx * 0.7, point.y - rocket.vy * 0.7);
+                        ctx.stroke();
+                    });
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.shadowColor = rocket.color;
+                    ctx.shadowBlur = 14;
+                    ctx.beginPath();
+                    ctx.arc(rocket.x, rocket.y, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+
+                    if (rocket.y <= rocket.targetY || rocket.vy >= -1.4) {
+                        explodeFirework(rocket.x, rocket.y, rocket.color);
+                        rockets.splice(i, 1);
+                    }
+                }
+
+                for (let i = fireworks.length - 1; i >= 0; i -= 1) {
+                    const particle = fireworks[i];
+                    particle.life += 1;
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    particle.vy += 0.032;
+                    particle.vx *= 0.986;
+                    particle.vy *= 0.986;
+
+                    const remaining = Math.max(0, 1 - particle.life / particle.maxLife);
+                    ctx.globalAlpha = remaining;
+                    ctx.strokeStyle = particle.color;
+                    ctx.shadowColor = particle.color;
+                    ctx.shadowBlur = 10;
+                    ctx.lineWidth = Math.max(0.7, particle.size * remaining);
+                    ctx.beginPath();
+                    ctx.moveTo(particle.x, particle.y);
+                    ctx.lineTo(particle.x - particle.vx * 1.8, particle.y - particle.vy * 1.8);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1;
+
+                    if (particle.life >= particle.maxLife) {
+                        fireworks.splice(i, 1);
+                    }
+                }
+            }
 
             animationId = window.requestAnimationFrame(draw);
         };
@@ -252,7 +390,7 @@ const WinnerCeremonyConfetti: React.FC<{ active: boolean }> = ({ active }) => {
             window.cancelAnimationFrame(animationId);
             window.removeEventListener('resize', resize);
         };
-    }, [active]);
+    }, [active, effect]);
 
     return (
         <canvas
@@ -347,9 +485,11 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     children,
 }) => {
     const [winnerAnimationStage, setWinnerAnimationStage] = useState<AnimationStage>('idle');
+    const [winnerCelebrationEffect, setWinnerCelebrationEffect] = useState<WinnerCeremonyEffect>('confetti');
     const winnerStageTimeoutsRef = useRef<number[]>([]);
     const winnerMusicRef = useRef<HTMLAudioElement | null>(null);
     const lastWinnerMusicChoiceRef = useRef<string>('');
+    const lastWinnerEffectChoiceRef = useRef<WinnerCeremonyEffect | ''>('');
 
     const stopWinnerMusic = useCallback(() => {
         if (!winnerMusicRef.current) return;
@@ -395,6 +535,11 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     const restartWinnerCeremony = useCallback(() => {
         clearWinnerCeremonyTimers();
         playWinnerMusic();
+        const availableEffects = WINNER_CEREMONY_EFFECTS.filter((effect) => effect !== lastWinnerEffectChoiceRef.current);
+        const effects = availableEffects.length ? availableEffects : WINNER_CEREMONY_EFFECTS;
+        const selectedEffect = effects[Math.floor(Math.random() * effects.length)];
+        lastWinnerEffectChoiceRef.current = selectedEffect;
+        setWinnerCelebrationEffect(selectedEffect);
         setWinnerAnimationStage('bronze-light');
 
         const scheduleStage = (delayMs: number, stage: AnimationStage) => {
@@ -512,7 +657,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             `}</style>
 
             <div className="wordwheel-winner-aurora absolute inset-0 pointer-events-none" />
-            <WinnerCeremonyConfetti active={winnerAnimationStage === 'complete'} />
+            <WinnerCeremonyCelebrationEffect active={winnerAnimationStage === 'complete'} effect={winnerCelebrationEffect} />
 
             <div
                 className="relative z-10 w-full min-h-[calc(100vh-4rem)]"
