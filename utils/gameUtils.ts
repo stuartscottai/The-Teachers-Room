@@ -3,6 +3,7 @@ import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile, User } from 
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
 import { getPublicAppUrl } from "./appUrl";
+import { optimizeImageForUpload } from "./imageOptimize";
 import mammoth from "mammoth";
 
 // --- ASSET HELPERS ---
@@ -44,6 +45,14 @@ const inferSourceMimeType = (file: File) => {
 };
 
 const DOCX_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const SOURCE_IMAGE_TARGET_BYTES = 900 * 1024;
+const SOURCE_IMAGE_OPTIMIZE_ATTEMPTS = [
+    { maxDimension: 1600, quality: 0.72 },
+    { maxDimension: 1400, quality: 0.68 },
+    { maxDimension: 1200, quality: 0.62 },
+    { maxDimension: 1000, quality: 0.58 },
+    { maxDimension: 800, quality: 0.54 },
+];
 
 const toBase64FromText = (value: string) => {
     const bytes = new TextEncoder().encode(value);
@@ -52,6 +61,45 @@ const toBase64FromText = (value: string) => {
         binary += String.fromCharCode(bytes[index]);
     }
     return btoa(binary);
+};
+
+const isImageMimeType = (mimeType: string) => mimeType.startsWith('image/');
+
+const optimizeSourceImageForAi = async (file: File, mimeType: string) => {
+    if (!isImageMimeType(mimeType) || file.size <= SOURCE_IMAGE_TARGET_BYTES) {
+        return { file, mimeType };
+    }
+
+    let best: { blob: Blob; mimeType: string; extension: string } | null = null;
+
+    for (const attempt of SOURCE_IMAGE_OPTIMIZE_ATTEMPTS) {
+        const optimized = await optimizeImageForUpload(file, {
+            ...attempt,
+            preferAlpha: mimeType === 'image/png' || mimeType === 'image/webp',
+        });
+
+        if (!best || optimized.blob.size < best.blob.size) {
+            best = {
+                blob: optimized.blob,
+                mimeType: optimized.contentType,
+                extension: optimized.extension,
+            };
+        }
+
+        if (optimized.blob.size <= SOURCE_IMAGE_TARGET_BYTES) {
+            break;
+        }
+    }
+
+    if (!best || best.blob.size >= file.size) {
+        return { file, mimeType };
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, '') || 'image';
+    return {
+        file: new File([best.blob], `${baseName}.${best.extension}`, { type: best.mimeType }),
+        mimeType: best.mimeType,
+    };
 };
 
 export const processFile = (file: File): Promise<UploadedFile> => {
@@ -73,21 +121,20 @@ export const processFile = (file: File): Promise<UploadedFile> => {
             });
     }
 
-    return new Promise((resolve, reject) => {
+    return optimizeSourceImageForAi(file, mimeType).then(({ file: fileToRead, mimeType: processedMimeType }) => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const result = reader.result as string;
-            // Strip the data:image/png;base64, prefix to get raw base64
             const data = result.split(',')[1]; 
             resolve({
-                name: file.name,
-                mimeType,
+                name: fileToRead.name,
+                mimeType: processedMimeType,
                 data: data
             });
         };
         reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
+        reader.readAsDataURL(fileToRead);
+    }));
 };
 
 const isMissingColumnError = (error: unknown, columnName: string) => {
