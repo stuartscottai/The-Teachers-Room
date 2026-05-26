@@ -215,7 +215,9 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
             color: string;
             size: number;
         }> = [];
-        let frame = 0;
+        let launchedInitialFireworks = false;
+        let fireworkLaunchElapsed = 0;
+        let lastTimestamp = 0;
         let fireworkLaunchIndex = 0;
 
         const resetConfetti = (particle: (typeof confetti)[number], randomY = true) => {
@@ -287,16 +289,18 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
         window.addEventListener('resize', resize);
 
         let animationId = 0;
-        const draw = () => {
+        const draw = (timestamp: number) => {
             if (disposed) return;
+            const deltaMs = lastTimestamp ? timestamp - lastTimestamp : 16.67;
+            lastTimestamp = timestamp;
+            const step = Math.min(2.4, Math.max(0.35, deltaMs / 16.67));
             ctx.clearRect(0, 0, viewWidth, viewHeight);
-            frame += 1;
 
             if (effect === 'confetti') {
                 confetti.forEach((particle) => {
-                    particle.tiltAngle += particle.tiltAngleIncremental;
-                    particle.y += (Math.cos(particle.d) + 3 + particle.r / 2) / 2;
-                    particle.x += Math.sin(particle.d) * 0.6;
+                    particle.tiltAngle += particle.tiltAngleIncremental * step;
+                    particle.y += ((Math.cos(particle.d) + 3 + particle.r / 2) / 2) * step;
+                    particle.x += Math.sin(particle.d) * 0.6 * step;
                     particle.tilt = Math.sin(particle.tiltAngle) * 15;
 
                     ctx.beginPath();
@@ -311,11 +315,15 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
                     }
                 });
             } else if (effect === 'fireworks') {
-                if (frame === 1) {
+                if (!launchedInitialFireworks) {
+                    launchedInitialFireworks = true;
                     for (let i = 0; i < 5; i += 1) {
                         launchFirework();
                     }
-                } else if (frame % 22 === 0) {
+                }
+                fireworkLaunchElapsed += deltaMs;
+                while (fireworkLaunchElapsed >= 365) {
+                    fireworkLaunchElapsed -= 365;
                     launchFirework();
                     launchFirework();
                 }
@@ -324,9 +332,9 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
                     const rocket = rockets[i];
                     rocket.trail.unshift({ x: rocket.x, y: rocket.y, alpha: 1 });
                     rocket.trail = rocket.trail.slice(0, 14).map((point, index) => ({ ...point, alpha: 1 - index / 14 }));
-                    rocket.x += rocket.vx;
-                    rocket.y += rocket.vy;
-                    rocket.vy += 0.09;
+                    rocket.x += rocket.vx * step;
+                    rocket.y += rocket.vy * step;
+                    rocket.vy += 0.09 * step;
 
                     ctx.save();
                     rocket.trail.forEach((point, index) => {
@@ -355,12 +363,12 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
 
                 for (let i = fireworks.length - 1; i >= 0; i -= 1) {
                     const particle = fireworks[i];
-                    particle.life += 1;
-                    particle.x += particle.vx;
-                    particle.y += particle.vy;
-                    particle.vy += 0.032;
-                    particle.vx *= 0.986;
-                    particle.vy *= 0.986;
+                    particle.life += step;
+                    particle.x += particle.vx * step;
+                    particle.y += particle.vy * step;
+                    particle.vy += 0.032 * step;
+                    particle.vx *= Math.pow(0.986, step);
+                    particle.vy *= Math.pow(0.986, step);
 
                     const remaining = Math.max(0, 1 - particle.life / particle.maxLife);
                     ctx.globalAlpha = remaining;
