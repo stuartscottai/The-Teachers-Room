@@ -28,49 +28,23 @@ const getLiveQuizOptionTextClass = (option: string) => {
 };
 
 const ANSWER_TILE_STYLES = [
-  'border-red-300 bg-red-50 text-red-900',
-  'border-sky-300 bg-sky-50 text-sky-900',
-  'border-amber-300 bg-amber-50 text-amber-900',
-  'border-violet-300 bg-violet-50 text-violet-900',
+  'border-red-400 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)] [--answer-badge:#fff1f2] [--answer-badge-text:#dc2626]',
+  'border-sky-400 bg-gradient-to-br from-sky-300 via-sky-500 to-blue-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(30,64,175,0.28),0_8px_0_#1e3a8a,0_14px_24px_rgba(30,64,175,0.24)] [--answer-badge:#eff6ff] [--answer-badge-text:#0284c7]',
+  'border-amber-400 bg-gradient-to-br from-amber-200 via-amber-500 to-orange-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.48),inset_0_-8px_18px_rgba(146,64,14,0.3),0_8px_0_#92400e,0_14px_24px_rgba(146,64,14,0.24)] [--answer-badge:#fffbeb] [--answer-badge-text:#d97706]',
+  'border-violet-400 bg-gradient-to-br from-violet-300 via-violet-500 to-purple-800 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(91,33,182,0.3),0_8px_0_#4c1d95,0_14px_24px_rgba(76,29,149,0.24)] [--answer-badge:#f5f3ff] [--answer-badge-text:#7c3aed]',
 ];
 
 const HOST_DISCONNECTED_AFTER_MS = 20000;
-const LIVE_QUIZ_TWO_LINE_OPTION_LENGTH = 30;
-
-const splitLiveQuizOptionText = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed.length < LIVE_QUIZ_TWO_LINE_OPTION_LENGTH) return [trimmed];
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return [trimmed];
-
-  const target = trimmed.length / 2;
-  let bestIndex = 1;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  let runningLength = 0;
-  for (let index = 1; index < words.length; index += 1) {
-    runningLength += words[index - 1].length + (index > 1 ? 1 : 0);
-    const distance = Math.abs(runningLength - target);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  }
-
-  return [
-    words.slice(0, bestIndex).join(' '),
-    words.slice(bestIndex).join(' '),
-  ];
-};
 
 const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => {
   const maxLength = Math.max(0, ...options.map((option) => option.trim().length));
-  const size = maxLength > 95 ? 24 :
-    maxLength > 78 ? 28 :
-    maxLength > 62 ? 32 :
-    maxLength > 48 ? 36 :
-    maxLength > 34 ? 40 :
-    maxLength >= LIVE_QUIZ_TWO_LINE_OPTION_LENGTH ? 44 :
-    50;
+  const size = maxLength > 115 ? 26 :
+    maxLength > 95 ? 30 :
+    maxLength > 78 ? 34 :
+    maxLength > 62 ? 38 :
+    maxLength > 48 ? 42 :
+    maxLength > 34 ? 46 :
+    48;
   return compact ? Math.max(22, size - 4) : size;
 };
 
@@ -91,6 +65,7 @@ interface StudentAnswerOptionMeta {
   isSelected: boolean;
   isCorrectAnswer: boolean;
   isWrongSelection: boolean;
+  hasSelection: boolean;
   optionClass: string;
 }
 
@@ -103,36 +78,31 @@ const LiveQuizStudentAnswerButton: React.FC<{
   sharedFontSize: number;
   onAnswer: (answer: string) => void;
 }> = ({ meta, questionIndex, canAnswer, revealVisible, isLargeScreen, sharedFontSize, onAnswer }) => {
-  const optionLines = splitLiveQuizOptionText(meta.option);
-
   return (
     <button
       key={`${questionIndex}-${meta.option}`}
       type="button"
       disabled={!canAnswer}
       onClick={() => onAnswer(meta.option)}
-      className={`relative flex min-h-[70px] items-center overflow-hidden rounded-2xl border-2 p-4 pr-12 text-left ${isLargeScreen ? '' : getLiveQuizOptionTextClass(meta.option)} font-black leading-tight shadow-sm transition hover:scale-[1.01] hover:border-brand-blue disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass} ${!revealVisible && !canAnswer && !meta.isSelected && !meta.isCorrectAnswer ? 'opacity-60' : ''}`}
+      className={`relative flex min-h-[70px] origin-center items-center overflow-hidden rounded-xl border p-4 pr-12 text-left ${isLargeScreen ? '' : getLiveQuizOptionTextClass(meta.option)} font-black leading-tight transition-[transform,filter,box-shadow,opacity] hover:-translate-y-0.5 disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass}`}
     >
+      {!revealVisible && !meta.isSelected && <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />}
       <div
-        className="flex w-full min-w-0 items-center leading-[1.05]"
+        className="relative z-10 flex w-full min-w-0 items-center leading-[1.05] drop-shadow-[0_1px_1px_rgba(0,0,0,0.28)]"
         style={isLargeScreen ? { fontSize: `${sharedFontSize}px` } : undefined}
       >
-        <span className={`mr-2 shrink-0 ${meta.isCorrectAnswer ? 'text-lime-800' : meta.isWrongSelection ? 'text-red-600' : revealVisible ? 'text-slate-400' : 'text-brand-blue'}`}>
-          {String.fromCharCode(65 + meta.index)}.
+        <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[0.62em] font-black ${meta.isCorrectAnswer ? 'bg-emerald-50 text-emerald-700' : meta.isWrongSelection ? 'bg-red-50 text-red-700' : revealVisible ? 'bg-slate-200 text-slate-500' : 'bg-[var(--answer-badge)] text-[var(--answer-badge-text)]'}`}>
+          {String.fromCharCode(65 + meta.index)}
         </span>
         <span
-          className={isLargeScreen ? 'min-w-0 flex-1 overflow-hidden break-words' : 'min-w-0 break-words'}
+          className={isLargeScreen ? 'min-w-0 flex-1 whitespace-normal break-words' : 'min-w-0 break-words'}
         >
-          {isLargeScreen ? optionLines.map((line, lineIndex) => (
-            <span key={`${lineIndex}-${line}`} className="block">
-              {line}
-            </span>
-          )) : meta.option}
+          {meta.option}
         </span>
       </div>
       {meta.isCorrectAnswer && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 text-lime-800" size={26} />}
       {meta.isWrongSelection && <XCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-red-700" size={26} />}
-      {meta.isSelected && !revealVisible && <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-950" size={24} />}
+      {meta.isSelected && !revealVisible && <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]" size={28} />}
     </button>
   );
 };
@@ -150,25 +120,26 @@ const LiveQuizStudentAnswerGrid: React.FC<{
   const sharedFontSize = getSharedLiveQuizOptionFontSize(options, revealVisible);
 
   return (
-    <div className="mt-3 grid min-h-0 flex-[1.15] auto-rows-fr gap-3 sm:grid-cols-2">
+    <div className="mt-4 grid min-h-0 flex-[2] auto-rows-fr gap-4 sm:grid-cols-2">
       {options.map((option, index) => {
         const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
+        const hasSelection = Boolean(effectiveSelectedAnswer);
         const isCorrectAnswer = revealVisible && normalizeAnswer(revealedAnswer) === normalizeAnswer(option);
         const isWrongSelection = revealVisible && isSelected && !isCorrectAnswer;
         const optionClass = isCorrectAnswer
-          ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
+          ? 'border-emerald-500 bg-gradient-to-br from-emerald-300 via-emerald-500 to-emerald-700 text-white ring-2 ring-emerald-200 shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(6,78,59,0.28),0_8px_0_#065f46,0_14px_24px_rgba(6,95,70,0.24)]'
           : isWrongSelection
-          ? 'border-red-700 bg-red-100 text-red-950 ring-4 ring-red-300'
+          ? 'border-red-500 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white ring-2 ring-red-200 shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)]'
           : revealVisible
-          ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-60'
+          ? 'border-slate-200 bg-slate-50 text-slate-500 opacity-60'
           : isSelected
-          ? 'border-slate-950 bg-white text-slate-950 ring-4 ring-brand-yellow shadow-xl scale-[1.01]'
-          : `${ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]} opacity-95`;
+          ? `${ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]} scale-100 ring-4 ring-white/80 brightness-110`
+          : `${ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]} ${hasSelection ? 'scale-[0.94] opacity-70 brightness-90' : 'opacity-95'}`;
 
         return (
           <LiveQuizStudentAnswerButton
             key={`${questionIndex}-${option}`}
-            meta={{ option, index, isSelected, isCorrectAnswer, isWrongSelection, optionClass }}
+            meta={{ option, index, isSelected, isCorrectAnswer, isWrongSelection, hasSelection, optionClass }}
             questionIndex={questionIndex}
             canAnswer={canAnswer}
             revealVisible={revealVisible}
@@ -574,16 +545,16 @@ export const LiveQuizStudent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.24),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617] md:h-[calc(100dvh-4rem)] md:overflow-hidden md:p-4">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_12%_8%,rgba(14,165,233,0.2),transparent_34%),radial-gradient(circle_at_88%_88%,rgba(250,204,21,0.1),transparent_30%),linear-gradient(135deg,#071525_0%,#020617_55%,#0b1220_100%)] md:h-[calc(100dvh-4rem)] md:overflow-hidden md:p-4">
       <div className="mx-auto flex min-h-[calc(100vh-4rem-1.5rem)] max-w-6xl flex-col md:h-full md:min-h-0 md:max-w-none">
-        <div className="mb-3 flex shrink-0 items-center justify-between gap-3 md:mx-auto md:w-[clamp(720px,55vw,1200px)]">
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3 md:mx-auto md:w-[clamp(720px,64vw,1240px)]">
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">
             Question {question.questionIndex + 1}
           </div>
           {me && ['leaderboard', 'ended'].includes(session.status) && <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">{me.score} pts</div>}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded-3xl bg-white p-4 text-slate-900 shadow-2xl md:mx-auto md:aspect-[2/1] md:h-auto md:max-h-[calc(100dvh-8.5rem)] md:w-[clamp(720px,55vw,1200px)] md:flex-none md:p-5">
+        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 p-4 text-slate-950 shadow-[0_18px_45px_rgba(2,6,23,0.26)] md:mx-auto md:h-[calc(100dvh-11rem)] md:max-h-[760px] md:min-h-[560px] md:w-[clamp(720px,64vw,1240px)] md:flex-none md:p-5">
           <LiveQuizTimerBar
             active={session.status === 'question'}
             timeLeft={timeLeft}
@@ -591,13 +562,17 @@ export const LiveQuizStudent: React.FC = () => {
             elapsedMs={elapsedMs}
             className="-mx-4 -mt-4 mb-4 md:-mx-5 md:-mt-5"
           />
-          {imageUrl && (
-            <div className="mb-3 max-h-[18vh] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-              <img src={imageUrl} alt="" className="h-full max-h-[18vh] w-full object-contain" />
+          <div className={`flex min-h-0 flex-1 rounded-2xl border-2 border-slate-900/85 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_18px_rgba(2,6,23,0.1)] ${imageUrl ? 'gap-4' : ''}`}>
+            {imageUrl && (
+              <div className="w-[34%] min-w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
+              <h1 className={`min-h-0 max-h-full ${imageUrl ? 'max-w-[19ch]' : 'w-full'} shrink overflow-hidden break-words text-[clamp(1.45rem,min(2.15vw,3.55vh),2.95rem)] font-black leading-[1.08] tracking-normal text-slate-950`}>{question.question}</h1>
             </div>
-          )}
-          {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
-          <h1 className="min-h-0 max-h-[36vh] shrink overflow-hidden break-words text-[clamp(1.55rem,min(2.35vw,3.8vh),3.1rem)] font-black leading-[1.05]">{question.question}</h1>
+          </div>
 
           <LiveQuizStudentAnswerGrid
             options={question.options}
@@ -610,19 +585,24 @@ export const LiveQuizStudent: React.FC = () => {
             onAnswer={(option) => void handleAnswer(option)}
           />
 
-          {hasSubmitted && !revealVisible && (
-            <div className="mt-3 flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 p-3 text-center font-black text-slate-700">
-              <CheckCircle size={18} className="text-emerald-600" />
-              Submitted
-            </div>
-          )}
-          {revealVisible && (
-            <div className={`mt-3 shrink-0 rounded-xl p-3 text-center font-black ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-              {didSubmitAnswer ? (isOwnAnswerCorrect ? 'Correct' : 'Incorrect') : 'No answer submitted'}
-            </div>
-          )}
-          {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
         </div>
+
+        {(hasSubmitted || revealVisible || error) && (
+          <div className="mt-3 md:mx-auto md:w-[clamp(720px,64vw,1240px)]">
+            {hasSubmitted && !revealVisible && (
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-slate-100/95 p-3 text-center font-black text-slate-700 shadow-[0_10px_24px_rgba(2,6,23,0.18)]">
+                <CheckCircle size={18} className="text-emerald-600" />
+                Submitted
+              </div>
+            )}
+            {revealVisible && (
+              <div className={`rounded-xl p-3 text-center font-black shadow-[0_10px_24px_rgba(2,6,23,0.18)] ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
+                {didSubmitAnswer ? (isOwnAnswerCorrect ? 'Correct' : 'Incorrect') : 'No answer submitted'}
+              </div>
+            )}
+            {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}
+          </div>
+        )}
       </div>
     </div>
   );

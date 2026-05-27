@@ -39,50 +39,24 @@ const getCorrectCount = (submissions: LiveQuizSubmission[], participantId: strin
   submissions.filter((submission) => submission.participantId === participantId && submission.isCorrect).length;
 
 const getLiveQuizOptionLabel = (value: string) => value.trim().toLowerCase();
-const LIVE_QUIZ_TWO_LINE_OPTION_LENGTH = 30;
-
-const splitLiveQuizOptionText = (value: string) => {
-  const trimmed = value.trim();
-  if (trimmed.length < LIVE_QUIZ_TWO_LINE_OPTION_LENGTH) return [trimmed];
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return [trimmed];
-
-  const target = trimmed.length / 2;
-  let bestIndex = 1;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  let runningLength = 0;
-  for (let index = 1; index < words.length; index += 1) {
-    runningLength += words[index - 1].length + (index > 1 ? 1 : 0);
-    const distance = Math.abs(runningLength - target);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = index;
-    }
-  }
-
-  return [
-    words.slice(0, bestIndex).join(' '),
-    words.slice(bestIndex).join(' '),
-  ];
-};
 
 const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => {
   const maxLength = Math.max(0, ...options.map((option) => option.trim().length));
-  const size = maxLength > 95 ? 26 :
-    maxLength > 78 ? 30 :
-    maxLength > 62 ? 34 :
-    maxLength > 48 ? 38 :
-    maxLength > 34 ? 42 :
-    maxLength >= LIVE_QUIZ_TWO_LINE_OPTION_LENGTH ? 46 :
+  const size = maxLength > 115 ? 26 :
+    maxLength > 95 ? 30 :
+    maxLength > 78 ? 34 :
+    maxLength > 62 ? 38 :
+    maxLength > 48 ? 42 :
+    maxLength > 34 ? 46 :
     52;
   return compact ? Math.max(22, size - 4) : size;
 };
 
 const ANSWER_TILE_STYLES = [
-  'border-red-300 bg-red-50 text-red-900',
-  'border-sky-300 bg-sky-50 text-sky-900',
-  'border-amber-300 bg-amber-50 text-amber-900',
-  'border-violet-300 bg-violet-50 text-violet-900',
+  'border-red-400 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)] [--answer-badge:#fff1f2] [--answer-badge-text:#dc2626]',
+  'border-sky-400 bg-gradient-to-br from-sky-300 via-sky-500 to-blue-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(30,64,175,0.28),0_8px_0_#1e3a8a,0_14px_24px_rgba(30,64,175,0.24)] [--answer-badge:#eff6ff] [--answer-badge-text:#0284c7]',
+  'border-amber-400 bg-gradient-to-br from-amber-200 via-amber-500 to-orange-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.48),inset_0_-8px_18px_rgba(146,64,14,0.3),0_8px_0_#92400e,0_14px_24px_rgba(146,64,14,0.24)] [--answer-badge:#fffbeb] [--answer-badge-text:#d97706]',
+  'border-violet-400 bg-gradient-to-br from-violet-300 via-violet-500 to-purple-800 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(91,33,182,0.3),0_8px_0_#4c1d95,0_14px_24px_rgba(76,29,149,0.24)] [--answer-badge:#f5f3ff] [--answer-badge-text:#7c3aed]',
 ];
 
 const LOBBY_TRACKS = [
@@ -172,33 +146,37 @@ const LiveQuizAnswerTile: React.FC<{
   fontSize: number;
 }> = ({ option, index, isAnswer, showRevealState, chosenParticipants, fontSize }) => {
   const showChosenParticipants = showRevealState && chosenParticipants.length > 0;
-  const optionLines = splitLiveQuizOptionText(option);
 
   return (
     <div
-      className={`relative flex min-h-[76px] items-center overflow-hidden rounded-2xl border-2 p-3 ${showChosenParticipants ? 'pb-11 sm:pb-12' : ''} font-black shadow-sm lg:min-h-0 lg:p-5 ${
+      className={`relative flex min-h-[76px] items-center overflow-hidden rounded-xl border p-3 ${showChosenParticipants ? 'pb-11 sm:pb-12' : ''} font-black transition-[transform,filter,box-shadow] lg:min-h-0 lg:p-5 ${
         showRevealState && isAnswer
-          ? 'border-lime-700 bg-lime-100 text-lime-950 ring-4 ring-lime-300 shadow-xl'
+          ? 'border-emerald-500 bg-gradient-to-br from-emerald-300 via-emerald-500 to-emerald-700 text-white ring-2 ring-emerald-200 shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(6,78,59,0.28),0_8px_0_#065f46,0_14px_24px_rgba(6,95,70,0.24)] [--answer-badge:#ecfdf5] [--answer-badge-text:#047857]'
           : showRevealState
-          ? 'border-slate-200 bg-slate-100 text-slate-500 opacity-70'
+          ? 'border-slate-200 bg-slate-50 text-slate-500 opacity-70'
           : ANSWER_TILE_STYLES[index % ANSWER_TILE_STYLES.length]
       }`}
     >
+      {!showRevealState && <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />}
       <div
-        className="flex w-full min-w-0 items-center leading-[1.05]"
+        className="relative z-10 flex w-full min-w-0 items-center leading-[1.05] drop-shadow-[0_1px_1px_rgba(0,0,0,0.28)]"
         style={{ fontSize: `${fontSize}px` }}
       >
-        <span className="mr-2 shrink-0 opacity-70">{String.fromCharCode(65 + index)}.</span>
-        <span className="min-w-0 flex-1 overflow-hidden break-words">
-          {optionLines.map((line, lineIndex) => (
-            <span key={`${lineIndex}-${line}`} className="block">
-              {line}
-            </span>
-          ))}
+        <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[0.6em] font-black ${
+          showRevealState && isAnswer
+            ? 'bg-emerald-600 text-white'
+            : showRevealState
+            ? 'bg-slate-200 text-slate-500'
+            : 'bg-[var(--answer-badge)] text-[var(--answer-badge-text)]'
+        }`}>
+          {String.fromCharCode(65 + index)}
+        </span>
+        <span className="min-w-0 flex-1 whitespace-normal break-words">
+          {option}
         </span>
       </div>
       {showChosenParticipants && (
-        <div className="absolute bottom-2 left-3 right-3 flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="absolute bottom-2 right-3 flex max-w-[52%] flex-row-reverse flex-wrap-reverse items-center gap-1.5">
           {chosenParticipants.slice(0, 10).map((participant) => {
             const player = parseLiveQuizDisplayName(participant.displayName);
             return (
@@ -231,7 +209,7 @@ const LiveQuizAnswerGrid: React.FC<{
   const sharedFontSize = getSharedLiveQuizOptionFontSize(options, showRevealState);
 
   return (
-    <div className="mt-4 grid min-h-0 flex-1 auto-rows-fr gap-3 sm:grid-cols-2">
+    <div className="mt-4 grid min-h-0 flex-[3] auto-rows-fr gap-4 sm:grid-cols-2">
       {options.map((option, index) => {
         const optionKey = getLiveQuizOptionLabel(option);
         const isAnswer = optionKey === getLiveQuizOptionLabel(String(answer || ''));
@@ -634,7 +612,7 @@ export const LiveQuizHost: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-[calc(100dvh-4.25rem)] overflow-y-auto bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(250,204,21,0.16),transparent_32%),#020617] sm:p-4 lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden lg:p-5 lg:pb-7 lg:pl-7">
+    <div className="flex min-h-[calc(100dvh-4.25rem)] overflow-y-auto bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_12%_8%,rgba(14,165,233,0.2),transparent_34%),radial-gradient(circle_at_88%_88%,rgba(250,204,21,0.1),transparent_30%),linear-gradient(135deg,#071525_0%,#020617_55%,#0b1220_100%)] sm:p-4 lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden lg:p-5 lg:pb-7 lg:pl-7">
       <div className="flex min-h-0 w-full flex-col lg:h-full">
         <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <button onClick={() => void exitHost()} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
@@ -699,7 +677,7 @@ export const LiveQuizHost: React.FC = () => {
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white p-3 text-slate-900 shadow-2xl sm:p-4 lg:p-5">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 p-3 text-slate-950 shadow-[0_18px_45px_rgba(2,6,23,0.26)] sm:p-4 lg:p-5">
               <LiveQuizTimerBar
                 active={session.status === 'question'}
                 timeLeft={timeLeft}
@@ -731,13 +709,17 @@ export const LiveQuizHost: React.FC = () => {
 
               {currentQuestion ? (
                 <div className="flex min-h-0 flex-1 flex-col">
-                  {imageUrl && (
-                    <div className="mb-3 max-h-[18vh] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                      <img src={imageUrl} alt="" className="h-full max-h-[18vh] w-full object-contain" />
+                  <div className={`flex min-h-0 flex-[2] rounded-2xl border-2 border-slate-900/85 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_18px_rgba(2,6,23,0.1)] ${imageUrl ? 'gap-4' : ''}`}>
+                    {imageUrl && (
+                      <div className="w-[34%] min-w-[220px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                        <img src={imageUrl} alt="" className="h-full w-full object-contain" />
+                      </div>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col justify-center">
+                      {currentQuestion.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{currentQuestion.category}</div>}
+                      <h1 className={`max-h-full ${imageUrl ? 'max-w-[17ch]' : 'w-full'} shrink-0 overflow-hidden break-words text-[clamp(1.65rem,6.2vw,4.35rem)] font-black leading-[1.08] tracking-normal text-slate-950 lg:text-[clamp(2rem,3.1vw,4.35rem)]`}>{currentQuestion.question}</h1>
                     </div>
-                  )}
-                  {currentQuestion.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">{currentQuestion.category}</div>}
-                  <h1 className="max-h-[42vh] shrink-0 overflow-hidden break-words text-[clamp(1.75rem,7vw,4.7rem)] font-black leading-[1.04] lg:text-[clamp(2.2rem,3.45vw,4.7rem)]">{currentQuestion.question}</h1>
+                  </div>
                   <LiveQuizAnswerGrid
                     options={currentQuestion.options}
                     answer={currentQuestion.answer}
@@ -781,17 +763,17 @@ export const LiveQuizHost: React.FC = () => {
               </div>
             </div>
 
-            <div className="min-h-0 overflow-visible rounded-3xl border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-md lg:overflow-y-auto lg:p-5">
-              <div className="mb-4 flex items-center gap-2 text-xl font-black">
+            <div className="min-h-0 overflow-visible rounded-2xl border border-white/10 bg-slate-900/72 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.3)] backdrop-blur-md lg:overflow-y-auto lg:p-5">
+              <div className="mb-4 flex items-center gap-2 text-lg font-black">
                 <Trophy size={22} className="text-brand-yellow" />
                 Leaderboard
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {displayedRanking.map((participant, index) => {
                   const player = parseLiveQuizDisplayName(participant.displayName);
 
                   return (
-                    <div key={participant.id} className="rounded-2xl bg-white p-4 text-slate-900 shadow-lg">
+                    <div key={participant.id} className="rounded-xl border border-white/10 bg-white/[0.08] p-3 text-white shadow-sm">
                       <div className="flex items-center justify-between gap-3">
                         <button
                           type="button"
@@ -799,20 +781,20 @@ export const LiveQuizHost: React.FC = () => {
                           disabled={removingParticipantId === participant.id}
                           title={`Remove ${player.name}`}
                           aria-label={`Remove ${player.name}`}
-                          className="group flex min-w-0 items-center gap-2 text-left text-3xl font-black disabled:cursor-not-allowed disabled:opacity-50"
+                          className="group flex min-w-0 items-center gap-2 text-left text-xl font-black disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {index === 0 ? <Crown size={26} className="shrink-0 text-amber-500" /> : <span className="w-9 shrink-0 text-xl text-slate-400">#{index + 1}</span>}
+                          {index === 0 ? <Crown size={22} className="shrink-0 text-brand-yellow" /> : <span className="w-8 shrink-0 text-sm text-white/45">#{index + 1}</span>}
                           {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-10 w-10 shrink-0" iconSize={22} />}
                           <span className="min-w-0 truncate group-hover:line-through">{player.name}</span>
                         </button>
                         <div className="flex shrink-0 items-center gap-2">
-                          <div className="font-mono text-4xl font-black">
+                          <div className="font-mono text-2xl font-black text-white">
                             <AnimatedScore value={participant.displayScore} />
                           </div>
                         </div>
                       </div>
                       {showRoundScores && participant.roundGain > 0 && (
-                        <div className="mt-2 text-right text-lg font-black text-emerald-600">
+                        <div className="mt-2 text-right text-sm font-black text-emerald-300">
                           +{participant.roundGain} scored this round
                         </div>
                       )}
