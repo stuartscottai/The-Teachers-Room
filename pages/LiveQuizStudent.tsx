@@ -13,6 +13,7 @@ import {
 import { LiveQuizParticipant, LiveQuizSession, LiveQuizSubmission, StudentSafeLiveQuizQuestion } from '../types';
 import { resolveGameImageUrl } from '../utils/gameImage';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
+import { LiveQuizTimerBar } from '../components/games/LiveQuizTimerBar';
 import { playSound } from '../utils/gameUtils';
 import { LIVE_QUIZ_AVATAR_OPTIONS, LiveQuizAvatarIcon, LiveQuizPlayerName, makeLiveQuizDisplayName, parseLiveQuizDisplayName } from '../components/games/liveQuizAvatars';
 
@@ -579,15 +580,17 @@ export const LiveQuizStudent: React.FC = () => {
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">
             Question {question.questionIndex + 1}
           </div>
-          {session.status === 'question' && (
-            <div className={`rounded-full px-4 py-2 text-sm font-black ${timeLeft <= 5 ? 'bg-red-500 text-white' : 'bg-white/10 text-white'}`}>
-              {timeLeft}s
-            </div>
-          )}
           {me && ['leaderboard', 'ended'].includes(session.status) && <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">{me.score} pts</div>}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center rounded-3xl bg-white p-4 text-slate-900 shadow-2xl md:mx-auto md:aspect-[2/1] md:h-auto md:max-h-[calc(100dvh-8.5rem)] md:w-[clamp(720px,55vw,1200px)] md:flex-none md:p-5">
+        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded-3xl bg-white p-4 text-slate-900 shadow-2xl md:mx-auto md:aspect-[2/1] md:h-auto md:max-h-[calc(100dvh-8.5rem)] md:w-[clamp(720px,55vw,1200px)] md:flex-none md:p-5">
+          <LiveQuizTimerBar
+            active={session.status === 'question'}
+            timeLeft={timeLeft}
+            timerSeconds={session.timerSeconds || 20}
+            elapsedMs={elapsedMs}
+            className="-mx-4 -mt-4 mb-4 md:-mx-5 md:-mt-5"
+          />
           {imageUrl && (
             <div className="mb-3 max-h-[18vh] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
               <img src={imageUrl} alt="" className="h-full max-h-[18vh] w-full object-contain" />

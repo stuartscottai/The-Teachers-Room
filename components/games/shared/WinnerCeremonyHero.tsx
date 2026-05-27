@@ -61,6 +61,16 @@ const CEREMONY_COLORS = {
     accent: '#22d3ee',
 };
 
+const FIREWORK_INITIAL_ROCKETS = 3;
+const FIREWORK_LAUNCH_INTERVAL_MS = 720;
+const FIREWORK_MAX_ROCKETS = 5;
+const FIREWORK_MAX_PARTICLES = 190;
+const FIREWORK_FRAME_INTERVAL_MS = 1000 / 30;
+const FIREWORK_CANVAS_DPR = 1;
+const FIREWORK_PODIUM_TARGET_MIN_VH = 0.14;
+const FIREWORK_PODIUM_TARGET_MAX_VH = 0.42;
+const FIREWORK_PODIUM_LAUNCH_VH = 0.58;
+
 const getCeremonyTone = (rank: 1 | 2 | 3) => {
     if (rank === 2) return CEREMONY_COLORS.silver;
     if (rank === 3) return CEREMONY_COLORS.bronze;
@@ -179,7 +189,7 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
         if (!active) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true } as CanvasRenderingContext2DSettings);
         if (!ctx) return;
 
         let viewWidth = 0;
@@ -225,6 +235,10 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
             particle.y = randomY ? Math.random() * viewHeight - viewHeight : -20;
         };
         const launchFirework = () => {
+            if (rockets.length >= FIREWORK_MAX_ROCKETS) return;
+            const viewportHeight = Math.max(1, window.innerHeight || viewHeight || 1);
+            const targetMinY = Math.min(viewHeight - 80, Math.max(70, viewportHeight * FIREWORK_PODIUM_TARGET_MIN_VH));
+            const targetMaxY = Math.min(viewHeight - 40, Math.max(targetMinY + 120, viewportHeight * FIREWORK_PODIUM_TARGET_MAX_VH));
             const zones = [
                 { start: 0.22, targetMin: 0.12, targetMax: 0.3 },
                 { start: 0.5, targetMin: 0.34, targetMax: 0.66 },
@@ -236,11 +250,12 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
             fireworkLaunchIndex += 1;
             const startX = viewWidth * (zone.start + (Math.random() - 0.5) * 0.1);
             const targetX = viewWidth * (zone.targetMin + Math.random() * (zone.targetMax - zone.targetMin));
-            const targetY = viewHeight * (0.2 + Math.random() * 0.42);
+            const targetY = targetMinY + Math.random() * (targetMaxY - targetMinY);
+            const launchY = Math.min(viewHeight + 28, Math.max(targetY + 180, viewportHeight * FIREWORK_PODIUM_LAUNCH_VH));
             const color = colors[Math.floor(Math.random() * colors.length)];
             rockets.push({
                 x: startX,
-                y: viewHeight + 28,
+                y: launchY,
                 vx: (targetX - startX) / (58 + Math.random() * 18),
                 vy: -9.5 - Math.random() * 3.2,
                 targetY,
@@ -249,7 +264,10 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
             });
         };
         const explodeFirework = (x: number, y: number, baseColor: string) => {
-            const particleCount = 72 + Math.floor(Math.random() * 42);
+            const availableSlots = FIREWORK_MAX_PARTICLES - fireworks.length;
+            if (availableSlots <= 0) return;
+
+            const particleCount = Math.min(availableSlots, 34 + Math.floor(Math.random() * 18));
             for (let i = 0; i < particleCount; i += 1) {
                 const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.12;
                 const speed = 1.4 + Math.random() * 4.1;
@@ -268,7 +286,9 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
 
         const resize = () => {
             if (disposed) return;
-            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const dpr = effect === 'fireworks'
+                ? FIREWORK_CANVAS_DPR
+                : Math.min(1.5, window.devicePixelRatio || 1);
             const rect = canvas.getBoundingClientRect();
             viewWidth = Math.max(1, Math.floor((rect.width || window.innerWidth || 1)));
             viewHeight = Math.max(1, Math.floor((rect.height || window.innerHeight || 1)));
@@ -289,10 +309,16 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
         window.addEventListener('resize', resize);
 
         let animationId = 0;
+        let lastDrawTimestamp = 0;
         const draw = (timestamp: number) => {
             if (disposed) return;
+            if (effect === 'fireworks' && lastDrawTimestamp && timestamp - lastDrawTimestamp < FIREWORK_FRAME_INTERVAL_MS) {
+                animationId = window.requestAnimationFrame(draw);
+                return;
+            }
             const deltaMs = lastTimestamp ? timestamp - lastTimestamp : 16.67;
             lastTimestamp = timestamp;
+            lastDrawTimestamp = timestamp;
             const step = Math.min(2.4, Math.max(0.35, deltaMs / 16.67));
             ctx.clearRect(0, 0, viewWidth, viewHeight);
 
@@ -317,14 +343,13 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
             } else if (effect === 'fireworks') {
                 if (!launchedInitialFireworks) {
                     launchedInitialFireworks = true;
-                    for (let i = 0; i < 5; i += 1) {
+                    for (let i = 0; i < FIREWORK_INITIAL_ROCKETS; i += 1) {
                         launchFirework();
                     }
                 }
                 fireworkLaunchElapsed += deltaMs;
-                while (fireworkLaunchElapsed >= 365) {
-                    fireworkLaunchElapsed -= 365;
-                    launchFirework();
+                while (fireworkLaunchElapsed >= FIREWORK_LAUNCH_INTERVAL_MS) {
+                    fireworkLaunchElapsed -= FIREWORK_LAUNCH_INTERVAL_MS;
                     launchFirework();
                 }
 
@@ -349,7 +374,7 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
                     ctx.globalAlpha = 1;
                     ctx.fillStyle = '#ffffff';
                     ctx.shadowColor = rocket.color;
-                    ctx.shadowBlur = 14;
+                    ctx.shadowBlur = 7;
                     ctx.beginPath();
                     ctx.arc(rocket.x, rocket.y, 2.2, 0, Math.PI * 2);
                     ctx.fill();
@@ -373,14 +398,11 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
                     const remaining = Math.max(0, 1 - particle.life / particle.maxLife);
                     ctx.globalAlpha = remaining;
                     ctx.strokeStyle = particle.color;
-                    ctx.shadowColor = particle.color;
-                    ctx.shadowBlur = 10;
                     ctx.lineWidth = Math.max(0.7, particle.size * remaining);
                     ctx.beginPath();
                     ctx.moveTo(particle.x, particle.y);
                     ctx.lineTo(particle.x - particle.vx * 1.8, particle.y - particle.vy * 1.8);
                     ctx.stroke();
-                    ctx.shadowBlur = 0;
                     ctx.globalAlpha = 1;
 
                     if (particle.life >= particle.maxLife) {

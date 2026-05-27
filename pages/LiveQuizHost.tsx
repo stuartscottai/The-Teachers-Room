@@ -18,6 +18,7 @@ import { LiveQuizParticipant, LiveQuizQuestion, LiveQuizSession, LiveQuizSubmiss
 import { resolveGameImageUrl } from '../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyRankingEntry } from '../components/games/shared/WinnerCeremonyHero';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
+import { LiveQuizTimerBar } from '../components/games/LiveQuizTimerBar';
 import { LiveQuizAvatarIcon, LiveQuizPlayerName, parseLiveQuizDisplayName } from '../components/games/liveQuizAvatars';
 
 const useIsMobileViewport = () => {
@@ -698,7 +699,14 @@ export const LiveQuizHost: React.FC = () => {
           </div>
         ) : (
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="flex min-h-0 flex-col rounded-3xl bg-white p-3 text-slate-900 shadow-2xl sm:p-4 lg:p-5">
+            <div className="flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white p-3 text-slate-900 shadow-2xl sm:p-4 lg:p-5">
+              <LiveQuizTimerBar
+                active={session.status === 'question'}
+                timeLeft={timeLeft}
+                timerSeconds={session.timerSeconds || 20}
+                elapsedMs={elapsedMs}
+                className="-mx-3 -mt-3 mb-3 sm:-mx-4 sm:-mt-4 lg:-mx-5 lg:-mt-5"
+              />
               <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-wide text-brand-blue">
@@ -706,11 +714,6 @@ export const LiveQuizHost: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {session.status === 'question' && (
-                    <div className={`rounded-full px-4 py-2 text-sm font-black ${timeLeft <= 5 ? 'bg-red-100 text-red-700' : 'bg-brand-yellow text-slate-900'}`}>
-                      {timeLeft}s
-                    </div>
-                  )}
                   <div className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black ${
                     roundComplete ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
                   }`}>
