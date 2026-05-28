@@ -763,17 +763,50 @@ export const LiveQuizHost: React.FC = () => {
               </div>
             </div>
 
-            <div className="min-h-0 overflow-visible rounded-2xl border border-white/10 bg-slate-900/72 p-4 shadow-[0_18px_40px_rgba(2,6,23,0.3)] backdrop-blur-md lg:overflow-y-auto lg:p-5">
-              <div className="mb-4 flex items-center gap-2 text-lg font-black">
-                <Trophy size={22} className="text-brand-yellow" />
-                Leaderboard
+            <div className="relative min-h-0 overflow-hidden rounded-2xl border border-cyan-200/15 bg-slate-800 p-4 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.08),inset_0_-18px_36px_rgba(2,6,23,0.26),0_18px_0_rgba(2,6,23,0.36),0_30px_50px_rgba(2,6,23,0.45)] backdrop-blur-md lg:overflow-y-auto lg:p-5">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/10 to-transparent" />
+              <div className="relative z-10 mb-4 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-yellow-200/40 bg-gradient-to-br from-yellow-200 via-yellow-400 to-amber-600 text-slate-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.55),0_5px_0_#92400e,0_12px_20px_rgba(146,64,14,0.26)]">
+                    <Trophy size={24} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xl font-black leading-tight">Leaderboard</div>
+                    <div className="text-xs font-black uppercase tracking-wide text-cyan-100/70">Live standings</div>
+                  </div>
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-white/75">
+                  {participants.length} players
+                </div>
               </div>
-              <div className="space-y-2.5">
+              <div className="relative z-10 space-y-3">
                 {displayedRanking.map((participant, index) => {
                   const player = parseLiveQuizDisplayName(participant.displayName);
+                  const isLeader = index === 0;
+                  const isSecond = index === 1;
+                  const isThird = index === 2;
+                  const rankCardClass = isLeader
+                    ? 'border-yellow-300 bg-yellow-700/85 shadow-[inset_0_2px_0_rgba(255,255,255,0.22),0_7px_0_rgba(146,64,14,0.9),0_15px_26px_rgba(2,6,23,0.28)]'
+                    : isSecond
+                    ? 'border-slate-200/60 bg-slate-700/70 shadow-[inset_0_2px_0_rgba(255,255,255,0.11),0_6px_0_rgba(51,65,85,0.74),0_14px_24px_rgba(2,6,23,0.26)]'
+                    : isThird
+                    ? 'border-orange-300/65 bg-orange-950/35 shadow-[inset_0_2px_0_rgba(255,255,255,0.1),0_6px_0_rgba(120,53,15,0.72),0_14px_24px_rgba(2,6,23,0.26)]'
+                    : 'border-white/12 bg-white/[0.075] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_6px_0_rgba(2,6,23,0.34),0_14px_24px_rgba(2,6,23,0.24)]';
+                  const rankBadgeClass = isLeader
+                    ? 'bg-yellow-300 text-slate-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.5),0_3px_0_#92400e]'
+                    : isSecond
+                    ? 'bg-slate-200 text-slate-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.55),0_3px_0_#475569]'
+                    : isThird
+                    ? 'bg-orange-300 text-slate-950 shadow-[inset_0_2px_0_rgba(255,255,255,0.45),0_3px_0_#9a3412]'
+                    : 'bg-white/8 text-white/55';
+                  const scoreClass = isLeader ? 'text-yellow-100' : isSecond ? 'text-slate-100' : isThird ? 'text-orange-200' : 'text-white';
 
                   return (
-                    <div key={participant.id} className="rounded-xl border border-white/10 bg-white/[0.08] p-3 text-white shadow-sm">
+                    <div
+                      key={participant.id}
+                      className={`relative overflow-hidden rounded-xl border p-3 text-white transition ${rankCardClass}`}
+                    >
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent" />
                       <div className="flex items-center justify-between gap-3">
                         <button
                           type="button"
@@ -781,20 +814,26 @@ export const LiveQuizHost: React.FC = () => {
                           disabled={removingParticipantId === participant.id}
                           title={`Remove ${player.name}`}
                           aria-label={`Remove ${player.name}`}
-                          className="group flex min-w-0 items-center gap-2 text-left text-xl font-black disabled:cursor-not-allowed disabled:opacity-50"
+                          className="group relative z-10 flex min-w-0 items-center gap-3 text-left text-xl font-black disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {index === 0 ? <Crown size={22} className="shrink-0 text-brand-yellow" /> : <span className="w-8 shrink-0 text-sm text-white/45">#{index + 1}</span>}
-                          {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-10 w-10 shrink-0" iconSize={22} />}
+                          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-black ${rankBadgeClass}`}>
+                            {isLeader ? (
+                              <Crown size={23} />
+                            ) : (
+                              `#${index + 1}`
+                            )}
+                          </span>
+                          {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-11 w-11 shrink-0" iconSize={23} />}
                           <span className="min-w-0 truncate group-hover:line-through">{player.name}</span>
                         </button>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <div className="font-mono text-2xl font-black text-white">
+                        <div className="relative z-10 flex shrink-0 items-center gap-2">
+                          <div className={`font-mono text-3xl font-black leading-none drop-shadow-[0_2px_0_rgba(2,6,23,0.45)] ${scoreClass}`}>
                             <AnimatedScore value={participant.displayScore} />
                           </div>
                         </div>
                       </div>
                       {showRoundScores && participant.roundGain > 0 && (
-                        <div className="mt-2 text-right text-sm font-black text-emerald-300">
+                        <div className="relative z-10 mt-2 text-right text-sm font-black text-emerald-300">
                           +{participant.roundGain} scored this round
                         </div>
                       )}

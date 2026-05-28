@@ -56,7 +56,7 @@ export const LiveQuizAvatarIcon: React.FC<{ avatarId?: string; className?: strin
       <img
         src={avatar.image}
         alt=""
-        className={`${className} shrink-0 rounded-full object-cover ring-2 ring-white/70`}
+        className={`${className} shrink-0 rounded-full bg-white object-contain p-[2px] ring-2 ring-white/70`}
         onError={() => setImageFailed(true)}
       />
     );
