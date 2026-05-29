@@ -19,14 +19,6 @@ import { LIVE_QUIZ_AVATAR_OPTIONS, LiveQuizAvatarIcon, LiveQuizPlayerName, makeL
 
 const normalizeAnswer = (value?: string | null) => String(value || '').trim().toLowerCase();
 
-const getLiveQuizOptionTextClass = (option: string) => {
-  const length = option.trim().length;
-  if (length > 115) return 'text-[clamp(1rem,2.65vw,1.65rem)]';
-  if (length > 80) return 'text-[clamp(1.1rem,3.15vw,1.95rem)]';
-  if (length > 48) return 'text-[clamp(1.25rem,3.9vw,2.35rem)]';
-  return 'text-[clamp(1.75rem,6.2vw,3.25rem)]';
-};
-
 const ANSWER_TILE_STYLES = [
   'border-red-400 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)] [--answer-badge:#fff1f2] [--answer-badge-text:#dc2626]',
   'border-sky-400 bg-gradient-to-br from-sky-300 via-sky-500 to-blue-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(30,64,175,0.28),0_8px_0_#1e3a8a,0_14px_24px_rgba(30,64,175,0.24)] [--answer-badge:#eff6ff] [--answer-badge-text:#0284c7]',
@@ -47,6 +39,9 @@ const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => 
     48;
   return compact ? Math.max(22, size - 4) : size;
 };
+
+const getResponsiveStudentOptionFontSize = (fontSize: number, isLargeScreen: boolean) =>
+  isLargeScreen ? `${fontSize}px` : `clamp(1.2rem, 5.1vw, ${fontSize}px)`;
 
 const useIsLargeLiveQuizScreen = () => {
   const [isLarge, setIsLarge] = useState(false);
@@ -84,12 +79,12 @@ const LiveQuizStudentAnswerButton: React.FC<{
       type="button"
       disabled={!canAnswer}
       onClick={() => onAnswer(meta.option)}
-      className={`relative flex min-h-[70px] origin-center items-center overflow-hidden rounded-xl border p-4 pr-12 text-left ${isLargeScreen ? '' : getLiveQuizOptionTextClass(meta.option)} font-black leading-tight transition-[transform,filter,box-shadow,opacity] hover:-translate-y-0.5 disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass}`}
+      className={`relative flex min-h-[70px] origin-center items-center overflow-hidden rounded-xl border p-4 pr-12 text-left font-black leading-tight transition-[transform,filter,box-shadow,opacity] hover:-translate-y-0.5 disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass}`}
     >
       {!revealVisible && !meta.isSelected && <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />}
       <div
         className="relative z-10 flex w-full min-w-0 items-center leading-[1.05] drop-shadow-[0_1px_1px_rgba(0,0,0,0.28)]"
-        style={isLargeScreen ? { fontSize: `${sharedFontSize}px` } : undefined}
+        style={{ fontSize: getResponsiveStudentOptionFontSize(sharedFontSize, isLargeScreen) }}
       >
         <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[0.62em] font-black ${meta.isCorrectAnswer ? 'bg-emerald-50 text-emerald-700' : meta.isWrongSelection ? 'bg-red-50 text-red-700' : revealVisible ? 'bg-slate-200 text-slate-500' : 'bg-[var(--answer-badge)] text-[var(--answer-badge-text)]'}`}>
           {String.fromCharCode(65 + meta.index)}

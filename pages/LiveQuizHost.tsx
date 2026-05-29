@@ -52,6 +52,9 @@ const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => 
   return compact ? Math.max(22, size - 4) : size;
 };
 
+const getResponsiveLiveQuizOptionFontSize = (fontSize: number) =>
+  `clamp(1.2rem, min(2.6vw, 5.1vh), ${fontSize}px)`;
+
 const ANSWER_TILE_STYLES = [
   'border-red-400 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)] [--answer-badge:#fff1f2] [--answer-badge-text:#dc2626]',
   'border-sky-400 bg-gradient-to-br from-sky-300 via-sky-500 to-blue-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(30,64,175,0.28),0_8px_0_#1e3a8a,0_14px_24px_rgba(30,64,175,0.24)] [--answer-badge:#eff6ff] [--answer-badge-text:#0284c7]',
@@ -160,7 +163,7 @@ const LiveQuizAnswerTile: React.FC<{
       {!showRevealState && <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/35 to-transparent" />}
       <div
         className="relative z-10 flex w-full min-w-0 items-center leading-[1.05] drop-shadow-[0_1px_1px_rgba(0,0,0,0.28)]"
-        style={{ fontSize: `${fontSize}px` }}
+        style={{ fontSize: getResponsiveLiveQuizOptionFontSize(fontSize) }}
       >
         <span className={`mr-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[0.6em] font-black ${
           showRevealState && isAnswer
@@ -786,9 +789,9 @@ export const LiveQuizHost: React.FC = () => {
                   const isSecond = index === 1;
                   const isThird = index === 2;
                   const rankCardClass = isLeader
-                    ? 'border-yellow-300 bg-yellow-700/85 shadow-[inset_0_2px_0_rgba(255,255,255,0.22),0_7px_0_rgba(146,64,14,0.9),0_15px_26px_rgba(2,6,23,0.28)]'
+                    ? 'border-yellow-200 bg-yellow-500/90 shadow-[inset_0_2px_0_rgba(255,255,255,0.28),0_7px_0_rgba(202,138,4,0.9),0_15px_26px_rgba(2,6,23,0.28)]'
                     : isSecond
-                    ? 'border-slate-200/60 bg-slate-700/70 shadow-[inset_0_2px_0_rgba(255,255,255,0.11),0_6px_0_rgba(51,65,85,0.74),0_14px_24px_rgba(2,6,23,0.26)]'
+                    ? 'border-slate-100/85 bg-slate-400/45 shadow-[inset_0_2px_0_rgba(255,255,255,0.24),0_6px_0_rgba(148,163,184,0.55),0_14px_24px_rgba(2,6,23,0.26)]'
                     : isThird
                     ? 'border-orange-300/65 bg-orange-950/35 shadow-[inset_0_2px_0_rgba(255,255,255,0.1),0_6px_0_rgba(120,53,15,0.72),0_14px_24px_rgba(2,6,23,0.26)]'
                     : 'border-white/12 bg-white/[0.075] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_6px_0_rgba(2,6,23,0.34),0_14px_24px_rgba(2,6,23,0.24)]';
