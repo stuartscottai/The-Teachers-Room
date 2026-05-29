@@ -1218,8 +1218,8 @@ const GameHub: React.FC<{
         <div className="max-w-7xl mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div className="text-center md:text-left">
-                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">Game Hub</h1>
-                    <p className="text-slate-500">Create, play, and share educational games.</p>
+                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">AI Classroom Game Maker</h1>
+                    <p className="text-slate-500">Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.</p>
                 </div>
                 
                 {/* PROMINENT TABS */}

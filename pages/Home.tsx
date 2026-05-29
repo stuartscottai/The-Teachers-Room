@@ -370,7 +370,7 @@ export const Home: React.FC = () => {
           </h1>
 
           <p className="text-xl md:text-2xl text-sky-50 mb-12 font-medium max-w-3xl mx-auto leading-relaxed drop-shadow-sm">
-            The ultimate playground for educators. Create AI-powered classroom games in seconds.
+            Create classroom games, quizzes, and review activities with AI. Turn any lesson topic into trivia, live quizzes, Jeopardy-style games, word games, and more.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16">

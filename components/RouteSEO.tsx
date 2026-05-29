@@ -1,78 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { publicBlogPosts } from '../data/blogPosts';
 import { getPublicAppUrl } from '../utils/appUrl';
-
-type RouteMeta = {
-  title: string;
-  description: string;
-  path: string;
-  noindex?: boolean;
-};
-
-const DEFAULT_META: RouteMeta = {
-  title: "The Teachers' Room | AI Games for Teachers",
-  description:
-    'Create classroom games, quizzes, and review activities with AI-powered tools built for busy teachers.',
-  path: '/'
-};
-
-const routeMeta: Record<string, RouteMeta> = {
-  '/': DEFAULT_META,
-  '/games': {
-    title: "Classroom Game Maker | The Teachers' Room",
-    description:
-      'Create AI-powered classroom games including trivia, Jeopardy-style quizzes, word wheels, pub quizzes, darts, and more.',
-    path: '/games'
-  },
-  '/pricing': {
-    title: "Pricing | The Teachers' Room",
-    description:
-      "Compare free, teacher, and school plans for The Teachers' Room classroom resource and game creation tools.",
-    path: '/pricing'
-  },
-  '/info': {
-    title: "Teacher Resource Help and FAQs | The Teachers' Room",
-    description:
-      "Learn how to use The Teachers' Room to create classroom games, prompts, and teaching resources faster.",
-    path: '/info'
-  },
-  '/blog': {
-    title: "Teacher Blog | The Teachers' Room",
-    description:
-      'Practical articles on AI in education, classroom games, ESL teaching, and teacher workflow ideas.',
-    path: '/blog'
-  },
-  '/contact': {
-    title: "Contact | The Teachers' Room",
-    description:
-      "Contact The Teachers' Room with questions, support requests, school plan enquiries, or feedback.",
-    path: '/contact'
-  },
-  '/terms': {
-    title: "Terms of Service | The Teachers' Room",
-    description: "Read the terms of service for using The Teachers' Room.",
-    path: '/terms'
-  },
-  '/privacy': {
-    title: "Privacy Policy | The Teachers' Room",
-    description: "Read how The Teachers' Room handles account, content, and usage data.",
-    path: '/privacy'
-  }
-};
-
-const noindexPrefixes = [
-  '/profile',
-  '/reset-password',
-  '/choose-plan',
-  '/change-plan',
-  '/school-admin',
-  '/test',
-  '/worksheets',
-  '/share/game',
-  '/student/game',
-  '/student/share'
-];
+import { resolveMeta } from '../utils/seoMeta';
 
 const upsertMeta = (selector: string, create: () => HTMLMetaElement, content: string) => {
   let element = document.head.querySelector<HTMLMetaElement>(selector);
@@ -102,28 +31,6 @@ const upsertJsonLd = (id: string, data: Record<string, unknown>) => {
     document.head.appendChild(element);
   }
   element.textContent = JSON.stringify(data);
-};
-
-const resolveMeta = (pathname: string): RouteMeta => {
-  const blogMatch = pathname.match(/^\/blog\/(\d+)$/);
-  if (blogMatch) {
-    const post = publicBlogPosts.find((entry) => entry.id === Number(blogMatch[1]));
-    if (post) {
-      return {
-        title: `${post.title} | The Teachers' Room`,
-        description: post.subtitle,
-        path: `/blog/${post.id}`
-      };
-    }
-  }
-
-  const exact = routeMeta[pathname];
-  if (exact) return exact;
-
-  return {
-    ...DEFAULT_META,
-    noindex: noindexPrefixes.some((prefix) => pathname.startsWith(prefix))
-  };
 };
 
 export const RouteSEO: React.FC = () => {

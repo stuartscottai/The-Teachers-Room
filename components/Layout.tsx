@@ -442,13 +442,22 @@ const Footer: React.FC = () => {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           <div>
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Site</h3>
             <ul className="space-y-3">
               <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</SafeLink></li>
               <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</SafeLink></li>
               <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</SafeLink></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Game Types</h3>
+            <ul className="space-y-3">
+              <li><SafeLink to="/create-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">Create classroom games</SafeLink></li>
+              <li><SafeLink to="/classroom-quiz-maker" className="hover:text-brand-yellow text-sm transition-colors">Classroom quiz maker</SafeLink></li>
+              <li><SafeLink to="/live-quiz-for-teachers" className="hover:text-brand-yellow text-sm transition-colors">Live quiz for teachers</SafeLink></li>
+              <li><SafeLink to="/esl-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">ESL classroom games</SafeLink></li>
             </ul>
           </div>
           <div>

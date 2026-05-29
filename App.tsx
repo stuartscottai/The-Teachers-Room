@@ -15,6 +15,10 @@ const Contact = lazy(() => import('./pages/InfoPages').then(({ Contact }) => ({ 
 const Legal = lazy(() => import('./pages/InfoPages').then(({ Legal }) => ({ default: Legal })));
 const Blog = lazy(() => import('./pages/Blog').then(({ Blog }) => ({ default: Blog })));
 const BlogPostPage = lazy(() => import('./pages/BlogPost').then(({ BlogPostPage }) => ({ default: BlogPostPage })));
+const CreateClassroomGamesPage = lazy(() => import('./pages/SeoLandingPages').then(({ CreateClassroomGamesPage }) => ({ default: CreateClassroomGamesPage })));
+const ClassroomQuizMakerPage = lazy(() => import('./pages/SeoLandingPages').then(({ ClassroomQuizMakerPage }) => ({ default: ClassroomQuizMakerPage })));
+const LiveQuizForTeachersPage = lazy(() => import('./pages/SeoLandingPages').then(({ LiveQuizForTeachersPage }) => ({ default: LiveQuizForTeachersPage })));
+const EslClassroomGamesPage = lazy(() => import('./pages/SeoLandingPages').then(({ EslClassroomGamesPage }) => ({ default: EslClassroomGamesPage })));
 const Profile = lazy(() => import('./pages/Profile').then(({ Profile }) => ({ default: Profile })));
 const ChangePlan = lazy(() => import('./pages/ChangePlan').then(({ ChangePlan }) => ({ default: ChangePlan })));
 const TestBench = lazy(() => import('./pages/TestBench').then(({ TestBench }) => ({ default: TestBench })));
@@ -120,6 +124,10 @@ const App: React.FC = () => {
               <Route path="/info" element={<LazyRoute><Info /></LazyRoute>} />
               <Route path="/blog" element={<LazyRoute><Blog /></LazyRoute>} />
               <Route path="/blog/:id" element={<LazyRoute><BlogPostPage /></LazyRoute>} />
+              <Route path="/create-classroom-games" element={<LazyRoute><CreateClassroomGamesPage /></LazyRoute>} />
+              <Route path="/classroom-quiz-maker" element={<LazyRoute><ClassroomQuizMakerPage /></LazyRoute>} />
+              <Route path="/live-quiz-for-teachers" element={<LazyRoute><LiveQuizForTeachersPage /></LazyRoute>} />
+              <Route path="/esl-classroom-games" element={<LazyRoute><EslClassroomGamesPage /></LazyRoute>} />
               <Route path="/contact" element={<LazyRoute><Contact /></LazyRoute>} />
               <Route path="/terms" element={<LazyRoute><Legal type="terms" /></LazyRoute>} />
               <Route path="/privacy" element={<LazyRoute><Legal type="privacy" /></LazyRoute>} />
