@@ -4,6 +4,7 @@ import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '..
 import { Avatar } from '../Avatar';
 import { resolveGameImageUrl, resolveGameImageUrls } from '../../utils/gameImage';
 import { refreshStockImage } from '../../services/stockImageService';
+import { getCompatibleGameTypes } from '../../utils/gameCompatibility';
 
 type PreviewItem = {
   id: string;
@@ -711,6 +712,7 @@ interface GamePreviewProps {
   source: 'library' | 'community';
   onBack: () => void;
   onPlay: (game: GeneratedGame) => void;
+  onPlayAsDifferent?: (game: GeneratedGame) => void;
   onEdit: () => void;
   onSave?: () => void | Promise<void>;
   onShare?: () => void | Promise<void>;
@@ -719,11 +721,12 @@ interface GamePreviewProps {
   saveLabel?: string;
 }
 
-export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, saveLabel }) => {
+export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onPlayAsDifferent, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, saveLabel }) => {
   const items = useMemo(() => buildPreviewItems(game), [game]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const [playChoiceGame, setPlayChoiceGame] = useState<GeneratedGame | null>(null);
   const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
   const [randomSelectionCount, setRandomSelectionCount] = useState(20);
 
@@ -757,7 +760,23 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const handlePlay = () => {
     const nextGame = buildPlayableGameFromSelection(game, selectedIds, items);
     if (!nextGame) return;
+    if (onPlayAsDifferent && getCompatibleGameTypes(nextGame).length > 0) {
+      setPlayChoiceGame(nextGame);
+      return;
+    }
     onPlay(nextGame);
+  };
+
+  const handlePlayOriginal = () => {
+    if (!playChoiceGame) return;
+    setPlayChoiceGame(null);
+    onPlay(playChoiceGame);
+  };
+
+  const handlePlayDifferent = () => {
+    if (!playChoiceGame || !onPlayAsDifferent) return;
+    setPlayChoiceGame(null);
+    onPlayAsDifferent(playChoiceGame);
   };
 
   const selectRandomItems = () => {
@@ -1115,6 +1134,53 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
                   {aiPrompt}
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {playChoiceGame && (
+          <div className="fixed inset-0 z-[170] flex items-center justify-center bg-sky-950/35 p-4 backdrop-blur-sm">
+            <div className="relative w-full max-w-lg rounded-3xl border border-white bg-gradient-to-b from-white via-sky-50/80 to-yellow-50/60 p-6 shadow-[0_24px_48px_rgba(14,116,144,0.18)]">
+              <button
+                type="button"
+                onClick={() => setPlayChoiceGame(null)}
+                className="absolute right-4 top-4 rounded-full border border-sky-100 bg-white/80 p-2 text-slate-400 transition-colors hover:bg-sky-50 hover:text-brand-blue"
+                aria-label="Close play menu"
+              >
+                <X size={18} />
+              </button>
+              <h2 className="pr-10 font-display text-2xl font-bold text-slate-900">Choose how to play</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                Use the selected questions in this game, or try the same question set in another compatible game.
+              </p>
+              <div className="mt-6 grid gap-3">
+                <button
+                  type="button"
+                  onClick={handlePlayOriginal}
+                  className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
+                >
+                  <span>
+                    <span className="block font-bold text-slate-800">Play {playChoiceGame.config.type}</span>
+                    <span className="block text-sm font-semibold text-slate-600">Use the original game format.</span>
+                  </span>
+                  <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-brand-blue">
+                    <Play size={18} fill="currentColor" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePlayDifferent}
+                  className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
+                >
+                  <span>
+                    <span className="block font-bold text-slate-800">Play question set with a different game</span>
+                    <span className="block text-sm font-semibold text-slate-600">Choose from compatible games next.</span>
+                  </span>
+                  <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-yellow/55 text-slate-900">
+                    <Layers size={18} />
+                  </span>
+                </button>
               </div>
             </div>
           </div>

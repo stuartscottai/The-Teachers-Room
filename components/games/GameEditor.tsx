@@ -724,6 +724,34 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         });
     };
 
+    const moveGroupedQuestion = (questionIndex: number, targetGroupIndex: number) => {
+        if (targetGroupIndex === activeTab) return;
+
+        handleChange(prev => {
+            const isJeopardy = prev.config.type === GameType.JEOPARDY;
+            const groups = isJeopardy ? [...(prev.jeopardyBoard || [])] : [...(prev.pubQuizRounds || [])];
+            const sourceGroup = groups[activeTab];
+            const targetGroup = groups[targetGroupIndex];
+            if (!sourceGroup || !targetGroup || !sourceGroup.questions[questionIndex]) return prev;
+
+            const sourceQuestions = [...sourceGroup.questions];
+            const [movedQuestion] = sourceQuestions.splice(questionIndex, 1);
+            const targetQuestions = [
+                ...targetGroup.questions,
+                {
+                    ...movedQuestion,
+                    category: targetGroup.name,
+                },
+            ];
+
+            groups[activeTab] = { ...sourceGroup, questions: sourceQuestions };
+            groups[targetGroupIndex] = { ...targetGroup, questions: targetQuestions };
+
+            return isJeopardy ? { ...prev, jeopardyBoard: groups } : { ...prev, pubQuizRounds: groups };
+        });
+        setActiveTab(targetGroupIndex);
+    };
+
     // Determine Group Data Source (Jeopardy or Pub Quiz)
     const isGrouped = editedGame.config.type === GameType.JEOPARDY || editedGame.config.type === GameType.PUB_QUIZ;
     const isStopTheFire = editedGame.config.type === GameType.STOP_THE_FIRE;
@@ -1149,27 +1177,45 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
                                             <div key={qIdx} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:border-sky-200 transition-colors">
-                                                <div className="flex items-center justify-between mb-4">
+                                                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                                     <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
                                                         {editedGame.config.type === GameType.JEOPARDY ? `${q.points} Points` : `Question ${qIdx + 1}`}
                                                     </span>
                                                     
                                                     {/* TYPE TOGGLE */}
-                                                    <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-slate-200">
-                                                        <button 
-                                                            onClick={() => updateGroupedType(qIdx, 'open')}
-                                                            className={`px-2 py-1 text-[10px] font-bold rounded ${!q.options ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
-                                                            disabled={!q.options}
-                                                        >
-                                                            Open
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => updateGroupedType(qIdx, 'multiple-choice')}
-                                                            className={`px-2 py-1 text-[10px] font-bold rounded ${q.options ? 'bg-sky-100 text-sky-600' : 'text-slate-400 hover:text-slate-600'}`}
-                                                            disabled={!!q.options}
-                                                        >
-                                                            Multi-Choice
-                                                        </button>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        {groups && groups.length > 1 && (
+                                                            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                                                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{groupLabel}</span>
+                                                                <select
+                                                                    value={activeTab}
+                                                                    onChange={(event) => moveGroupedQuestion(qIdx, Number(event.target.value))}
+                                                                    className="max-w-[180px] bg-transparent text-xs font-bold text-slate-700 outline-none"
+                                                                >
+                                                                    {groups.map((group, groupIndex) => (
+                                                                        <option key={`${group.name}-${groupIndex}`} value={groupIndex}>
+                                                                            {group.name || `${groupLabel} ${groupIndex + 1}`}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                            </label>
+                                                        )}
+                                                        <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-slate-200">
+                                                            <button 
+                                                                onClick={() => updateGroupedType(qIdx, 'open')}
+                                                                className={`px-2 py-1 text-[10px] font-bold rounded ${!q.options ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                disabled={!q.options}
+                                                            >
+                                                                Open
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => updateGroupedType(qIdx, 'multiple-choice')}
+                                                                className={`px-2 py-1 text-[10px] font-bold rounded ${q.options ? 'bg-sky-100 text-sky-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                disabled={!!q.options}
+                                                            >
+                                                                Multi-Choice
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -1531,6 +1577,26 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 Current answer does not match this letter rule.
                                                             </p>
                                                         )}
+                                                    </div>
+                                                )}
+
+                                                {!isSurvey && !isWordWheel && (
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Category</label>
+                                                        <input
+                                                            type="text"
+                                                            value={q.category || ''}
+                                                            onChange={(e) => handleChange(prev => {
+                                                                const newQuestions = [...prev.questions];
+                                                                newQuestions[questionIndex].category = e.target.value;
+                                                                return { ...prev, questions: newQuestions };
+                                                            })}
+                                                            className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-sky-200"
+                                                            placeholder="Optional, e.g. Past perfect 1"
+                                                        />
+                                                        <p className="mt-1 text-xs font-semibold text-slate-400">
+                                                            Used when this question set is played as Jeopardy or Pub Quiz.
+                                                        </p>
                                                     </div>
                                                 )}
                                                 

@@ -1,13 +1,14 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { GameType, GeneratedGame, GameRunOptions } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon } from 'lucide-react';
+import { GameType, GeneratedGame, GeneratedQuestion, GameRunOptions, JeopardyCategory } from '../types';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon, Shuffle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { createSelectedStudentGameShare, deleteSavedGame, gameHasQuestionImages, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
+import { convertGameForTemporaryPlay, flattenGameQuestions, getCompatibleGameTypes } from '../utils/gameCompatibility';
 
 import { GameEditor } from '../components/games/GameEditor';
 import { GamePreview } from '../components/games/GamePreview';
@@ -116,6 +117,389 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
 };
 
 const getGameThumbnails = (type: GameType) => gameThumbnailSets[type] ?? [];
+
+const getCompatibilityHint = (type: GameType, questionCount: number) => {
+    if (type === GameType.JEOPARDY) return 'Choose categories and question layout next.';
+    if (type === GameType.PUB_QUIZ) return 'Choose rounds and question layout next.';
+    if (type === GameType.MILLIONAIRE) return 'Uses multiple-choice questions.';
+    if (type === GameType.LIVE_QUIZ_CHALLENGE) return 'Uses multiple-choice questions.';
+    if (type === GameType.DARTS) return `${questionCount} questions available for setup.`;
+    if (type === GameType.TRIVIA) return `${questionCount} questions available.`;
+    return `${questionCount} questions available.`;
+};
+
+const CompatibleGameChooser: React.FC<{
+    sourceGame: GeneratedGame;
+    onBack: () => void;
+    onSelect: (type: GameType) => void;
+}> = ({ sourceGame, onBack, onSelect }) => {
+    const compatibleTypes = getCompatibleGameTypes(sourceGame);
+
+    return (
+        <div className="min-h-screen bg-slate-50 px-4 py-8">
+            <div className="mx-auto max-w-6xl">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="mb-6 inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
+                >
+                    <ArrowLeft size={16} className="mr-2" /> Back to Preview
+                </button>
+
+                <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">Choose a compatible game</h1>
+                    <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+                        Pick a game format, then adjust the setup before playing.
+                    </p>
+                </div>
+
+                {compatibleTypes.length === 0 ? (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-700">No compatible games available</h2>
+                        <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
+                            This question set cannot be converted into another game format yet.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {compatibleTypes.map((type) => {
+                            const thumbnails = getGameThumbnails(type);
+                            const image = thumbnails[0] || '/assets/games/trivia.png';
+                            const questionCount = flattenGameQuestions(sourceGame).length;
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => onSelect(type)}
+                                    className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+                                >
+                                    <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">
+                                        <img
+                                            src={image}
+                                            alt={type}
+                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-4">
+                                            <h2 className="font-display text-xl font-bold text-white drop-shadow">{type}</h2>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between p-5">
+                                        <span>
+                                            <span className="block text-sm font-bold text-slate-700">Set up this game</span>
+                                            <span className="mt-1 block text-xs font-semibold text-slate-500">{getCompatibilityHint(type, questionCount)}</span>
+                                        </span>
+                                        <Play size={17} className="text-brand-blue" fill="currentColor" />
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const makeDefaultGroupName = (game: GeneratedGame, index: number, total: number) => {
+    const base = (game.config.topic || game.title || 'Questions').trim();
+    return total > 1 ? `${base} ${index + 1}` : base;
+};
+
+const getInitialGroupNames = (game: GeneratedGame, targetType: GameType, count: number) => {
+    const fallback = Array.from({ length: count }, (_, index) => makeDefaultGroupName(game, index, count));
+    const existing = Array.from(
+        new Set(
+            flattenGameQuestions(game)
+                .map((question) => String(question.category || '').trim())
+                .filter(Boolean)
+        )
+    );
+    const labels = targetType === GameType.JEOPARDY ? 'Category' : 'Round';
+
+    return fallback.map((name, index) => existing[index] || name || `${labels} ${index + 1}`);
+};
+
+const CategoryFormatSetup: React.FC<{
+    sourceGame: GeneratedGame;
+    targetType: GameType.JEOPARDY | GameType.PUB_QUIZ;
+    onBack: () => void;
+    onStart: (groups: JeopardyCategory[]) => void;
+}> = ({ sourceGame, targetType, onBack, onStart }) => {
+    const questions = useMemo(() => flattenGameQuestions(sourceGame), [sourceGame]);
+    const isJeopardy = targetType === GameType.JEOPARDY;
+    const groupLabel = isJeopardy ? 'Category' : 'Round';
+    const groupLabelPlural = isJeopardy ? 'Categories' : 'Rounds';
+    const defaultGroupCount = Math.max(1, Math.min(isJeopardy ? 5 : 3, Math.floor(questions.length / (isJeopardy ? 4 : 5)) || 1));
+    const [groupCount, setGroupCount] = useState(defaultGroupCount);
+    const [questionsPerGroup, setQuestionsPerGroup] = useState(Math.max(1, Math.min(isJeopardy ? 5 : 8, Math.floor(questions.length / defaultGroupCount) || 1)));
+    const [groupNames, setGroupNames] = useState<string[]>(() => getInitialGroupNames(sourceGame, targetType, defaultGroupCount));
+    const [selectedQuestionIndexes, setSelectedQuestionIndexes] = useState<Set<number>>(() =>
+        new Set(questions.slice(0, defaultGroupCount * Math.max(1, Math.min(isJeopardy ? 5 : 8, Math.floor(questions.length / defaultGroupCount) || 1))).map((_, index) => index))
+    );
+    const [assignments, setAssignments] = useState<Record<number, number>>(() =>
+        Object.fromEntries(questions.map((_, index) => [index, index % defaultGroupCount]))
+    );
+
+    const totalNeeded = groupCount * questionsPerGroup;
+    const maxGroupCount = Math.max(1, Math.min(isJeopardy ? 6 : 6, questions.length));
+    const maxQuestionsPerGroup = Math.max(1, Math.min(isJeopardy ? 6 : 10, Math.floor(questions.length / groupCount) || 1));
+    const buildBalancedAssignments = (questionIndexes: number[]) =>
+        Object.fromEntries(
+            questionIndexes.map((questionIndex, position) => [
+                questionIndex,
+                Math.min(groupCount - 1, Math.floor(position / questionsPerGroup)),
+            ])
+        );
+
+    const applyBalancedSelection = (randomize = false) => {
+        const questionIndexes = questions.map((_, index) => index);
+        if (randomize) {
+            for (let index = questionIndexes.length - 1; index > 0; index -= 1) {
+                const swapIndex = Math.floor(Math.random() * (index + 1));
+                [questionIndexes[index], questionIndexes[swapIndex]] = [questionIndexes[swapIndex], questionIndexes[index]];
+            }
+        }
+
+        const selectedIndexes = questionIndexes.slice(0, totalNeeded);
+        setSelectedQuestionIndexes(new Set(selectedIndexes));
+        setAssignments((current) => ({
+            ...current,
+            ...buildBalancedAssignments(selectedIndexes),
+        }));
+    };
+
+    useEffect(() => {
+        setGroupNames((current) =>
+            Array.from({ length: groupCount }, (_, index) => current[index] || getInitialGroupNames(sourceGame, targetType, groupCount)[index])
+        );
+        setAssignments((current) => {
+            const next: Record<number, number> = {};
+            questions.forEach((_, index) => {
+                next[index] = Math.min(current[index] ?? index % groupCount, groupCount - 1);
+            });
+            return next;
+        });
+    }, [groupCount, questions, sourceGame, targetType]);
+
+    useEffect(() => {
+        if (questionsPerGroup <= maxQuestionsPerGroup) return;
+        setQuestionsPerGroup(maxQuestionsPerGroup);
+    }, [maxQuestionsPerGroup, questionsPerGroup]);
+
+    useEffect(() => {
+        applyBalancedSelection(false);
+    }, [groupCount, questions, questionsPerGroup, totalNeeded]);
+
+    const groupCounts = Array.from({ length: groupCount }, (_, groupIndex) =>
+        Array.from(selectedQuestionIndexes).filter((questionIndex) => assignments[questionIndex] === groupIndex).length
+    );
+    const selectedCount = selectedQuestionIndexes.size;
+    const hasEnoughQuestions = questions.length >= totalNeeded;
+    const countsAreReady = selectedCount === totalNeeded && groupCounts.every((count) => count === questionsPerGroup);
+    const canStart = hasEnoughQuestions && countsAreReady;
+
+    const toggleQuestion = (questionIndex: number) => {
+        const nextGroupIndex = groupCounts.findIndex((count) => count < questionsPerGroup);
+        setSelectedQuestionIndexes((current) => {
+            const next = new Set(current);
+            if (next.has(questionIndex)) {
+                next.delete(questionIndex);
+                return next;
+            }
+            if (next.size >= totalNeeded) return next;
+            next.add(questionIndex);
+            return next;
+        });
+        if (!selectedQuestionIndexes.has(questionIndex) && nextGroupIndex >= 0) {
+            setAssignments((current) => ({ ...current, [questionIndex]: nextGroupIndex }));
+        }
+    };
+
+    const updateAssignment = (questionIndex: number, groupIndex: number) => {
+        setAssignments((current) => ({ ...current, [questionIndex]: groupIndex }));
+        setSelectedQuestionIndexes((current) => new Set(current).add(questionIndex));
+    };
+
+    const buildGroups = (): JeopardyCategory[] =>
+        Array.from({ length: groupCount }, (_, groupIndex) => ({
+            name: groupNames[groupIndex]?.trim() || `${groupLabel} ${groupIndex + 1}`,
+            questions: questions
+                .map((question, questionIndex) => ({ question, questionIndex }))
+                .filter(({ questionIndex }) => selectedQuestionIndexes.has(questionIndex) && assignments[questionIndex] === groupIndex)
+                .slice(0, questionsPerGroup)
+                .map(({ question }, questionIndex) => ({
+                    ...question,
+                    id: questionIndex,
+                    category: groupNames[groupIndex]?.trim() || `${groupLabel} ${groupIndex + 1}`,
+                    points: isJeopardy ? (questionIndex + 1) * 100 : question.points || 1,
+                    isBonus: false,
+                })),
+        }));
+
+    return (
+        <div className="min-h-screen bg-slate-50 px-4 py-8">
+            <div className="mx-auto max-w-6xl">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="mb-6 inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
+                >
+                    <ArrowLeft size={16} className="mr-2" /> Back to Games
+                </button>
+
+                <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+                    <p className="mb-2 text-sm font-black uppercase tracking-wide text-brand-blue">{targetType}</p>
+                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">Set up {groupLabelPlural.toLowerCase()}</h1>
+                    <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
+                        Choose the layout, name each {groupLabel.toLowerCase()}, then assign exactly {questionsPerGroup} question{questionsPerGroup === 1 ? '' : 's'} to each one.
+                    </p>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+                    <div className="space-y-5">
+                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">Layout</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{groupLabelPlural}</label>
+                                    <select
+                                        value={groupCount}
+                                        onChange={(event) => setGroupCount(Number(event.target.value))}
+                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    >
+                                        {Array.from({ length: maxGroupCount }, (_, index) => index + 1).map((count) => (
+                                            <option key={count} value={count}>{count}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Questions per {groupLabel.toLowerCase()}</label>
+                                    <select
+                                        value={questionsPerGroup}
+                                        onChange={(event) => setQuestionsPerGroup(Number(event.target.value))}
+                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    >
+                                        {Array.from({ length: maxQuestionsPerGroup }, (_, index) => index + 1).map((count) => (
+                                            <option key={count} value={count}>{count}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
+                                    Need {totalNeeded} questions. {selectedCount} selected.
+                                </div>
+                                {!hasEnoughQuestions && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-600">
+                                        Not enough selected questions for this layout. Go back to Preview and select more questions.
+                                    </div>
+                                )}
+                                {hasEnoughQuestions && !countsAreReady && (
+                                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-700">
+                                        Each {groupLabel.toLowerCase()} needs exactly {questionsPerGroup} question{questionsPerGroup === 1 ? '' : 's'}.
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+
+                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">{groupLabel} names</h2>
+                            <div className="space-y-3">
+                                {Array.from({ length: groupCount }, (_, groupIndex) => (
+                                    <div key={groupIndex}>
+                                        <label className="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">
+                                            {groupLabel} {groupIndex + 1} ({groupCounts[groupIndex]}/{questionsPerGroup})
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={groupNames[groupIndex] || ''}
+                                            onChange={(event) => {
+                                                const next = [...groupNames];
+                                                next[groupIndex] = event.target.value;
+                                                setGroupNames(next);
+                                            }}
+                                            className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+
+                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <h2 className="font-display text-xl font-black text-slate-900">Questions</h2>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => applyBalancedSelection(true)}
+                                    disabled={!hasEnoughQuestions}
+                                    className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Shuffle size={16} className="mr-2" /> Random fill
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onStart(buildGroups())}
+                                    disabled={!canStart}
+                                    className="inline-flex items-center rounded-xl bg-brand-blue px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <Play size={16} className="mr-2" fill="currentColor" /> Continue
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="max-h-[720px] space-y-3 overflow-y-auto pr-1">
+                            {questions.map((question: GeneratedQuestion, questionIndex) => {
+                                const isSelected = selectedQuestionIndexes.has(questionIndex);
+                                const selectedLimitReached = !isSelected && selectedCount >= totalNeeded;
+                                return (
+                                    <div
+                                        key={questionIndex}
+                                        className={`rounded-xl border p-3 transition-colors ${
+                                            isSelected ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-white'
+                                        }`}
+                                    >
+                                        <div className="grid gap-3 md:grid-cols-[auto_minmax(0,1fr)_220px] md:items-start">
+                                            <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    disabled={selectedLimitReached}
+                                                    onChange={() => toggleQuestion(questionIndex)}
+                                                    className="h-4 w-4 rounded border-slate-300 text-brand-blue"
+                                                />
+                                                {questionIndex + 1}
+                                            </label>
+                                            <div className="min-w-0">
+                                                <p className="break-words text-sm font-semibold leading-6 text-slate-700">
+                                                    {question.question || 'Untitled question'}
+                                                </p>
+                                                <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-400">
+                                                    Answer: {question.answer || 'No answer saved'}
+                                                </p>
+                                            </div>
+                                            <select
+                                                value={assignments[questionIndex] ?? 0}
+                                                onChange={(event) => updateAssignment(questionIndex, Number(event.target.value))}
+                                                className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue disabled:opacity-50"
+                                            >
+                                                {Array.from({ length: groupCount }, (_, groupIndex) => (
+                                                    <option key={groupIndex} value={groupIndex}>
+                                                        {groupNames[groupIndex] || `${groupLabel} ${groupIndex + 1}`}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Robust Card Component handles Image Errors Gracefully
 const GameCard: React.FC<{ 
@@ -1314,8 +1698,9 @@ const GameHub: React.FC<{
 export const Games: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'editor' | 'setup' | 'play'>('hub');
+    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'choose-format' | 'format-setup' | 'editor' | 'setup' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
+    const [pendingFormatType, setPendingFormatType] = useState<GameType.JEOPARDY | GameType.PUB_QUIZ | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
     const [generatedGame, setGeneratedGame] = useState<GeneratedGame | null>(null);
     const [sessionGame, setSessionGame] = useState<GeneratedGame | null>(null);
@@ -1541,6 +1926,76 @@ export const Games: React.FC = () => {
         } else {
              setStep('setup');
         }
+    };
+
+    const handlePreviewPlayAsDifferent = (gameToConvert: GeneratedGame) => {
+        setSessionGame(gameToConvert);
+        setPlayReturnStep('preview');
+        setIsDirty(false);
+        setStep('choose-format');
+    };
+
+    const handleCompatibleGameSelect = (targetType: GameType) => {
+        const sourceGame = sessionGame || generatedGame;
+        if (!sourceGame) return;
+
+        if (targetType === GameType.JEOPARDY || targetType === GameType.PUB_QUIZ) {
+            setPendingFormatType(targetType);
+            setSelectedType(targetType);
+            setStep('format-setup');
+            return;
+        }
+
+        const converted = convertGameForTemporaryPlay(sourceGame, targetType);
+        if (!converted) {
+            alert('This question set cannot be used with that game yet.');
+            return;
+        }
+
+        setSessionGame(converted);
+        setSelectedType(targetType);
+        setPlayReturnStep('preview');
+
+        if (converted.config.type === GameType.LIVE_QUIZ_CHALLENGE) {
+            if (!user) {
+                promptSignupForFree('Create a free account on the Teacher Plan to host live quiz challenges.');
+                return;
+            }
+            setLiveQuizSelectedItems([]);
+            return;
+        }
+
+        if (converted.config.type === GameType.MILLIONAIRE) {
+            setPlayOptions({
+                players: 1,
+                timerSeconds: 0,
+                enableBonuses: false,
+                strictMode: false,
+                muted: false
+            });
+            trackStartedGame(sourceGame);
+            setStep('play');
+            return;
+        }
+
+        setStep('setup');
+    };
+
+    const handleCategoryFormatStart = (groups: JeopardyCategory[]) => {
+        const sourceGame = sessionGame || generatedGame;
+        if (!sourceGame || !pendingFormatType) return;
+
+        const converted = convertGameForTemporaryPlay(sourceGame, pendingFormatType, { groups });
+        if (!converted) {
+            alert('This question set cannot be used with that game yet.');
+            return;
+        }
+
+        setSessionGame(converted);
+        setSelectedType(pendingFormatType);
+        setPlayReturnStep('preview');
+        setPendingFormatType(null);
+        setStep('setup');
     };
 
     const handleEditorLiveQuiz = (updatedGame: GeneratedGame) => {
@@ -1996,10 +2451,28 @@ export const Games: React.FC = () => {
                     onBack={() => setStep('hub')}
                     onEdit={handlePreviewEdit}
                     onPlay={handlePreviewPlay}
+                    onPlayAsDifferent={handlePreviewPlayAsDifferent}
                     onSave={handlePreviewSave}
                     onShare={handlePreviewShare}
                     onStudentShare={handlePreviewStudentShare}
                     onLiveQuiz={handlePreviewLiveQuiz}
+                />
+            )}
+
+            {step === 'choose-format' && (sessionGame || generatedGame) && (
+                <CompatibleGameChooser
+                    sourceGame={sessionGame || generatedGame!}
+                    onBack={() => setStep('preview')}
+                    onSelect={handleCompatibleGameSelect}
+                />
+            )}
+
+            {step === 'format-setup' && (sessionGame || generatedGame) && pendingFormatType && (
+                <CategoryFormatSetup
+                    sourceGame={sessionGame || generatedGame!}
+                    targetType={pendingFormatType}
+                    onBack={() => setStep('choose-format')}
+                    onStart={handleCategoryFormatStart}
                 />
             )}
             
