@@ -1,7 +1,69 @@
 const isAllowedImageHost = (host: string): boolean => /(^|\.)pixabay\.com$/i.test(host);
 
-const normalizeTargetUrl = (value: string): URL | null => {
+type ImageFetchResult =
+  | { ok: true; contentType: string; bytes: Buffer }
+  | { ok: false; status: number; error: string };
+
+const decodeIfEncoded = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const coerceLikelyPixabayUrl = (value: string): string | null => {
   const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  if (/^\/?get\//i.test(raw)) {
+    const path = raw.startsWith('/') ? raw : `/${raw}`;
+    return `https://pixabay.com${path}`;
+  }
+
+  if (/^\/\/[^/]+/i.test(raw)) {
+    return `https:${raw}`.replace(/^http:\/\//i, 'https://');
+  }
+
+  if (/^(?:[a-z0-9-]+\.)*pixabay\.com\//i.test(raw)) {
+    return `https://${raw}`.replace(/^http:\/\//i, 'https://');
+  }
+
+  return null;
+};
+
+const extractPixabayUrl = (value: string, depth = 0): string | null => {
+  if (depth > 5) return null;
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const hinted = coerceLikelyPixabayUrl(raw);
+  if (hinted) return hinted;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    const decoded = decodeIfEncoded(raw);
+    return decoded !== raw ? extractPixabayUrl(decoded, depth + 1) : null;
+  }
+
+  if (isAllowedImageHost(parsed.hostname)) {
+    parsed.protocol = 'https:';
+    return parsed.toString();
+  }
+
+  if (parsed.pathname.startsWith('/api/stock-image-proxy') || parsed.hostname.toLowerCase() === 'images.weserv.nl') {
+    const nested = parsed.searchParams.get('url');
+    if (!nested) return null;
+    return extractPixabayUrl(nested, depth + 1);
+  }
+
+  return null;
+};
+
+const normalizeTargetUrl = (value: string): URL | null => {
+  const raw = extractPixabayUrl(String(value || '')) || String(value || '').trim();
   if (!raw) return null;
   try {
     const parsed = new URL(raw);
@@ -19,10 +81,7 @@ const buildWeservFallbackUrl = (target: URL): URL => {
   return fallback;
 };
 
-const fetchImage = async (target: URL): Promise<
-  | { ok: true; contentType: string; bytes: Buffer }
-  | { ok: false; status: number; error: string }
-> => {
+const fetchImage = async (target: URL): Promise<ImageFetchResult> => {
   const upstream = await fetch(target.toString(), { method: 'GET', redirect: 'follow' });
   if (!upstream.ok) {
     return { ok: false, status: upstream.status, error: `Image fetch failed (${upstream.status})` };
@@ -46,6 +105,8 @@ const fetchImageWithFallback = async (target: URL) => {
 
   return direct;
 };
+
+const isFetchError = (result: ImageFetchResult): result is Extract<ImageFetchResult, { ok: false }> => !result.ok;
 
 export default async function handler(req: any, res: any) {
   const origin = req.headers.origin || '*';
@@ -75,7 +136,7 @@ export default async function handler(req: any, res: any) {
   try {
     const primary = await fetchImageWithFallback(target);
 
-    if (!primary.ok && fallbackTarget) {
+    if (isFetchError(primary) && fallbackTarget) {
       const fallback = await fetchImageWithFallback(fallbackTarget);
       if (fallback.ok) {
         res.setHeader('Content-Type', fallback.contentType);
@@ -87,7 +148,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    if (!primary.ok) {
+    if (isFetchError(primary)) {
       res.status(primary.status).json({ error: primary.error });
       return;
     }

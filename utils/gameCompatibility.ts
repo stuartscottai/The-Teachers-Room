@@ -16,6 +16,7 @@ const SIMPLE_QUESTION_GAME_TYPES: GameType[] = [
   GameType.TIME_BOMB,
   GameType.DARTS,
   GameType.MILLIONAIRE,
+  GameType.BLOCK_BEATERS,
   GameType.LIVE_QUIZ_CHALLENGE,
 ];
 
@@ -122,6 +123,8 @@ const normalizeQuestionsForTarget = (questions: GeneratedQuestion[], targetType:
         ? question.points || 1000
         : targetType === GameType.WORD_WHEEL
           ? 10
+          : targetType === GameType.BLOCK_BEATERS
+            ? 10
           : question.points || 100,
     isBonus: false,
   }));

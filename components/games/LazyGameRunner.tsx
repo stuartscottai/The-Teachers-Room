@@ -19,6 +19,7 @@ const SurveyShowdownGame = lazy(() => import('./SurveyShowdownGame').then(({ Sur
 const TimeBombGame = lazy(() => import('./TimeBombGame').then(({ TimeBombGame }) => ({ default: TimeBombGame })));
 const TriviaGame = lazy(() => import('./TriviaGame').then(({ TriviaGame }) => ({ default: TriviaGame })));
 const WordWheelGame = lazy(() => import('./WordWheelGame').then(({ WordWheelGame }) => ({ default: WordWheelGame })));
+const BlockBeatersGame = lazy(() => import('./BlockBeatersGame').then(({ BlockBeatersGame }) => ({ default: BlockBeatersGame })));
 
 const GameLoading: React.FC = () => (
   <div className="min-h-[50vh] flex items-center justify-center px-6 text-center">
@@ -56,6 +57,8 @@ const LazyGameRunnerInner: React.FC<GameRunnerProps> = (props) => {
       return <TriviaGame {...props} />;
     case GameType.WORD_WHEEL:
       return <WordWheelGame {...props} />;
+    case GameType.BLOCK_BEATERS:
+      return <BlockBeatersGame {...props} />;
     default:
       return null;
   }

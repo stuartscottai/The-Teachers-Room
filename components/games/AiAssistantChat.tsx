@@ -32,6 +32,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [generatingSuggestionId, setGeneratingSuggestionId] = useState<string | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const MIN_AI_QUESTION_COUNT = 25;
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
@@ -169,7 +170,10 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         });
     };
 
-    const handleCreateGame = async (suggestion: WizardSuggestion) => {
+    const getSuggestionId = (suggestion: WizardSuggestion, index: number) =>
+        `${suggestion.type}-${suggestion.title || ''}-${suggestion.topic || ''}-${index}`;
+
+    const handleCreateGame = async (suggestion: WizardSuggestion, suggestionId: string) => {
         if (!user) {
             promptSignupForFree('Create a free account on the Teacher Plan to start creating and saving games.');
             return;
@@ -179,6 +183,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
             return;
         }
         setIsGenerating(true);
+        setGeneratingSuggestionId(suggestionId);
         try {
             const { reason: _reason, ...configFromSuggestion } = suggestion as WizardSuggestion & { reason?: string };
             const normalizedTopic = String(configFromSuggestion.topic || '').trim() || 'General';
@@ -199,6 +204,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
             console.error("Generation failed", error);
             alert(error instanceof Error ? error.message : "Failed to generate the game. Please try again or create manually.");
             setIsGenerating(false);
+            setGeneratingSuggestionId(null);
         }
     };
 
@@ -252,7 +258,11 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
 
                                     return (
                                         <div className="mt-3 space-y-3">
-                                            {suggestionList.map((suggestion, index) => (
+                                            {suggestionList.map((suggestion, index) => {
+                                                const suggestionId = getSuggestionId(suggestion, index);
+                                                const isThisSuggestionGenerating = generatingSuggestionId === suggestionId;
+
+                                                return (
                                                 <div key={`${msg.id}-${suggestion.type}-${index}`} className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 shadow-md">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <img
@@ -274,18 +284,19 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                         <p className="text-xs text-slate-600 mb-3">{suggestion.reason}</p>
                                                     )}
                                                     <button
-                                                        onClick={() => handleCreateGame(suggestion)}
+                                                        onClick={() => handleCreateGame(suggestion, suggestionId)}
                                                         disabled={isGenerating}
                                                         className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center"
                                                     >
-                                                        {isGenerating ? (
+                                                        {isThisSuggestionGenerating ? (
                                                             <><Loader2 size={16} className="animate-spin mr-2" /> Creating...</>
                                                         ) : (
                                                             <>Generate This Game <ArrowRight size={16} className="ml-2" /></>
                                                         )}
                                                     </button>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     );
                                 })()}

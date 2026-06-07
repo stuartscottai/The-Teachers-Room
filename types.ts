@@ -10,6 +10,7 @@ export enum GameType {
   SURVEY_SHOWDOWN = 'Survey Showdown',
   STOP_THE_FIRE = 'Stop the Fire!',
   WORD_WHEEL = 'Word Wheel',
+  BLOCK_BEATERS = 'Block Beaters',
   LIVE_QUIZ_CHALLENGE = 'Live Quiz Challenge'
 }
 
@@ -49,6 +50,9 @@ export interface GameConfig {
   // Word Wheel specific
   wordWheelScoringMode?: 'classic' | 'speed-bonus';
   wordWheelLetterRule?: 'starts-with' | 'contains-hard';
+  // Block Beaters specific
+  blockBeatersMode?: 'letters' | 'numbers';
+  blockBeatersBoardSize?: 'small' | 'medium' | 'large';
   // Stop the Fire specific
   stopTheFireMode?: 'manual' | 'bank' | 'ai';
   stopTheFireCategories?: string[];
@@ -109,6 +113,11 @@ export interface GameRunOptions {
   // Word Wheel
   wordWheelScoringMode?: 'classic' | 'speed-bonus';
   wordWheelLetterRule?: 'starts-with' | 'contains-hard';
+  // Block Beaters
+  blockBeatersMode?: 'letters' | 'numbers';
+  blockBeatersBoardSize?: 'small' | 'medium' | 'large';
+  blockBeatersPoints?: number;
+  blockBeatersSteals?: boolean;
   studentPractice?: boolean;
 }
 

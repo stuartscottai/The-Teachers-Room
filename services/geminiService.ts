@@ -15,6 +15,7 @@ export type WizardSuggestion = Partial<GameConfig> & {
 
 export interface ChatWizardResponse {
   message: string;
+  needsInput?: boolean;
   suggestion?: WizardSuggestion;
   suggestions?: WizardSuggestion[];
 }
@@ -134,6 +135,7 @@ const WIZARD_REASON_BY_TYPE: Record<GameType, string> = {
   [GameType.SURVEY_SHOWDOWN]: 'Best for prediction, speaking, and collaborative discussion around likely answers.',
   [GameType.STOP_THE_FIRE]: 'Great for rapid lexical retrieval across categories with strong pace and engagement.',
   [GameType.WORD_WHEEL]: 'Ideal for definitions, glossary terms, key vocabulary, and precise term recall.',
+  [GameType.BLOCK_BEATERS]: 'Best for strategic recall where teams claim hex tiles and race to connect a path.',
   [GameType.LIVE_QUIZ_CHALLENGE]: 'Best for whole-class live checks where every learner answers each question on their device.'
 };
 
@@ -148,6 +150,7 @@ const WIZARD_TITLE_BY_TYPE: Record<GameType, string> = {
   [GameType.SURVEY_SHOWDOWN]: 'Prediction and Discussion Showdown',
   [GameType.STOP_THE_FIRE]: 'Category Sprint Challenge',
   [GameType.WORD_WHEEL]: 'A-Z Vocabulary Wheel',
+  [GameType.BLOCK_BEATERS]: 'Hex Path Quiz Challenge',
   [GameType.LIVE_QUIZ_CHALLENGE]: 'Live Quiz Challenge'
 };
 
@@ -189,12 +192,50 @@ const getKeywordRecommendationOrder = (message: string): GameType[] => {
     return [GameType.SNAKES_LADDERS, GameType.TRIVIA, GameType.WORD_WHEEL];
   }
 
-  return [GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.WORD_WHEEL, GameType.PUB_QUIZ];
+  return [GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS, GameType.PUB_QUIZ];
 };
 
 const normalizeQuestionType = (value: unknown): GameConfig['questionType'] | undefined => {
   const asString = String(value || '').trim() as GameConfig['questionType'];
   return QUESTION_TYPES.includes(asString) ? asString : undefined;
+};
+
+const stripGenericWizardWords = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/\b(game|games|exam|test|assessment|students?|class|classes|help|difficulty|difficulties|struggled|struggle|wrong|mistakes?|review|revise|revision|practice|create|make|set up|setup|quiz)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const hasSpecificLearningContent = (value: string): boolean => {
+  const text = String(value || '').toLowerCase();
+  if (/\b(uploaded|attached|pasted|questions?|content|paper|worksheet|notes?|text|passage|source material)\b/.test(text)) return true;
+  if (/\b(on|about|covering|covered|topic|unit|chapter|lesson)\b.{3,}/.test(text)) return true;
+  if (/\b(grammar|vocabulary|phonics|reading|writing|fractions?|algebra|geometry|biology|chemistry|physics|history|geography|literature|poetry|shakespeare|photosynthesis|equations?|tenses?|verbs?|nouns?)\b/.test(text)) return true;
+  return stripGenericWizardWords(text).length >= 30;
+};
+
+const getUserHistoryText = (history: { role: string; text: string }[]) =>
+  history
+    .filter((entry) => entry.role !== 'ai')
+    .map((entry) => entry.text)
+    .join('\n');
+
+const getWizardClarification = (message: string, history: { role: string; text: string }[] = []): ChatWizardResponse | null => {
+  const current = String(message || '').trim();
+  const combined = `${getUserHistoryText(history)}\n${current}`.trim();
+  const lower = current.toLowerCase();
+
+  const asksForGameHelp = /\b(game|quiz|activity|assistant|recommend|choose|create|make|set up|setup|students?|class|lesson|exam|test|assessment|review|revision|practice|difficulties|struggled|mistakes?)\b/.test(lower);
+  if (asksForGameHelp && !hasSpecificLearningContent(combined)) {
+    return {
+      needsInput: true,
+      message: "What content should the game be based on? Tell me the topic, class level, and the exact questions, vocabulary, skills, or mistakes students need to practise."
+    };
+  }
+
+  return null;
 };
 
 const normalizeWizardSuggestion = (raw: any, topicFallback: string): WizardSuggestion | null => {
@@ -257,6 +298,19 @@ const normalizeWizardResponse = (raw: any, userMessage: string): ChatWizardRespo
   const candidates: any[] = [];
   if (raw?.suggestion) candidates.push(raw.suggestion);
   if (Array.isArray(raw?.suggestions)) candidates.push(...raw.suggestions);
+  const rawNeedsInput = raw?.needsInput === true || raw?.needs_input === true;
+
+  if (rawNeedsInput || candidates.length === 0) {
+    const safeClarification =
+      typeof raw?.message === 'string' && raw.message.trim().length
+        ? raw.message.trim()
+        : 'Tell me the topic, class level, and the exact content students need to practise, then I can recommend a game.';
+
+    return {
+      message: safeClarification,
+      needsInput: true
+    };
+  }
 
   const suggestions: WizardSuggestion[] = [];
   const seenTypes = new Set<GameType>();
@@ -278,7 +332,7 @@ const normalizeWizardResponse = (raw: any, userMessage: string): ChatWizardRespo
     seenTypes.add(type);
   }
 
-  const universalFallback: GameType[] = [GameType.WORD_WHEEL, GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.PUB_QUIZ];
+  const universalFallback: GameType[] = [GameType.WORD_WHEEL, GameType.BLOCK_BEATERS, GameType.TRIVIA, GameType.LIVE_QUIZ_CHALLENGE, GameType.JEOPARDY, GameType.PUB_QUIZ];
   for (const type of universalFallback) {
     if (suggestions.length >= 3) break;
     if (seenTypes.has(type)) continue;
@@ -293,6 +347,7 @@ const normalizeWizardResponse = (raw: any, userMessage: string): ChatWizardRespo
 
   return {
     message: safeMessage,
+    needsInput: false,
     suggestion: suggestions[0],
     suggestions: suggestions.slice(0, 3)
   };
@@ -656,6 +711,78 @@ const normalizeWordWheelQuestions = (
   });
 };
 
+const normalizeBlockBeatersQuestions = (
+  rawQuestions: any[],
+  mode: 'letters' | 'numbers' = 'letters'
+): GeneratedQuestion[] => {
+  const normalizeLetter = (value: any): string =>
+    String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+  const formatLetterClue = (question: string, answer: string, letter: string) => {
+    const clean = String(question || '').trim().replace(/\s+/g, ' ');
+    if (!letter || !clean) return clean;
+    const hasBlank = /_{2,}|-{3,}|\.{3,}|\[\s*blank\s*\]|\(\s*blank\s*\)/i.test(clean);
+    const startsCorrectly = new RegExp(`^what\\s+${letter}\\s+is\\b`, 'i').test(clean);
+    if (startsCorrectly && !hasBlank) return clean;
+    const lowerAnswer = String(answer || '').trim().toLowerCase();
+    const answerWords = lowerAnswer
+      .split(/\s+/)
+      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .filter(Boolean);
+    const answerPattern = answerWords.length ? new RegExp(`\\b(?:${answerWords.join('|')})\\b`, 'ig') : null;
+    const withoutAnswer = answerPattern
+      ? clean.replace(answerPattern, 'the answer').trim()
+      : clean;
+    const clueText = withoutAnswer
+      .replace(new RegExp(`^what\\s+${letter}\\s+is\\s*`, 'i'), '')
+      .replace(/_{2,}|-{3,}|\.{3,}|\[\s*blank\s*\]|\(\s*blank\s*\)/gi, 'the answer')
+      .replace(/\bthe answer\b\s+\bthe answer\b/gi, 'the answer')
+      .replace(/\s+/g, ' ')
+      .replace(/\?+$/g, '')
+      .trim();
+    if (hasBlank && clueText) {
+      return `What ${letter} is the answer to this clue: ${clueText.charAt(0).toLowerCase()}${clueText.slice(1)}?`;
+    }
+    const noQuestionMark = clueText || withoutAnswer.replace(/\?+$/g, '').trim();
+    const whichNounMatch = noQuestionMark.match(/^which\s+([a-z][a-z-]*)\s+(.+)$/i);
+    if (whichNounMatch && !/^of$/i.test(whichNounMatch[1])) {
+      return `What ${letter} is a ${whichNounMatch[1].toLowerCase()} which ${whichNounMatch[2]}?`;
+    }
+    const whichMatch = noQuestionMark.match(/^which\s+(.+)$/i);
+    if (whichMatch) {
+      return `What ${letter} is ${whichMatch[1]}?`;
+    }
+    const whatIsMatch = noQuestionMark.match(/^what\s+is\s+(.+)$/i);
+    if (whatIsMatch) {
+      return `What ${letter} is ${whatIsMatch[1]}?`;
+    }
+    return `What ${letter} is ${noQuestionMark.charAt(0).toLowerCase()}${noQuestionMark.slice(1)}?`;
+  };
+
+  return (rawQuestions || []).map((q: any, index) => {
+    const answer = String(q?.answer || '').trim();
+    const answerLetter = normalizeLetter(answer);
+    const savedLetter = normalizeLetter(q?.letter);
+    const invalidLetterAnswer = mode === 'letters' && !answerLetter;
+    const letter = mode === 'letters'
+      ? (answerLetter || savedLetter || WORD_WHEEL_LETTERS[index % WORD_WHEEL_LETTERS.length])
+      : undefined;
+
+    return {
+      ...q,
+      id: index,
+      letter,
+      question: invalidLetterAnswer ? '' : mode === 'letters' ? formatLetterClue(String(q?.question || '').trim(), answer, letter || answerLetter) : String(q?.question || '').trim(),
+      answer: invalidLetterAnswer ? '' : answer,
+      points: 10,
+      isBonus: false,
+      options: mode === 'letters' ? undefined : q?.options,
+      answerAliases: invalidLetterAnswer ? [] : Array.isArray(q?.answerAliases)
+        ? q.answerAliases.map((value: any) => String(value || '').trim()).filter(Boolean).slice(0, 8)
+        : [],
+    };
+  });
+};
+
 export const generateStopTheFireCategories = async (config: GameConfig): Promise<string[]> => {
   const external = await tryExternalApi<{ categories: string[] }>({ action: 'stop-the-fire-categories', config });
   if (external?.categories) return external.categories;
@@ -995,6 +1122,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
             external.questions || [],
             (config.wordWheelLetterRule || 'contains-hard') as WordWheelLetterRule
           )
+        : config.type === GameType.BLOCK_BEATERS
+          ? normalizeBlockBeatersQuestions(external.questions || [], config.blockBeatersMode || 'letters')
         : (external.questions || []);
     const hydrated = await hydrateGameAutoImages(
       {
@@ -1023,6 +1152,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   const isTimeBomb = config.type === GameType.TIME_BOMB;
   const isSurvey = config.type === GameType.SURVEY_SHOWDOWN;
   const isWordWheel = config.type === GameType.WORD_WHEEL;
+  const isBlockBeaters = config.type === GameType.BLOCK_BEATERS;
   const isLiveQuiz = config.type === GameType.LIVE_QUIZ_CHALLENGE;
   const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
 
@@ -1274,6 +1404,59 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
         required: ["title", "questions"]
       };
 
+  } else if (isBlockBeaters) {
+      const blockMode = config.blockBeatersMode || 'letters';
+      const qTypeInstruction = blockMode === 'letters'
+          ? 'Open-ended typed clues only'
+          : getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
+      const mcInstruction = blockMode === 'letters' ? '' : getGameMcInstruction(config);
+
+      prompt = `
+      Create a classroom "Block Beaters" game titled "${gameTitle}" about "${config.topic}".
+      Generate exactly ${config.questionCount || 48} questions.
+
+      GAME CONTENT MODE: ${blockMode === 'letters' ? 'Letters' : 'Numbers'}.
+      Question Style: ${qTypeInstruction}.${mcInstruction}
+
+      CRITICAL RULES:
+      1. Use points=10 for every question.
+      2. Do not create bonus questions; the board handles bonuses separately.
+      3. Questions are drawn from a shared queue during play. Do not try to map questions to specific tile numbers.
+      ${blockMode === 'letters' ? `
+      4. Include a "letter" field for every question using one uppercase English letter.
+      5. The answer must start with that exact letter. Do not assign letters alphabetically unless the answer truly starts with that letter.
+      6. Every question must be a complete clue using exactly this style: "What [LETTER] is [a definition or description]?"
+      7. NEVER use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.
+         Bad: "What W is athletes typically _____ up before a workout?"
+         Good: "What W is a short preparation activity athletes do before strenuous exercise?"
+      8. Do not include the answer word in the question text, except for the single starting-letter marker after "What".
+         Bad: answer "Warm-up", question "What W is something athletes do to warm up?"
+         Good: answer "Warm-up", question "What W is a short preparation activity athletes do before strenuous exercise?"
+      9. Prefer natural noun/term answers, including short phrases when needed, as long as the first word starts with the assigned letter.
+         Example: letter F, answer "Fencing", question "What F is a sport which uses a foil, epee, or sabre?"
+         Example: letter W, answer "Warm-up", question "What W is a short preparation activity athletes do before strenuous exercise?"
+      10. Do not write generic wording like "Which sport uses...?" in letters mode.
+      11. Add "answerAliases" with 0-4 accepted alternatives/spellings where useful.
+      12. Do NOT include multiple-choice options in letters mode.
+      13. Spread letters across the alphabet as evenly as possible.
+      14. Generate the requested number of questions exactly.
+      15. Do not use numeric-only answers, dates, or answers that start with a digit. Rewrite those questions so the correct answer is a word beginning with the assigned letter.` : `
+      4. Do not include a "letter" requirement.
+      5. Multiple-choice questions must have one correct answer and the answer must exactly match one option.
+      6. Keep questions short enough for a projected game card.`}
+
+      Custom Instructions: ${config.customInstructions || "None"}.
+      `;
+
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING },
+            questions: { type: Type.ARRAY, items: questionSchema }
+        },
+        required: ["title", "questions"]
+      };
+
   } else {
     // Standard Game
     const qTypeInstruction = isLiveQuiz
@@ -1387,7 +1570,9 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
           data.questions || [],
           (config.wordWheelLetterRule || 'contains-hard') as WordWheelLetterRule
         )
-      : (data.questions || []);
+      : isBlockBeaters
+        ? normalizeBlockBeatersQuestions(data.questions || [], config.blockBeatersMode || 'letters')
+        : (data.questions || []);
 
     const hydrated = await hydrateGameAutoImages(
       {
@@ -2101,6 +2286,9 @@ If source files are attached, base requested content on those documents instead 
 };
 
 export const chatWithGameWizard = async (message: string, history: {role: string, text: string}[]): Promise<ChatWizardResponse> => {
+    const clarification = getWizardClarification(message, history);
+    if (clarification) return clarification;
+
     const external = await tryExternalApi<ChatWizardResponse>({
         action: 'chat_wizard',
         message,
@@ -2128,6 +2316,9 @@ export const chatWithGameWizard = async (message: string, history: {role: string
 
     BEHAVIOR:
     - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions (e.g. "What topic? What grade? Do they like competition?").
+    - If the teacher has not provided the actual content for the game, ask for it first. Ask for the topic, class level, and the exact questions, vocabulary, skills, source text, or mistakes students need to practise.
+    - Only return suggestions when you have enough lesson content to make the game relevant.
+    - When you need more information, return {"needsInput": true, "message": "..."} and omit suggestion/suggestions.
     - If the user gives enough info, provide 2 or 3 ranked recommendations so the teacher can choose.
     - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
     - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
@@ -2163,6 +2354,7 @@ export const chatWithGameWizard = async (message: string, history: {role: string
                 type: Type.OBJECT,
                 properties: {
                     message: { type: Type.STRING },
+                    needsInput: { type: Type.BOOLEAN },
                     suggestion: {
                         type: Type.OBJECT,
                         nullable: true,

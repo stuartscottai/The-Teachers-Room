@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { GameType, GeneratedGame, GeneratedQuestion, GameRunOptions, JeopardyCategory } from '../types';
-import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon, Shuffle } from 'lucide-react';
+import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon, Shuffle, Hexagon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { createSelectedStudentGameShare, deleteSavedGame, gameHasQuestionImages, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
@@ -107,6 +107,9 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
         "/assets/games/wordwheel.png",
         "/assets/games/wordwheel1.png",
         "/assets/games/wordwheel2.png"
+    ],
+    [GameType.BLOCK_BEATERS]: [
+        "/assets/games/blockbeaters.png"
     ],
     [GameType.LIVE_QUIZ_CHALLENGE]: [
         "/assets/games/livequiz.png",
@@ -539,8 +542,9 @@ const GameCard: React.FC<{
         setVisibleFrameIndex(0);
     }, [game.image]);
 
-    const getImageClassName = (frameIsPreview: boolean, isVisible: boolean) =>
-        `${frameIsPreview ? 'absolute top-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2' : 'absolute inset-0 w-full h-full object-cover group-hover:scale-110'} transition-[opacity,transform] duration-[1200ms] ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`;
+    const getImageClassName = (frameIsPreview: boolean, isVisible: boolean) => {
+        return `${frameIsPreview ? 'absolute top-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2' : 'absolute inset-0 w-full h-full object-cover group-hover:scale-110'} transition-[opacity,transform] duration-[1200ms] ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`;
+    };
 
     return (
         <button 
@@ -618,6 +622,7 @@ const getIcon = (type: string) => {
         case GameType.SURVEY_SHOWDOWN: return <List size={18} />;
         case GameType.STOP_THE_FIRE: return <Flame size={18} />;
         case GameType.WORD_WHEEL: return <RefreshCw size={18} />;
+        case GameType.BLOCK_BEATERS: return <Hexagon size={18} />;
         case GameType.LIVE_QUIZ_CHALLENGE: return <GraduationCap size={18} />;
         default: return <Dice5 size={18} />;
     }
@@ -1547,6 +1552,14 @@ const GameHub: React.FC<{
             image: getGameThumbnails(GameType.WORD_WHEEL)[0],
             previewImages: getGameThumbnails(GameType.WORD_WHEEL).slice(1),
             color: "bg-teal-600"
+        },
+        {
+            type: GameType.BLOCK_BEATERS,
+            icon: <Hexagon size={24} />,
+            desc: "Claim hex tiles, steal blocks, and complete a path before the final question.",
+            image: getGameThumbnails(GameType.BLOCK_BEATERS)[0],
+            previewImages: getGameThumbnails(GameType.BLOCK_BEATERS).slice(1),
+            color: "bg-[#0f766e]"
         },
         { 
             type: GameType.PUB_QUIZ, 

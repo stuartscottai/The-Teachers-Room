@@ -908,6 +908,30 @@ export const buildExternalLlmGamePrompt = (
         ? 'For Q, V, X, Y, Z the answer may contain the letter; for all other letters the answer must start with the letter.'
         : 'Every answer must start with its assigned letter.'
     );
+  } else if (config.type === GameType.BLOCK_BEATERS) {
+    const blockMode = config.blockBeatersMode || 'letters';
+    const selectedBoardSize = config.blockBeatersBoardSize || 'medium';
+    const boardTiles = selectedBoardSize === 'large' ? 49 : selectedBoardSize === 'medium' ? 36 : 25;
+    lines.push(`Create exactly ${config.questionCount || boardTiles + 12} questions.`);
+    lines.push(`This creates a safe question pool for a ${selectedBoardSize === 'large' ? '7 x 7' : selectedBoardSize === 'medium' ? '6 x 6' : '5 x 5'} numbered hex board.`);
+    lines.push('Every question must use points=10.');
+    lines.push('Do not create bonus questions; the board handles bonuses separately.');
+    lines.push('Questions are drawn from a shared queue during play. Do not try to map questions to specific tile numbers.');
+    if (blockMode === 'letters') {
+      lines.push('Every question must include a single uppercase "letter" field.');
+      lines.push('The answer must start with that exact letter. Do not assign letters alphabetically unless the answer truly starts with that letter.');
+      lines.push('Every question must be a complete clue using exactly this style: "What [LETTER] is [a definition or description]?"');
+      lines.push('Never use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.');
+      lines.push('Bad: "What W is athletes typically _____ up before a workout?"');
+      lines.push('Good: "What W is a short preparation activity athletes do before strenuous exercise?"');
+      lines.push('Do not include the answer word in the question text, except for the single starting-letter marker after "What".');
+      lines.push('Example: letter F, answer "Fencing", question "What F is a sport which uses a foil, epee, or sabre?".');
+      lines.push('Do not include multiple-choice options in letters mode.');
+      lines.push('Do not use numeric-only answers, dates, or answers that start with a digit.');
+    } else if (QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
+      lines.push(getImportMcInstruction(config, config.questionType !== 'multiple-choice'));
+      lines.push('Whenever a question includes options, the answer field must match one option exactly.');
+    }
   } else if (config.type === GameType.STOP_THE_FIRE) {
     lines.push('Return a strong bank of distinct category names in "stopTheFireCategories".');
     lines.push('Make every category short, clear, and playable in class.');

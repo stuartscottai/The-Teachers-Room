@@ -135,6 +135,44 @@ const hasAudioFiles = (config: any) =>
 
 const asText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
+const stripGenericWizardWords = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/\b(game|games|exam|test|assessment|students?|class|classes|help|difficulty|difficulties|struggled|struggle|wrong|mistakes?|review|revise|revision|practice|create|make|set up|setup|quiz)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const hasSpecificLearningContent = (value: string): boolean => {
+  const text = String(value || '').toLowerCase();
+  if (/\b(uploaded|attached|pasted|questions?|content|paper|worksheet|notes?|text|passage|source material)\b/.test(text)) return true;
+  if (/\b(on|about|covering|covered|topic|unit|chapter|lesson)\b.{3,}/.test(text)) return true;
+  if (/\b(grammar|vocabulary|phonics|reading|writing|fractions?|algebra|geometry|biology|chemistry|physics|history|geography|literature|poetry|shakespeare|photosynthesis|equations?|tenses?|verbs?|nouns?)\b/.test(text)) return true;
+  return stripGenericWizardWords(text).length >= 30;
+};
+
+const getUserHistoryText = (history: any[]) =>
+  (Array.isArray(history) ? history : [])
+    .filter((entry) => entry?.role !== 'ai')
+    .map((entry) => String(entry?.text || ''))
+    .join('\n');
+
+const getWizardClarification = (message: string, history: any[] = []) => {
+  const current = String(message || '').trim();
+  const combined = `${getUserHistoryText(history)}\n${current}`.trim();
+  const lower = current.toLowerCase();
+
+  const asksForGameHelp = /\b(game|quiz|activity|assistant|recommend|choose|create|make|set up|setup|students?|class|lesson|exam|test|assessment|review|revision|practice|difficulties|struggled|mistakes?)\b/.test(lower);
+  if (asksForGameHelp && !hasSpecificLearningContent(combined)) {
+    return {
+      needsInput: true,
+      message: "What content should the game be based on? Tell me the topic, class level, and the exact questions, vocabulary, skills, or mistakes students need to practise."
+    };
+  }
+
+  return null;
+};
+
 const resolveIncomingFileMimeType = (file: any) => {
   const explicit = asText(file?.mimeType);
   if (explicit) return explicit;
@@ -1889,6 +1927,11 @@ RULES:
 
     // 5. Handle WIZARD CHAT (Structured JSON Output)
     if (action === 'chat_wizard') {
+        const clarification = getWizardClarification(message, history);
+        if (clarification) {
+          return sendJson(200, clarification);
+        }
+
         const systemInstruction = `You are "The Teachers' Room AI Assistant", a friendly expert game consultant.
         Your goal is to help teachers choose the best game format for their specific class needs (Topic, Age, Learning Goal).
         
@@ -1906,6 +1949,9 @@ RULES:
 
         BEHAVIOR:
         - If the user's request is vague (e.g. "I want a game"), ask 1-2 clarifying questions.
+        - If the teacher has not provided the actual content for the game, ask for it first. Ask for the topic, class level, and the exact questions, vocabulary, skills, source text, or mistakes students need to practise.
+        - Only return suggestions when you have enough lesson content to make the game relevant.
+        - When you need more information, return {"needsInput": true, "message": "..."} and omit suggestion/suggestions.
         - If the user gives enough info, provide 2 or 3 ranked recommendations so the teacher can choose.
         - Put recommendations in 'suggestions' (array). Include a short 'reason' for each item.
         - Keep 'suggestion' as the single best option (same as suggestions[0]) for backward compatibility.
@@ -1920,7 +1966,7 @@ RULES:
         `;
 
         // Map history from client
-        const contents = history.map((h: any) => ({
+        const contents = (Array.isArray(history) ? history : []).map((h: any) => ({
             role: h.role === 'ai' ? 'model' : 'user',
             parts: [{ text: h.text }]
         }));
@@ -1940,6 +1986,7 @@ RULES:
                     type: Type.OBJECT,
                     properties: {
                         message: { type: Type.STRING },
+                        needsInput: { type: Type.BOOLEAN },
                         suggestion: {
                             type: Type.OBJECT,
                             nullable: true,

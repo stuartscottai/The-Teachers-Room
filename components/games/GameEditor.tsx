@@ -608,11 +608,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 ...prev.questions,
                 {
                     id: prev.questions.length,
-                    letter: prev.config.type === GameType.WORD_WHEEL ? (WORD_WHEEL_LETTERS[prev.questions.length] || '') : undefined,
+                    letter: (prev.config.type === GameType.WORD_WHEEL || (prev.config.type === GameType.BLOCK_BEATERS && prev.config.blockBeatersMode !== 'numbers')) ? (WORD_WHEEL_LETTERS[prev.questions.length % WORD_WHEEL_LETTERS.length] || '') : undefined,
                     question: '',
                     answer: '',
                     answerAliases: prev.config.type === GameType.WORD_WHEEL ? [] : undefined,
-                    points: prev.config.type === GameType.WORD_WHEEL ? 10 : prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : 100,
+                    points: (prev.config.type === GameType.WORD_WHEEL || prev.config.type === GameType.BLOCK_BEATERS) ? 10 : prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : 100,
                     isBonus: false,
                     difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined,
                     options: prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? ["", "", "", ""] : undefined,
@@ -761,6 +761,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
     const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
     const isWordWheel = editedGame.config.type === GameType.WORD_WHEEL;
+    const isBlockBeatersLetters = editedGame.config.type === GameType.BLOCK_BEATERS && editedGame.config.blockBeatersMode !== 'numbers';
+    const isLetterAnswerGame = isWordWheel || isBlockBeatersLetters;
     const isLiveQuiz = editedGame.config.type === GameType.LIVE_QUIZ_CHALLENGE;
     const liveQuizCompatibleCount = buildLiveQuizQuestionsFromGame(editedGame, []).questions.length;
     const canPlayLiveQuiz = Boolean(onLiveQuiz && liveQuizCompatibleCount > 0);
@@ -1428,10 +1430,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const questionIndex = pageStart + index;
                                         const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
                                         const imageAlt = q.image?.alt || 'Question image';
-                                        const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex] || '').toUpperCase();
+                                        const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex % WORD_WHEEL_LETTERS.length] || '').toUpperCase();
                                         const wordWheelRule = (editedGame.config.wordWheelLetterRule || 'contains-hard') as 'starts-with' | 'contains-hard';
-                                        const wordWheelRuleHint = getWordWheelRuleHint(wordWheelRule, wordWheelLetter);
-                                        const answerFitsWordWheelRule = !isWordWheel || answerMatchesWordWheelRule(q.answer, wordWheelLetter, wordWheelRule);
+                                        const activeLetterRule = isWordWheel ? wordWheelRule : 'starts-with';
+                                        const wordWheelRuleHint = getWordWheelRuleHint(activeLetterRule, wordWheelLetter);
+                                        const answerFitsWordWheelRule = !isLetterAnswerGame || answerMatchesWordWheelRule(q.answer, wordWheelLetter, activeLetterRule);
                                         return (
                                         <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
                                             {!isWordWheel && (
@@ -1449,7 +1452,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         {questionIndex + 1}
                                                     </span>
 
-                                                    {isWordWheel && (
+                                                    {isLetterAnswerGame && (
                                                         <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase ml-1">
                                                             Letter {wordWheelLetter || '?'}
                                                         </span>
@@ -1463,7 +1466,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     )}
 
                                                     {/* Points Editor (Hidden for Darts, Millionaire, Survey, Word Wheel) */}
-                                                    {editedGame.config.type !== GameType.DARTS && !isMillionaire && !isSurvey && !isWordWheel && (
+                                                    {editedGame.config.type !== GameType.DARTS && !isMillionaire && !isSurvey && !isLetterAnswerGame && (
                                                         <div className="flex items-center ml-2 bg-white px-2 py-1 rounded border border-slate-200">
                                                             <Coins size={14} className="text-brand-yellow mr-2" />
                                                             <input 
@@ -1501,7 +1504,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             </div>
 
                                             {/* QUESTION TYPE TOGGLE BAR - Hidden for Millionaire, Survey, and Word Wheel */}
-                                            {!isMillionaire && !isSurvey && !isWordWheel && (
+                                            {!isMillionaire && !isSurvey && !isLetterAnswerGame && (
                                                 <div className="flex flex-wrap items-center gap-4 mb-4 bg-slate-100 p-2 rounded-lg border border-slate-200">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
@@ -1567,12 +1570,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
                                                             placeholder="Type answer here..."
                                                         />
-                                                        {isWordWheel && wordWheelLetter && (
+                                                        {isLetterAnswerGame && wordWheelLetter && (
                                                             <p className={`mt-2 text-xs font-semibold ${answerFitsWordWheelRule ? 'text-teal-700' : 'text-red-600'}`}>
                                                                 Rule for {wordWheelLetter}: {wordWheelRuleHint}
                                                             </p>
                                                         )}
-                                                        {isWordWheel && wordWheelLetter && !answerFitsWordWheelRule && q.answer.trim() && (
+                                                        {isLetterAnswerGame && wordWheelLetter && !answerFitsWordWheelRule && q.answer.trim() && (
                                                             <p className="mt-1 text-xs text-red-500">
                                                                 Current answer does not match this letter rule.
                                                             </p>
@@ -1580,7 +1583,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     </div>
                                                 )}
 
-                                                {!isSurvey && !isWordWheel && (
+                                                {!isSurvey && !isLetterAnswerGame && (
                                                     <div className="md:col-span-2">
                                                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Category</label>
                                                         <input
@@ -1644,13 +1647,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 )}
                                             </div>
 
-                                            {isWordWheel && (
+                                            {isLetterAnswerGame && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Letter</label>
                                                         <input
                                                             type="text"
-                                                            value={(q.letter || WORD_WHEEL_LETTERS[questionIndex] || '').toUpperCase()}
+                                                            value={(q.letter || WORD_WHEEL_LETTERS[questionIndex % WORD_WHEEL_LETTERS.length] || '').toUpperCase()}
                                                             onChange={(e) => handleChange(prev => {
                                                                 const newQuestions = [...prev.questions];
                                                                 newQuestions[questionIndex].letter = e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
@@ -1730,7 +1733,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             </div>
 
                                             {/* OPTIONS EDITOR (MC) */}
-                                            {q.options && q.options.length > 0 && !isSurvey && !isWordWheel && (
+                                            {q.options && q.options.length > 0 && !isSurvey && !isLetterAnswerGame && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 animate-fade-in">
                                                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Multiple Choice Options</label>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

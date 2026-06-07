@@ -14,6 +14,14 @@ import { buildExternalLlmGamePrompt, MANUAL_GAME_IMPORT_ACCEPT, parseImportedGam
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
 const SOURCE_MAX_SIZE_BYTES = 4 * 1024 * 1024;
+const BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS = 12;
+const BLOCK_BEATERS_BOARD_OPTIONS: Array<{ value: 'small' | 'medium' | 'large'; label: string; tiles: number }> = [
+    { value: 'small', label: 'Small - 5 x 5', tiles: 25 },
+    { value: 'medium', label: 'Medium - 6 x 6', tiles: 36 },
+    { value: 'large', label: 'Large - 7 x 7', tiles: 49 },
+];
+const getBlockBeatersQuestionCount = (boardSize: 'small' | 'medium' | 'large' = 'medium') =>
+    (BLOCK_BEATERS_BOARD_OPTIONS.find((option) => option.value === boardSize)?.tiles || 36) + BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS;
 const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
     [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
     [GameType.TRIVIA]: '/assets/games/trivia.png',
@@ -25,6 +33,7 @@ const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
     [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
     [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
     [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+    [GameType.BLOCK_BEATERS]: '/assets/games/blockbeaters.png',
     [GameType.LIVE_QUIZ_CHALLENGE]: '/assets/games/livequiz.png',
 };
 
@@ -58,6 +67,14 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
     const [showDialog, setShowDialog] = useState(false);
     const shouldOffsetForTour = mobileTopInset > 0;
     const backdropImage = GAME_BACKDROP_IMAGES[type];
+    const horizontalImageFade: React.CSSProperties = {
+        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.04) 6%, rgba(0,0,0,0.2) 13%, rgba(0,0,0,0.55) 22%, black 34%, black 66%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.2) 87%, rgba(0,0,0,0.04) 94%, transparent 100%)',
+        maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.04) 6%, rgba(0,0,0,0.2) 13%, rgba(0,0,0,0.55) 22%, black 34%, black 66%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.2) 87%, rgba(0,0,0,0.04) 94%, transparent 100%)',
+    };
+    const verticalImageFade: React.CSSProperties = {
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.04) 7%, rgba(0,0,0,0.2) 15%, rgba(0,0,0,0.58) 24%, black 36%, black 64%, rgba(0,0,0,0.58) 76%, rgba(0,0,0,0.2) 85%, rgba(0,0,0,0.04) 93%, transparent 100%)',
+        maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.04) 7%, rgba(0,0,0,0.2) 15%, rgba(0,0,0,0.58) 24%, black 36%, black 64%, rgba(0,0,0,0.58) 76%, rgba(0,0,0,0.2) 85%, rgba(0,0,0,0.04) 93%, transparent 100%)',
+    };
     // Lock body scroll when modal is open
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -91,37 +108,27 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                 : undefined}
         >
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-slate-900" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_48%)]" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_58%)]" />
-                <div className="absolute inset-0 sm:hidden">
-                    <img
-                        src={backdropImage}
-                        alt=""
-                        aria-hidden="true"
-                        className="w-full h-full object-cover scale-110 blur-xl opacity-72"
-                    />
-                    <div className="absolute inset-0 bg-slate-900/44" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-slate-900/28 via-transparent to-slate-950/38" />
-                </div>
-                <div className="absolute inset-0 hidden sm:flex items-center justify-center px-4 py-6">
+                <div className="absolute inset-0 bg-[#071122]" />
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,#071122_0%,#0b1730_50%,#071122_100%)]" />
+                <div className="absolute inset-0 flex items-center justify-center px-5 py-7 sm:px-12 sm:py-10">
                     <div
                         className="relative aspect-[3/2]"
-                        style={{ width: 'min(calc(100vw - 2rem), calc((100dvh - 2rem) * 1.5), 1280px)' }}
+                        style={{
+                            width: 'min(calc(100vw - 2.5rem), calc((100dvh - 8rem) * 1.5), 1080px)',
+                            ...horizontalImageFade,
+                        }}
                     >
-                        <img
-                            src={backdropImage}
-                            alt=""
-                            aria-hidden="true"
-                            className="w-full h-full object-contain opacity-92"
-                        />
-                        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-slate-900 via-slate-900/42 to-transparent" />
-                        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-slate-900 via-slate-900/42 to-transparent" />
-                        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-slate-900 via-slate-900/38 to-transparent" />
-                        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-slate-900 via-slate-900/38 to-transparent" />
+                        <div className="absolute inset-0" style={verticalImageFade}>
+                            <img
+                                src={backdropImage}
+                                alt=""
+                                aria-hidden="true"
+                                className="absolute inset-0 h-full w-full scale-[1.01] object-cover opacity-92"
+                            />
+                        </div>
                     </div>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900/16 via-transparent to-slate-950/26" />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#071122]/12 via-transparent to-[#071122]/20" />
             </div>
             {showDialog && (
             <div
@@ -234,7 +241,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                          type === GameType.TIME_BOMB ? 25 : 
                          type === GameType.SURVEY_SHOWDOWN ? 5 : 
                          type === GameType.STOP_THE_FIRE ? 10 :
-                         type === GameType.WORD_WHEEL ? WORD_WHEEL_LETTERS.length : 10;
+                         type === GameType.WORD_WHEEL ? WORD_WHEEL_LETTERS.length :
+                         type === GameType.BLOCK_BEATERS ? getBlockBeatersQuestionCount('small') : 10;
     
     // Millionaire requires exactly 15
     if (type === GameType.MILLIONAIRE) defaultCount = 15;
@@ -249,7 +257,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     ? 'multiple-choice'
                     : type === GameType.MILLIONAIRE
                     ? 'multiple-choice'
-                    : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE || type === GameType.WORD_WHEEL ? 'open' : 'mixed'),
+                    : (type === GameType.TIME_BOMB || type === GameType.STOP_THE_FIRE || type === GameType.WORD_WHEEL || type === GameType.BLOCK_BEATERS ? 'open' : 'mixed'),
             pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
@@ -269,6 +277,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pubQuizQuestionsPerRound: 5,
             wordWheelScoringMode: 'classic',
             wordWheelLetterRule: 'contains-hard',
+            blockBeatersMode: type === GameType.BLOCK_BEATERS ? 'letters' : undefined,
+            blockBeatersBoardSize: type === GameType.BLOCK_BEATERS ? 'small' : undefined,
             stopTheFireMode: type === GameType.STOP_THE_FIRE
                 ? (mode === 'bank' ? 'bank' : mode === 'ai' ? 'ai' : 'manual')
                 : undefined
@@ -805,6 +815,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         pointsMode: 'fixed',
                     };
                 }
+                if (type === GameType.BLOCK_BEATERS) {
+                    finalConfig = {
+                        ...finalConfig,
+                        questionType: (finalConfig.blockBeatersMode || 'letters') === 'letters' ? 'open' : finalConfig.questionType,
+                        pointsMode: 'fixed',
+                    };
+                }
                 if (type === GameType.SURVEY_SHOWDOWN && roundPrompts.some(p => p.trim())) {
                     const customList = roundPrompts.map((p, i) => p.trim() ? `Round ${i+1}: ${p}` : `Round ${i+1}: AI Decide`).join('; ');
                     finalConfig.customInstructions = (finalConfig.customInstructions || "") + `\n\nUSE THESE SPECIFIC QUESTIONS FOR ROUNDS: ${customList}`;
@@ -848,12 +865,15 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             }))
                             : Array.from({ length: config.questionCount }).map((_, i) => ({
                                 id: i,
+                                letter: type === GameType.BLOCK_BEATERS && (config.blockBeatersMode || 'letters') === 'letters'
+                                    ? WORD_WHEEL_LETTERS[i % WORD_WHEEL_LETTERS.length]
+                                    : undefined,
                                 question: '',
                                 answer: '',
-                                points: type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : 100,
+                                points: type === GameType.LIVE_QUIZ_CHALLENGE ? 1000 : type === GameType.BLOCK_BEATERS ? 10 : 100,
                                 isBonus: false,
                                 difficulty: type === GameType.DARTS ? 'easy' : undefined,
-                                options: (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE) ? ["", "", "", ""] : undefined,
+                                options: (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE || (type === GameType.BLOCK_BEATERS && config.blockBeatersMode === 'numbers' && config.questionType === 'multiple-choice')) ? ["", "", "", ""] : undefined,
                                 // Survey Init
                                 surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
                             }))
@@ -1205,6 +1225,91 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            ) : type === GameType.BLOCK_BEATERS ? (
+                                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-4">
+                                        <h3 className="text-sm font-bold text-slate-800 mb-1">Block Beaters Structure</h3>
+                                        <p className="text-sm text-slate-600">
+                                            Players claim hex tiles and race to connect opposite sides. A completed path still needs one final question to win.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">Content Mode</label>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, blockBeatersMode: 'letters', questionType: 'open' })}
+                                                className={`text-left rounded-xl border p-4 transition-colors ${
+                                                    (config.blockBeatersMode || 'letters') === 'letters'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Letters</div>
+                                                <p className="mt-1 text-xs text-slate-500">Each answer must start with the question letter. Players type answers.</p>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setConfig({ ...config, blockBeatersMode: 'numbers', questionType: 'mixed' })}
+                                                className={`text-left rounded-xl border p-4 transition-colors ${
+                                                    config.blockBeatersMode === 'numbers'
+                                                        ? 'border-brand-blue bg-sky-50'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold text-slate-800">Numbers</div>
+                                                <p className="mt-1 text-xs text-slate-500">Tiles are numbered and questions can use mixed formats, including multiple choice.</p>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Board Size</label>
+                                        <div className="grid gap-3 sm:grid-cols-3">
+                                            {BLOCK_BEATERS_BOARD_OPTIONS.map((board) => {
+                                                const requiredQuestions = board.tiles + BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS;
+                                                const active = (config.blockBeatersBoardSize || 'small') === board.value;
+                                                return (
+                                                    <button
+                                                        key={board.value}
+                                                        type="button"
+                                                        onClick={() => setConfig({
+                                                            ...config,
+                                                            blockBeatersBoardSize: board.value,
+                                                            questionCount: requiredQuestions,
+                                                        })}
+                                                        className={`rounded-xl border-2 p-4 text-left transition-all
+                                                            ${active
+                                                                ? 'bg-brand-blue text-white border-brand-blue shadow-md'
+                                                                : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
+                                                    >
+                                                        <span className="block text-base font-black">
+                                                            {board.label} = {requiredQuestions} questions required
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {mode === 'ai' && config.blockBeatersMode === 'numbers' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <select
+                                                    value={config.questionType}
+                                                    onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
+                                                    className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
+                                                >
+                                                    <option value="ai-decide">AI Decide (Mixed)</option>
+                                                    <option value="mixed">Mixed Format</option>
+                                                    <option value="multiple-choice">Multiple Choice</option>
+                                                    <option value="gap-fill">Gap Fill</option>
+                                                    <option value="open">Open Ended</option>
+                                                </select>
+                                            </div>
+                                            {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
+                                        </>
+                                    )}
                                 </div>
                             ) : type === GameType.TRIVIA || type === GameType.LIVE_QUIZ_CHALLENGE ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">

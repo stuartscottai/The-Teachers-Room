@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BonusCardType, GeneratedGame, GameRunOptions, GameType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List, Hexagon } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -38,9 +38,25 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     triviaRandomPoints: false,
     wordWheelScoringMode: game.config.wordWheelScoringMode || 'classic',
     wordWheelLetterRule: game.config.wordWheelLetterRule || 'contains-hard',
+    blockBeatersMode: game.config.blockBeatersMode || (game.config.questionType === 'open' ? 'letters' : 'numbers'),
+    blockBeatersBoardSize: game.config.blockBeatersBoardSize || 'small',
+    blockBeatersPoints: 10,
+    blockBeatersSteals: true,
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
+  const blockBeatersQuestionCount = game.questions?.length || 0;
+  const getBlockBeatersRequiredQuestions = (boardSize: 'small' | 'medium' | 'large') => {
+    const tiles = boardSize === 'large' ? 49 : boardSize === 'medium' ? 36 : 25;
+    return tiles + 12;
+  };
+  const blockBeatersBoardOptions: Array<{ value: 'small' | 'medium' | 'large'; label: string; required: number }> = [
+    { value: 'small', label: 'Small - 5 x 5', required: getBlockBeatersRequiredQuestions('small') },
+    { value: 'medium', label: 'Medium - 6 x 6', required: getBlockBeatersRequiredQuestions('medium') },
+    { value: 'large', label: 'Large - 7 x 7', required: getBlockBeatersRequiredQuestions('large') },
+  ];
+  const blockBeatersSelectedRequired = getBlockBeatersRequiredQuestions(options.blockBeatersBoardSize || 'small');
+  const blockBeatersWillRepeatQuestions = game.config.type === GameType.BLOCK_BEATERS && blockBeatersQuestionCount > 0 && blockBeatersQuestionCount < blockBeatersSelectedRequired;
 
   // Lock scroll when sound lab is open
   useEffect(() => {
@@ -56,7 +72,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
   const [validQuestionCounts, setValidQuestionCounts] = useState<number[]>([]);
 
   useEffect(() => {
-    if (game.config.type !== GameType.WORD_WHEEL) return;
+    if (![GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type)) return;
     if (options.players <= 4) return;
     setOptions(prev => ({ ...prev, players: 4 }));
   }, [game.config.type, options.players]);
@@ -110,7 +126,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
   };
 
   const showRandomizeOption = ![GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.MILLIONAIRE, GameType.WORD_WHEEL].includes(game.config.type);
-  const playerOptions = game.config.type === GameType.WORD_WHEEL ? [1, 2, 3, 4] : [1, 2, 3, 4, 5, 6];
+  const playerOptions = [GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type) ? [1, 2, 3, 4] : [1, 2, 3, 4, 5, 6];
   const bonusChoices: { id: BonusCardType; label: string; description: string }[] = [
     { id: 'double', label: 'Double points', description: 'Current team gets double this card value.' },
     { id: 'bust', label: 'Lose card value', description: 'Current team loses this card value.' },
@@ -438,10 +454,85 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     </div>
                 )}
 
-                {![
+                {game.config.type === GameType.BLOCK_BEATERS && (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <label className={setupLabelClass}>
+                            <Hexagon size={16} className="mr-2 text-brand-blue" /> Block Beaters Rules
+                        </label>
+                        <div className="grid gap-4">
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                <span className="block text-xs font-black uppercase tracking-wide text-slate-500">Content Mode</span>
+                                <span className="mt-1 block text-base font-black text-slate-800">
+                                    {(game.config.blockBeatersMode || options.blockBeatersMode || 'letters') === 'numbers' ? 'Numbers' : 'Letters'}
+                                </span>
+                                <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    This is decided when the game is created.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Board Size</label>
+                                <select
+                                    value={options.blockBeatersBoardSize}
+                                    onChange={(event) => setOptions({ ...options, blockBeatersBoardSize: event.target.value as any })}
+                                    className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                >
+                                    {blockBeatersBoardOptions.map((board) => (
+                                        <option
+                                            key={board.value}
+                                            value={board.value}
+                                        >
+                                            {board.label} - {board.required} questions recommended
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-2 text-xs font-semibold text-slate-500">
+                                    Questions are drawn when tiles are selected. This game has {blockBeatersQuestionCount} questions.
+                                </p>
+                                {blockBeatersWillRepeatQuestions && (
+                                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                                        <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                                        <p className="text-xs font-bold leading-5">
+                                            This set has fewer questions than recommended for this board size, so some questions may be repeated during the game.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="block">
+                                    <span className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Correct Answer Points</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={100}
+                                        value={options.blockBeatersPoints || 10}
+                                        onChange={(event) => setOptions({ ...options, blockBeatersPoints: Math.max(1, Number(event.target.value) || 10) })}
+                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    />
+                                </label>
+                                <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.blockBeatersSteals !== false}
+                                        onChange={(event) => setOptions({ ...options, blockBeatersSteals: event.target.checked })}
+                                        className="h-4 w-4 rounded border-slate-300 text-brand-blue"
+                                    />
+                                    <span>
+                                        <span className="block text-sm font-black text-slate-800">Tile stealing</span>
+                                        <span className="block text-xs font-semibold text-slate-500">Teams can retake owned tiles.</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {![ 
                   GameType.DARTS,
                   GameType.TRIVIA,
                   GameType.WORD_WHEEL,
+                  GameType.BLOCK_BEATERS,
                 ].includes(game.config.type) && (
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
                     <p className="font-bold text-slate-500">No extra setup needed for this game type.</p>
@@ -450,7 +541,49 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
               </div>
 
               <div>
-                {game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
+                {game.config.type === GameType.BLOCK_BEATERS ? (
+                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        className="flex min-w-0 items-center text-left"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                      >
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'}`}>
+                          <Gift size={22} />
+                        </div>
+                        <div>
+                          <h3 className="font-display text-xl font-black text-slate-900">Board Bonuses</h3>
+                          <p className="text-sm font-semibold text-slate-500">Hidden rewards change tile ownership, not points.</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-teal-700 bg-teal-700' : 'border-slate-300 bg-white'}`}
+                      >
+                        {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
+                      </button>
+                    </div>
+                    {options.enableBonuses && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {[
+                          ['Free tile', 'Claim one open tile.'],
+                          ['Steal tile', 'Change an opponent tile to yours.'],
+                          ['Remove tile', 'Clear an opponent tile.'],
+                          ['Shield tile', 'Protect one tile from the next steal.'],
+                          ['Extra turn', 'Take one more turn immediately.'],
+                          ['Swap tile', 'Swap one of your tiles with an opponent tile.'],
+                        ].map(([label, description]) => (
+                          <div key={label} className="rounded-xl border border-amber-200 bg-white p-3">
+                            <span className="block text-sm font-black text-slate-800">{label}</span>
+                            <span className="block text-xs leading-4 text-slate-500">{description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
                   <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-brand-yellow bg-yellow-50' : 'border-slate-200 bg-slate-50'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button

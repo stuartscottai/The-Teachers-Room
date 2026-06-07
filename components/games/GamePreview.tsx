@@ -84,6 +84,7 @@ const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
   [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
   [GameType.TIME_BOMB]: '/assets/games/timebomb.png',
   [GameType.WORD_WHEEL]: '/assets/games/wordwheel.png',
+  [GameType.BLOCK_BEATERS]: '/assets/games/blockbeaters.png',
   [GameType.PUB_QUIZ]: '/assets/games/pubquiz.png',
   [GameType.SURVEY_SHOWDOWN]: '/assets/games/survey.png',
   [GameType.STOP_THE_FIRE]: '/assets/games/stopthefire.png',
