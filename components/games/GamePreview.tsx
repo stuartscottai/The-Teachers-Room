@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { Avatar } from '../Avatar';
-import { resolveGameImageUrl, resolveGameImageUrls } from '../../utils/gameImage';
+import { resolveGameImageUrl, resolveGameImageUrls, resolveGameQuestionImageUrl, resolveGameQuestionImageUrls } from '../../utils/gameImage';
 import { refreshStockImage } from '../../services/stockImageService';
 import { getCompatibleGameTypes } from '../../utils/gameCompatibility';
 
@@ -212,8 +212,10 @@ const buildStandardQuestionItem = (question: GeneratedQuestion, index: number, g
   prompt: question.question?.trim() || 'No prompt saved yet.',
   answer: buildAnswerSummary(question, gameType),
   options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
-  imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
-  imageUrls: resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
+  imageUrl: resolveGameQuestionImageUrl(question.image) || resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
+  imageUrls: resolveGameQuestionImageUrls(question.image).length
+    ? resolveGameQuestionImageUrls(question.image)
+    : resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
   image: question.image,
   refreshQuery: question.image?.searchQuery || getLegacyImageRefreshQuery(question, gameType),
 });
@@ -232,8 +234,10 @@ const buildGroupedItems = (
       prompt: question.question?.trim() || 'No prompt saved yet.',
       answer: buildAnswerSummary(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
       options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
-      imageUrl: resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
-      imageUrls: resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
+      imageUrl: resolveGameQuestionImageUrl(question.image) || resolveGameImageUrl(question.image?.url, question.image?.thumbUrl),
+      imageUrls: resolveGameQuestionImageUrls(question.image).length
+        ? resolveGameQuestionImageUrls(question.image)
+        : resolveGameImageUrls(question.image?.url, question.image?.thumbUrl),
       image: question.image,
       refreshQuery: question.image?.searchQuery || getLegacyImageRefreshQuery(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
     }))

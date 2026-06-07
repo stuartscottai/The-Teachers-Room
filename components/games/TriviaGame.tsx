@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { BonusCardType, GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Maximize2, Minimize2, RotateCcw, X, Check, Edit2, Clock, Volume2, VolumeX, CheckCircle, XCircle, Flag } from 'lucide-react';
@@ -119,7 +119,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const optionKey = activeQ?.options?.join('|') || '';
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
     const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
-    const questionImageUrl = resolveGameImageUrl(activeQ?.image?.url, activeQ?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(activeQ?.image);
     const questionImageAlt = activeQ?.image?.alt || '';
     const bonusEffectText =
         activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import {
@@ -1160,7 +1160,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         );
     }
 
-    const questionImageUrl = resolveGameImageUrl(activeEntry?.image?.url, activeEntry?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(activeEntry?.image);
     const questionImageAlt = activeEntry?.image?.alt || 'Clue image';
     const timerProgress = hasTimer ? Math.max(0, Math.min(1, timeLeft / Math.max(options.timerSeconds, 1))) : 0;
     const activeHintBaseline = activeEntry ? getBaselineHintIndices(activeEntry) : new Set<number>();

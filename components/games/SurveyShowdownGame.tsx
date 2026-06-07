@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { ArrowLeft, X, Edit2, Volume2, VolumeX, Maximize2, Minimize2, Check, Send, Eye, EyeOff, Shield, Coins, Plus, Minus, AlertTriangle, Flag } from 'lucide-react';
 
@@ -189,7 +189,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         return base;
     }, [game.questions, options.randomizeQuestions]);
     const currentQ = questions[currentRound];
-    const questionImageUrl = resolveGameImageUrl(currentQ?.image?.url, currentQ?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQ?.image);
     const questionImageAlt = currentQ?.image?.alt || '';
     
     // Ensure surveyAnswers exists, pad if necessary to 8

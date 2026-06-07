@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 're
 import { ArrowLeft, Check, CheckCircle, Clock, Crown, Edit2, Flag, Maximize2, Minimize2, RotateCcw, Shield, Volume2, VolumeX, X, XCircle } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 
 interface BlockBeatersGameProps {
@@ -275,7 +275,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const showBonusIntro = bonusIntroTileId !== null && activeTileId !== null && !isFlipped && !awardedBonus;
     const showBonusAward = awardedBonus !== null;
     const hasOptions = mode === 'numbers' && Array.isArray(shownQuestion?.options) && shownQuestion.options.length > 0;
-    const questionImageUrl = resolveGameImageUrl(shownQuestion?.image?.url, shownQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(shownQuestion?.image);
     const questionImageAlt = shownQuestion?.image?.alt || '';
     const timerProgress = options.timerSeconds > 0 ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds)) : 0;
 

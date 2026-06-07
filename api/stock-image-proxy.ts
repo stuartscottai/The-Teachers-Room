@@ -75,6 +75,33 @@ const normalizeTargetUrl = (value: string): URL | null => {
   }
 };
 
+const normalizePixabayImageUrl = (value: string | undefined): string => {
+  if (!value) return '';
+  return value.replace(/^http:\/\//i, 'https://');
+};
+
+const resolvePixabayImageById = async (imageId: string): Promise<URL | null> => {
+  const id = String(imageId || '').trim();
+  if (!/^\d+$/.test(id)) return null;
+
+  const apiKey = process.env.PIXABAY_API_KEY || process.env.VITE_PIXABAY_API_KEY || '';
+  if (!apiKey) return null;
+
+  const apiUrl = new URL('https://pixabay.com/api/');
+  apiUrl.searchParams.set('key', apiKey);
+  apiUrl.searchParams.set('id', id);
+  apiUrl.searchParams.set('safesearch', 'true');
+  apiUrl.searchParams.set('image_type', 'all');
+
+  const response = await fetch(apiUrl.toString(), { method: 'GET' });
+  if (!response.ok) return null;
+
+  const data = await response.json().catch(() => null);
+  const hit = Array.isArray(data?.hits) ? data.hits[0] : null;
+  const imageUrl = normalizePixabayImageUrl(hit?.largeImageURL || hit?.webformatURL || hit?.previewURL);
+  return normalizeTargetUrl(imageUrl);
+};
+
 const buildWeservFallbackUrl = (target: URL): URL => {
   const fallback = new URL('https://images.weserv.nl/');
   fallback.searchParams.set('url', `${target.hostname}${target.pathname}${target.search}`);
@@ -125,7 +152,9 @@ export default async function handler(req: any, res: any) {
   }
 
   const requested = Array.isArray(req.query?.url) ? req.query.url[0] : req.query?.url;
-  const target = normalizeTargetUrl(String(requested || ''));
+  const requestedId = Array.isArray(req.query?.id) ? req.query.id[0] : req.query?.id;
+  const freshTarget = requestedId ? await resolvePixabayImageById(String(requestedId || '')) : null;
+  const target = freshTarget || normalizeTargetUrl(String(requested || ''));
   if (!target) {
     res.status(400).json({ error: 'Invalid image URL' });
     return;

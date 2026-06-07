@@ -5,7 +5,7 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Target, FileQuestion, AlertTriangle, Flag } from 'lucide-react';
@@ -936,7 +936,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     useEffect(() => {

@@ -1,4 +1,5 @@
-import { buildStockImageProxyPath, extractPixabaySourceUrl, toCoepSafeStockImageUrl } from './stockImageUrl';
+import { GeneratedQuestion } from '../types';
+import { buildStockImageIdProxyPath, buildStockImageProxyPath, extractPixabaySourceUrl, toCoepSafeStockImageUrl } from './stockImageUrl';
 
 const uniqueUrls = (values: string[]) => {
   const seen = new Set<string>();
@@ -41,4 +42,25 @@ export const resolveGameImageUrls = (value?: string, fallbackValue?: string): st
 
 export const resolveGameImageUrl = (value?: string, fallbackValue?: string): string => {
   return resolveGameImageUrls(value, fallbackValue)[0] || '';
+};
+
+export const resolveGameQuestionImageUrls = (image?: GeneratedQuestion['image'] | null): string[] => {
+  if (!image) return [];
+
+  const urls: string[] = [];
+  const primaryRaw = String(image.url || '').trim();
+  const fallbackRaw = String(image.thumbUrl || '').trim();
+  const primarySource = extractPixabaySourceUrl(primaryRaw);
+  const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
+
+  if (!import.meta.env.DEV && image.source === 'stock' && image.stockId) {
+    urls.push(buildStockImageIdProxyPath(String(image.stockId), primarySource || fallbackSource || undefined));
+  }
+
+  urls.push(...resolveGameImageUrls(primaryRaw, fallbackRaw));
+  return uniqueUrls(urls);
+};
+
+export const resolveGameQuestionImageUrl = (image?: GeneratedQuestion['image'] | null): string => {
+  return resolveGameQuestionImageUrls(image)[0] || '';
 };

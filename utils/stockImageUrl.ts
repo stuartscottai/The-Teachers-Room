@@ -97,6 +97,15 @@ export const buildStockImageProxyPath = (pixabayUrl: string, fallbackPixabayUrl?
   return `/api/stock-image-proxy?${params.toString()}`;
 };
 
+export const buildStockImageIdProxyPath = (stockId: string, fallbackPixabayUrl?: string): string => {
+  const params = new URLSearchParams();
+  params.set('id', stockId);
+  if (fallbackPixabayUrl) {
+    params.set('url', normalizeHttps(fallbackPixabayUrl));
+  }
+  return `/api/stock-image-proxy?${params.toString()}`;
+};
+
 export const buildWeservProxyUrl = (pixabayUrl: string): string => {
   const normalized = normalizeHttps(pixabayUrl).replace(/^https?:\/\//i, '');
   return `https://images.weserv.nl/?url=${encodeURIComponent(normalized)}`;

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 
@@ -58,7 +58,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const safetyNets = SAFETY_NETS.filter((index) => index < ladder.length);
     const lastLevelIndex = ladder.length - 1;
     const currentQuestion = questions[currentLevel];
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Ensure options exist and find correct index

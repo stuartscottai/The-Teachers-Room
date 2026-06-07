@@ -5,7 +5,7 @@ import { RoundedBox, Environment, ContactShadows, Float, Html } from '@react-thr
 import * as THREE from 'three';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, HelpCircle, AlertTriangle, Trophy, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, Star, ChevronRight, ChevronLeft, X, Flag } from 'lucide-react';
@@ -302,7 +302,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [resizeTick, setResizeTick] = useState(0);
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);

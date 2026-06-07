@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Clock, ArrowRight, RotateCcw, CheckCircle, XCircle, Plus, Minus, List, Play, Check, Edit2, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Star, X, Flag } from 'lucide-react';
@@ -110,7 +110,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestionKey = currentRoundIndex !== null ? `${currentRoundIndex}-${currentQuestionIndex}` : '';
     const selectedStudentAnswer = currentQuestionKey ? selectedStudentAnswers[currentQuestionKey] : undefined;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     // Font Sizer Helper

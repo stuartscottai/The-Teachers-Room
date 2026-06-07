@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull, Flag } from 'lucide-react';
@@ -85,7 +85,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     const currentQuestion = questions[currentQuestionIndex];
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const optionKey = currentQuestion?.options?.join('|') || '';
-    const questionImageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+    const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
     const buildFusePath = (width: number, height: number) => {

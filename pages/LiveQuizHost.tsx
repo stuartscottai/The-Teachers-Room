@@ -15,7 +15,7 @@ import {
   updateLiveQuizStatus,
 } from '../utils/liveQuizUtils';
 import { LiveQuizParticipant, LiveQuizQuestion, LiveQuizSession, LiveQuizSubmission } from '../types';
-import { resolveGameImageUrl } from '../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyRankingEntry } from '../components/games/shared/WinnerCeremonyHero';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
 import { LiveQuizTimerBar } from '../components/games/LiveQuizTimerBar';
@@ -316,7 +316,7 @@ export const LiveQuizHost: React.FC = () => {
       return acc;
     }, {});
   }, [currentSubmissions, participants]);
-  const imageUrl = resolveGameImageUrl(currentQuestion?.image?.url, currentQuestion?.image?.thumbUrl);
+  const imageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
   const showRoundScores = ['leaderboard', 'ended'].includes(session?.status || '');
   const displayedRanking = useMemo(() => {
     const questionIndex = session?.currentQuestionIndex || 0;

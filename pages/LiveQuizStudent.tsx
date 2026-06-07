@@ -11,7 +11,7 @@ import {
   updateLiveQuizParticipantDisplayName,
 } from '../utils/liveQuizUtils';
 import { LiveQuizParticipant, LiveQuizSession, LiveQuizSubmission, StudentSafeLiveQuizQuestion } from '../types';
-import { resolveGameImageUrl } from '../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../utils/gameImage';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
 import { LiveQuizTimerBar } from '../components/games/LiveQuizTimerBar';
 import { playSound } from '../utils/gameUtils';
@@ -243,7 +243,7 @@ export const LiveQuizStudent: React.FC = () => {
   const revealVisible = Boolean(question?.revealedAnswer && ['reveal', 'leaderboard'].includes(session?.status || ''));
   const isOwnAnswerCorrect = revealVisible && ownSubmission ? ownSubmission.isCorrect : false;
   const didSubmitAnswer = Boolean(ownSubmission);
-  const imageUrl = resolveGameImageUrl(question?.image?.url, question?.image?.thumbUrl);
+  const imageUrl = resolveGameQuestionImageUrl(question?.image);
   const elapsedMs = session?.questionStartedAt ? Math.max(0, nowMs - new Date(session.questionStartedAt).getTime()) : 0;
   const timeLeft = session?.status === 'question'
     ? Math.max(0, Math.ceil(((session.timerSeconds * 1000) - elapsedMs) / 1000))
