@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCircle, ChevronDown, Copy, Crown, Music, Play, SkipForward, Trophy, Users } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle, ChevronDown, Copy, Crown, Music, Play, QrCode, SkipForward, Trophy, Users, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   getLiveQuizJoinUrl,
@@ -247,6 +248,7 @@ export const LiveQuizHost: React.FC = () => {
   const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [lobbyTrack, setLobbyTrack] = useState<LobbyTrackId>('chill');
+  const [showJoinQr, setShowJoinQr] = useState(false);
 
   const load = async () => {
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
@@ -497,9 +499,58 @@ export const LiveQuizHost: React.FC = () => {
   const HostTopControls = (
     <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-3">
       {AudioControls}
-      <div className="shrink-0 rounded-full bg-brand-yellow px-3 py-2 text-xs font-black text-slate-900 sm:px-4 sm:text-sm">Code {session?.joinCode}</div>
+      <button
+        type="button"
+        onClick={() => setShowJoinQr(true)}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-yellow px-3 py-2 text-xs font-black text-slate-900 shadow-sm hover:bg-yellow-300 sm:px-4 sm:text-sm"
+        title="Show join QR code"
+      >
+        <QrCode size={15} />
+        Code {session?.joinCode}
+      </button>
     </div>
   );
+
+  const JoinQrModal = showJoinQr && session ? createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+      <div className="relative z-[10000] w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 text-slate-950 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
+              <QrCode size={14} />
+              Join live quiz
+            </div>
+            <h2 className="mt-3 text-2xl font-black">{session.title}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowJoinQr(false)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200"
+            aria-label="Close QR code"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
+          <QRCodeCanvas value={joinUrl} size={300} includeMargin />
+        </div>
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+          <div className="flex min-w-0 items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-center font-mono text-4xl font-black tracking-[0.22em] text-brand-yellow">
+            {session.joinCode}
+          </div>
+          <button
+            type="button"
+            onClick={copyJoinLink}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-700 hover:bg-slate-50"
+          >
+            {copied ? <CheckCircle size={18} /> : <Copy size={18} />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   if (!session) {
     return (
@@ -616,6 +667,7 @@ export const LiveQuizHost: React.FC = () => {
 
   return (
     <div className="flex min-h-[calc(100dvh-4.25rem)] overflow-y-auto bg-slate-950 p-3 text-white [background:radial-gradient(circle_at_12%_8%,rgba(14,165,233,0.2),transparent_34%),radial-gradient(circle_at_88%_88%,rgba(250,204,21,0.1),transparent_30%),linear-gradient(135deg,#071525_0%,#020617_55%,#0b1220_100%)] sm:p-4 lg:h-[calc(100dvh-4.25rem)] lg:overflow-hidden lg:p-5 lg:pb-7 lg:pl-7">
+      {JoinQrModal}
       <div className="flex min-h-0 w-full flex-col lg:h-full">
         <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <button onClick={() => void exitHost()} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
@@ -785,6 +837,7 @@ export const LiveQuizHost: React.FC = () => {
               <div className="relative z-10 space-y-3">
                 {displayedRanking.map((participant, index) => {
                   const player = parseLiveQuizDisplayName(participant.displayName);
+                  const hasSubmittedCurrentAnswer = answeredParticipantIds.has(participant.id);
                   const isLeader = index === 0;
                   const isSecond = index === 1;
                   const isThird = index === 2;
@@ -828,6 +881,19 @@ export const LiveQuizHost: React.FC = () => {
                           </span>
                           {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-11 w-11 shrink-0" iconSize={23} />}
                           <span className="min-w-0 truncate group-hover:line-through">{player.name}</span>
+                          {session.status === 'question' && (
+                            <span
+                              className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs transition ${
+                                hasSubmittedCurrentAnswer
+                                  ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
+                                  : 'border-white/20 bg-white/10 text-white/35'
+                              }`}
+                              title={hasSubmittedCurrentAnswer ? `${player.name} has answered` : `${player.name} has not answered yet`}
+                              aria-label={hasSubmittedCurrentAnswer ? `${player.name} has answered` : `${player.name} has not answered yet`}
+                            >
+                              {hasSubmittedCurrentAnswer ? <Check size={16} /> : ''}
+                            </span>
+                          )}
                         </button>
                         <div className="relative z-10 flex shrink-0 items-center gap-2">
                           <div className={`font-mono text-3xl font-black leading-none drop-shadow-[0_2px_0_rgba(2,6,23,0.45)] ${scoreClass}`}>
