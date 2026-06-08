@@ -683,6 +683,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         : 0;
     const currentTeamBonusCard = currentTeamBonusCards[currentTeamBonusPage] || null;
     const compactBonusSlots = isMobileViewport;
+    const currentTeamStealsRemaining = Math.max(0, MAX_STEALS_PER_TEAM - (stealCounts[currentTeam] || 0));
     const swapSourceTile = swapSource !== null ? tiles.find((tile) => tile.id === swapSource) : null;
     const bonusCardStatus = activeBonusCardId === currentTeamBonusCard?.id
         ? bonusAction === 'swap'
@@ -896,15 +897,31 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 <button
                                     key={index}
                                     onClick={() => { setEditingTeamIndex(index); setEditName(name); setEditScore(scores[index] || 0); }}
-                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm ${active ? 'text-white shadow-lg ring-2 sm:ring-4 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
+                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1 overflow-hidden` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm ${active ? 'text-white shadow-lg ring-0 sm:ring-4 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                                     style={active ? { backgroundColor: PLAYER_COLORS[index].base, borderColor: PLAYER_COLORS[index].strong, boxShadow: `0 0 0 ${isMobileViewport ? 2 : 4}px ${PLAYER_COLORS[index].soft}` } : undefined}
                                 >
-                                    <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
-                                        {name}
-                                        {active && <div className="w-2 h-2 rounded-full bg-[#f2c14e] animate-pulse ml-1" />}
-                                    </div>
-                                    <AnimatedScore score={scores[index] || 0} className={`${mobileUsesTwoRowHeader ? 'text-base' : 'text-lg'} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl top-1 sm:top-2" />
-                                    <div className="text-[9px] sm:text-xs font-black uppercase opacity-75 mt-0.5">{correctCounts[index] || 0} correct</div>
+                                    {isMobileViewport ? (
+                                        <>
+                                            <div className="flex max-w-full items-center gap-1 truncate text-[9px] font-black uppercase leading-none tracking-wider">
+                                                <span className="truncate">{name}</span>
+                                                {active && <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f2c14e] animate-pulse" />}
+                                            </div>
+                                            <div className="mt-1 flex max-w-full items-baseline justify-center gap-1 truncate leading-none">
+                                                <AnimatedScore score={scores[index] || 0} className="text-base leading-none" diffClassName="text-[10px] -top-5" />
+                                                <span className="text-[8px] font-black opacity-75">/</span>
+                                                <span className="truncate text-[8px] font-black uppercase opacity-75">{correctCounts[index] || 0} correct</span>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="text-[9px] leading-none sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
+                                                {name}
+                                                {active && <div className="w-2 h-2 rounded-full bg-[#f2c14e] animate-pulse ml-1" />}
+                                            </div>
+                                            <AnimatedScore score={scores[index] || 0} className="text-xl leading-none sm:text-5xl" diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
+                                            <div className="text-[8px] leading-none sm:text-xs font-black uppercase opacity-75 mt-1">{correctCounts[index] || 0} correct</div>
+                                        </>
+                                    )}
                                     <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Edit2 size={12} />
                                     </div>
@@ -931,7 +948,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             <main className="relative flex-1 min-h-0 overflow-hidden p-2 sm:p-4">
                 {currentTeamBonusCard && (
                     <div
-                        className={`absolute left-[1cm] top-[1cm] z-30 flex aspect-[2/3] flex-col overflow-hidden rounded-2xl border-[3px] p-[clamp(0.45rem,0.8vw,0.75rem)] text-center shadow-2xl ${activeBonusCardId === currentTeamBonusCard.id ? 'border-yellow-100 ring-4 ring-yellow-300/40' : 'border-yellow-300/90'} bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-800`}
+                        className={`absolute bottom-3 left-3 z-30 hidden aspect-[2/3] flex-col overflow-hidden rounded-2xl border-[3px] p-2 text-center shadow-2xl sm:left-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.45rem,0.8vw,0.75rem)] ${activeBonusCardId === currentTeamBonusCard.id ? 'border-yellow-100 ring-4 ring-yellow-300/40' : 'border-yellow-300/90'} bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-800`}
                         style={{ width: 'clamp(8rem, min(15vw, 34vh), 17rem)' }}
                     >
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.38),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.18),transparent_38%)]" />
@@ -945,7 +962,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         </div>
                         <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
                             <div className="text-[clamp(0.45rem,0.8vw,0.75rem)] font-black uppercase tracking-[0.28em] text-yellow-100">Bonus</div>
-                            <div className="mt-[clamp(0.25rem,1vh,1.25rem)] flex items-center font-display text-[clamp(1.05rem,2.4vw,1.875rem)] font-black leading-tight text-yellow-200">
+                            <div className="mt-[clamp(0.25rem,1vh,1.25rem)] flex items-center font-display text-[clamp(0.95rem,2.4vw,1.875rem)] font-black leading-tight text-yellow-200">
                                 {bonusLabel(currentTeamBonusCard.kind)}
                             </div>
                             <div className="mt-[clamp(0.25rem,0.8vh,0.75rem)] text-[clamp(0.6rem,1.05vw,1rem)] font-bold leading-tight text-white/90">
@@ -992,7 +1009,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                 )}
 
                 <div
-                    className="absolute right-[1cm] top-[1cm] z-30 flex aspect-[2/3] flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-[clamp(0.35rem,0.7vw,0.75rem)] text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md"
+                    className="absolute bottom-3 right-3 z-30 hidden aspect-[2/3] flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:right-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.35rem,0.7vw,0.75rem)]"
                     style={{ width: 'clamp(8rem, min(15vw, 34vh), 17rem)' }}
                 >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,193,78,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(13,148,136,0.24),transparent_40%)]" />
@@ -1010,14 +1027,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             max {MAX_STEALS_PER_TEAM}
                         </div>
                     </div>
-                    <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-[clamp(0.18rem,0.45vw,0.42rem)]">
+                    <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-[clamp(0.16rem,0.45vw,0.42rem)]">
                         {localTeamNames.map((name, index) => {
                             const remaining = Math.max(0, MAX_STEALS_PER_TEAM - (stealCounts[index] || 0));
                             return (
-                                <div key={index} className="flex min-h-0 flex-1 flex-col justify-center rounded-xl border border-white/10 bg-black/24 p-[clamp(0.25rem,0.55vw,0.5rem)]">
+                                <div key={index} className="flex min-h-0 flex-1 flex-col justify-center rounded-lg border border-white/10 bg-black/24 p-[clamp(0.14rem,0.55vw,0.5rem)]">
                                     <div className="mb-[clamp(0.12rem,0.3vw,0.25rem)] flex items-center justify-between gap-1.5">
-                                        <span className="truncate text-[clamp(0.55rem,0.9vw,0.78rem)] font-black leading-tight" style={{ color: PLAYER_COLORS[index].text }}>{name}</span>
-                                        <span className="font-mono text-[clamp(0.78rem,1.35vw,1.125rem)] font-black leading-none text-white">{remaining}</span>
+                                        <span className="truncate text-[clamp(0.45rem,0.9vw,0.78rem)] font-black leading-tight" style={{ color: PLAYER_COLORS[index].text }}>{name}</span>
+                                        <span className="font-mono text-[clamp(0.62rem,1.35vw,1.125rem)] font-black leading-none text-white">{remaining}</span>
                                     </div>
                                     <div className="flex gap-[clamp(0.15rem,0.35vw,0.25rem)]">
                                         {Array.from({ length: MAX_STEALS_PER_TEAM }, (_, stealIndex) => (
@@ -1034,8 +1051,47 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     </div>
                 </div>
 
+                <div className="absolute inset-x-3 bottom-3 z-30 flex items-center gap-2 overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/94 via-[#121512]/92 to-[#0f2f2a]/90 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:hidden">
+                    <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-black shadow-lg"
+                        style={{ backgroundColor: PLAYER_COLORS[currentTeam].base, color: PLAYER_COLORS[currentTeam].text }}
+                    >
+                        {currentTeam + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-xs font-black uppercase tracking-[0.14em]" style={{ color: PLAYER_COLORS[currentTeam].text }}>
+                                {localTeamNames[currentTeam]}'s turn
+                            </span>
+                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-white/75">
+                                {currentTeamStealsRemaining} steals
+                            </span>
+                        </div>
+                        <div className="mt-1 truncate text-[11px] font-bold text-white/70">
+                            {currentTeamBonusCard ? `${currentTeamBonusCards.length} bonus${currentTeamBonusCards.length === 1 ? '' : 'es'}: ${bonusLabel(currentTeamBonusCard.kind)}` : 'No saved bonuses'}
+                        </div>
+                    </div>
+                    {currentTeamBonusCard && (
+                        <div className="flex shrink-0 flex-col gap-1">
+                            <button
+                                onClick={() => setReviewBonusKind(currentTeamBonusCard.kind)}
+                                className="rounded-lg bg-white/14 px-3 py-1 text-[11px] font-black text-white ring-1 ring-white/20"
+                            >
+                                See
+                            </button>
+                            <button
+                                onClick={() => startBonusAction(currentTeamBonusCard)}
+                                disabled={!canUseBonusBeforeTile}
+                                className={`rounded-lg px-3 py-1 text-[11px] font-black ${canUseBonusBeforeTile ? 'bg-yellow-300 text-purple-950' : 'bg-white/10 text-white/45'}`}
+                            >
+                                {activeBonusCardId === currentTeamBonusCard.id ? 'In use' : 'Use'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
                 <section
-                    className="relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-lg border border-[#f2c14e]/24 bg-[#08211f] bg-cover bg-center p-2 shadow-inner sm:p-4"
+                    className="relative flex h-full min-h-0 items-start justify-center overflow-hidden rounded-lg border border-[#f2c14e]/24 bg-[#08211f] bg-cover bg-center p-2 pt-3 pb-[5.25rem] shadow-inner sm:flex sm:h-full sm:items-center sm:p-4"
                     style={{ backgroundImage: "url('/assets/background/blockbeaters-electric-bg.png')" }}
                 >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(8,47,73,0.08),transparent_38%),linear-gradient(90deg,rgba(2,6,23,0.42),rgba(2,6,23,0.18)_26%,rgba(2,6,23,0.1)_50%,rgba(2,6,23,0.18)_74%,rgba(2,6,23,0.42))]" />
