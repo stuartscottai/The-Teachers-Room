@@ -46,6 +46,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
   const [showSoundLab, setShowSoundLab] = useState(false);
   const blockBeatersQuestionCount = game.questions?.length || 0;
+  const blockBeatersSinglePlayer = game.config.type === GameType.BLOCK_BEATERS && (options.players || 1) <= 1;
   const getBlockBeatersRequiredQuestions = (boardSize: 'small' | 'medium' | 'large') => {
     const tiles = boardSize === 'large' ? 49 : boardSize === 'medium' ? 36 : 25;
     return tiles + 12;
@@ -76,6 +77,11 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     if (options.players <= 4) return;
     setOptions(prev => ({ ...prev, players: 4 }));
   }, [game.config.type, options.players]);
+
+  useEffect(() => {
+    if (!blockBeatersSinglePlayer || !options.enableBonuses) return;
+    setOptions(prev => ({ ...prev, enableBonuses: false }));
+  }, [blockBeatersSinglePlayer, options.enableBonuses]);
 
   // Update team names array when player count changes
   useEffect(() => {
@@ -542,25 +548,37 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
               <div>
                 {game.config.type === GameType.BLOCK_BEATERS ? (
-                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'} ${blockBeatersSinglePlayer ? 'opacity-75' : ''}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
                         className="flex min-w-0 items-center text-left"
-                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                        onClick={() => {
+                          if (blockBeatersSinglePlayer) return;
+                          setOptions({ ...options, enableBonuses: !options.enableBonuses });
+                        }}
+                        disabled={blockBeatersSinglePlayer}
                       >
                         <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'}`}>
                           <Gift size={22} />
                         </div>
                         <div>
                           <h3 className="font-display text-xl font-black text-slate-900">Board Bonuses</h3>
-                          <p className="text-sm font-semibold text-slate-500">Hidden rewards change tile ownership, not points.</p>
+                          <p className="text-sm font-semibold text-slate-500">
+                            {blockBeatersSinglePlayer
+                              ? 'Bonuses are disabled for one-player games.'
+                              : 'Hidden rewards change tile ownership, not points.'}
+                          </p>
                         </div>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-teal-700 bg-teal-700' : 'border-slate-300 bg-white'}`}
+                        onClick={() => {
+                          if (blockBeatersSinglePlayer) return;
+                          setOptions({ ...options, enableBonuses: !options.enableBonuses });
+                        }}
+                        disabled={blockBeatersSinglePlayer}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-teal-700 bg-teal-700' : 'border-slate-300 bg-white'} ${blockBeatersSinglePlayer ? 'cursor-not-allowed' : ''}`}
                       >
                         {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
                       </button>

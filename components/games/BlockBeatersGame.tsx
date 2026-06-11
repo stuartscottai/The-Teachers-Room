@@ -212,13 +212,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const boardSizeKey = options.blockBeatersBoardSize || 'small';
     const size = BOARD_SIZES[boardSizeKey] || BOARD_SIZES.small;
     const fixedPoints = Math.max(1, Number(options.blockBeatersPoints || 10));
+    const bonusesEnabled = teamCount > 1 && Boolean(options.enableBonuses);
     const questions = useMemo(() => {
         const pool = [...(game.questions || [])].filter((question) => question.question && question.answer);
         if (options.randomizeQuestions) pool.sort(() => Math.random() - 0.5);
         return pool.length ? pool : [{ id: 0, question: 'No question saved.', answer: 'Answer', points: fixedPoints, isBonus: false }];
     }, [game.questions, options.randomizeQuestions, fixedPoints]);
 
-    const [tiles, setTiles] = useState<HexTile[]>(() => makeTiles(size, Boolean(options.enableBonuses)));
+    const [tiles, setTiles] = useState<HexTile[]>(() => makeTiles(size, bonusesEnabled));
     const [scores, setScores] = useState<number[]>(() => Array(teamCount).fill(0));
     const [correctCounts, setCorrectCounts] = useState<number[]>(() => Array(teamCount).fill(0));
     const [stealCounts, setStealCounts] = useState<number[]>(() => Array(teamCount).fill(0));
@@ -289,7 +290,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     }), [localTeamNames, scores, correctCounts]);
 
     useEffect(() => {
-        setTiles(makeTiles(size, Boolean(options.enableBonuses)));
+        setTiles(makeTiles(size, bonusesEnabled));
         setUsedQuestionIndices(new Set());
         setActiveTileId(null);
         setActiveQuestionIndex(null);
@@ -299,7 +300,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         setHeldBonusCards([]);
         setActiveBonusCardId(null);
         setReviewBonusKind(null);
-    }, [size, options.enableBonuses]);
+    }, [size, bonusesEnabled]);
 
     useEffect(() => {
         const handleFsChange = () => setIsFullscreen(Boolean(document.fullscreenElement));

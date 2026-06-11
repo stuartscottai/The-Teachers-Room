@@ -1,4 +1,5 @@
 const PIXABAY_HOST = /(^|\.)pixabay\.com$/i;
+const HOSTED_STOCK_IMAGE_PROXY_ORIGIN = 'https://www.theteachersroom.app';
 
 const normalizeHttps = (value: string): string => value.replace(/^http:\/\//i, 'https://');
 
@@ -104,6 +105,10 @@ export const buildStockImageIdProxyPath = (stockId: string, fallbackPixabayUrl?:
     params.set('url', normalizeHttps(fallbackPixabayUrl));
   }
   return `/api/stock-image-proxy?${params.toString()}`;
+};
+
+export const buildHostedStockImageIdProxyUrl = (stockId: string, fallbackPixabayUrl?: string): string => {
+  return `${HOSTED_STOCK_IMAGE_PROXY_ORIGIN}${buildStockImageIdProxyPath(stockId, fallbackPixabayUrl)}`;
 };
 
 export const buildWeservProxyUrl = (pixabayUrl: string): string => {

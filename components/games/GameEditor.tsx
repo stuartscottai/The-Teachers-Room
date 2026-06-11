@@ -7,7 +7,7 @@ import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 import { getStudentGameShareUrl, saveGameToLibrary } from '../../utils/gameUtils';
 import { optimizeImageForUpload } from '../../utils/imageOptimize';
 import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/gameAssetStorage';
-import { resolveGameImageUrl } from '../../utils/gameImage';
+import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { buildLiveQuizQuestionsFromGame } from '../../utils/liveQuizUtils';
 import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
@@ -1175,7 +1175,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <div className="space-y-6">
                                         {pagedGroupedQuestions.map((q, index) => {
                                             const qIdx = pageStart + index;
-                                            const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
+                                            const imageUrl = resolveGameQuestionImageUrl(q.image);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
                                             <div key={qIdx} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:border-sky-200 transition-colors">
@@ -1428,7 +1428,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 <div className="space-y-6">
                                     {pagedQuestions.map((q, index) => {
                                         const questionIndex = pageStart + index;
-                                        const imageUrl = resolveGameImageUrl(q.image?.url, q.image?.thumbUrl);
+                                        const imageUrl = resolveGameQuestionImageUrl(q.image);
                                         const imageAlt = q.image?.alt || 'Question image';
                                         const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex % WORD_WHEEL_LETTERS.length] || '').toUpperCase();
                                         const wordWheelRule = (editedGame.config.wordWheelLetterRule || 'contains-hard') as 'starts-with' | 'contains-hard';

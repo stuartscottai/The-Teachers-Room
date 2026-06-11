@@ -1,7 +1,8 @@
 
-import { GameType, GeneratedGame, GeneratedWorksheet, UploadedFile, User } from "../types";
+import { GameType, GeneratedGame, GeneratedQuestion, GeneratedWorksheet, UploadedFile, User } from "../types";
 import { supabase } from "../services/supabase";
 import { deleteWorksheetAssetFolder } from "./worksheetAssetStorage";
+import { createSignedUrlsForGameAssets } from "./gameAssetStorage";
 import { getPublicAppUrl } from "./appUrl";
 import { optimizeImageForUpload } from "./imageOptimize";
 import mammoth from "mammoth";
@@ -583,6 +584,85 @@ const sanitizeStoredConfig = <T extends Record<string, any> | undefined | null>(
     return next as T;
 };
 
+const mapStoredGame = (d: any): GeneratedGame => ({
+    id: d.id,
+    title: d.title,
+    authorId: d.user_id,
+    authorName: d.author_name,
+    authorAvatar: d.author_avatar || d.config?.authorAvatar,
+    playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
+    config: sanitizeStoredConfig(d.config, d.is_public),
+    questions: d.questions,
+    jeopardyBoard: d.jeopardy_board,
+    pubQuizRounds: d.pub_quiz_rounds,
+    stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
+    createdAt: d.created_at
+});
+
+const getQuestionStoragePath = (question?: GeneratedQuestion | null) => {
+    const path = question?.image?.storagePath || (question?.image as any)?.storage_path;
+    return typeof path === 'string' ? path.trim() : '';
+};
+
+const refreshStoredGameImageUrls = async (game: GeneratedGame): Promise<GeneratedGame> => {
+    const paths = new Set<string>();
+    const collect = (question?: GeneratedQuestion | null) => {
+        const path = getQuestionStoragePath(question);
+        if (path) paths.add(path);
+    };
+
+    (game.questions || []).forEach(collect);
+    (game.jeopardyBoard || []).forEach((category) => (category.questions || []).forEach(collect));
+    (game.pubQuizRounds || []).forEach((round) => (round.questions || []).forEach(collect));
+
+    if (!paths.size) return game;
+
+    try {
+        const signedUrls = await createSignedUrlsForGameAssets(Array.from(paths));
+        if (!signedUrls.size) return game;
+
+        const applySignedUrl = (question: GeneratedQuestion): GeneratedQuestion => {
+            const path = getQuestionStoragePath(question);
+            if (!path) return question;
+            const signedUrl = signedUrls.get(path);
+            if (!signedUrl) return question;
+            return {
+                ...question,
+                image: {
+                    ...question.image,
+                    url: signedUrl,
+                    storagePath: path,
+                    source: question.image?.source || 'upload',
+                },
+            };
+        };
+
+        return {
+            ...game,
+            questions: (game.questions || []).map(applySignedUrl),
+            jeopardyBoard: game.jeopardyBoard
+                ? game.jeopardyBoard.map((category) => ({
+                    ...category,
+                    questions: (category.questions || []).map(applySignedUrl),
+                }))
+                : game.jeopardyBoard,
+            pubQuizRounds: game.pubQuizRounds
+                ? game.pubQuizRounds.map((round) => ({
+                    ...round,
+                    questions: (round.questions || []).map(applySignedUrl),
+                }))
+                : game.pubQuizRounds,
+        };
+    } catch (error) {
+        console.warn('Failed to refresh game image URLs from storage paths:', error);
+        return game;
+    }
+};
+
+const refreshStoredGameImageUrlsList = async (games: GeneratedGame[]): Promise<GeneratedGame[]> => {
+    return Promise.all(games.map(refreshStoredGameImageUrls));
+};
+
 // Helper to retrieve local games (Guest Mode)
 export const getLocalGames = (): GeneratedGame[] => {
     try {
@@ -698,21 +778,7 @@ export const getSavedGames = async (userId?: string): Promise<GeneratedGame[]> =
         
         if (error) throw error;
         
-        return data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            authorId: d.user_id,
-            authorName: d.author_name,
-            authorAvatar: d.author_avatar || d.config?.authorAvatar,
-            playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
-            // Sync isPublic from column to config object for consistency
-            config: sanitizeStoredConfig(d.config, d.is_public),
-            questions: d.questions,
-            jeopardyBoard: d.jeopardy_board,
-            pubQuizRounds: d.pub_quiz_rounds,
-            stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
-            createdAt: d.created_at
-        }));
+        return refreshStoredGameImageUrlsList(data.map(mapStoredGame));
     } catch (e) {
         console.error("Supabase Fetch Error:", e);
         return [];
@@ -778,20 +844,7 @@ export const getCommunityGames = async (
         
         if (error) throw error;
         
-        const mappedData = data.map((d: any) => ({
-            id: d.id,
-            title: d.title,
-            authorId: d.user_id,
-            authorName: d.author_name,
-            authorAvatar: d.author_avatar || d.config?.authorAvatar,
-            playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
-            config: sanitizeStoredConfig(d.config, d.is_public),
-            questions: d.questions,
-            jeopardyBoard: d.jeopardy_board,
-            pubQuizRounds: d.pub_quiz_rounds,
-            stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
-            createdAt: d.created_at
-        }));
+        const mappedData = await refreshStoredGameImageUrlsList(data.map(mapStoredGame));
 
         if (imageFilter !== 'all') {
             const filteredData = mappedData.filter((game) =>
@@ -817,21 +870,6 @@ export const getCommunityGames = async (
 export const getTrendingGames = async (
     limit: number = 5
 ): Promise<{ data: GeneratedGame[]; error: string | null; mode: 'plays' | 'fallback' }> => {
-    const mapGame = (d: any): GeneratedGame => ({
-        id: d.id,
-        title: d.title,
-        authorId: d.user_id,
-        authorName: d.author_name,
-        authorAvatar: d.author_avatar || d.config?.authorAvatar,
-        playCount: Number(d.play_count ?? d.config?.playCount ?? 0),
-        config: sanitizeStoredConfig(d.config, d.is_public),
-        questions: d.questions,
-        jeopardyBoard: d.jeopardy_board,
-        pubQuizRounds: d.pub_quiz_rounds,
-        stopTheFireCategories: d.stop_the_fire_categories || d.config?.stopTheFireCategories,
-        createdAt: d.created_at
-    });
-
     try {
         const { data, error } = await supabase
             .from('saved_games')
@@ -842,7 +880,7 @@ export const getTrendingGames = async (
             .limit(limit);
 
         if (error) throw error;
-        return { data: (data || []).map(mapGame), error: null, mode: 'plays' };
+        return { data: await refreshStoredGameImageUrlsList((data || []).map(mapStoredGame)), error: null, mode: 'plays' };
     } catch (e: any) {
         try {
             const { data, error } = await supabase
@@ -862,7 +900,7 @@ export const getTrendingGames = async (
                 })
                 .slice(0, limit);
 
-            return { data: sorted.map(mapGame), error: null, mode: 'fallback' };
+            return { data: await refreshStoredGameImageUrlsList(sorted.map(mapStoredGame)), error: null, mode: 'fallback' };
         } catch (fallbackError: any) {
             console.error("Trending Fetch Error:", fallbackError);
             return { data: [], error: fallbackError.message || "Failed to fetch trending games", mode: 'fallback' };
@@ -883,20 +921,7 @@ export const getSharedGame = async (id: string): Promise<GeneratedGame | null> =
 
         if (error || !data) return null;
 
-        return {
-            id: data.id,
-            title: data.title,
-            authorId: data.user_id,
-            authorName: data.author_name,
-            authorAvatar: data.author_avatar || data.config?.authorAvatar,
-            playCount: Number(data.play_count ?? data.config?.playCount ?? 0),
-            config: sanitizeStoredConfig(data.config, data.is_public),
-            questions: data.questions,
-            jeopardyBoard: data.jeopardy_board,
-            pubQuizRounds: data.pub_quiz_rounds,
-            stopTheFireCategories: data.stop_the_fire_categories || data.config?.stopTheFireCategories,
-            createdAt: data.created_at,
-        };
+        return refreshStoredGameImageUrls(mapStoredGame(data));
     } catch (e) {
         console.error("Shared Game Fetch Error:", e);
         return null;

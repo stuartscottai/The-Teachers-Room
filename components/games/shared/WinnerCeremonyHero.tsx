@@ -52,7 +52,7 @@ const WINNER_CEREMONY_MUSIC_OPTIONS = [
 
 type WinnerCeremonyEffect = 'confetti' | 'fireworks';
 
-const WINNER_CEREMONY_EFFECTS: WinnerCeremonyEffect[] = ['confetti', 'fireworks'];
+const WINNER_CEREMONY_EFFECTS: WinnerCeremonyEffect[] = ['confetti'];
 
 const CEREMONY_COLORS = {
     gold: { light: '#FFFBD0', mid: '#F5BD02', dark: '#8B6508' },

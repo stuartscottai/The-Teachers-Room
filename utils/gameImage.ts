@@ -1,5 +1,5 @@
 import { GeneratedQuestion } from '../types';
-import { buildStockImageIdProxyPath, buildStockImageProxyPath, extractPixabaySourceUrl, toCoepSafeStockImageUrl } from './stockImageUrl';
+import { buildHostedStockImageIdProxyUrl, buildStockImageIdProxyPath, buildStockImageProxyPath, extractPixabaySourceUrl, toCoepSafeStockImageUrl } from './stockImageUrl';
 
 const uniqueUrls = (values: string[]) => {
   const seen = new Set<string>();
@@ -53,8 +53,11 @@ export const resolveGameQuestionImageUrls = (image?: GeneratedQuestion['image'] 
   const primarySource = extractPixabaySourceUrl(primaryRaw);
   const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
 
-  if (!import.meta.env.DEV && image.source === 'stock' && image.stockId) {
-    urls.push(buildStockImageIdProxyPath(String(image.stockId), primarySource || fallbackSource || undefined));
+  if (image.source === 'stock' && image.stockId) {
+    const stockIdUrl = import.meta.env.DEV
+      ? buildHostedStockImageIdProxyUrl(String(image.stockId), primarySource || fallbackSource || undefined)
+      : buildStockImageIdProxyPath(String(image.stockId), primarySource || fallbackSource || undefined);
+    urls.push(stockIdUrl);
   }
 
   urls.push(...resolveGameImageUrls(primaryRaw, fallbackRaw));
