@@ -798,6 +798,7 @@ export const getCommunityGames = async (
     schoolId?: string
 ): Promise<{ data: GeneratedGame[], count: number, error: string | null }> => {
     try {
+        const shouldSortByTrending = sort === 'trending';
         // Query using the top-level is_public column (faster/cleaner)
         let query = supabase
             .from('saved_games')
@@ -831,10 +832,16 @@ export const getCommunityGames = async (
         if (sort === 'oldest') query = query.order('created_at', { ascending: true });
         if (sort === 'az') query = query.order('title', { ascending: true });
         if (sort === 'za') query = query.order('title', { ascending: false });
+        if (sort === 'plays') {
+            query = query
+                .order('play_count', { ascending: false, nullsFirst: false })
+                .order('created_at', { ascending: false });
+        }
+        if (shouldSortByTrending) query = query.order('created_at', { ascending: false });
 
         const from = (page - 1) * limit;
         const to = from + limit - 1;
-        if (imageFilter === 'all') {
+        if (imageFilter === 'all' && !shouldSortByTrending) {
             query = query.range(from, to);
         } else {
             query = query.range(0, 999);
@@ -845,6 +852,46 @@ export const getCommunityGames = async (
         if (error) throw error;
         
         const mappedData = await refreshStoredGameImageUrlsList(data.map(mapStoredGame));
+
+        if (shouldSortByTrending) {
+            const gameIds = mappedData
+                .map((game) => game.id)
+                .filter((id): id is string => Boolean(id && isUUID(id)));
+            const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            let weeklyPlayCounts = new Map<string, number>();
+
+            if (gameIds.length > 0) {
+                try {
+                    const { data: trendRows, error: trendError } = await supabase.rpc('get_public_game_play_counts_since', {
+                        p_game_ids: gameIds,
+                        p_since: weekStart
+                    });
+
+                    if (trendError) throw trendError;
+                    weeklyPlayCounts = new Map(
+                        (trendRows || []).map((row: any) => [String(row.game_id), Number(row.play_count || 0)])
+                    );
+                } catch (trendError) {
+                    console.warn('Weekly trending counts unavailable. Add get_public_game_play_counts_since SQL for true weekly trending.', trendError);
+                }
+            }
+
+            const filteredData = (imageFilter === 'all' ? mappedData : mappedData.filter((game) =>
+                imageFilter === 'with-images' ? gameHasQuestionImages(game) : !gameHasQuestionImages(game)
+            )).sort((a, b) => {
+                const aWeeklyPlays = a.id ? weeklyPlayCounts.get(a.id) || 0 : 0;
+                const bWeeklyPlays = b.id ? weeklyPlayCounts.get(b.id) || 0 : 0;
+                if (aWeeklyPlays !== bWeeklyPlays) return bWeeklyPlays - aWeeklyPlays;
+
+                const aTotalPlays = Number(a.playCount || a.config?.playCount || 0);
+                const bTotalPlays = Number(b.playCount || b.config?.playCount || 0);
+                if (aTotalPlays !== bTotalPlays) return bTotalPlays - aTotalPlays;
+
+                return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+            });
+
+            return { data: filteredData.slice(from, to + 1), count: filteredData.length, error: null };
+        }
 
         if (imageFilter !== 'all') {
             const filteredData = mappedData.filter((game) =>

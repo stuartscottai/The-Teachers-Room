@@ -58,6 +58,35 @@ const getGameStats = (game: GeneratedGame) => {
     return stats;
 };
 
+const getGamePlayCount = (game: GeneratedGame) => Number(game.playCount ?? game.config?.playCount ?? 0);
+
+const PlayCountBadge: React.FC<{ game: GeneratedGame }> = ({ game }) => {
+    const playCount = getGamePlayCount(game);
+
+    return (
+        <div
+            className="inline-flex items-center rounded-md border border-slate-200 bg-white/85 px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm"
+            title={`This game has been played ${playCount} ${playCount === 1 ? 'time' : 'times'}.`}
+        >
+            <Play size={12} className="mr-1.5 text-slate-400" />
+            <span>{playCount} {playCount === 1 ? 'Play' : 'Plays'}</span>
+        </div>
+    );
+};
+
+const getGameStatTooltip = (stat: { label: string; value: string | number }) => {
+    const value = stat.value === '' ? '' : Number(stat.value);
+    const label = stat.label;
+
+    if (label === 'Qs') return `This game has ${value} ${value === 1 ? 'question' : 'questions'}.`;
+    if (label === 'Cats') return `This game has ${value} ${value === 1 ? 'category' : 'categories'}.`;
+    if (label === 'Rounds') return `This game has ${value} ${value === 1 ? 'round' : 'rounds'}.`;
+    if (label === 'Letters') return `This word wheel uses ${value} ${value === 1 ? 'letter' : 'letters'}.`;
+    if (label === 'MC') return 'This game uses multiple-choice questions.';
+
+    return `This game has ${value} ${label.toLowerCase()}.`;
+};
+
 const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
     [GameType.SNAKES_LADDERS]: [
         "/assets/games/snakes.png",
@@ -628,6 +657,221 @@ const getIcon = (type: string) => {
     }
 };
 
+const getLibraryCardTheme = (type: string) => {
+    switch (type) {
+        case GameType.JEOPARDY:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#4f46e5',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(15,23,42,.18))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(15,23,42,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-indigo-300 hover:text-indigo-700'
+            };
+        case GameType.TRIVIA:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#0369a1',
+                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,.12), rgba(15,23,42,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(15,23,42,.16)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-sky-300 hover:text-sky-700'
+            };
+        case GameType.PUB_QUIZ:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#92400e',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(67,20,7,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(67,20,7,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-amber-300 hover:text-amber-700'
+            };
+        case GameType.MILLIONAIRE:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#047857',
+                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,.12), rgba(6,78,59,.22))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(6,78,59,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-emerald-300 hover:text-emerald-700'
+            };
+        case GameType.DARTS:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#9f1239',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(76,5,25,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(76,5,25,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-rose-300 hover:text-rose-700'
+            };
+        case GameType.TIME_BOMB:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#991b1b',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(69,10,10,.24))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(69,10,10,.2)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-red-300 hover:text-red-700'
+            };
+        case GameType.SURVEY_SHOWDOWN:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#a21caf',
+                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,.12), rgba(112,26,117,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(112,26,117,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-fuchsia-300 hover:text-fuchsia-700'
+            };
+        case GameType.STOP_THE_FIRE:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#c2410c',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(124,45,18,.22))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(124,45,18,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-orange-300 hover:text-orange-700'
+            };
+        case GameType.WORD_WHEEL:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#0f766e',
+                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,.12), rgba(19,78,74,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(19,78,74,.17)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-teal-300 hover:text-teal-700'
+            };
+        case GameType.BLOCK_BEATERS:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#6d28d9',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(76,29,149,.22))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(76,29,149,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-violet-300 hover:text-violet-700'
+            };
+        case GameType.LIVE_QUIZ_CHALLENGE:
+            return {
+                card: 'border-slate-200 bg-slate-50/80',
+                headerStyle: {
+                    backgroundColor: '#0e7490',
+                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,.12), rgba(21,94,117,.2))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.22), inset 0 -18px 32px rgba(21,94,117,.18)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-cyan-300 hover:text-cyan-700'
+            };
+        default:
+            return {
+                card: 'border-slate-200 bg-slate-50',
+                headerStyle: {
+                    backgroundColor: '#475569',
+                    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,.12), rgba(15,23,42,.18))',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2), inset 0 -18px 32px rgba(15,23,42,.16)'
+                },
+                badge: 'border-white/25 bg-white/20 text-white',
+                stat: 'border-slate-200 bg-white/80 text-slate-600',
+                footer: 'border-slate-200 bg-white/55',
+                action: 'hover:border-slate-400 hover:text-slate-800'
+            };
+    }
+};
+
+const LibraryHeaderIconTexture: React.FC<{ type: string }> = ({ type }) => {
+    const shapes = [
+        { className: 'left-[8%] top-[18%] opacity-45', transform: 'rotate(-18deg) scale(1.7)' },
+        { className: 'left-[38%] top-[48%] opacity-30', transform: 'rotate(12deg) scale(2.3)' },
+        { className: 'right-[10%] top-[16%] opacity-45', transform: 'rotate(22deg) scale(1.9)' },
+        { className: 'right-[29%] -bottom-[26%] opacity-25', transform: 'rotate(-9deg) scale(3.1)' },
+        { className: 'left-[68%] -top-[22%] opacity-25', transform: 'rotate(34deg) scale(2.6)' }
+    ];
+
+    return (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {shapes.map((shape, index) => (
+                <span
+                    key={index}
+                    className={`absolute text-white ${shape.className}`}
+                    style={{ transform: shape.transform }}
+                    aria-hidden="true"
+                >
+                    <span className="absolute translate-x-[3px] translate-y-[5px] text-slate-950/40 blur-[1px]">
+                        {getIcon(type)}
+                    </span>
+                    <span className="absolute translate-x-[1.5px] translate-y-[2.5px] text-slate-900/35">
+                        {getIcon(type)}
+                    </span>
+                    <span className="absolute -translate-x-[1px] -translate-y-[1px] text-white/70 blur-[0.2px]">
+                        {getIcon(type)}
+                    </span>
+                    <span className="relative text-white drop-shadow-[0_3px_0_rgba(15,23,42,0.34)] [filter:drop-shadow(0_10px_8px_rgba(15,23,42,0.22))]">
+                        {getIcon(type)}
+                    </span>
+                </span>
+            ))}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_82%_78%,rgba(15,23,42,0.2),transparent_32%)]" />
+        </div>
+    );
+};
+
+const RaisedGameIcon: React.FC<{ type: string; className?: string }> = ({ type, className = '' }) => (
+    <span className={`relative inline-flex h-6 w-6 items-center justify-center ${className}`} aria-hidden="true">
+        <span className="absolute translate-x-[2px] translate-y-[3px] text-slate-950/25 blur-[1px]">
+            {getIcon(type)}
+        </span>
+        <span className="absolute translate-x-[1px] translate-y-[1.5px] text-slate-700/35">
+            {getIcon(type)}
+        </span>
+        <span className="absolute -translate-x-[1px] -translate-y-[1px] text-white/90">
+            {getIcon(type)}
+        </span>
+        <span className="relative text-slate-700 drop-shadow-[0_2px_0_rgba(148,163,184,0.7)] [filter:drop-shadow(0_5px_4px_rgba(15,23,42,0.18))]">
+            {getIcon(type)}
+        </span>
+    </span>
+);
+
 const TourPopup: React.FC<{
     title: string;
     text: string;
@@ -748,6 +992,11 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
         if (sortBy === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
         if (sortBy === 'az') return a.title.localeCompare(b.title);
         if (sortBy === 'za') return b.title.localeCompare(a.title);
+        if (sortBy === 'plays') {
+            const playDifference = getGamePlayCount(b) - getGamePlayCount(a);
+            if (playDifference !== 0) return playDifference;
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        }
         return 0;
     });
 
@@ -841,6 +1090,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
+                        <option value="plays">Most Played</option>
                         <option value="newest">Newest First</option>
                         <option value="oldest">Oldest First</option>
                         <option value="az">A-Z (Title)</option>
@@ -895,59 +1145,79 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                 </div>
             ) : (
                 <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pagedGames.map(game => (
-                        <div key={game.id} className="bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-5 flex flex-col group relative cursor-pointer" onClick={() => onLoadGame(game)}>
-                            <div className="flex justify-between items-start mb-3">
-                                <div className="flex items-center gap-2 max-w-[70%]">
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase truncate max-w-full">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {pagedGames.map(game => {
+                        const theme = getLibraryCardTheme(game.config.type);
+
+                        return (
+                        <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative cursor-pointer transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`} onClick={() => onLoadGame(game)}>
+                            <div className="relative overflow-hidden px-4 py-3 text-white" style={theme.headerStyle}>
+                                <LibraryHeaderIconTexture type={game.config.type} />
+                                <div className="relative z-10 flex items-start justify-between gap-3">
+                                    <div className={`inline-flex min-w-0 max-w-[75%] items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase shadow-sm backdrop-blur-sm ${theme.badge}`}>
                                         {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
                                     </div>
-                                    {game.config.isAI && (
-                                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200" title="AI Generated">
-                                            <Sparkles size={10} /> AI
-                                        </div>
-                                    )}
-                                </div>
-                                <button 
-                                    onClick={(e) => handleDelete(e, game.id!)}
-                                    className="text-slate-300 hover:text-red-500 p-2 -mr-2 -mt-2 rounded-full hover:bg-red-50 transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
-                            
-                            <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
-                            <p className="text-sm text-slate-500 mb-2 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
-                            
-                            {/* STATS BADGES */}
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {getGameStats(game).map((stat, i) => (
-                                    <div key={i} className="flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                        <span className="mr-1.5 opacity-50">{stat.icon}</span>
-                                        <span>{stat.value} {stat.label}</span>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        {game.config.isAI && (
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title="AI Generated">
+                                                <Sparkles size={10} /> AI
+                                            </div>
+                                        )}
+                                        <button 
+                                            onClick={(e) => handleDelete(e, game.id!)}
+                                            className="rounded-full p-2 text-white/75 transition-colors hover:bg-white/20 hover:text-white"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </div>
-                                ))}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-1 flex-col px-4 py-3">
+                                <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
+                                <p className="text-sm font-semibold text-slate-600 mb-3 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
+                                
+                                {/* STATS BADGES */}
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="flex flex-wrap gap-2">
+                                        {getGameStats(game).map((stat, i) => (
+                                            <div
+                                                key={i}
+                                                className={`flex items-center rounded-md border px-2 py-1 text-[10px] font-bold ${theme.stat}`}
+                                                title={getGameStatTooltip(stat)}
+                                            >
+                                                <span className="mr-1.5 opacity-60">{stat.icon}</span>
+                                                <span>{stat.value} {stat.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="ml-auto">
+                                        <PlayCountBadge game={game} />
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-                                <span className="text-[10px] text-slate-400 font-bold">
-                                    {new Date(game.createdAt || Date.now()).toLocaleDateString()}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    {game.config.isPublic ? (
-                                        <div className="flex items-center text-green-600 text-[10px] font-bold bg-green-50 px-2 py-1 rounded">
-                                            <Globe size={10} className="mr-1" /> Public
-                                        </div>
-                                    ) : (
-                                        <div className="text-slate-300 text-[10px] font-bold uppercase flex items-center">
-                                            <div className="w-2 h-2 bg-slate-300 rounded-full mr-1"></div> Private
-                                        </div>
-                                    )}
+                            <div className={`mt-auto border-t px-4 py-3 flex items-center justify-between gap-3 ${theme.footer}`}>
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                    <span className="text-[10px] text-slate-500 font-bold">
+                                        {new Date(game.createdAt || Date.now()).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        {game.config.isPublic ? (
+                                            <div className="flex items-center text-green-700 text-[10px] font-bold bg-green-100 px-2 py-1 rounded border border-green-200">
+                                                <Globe size={10} className="mr-1" /> Public
+                                            </div>
+                                        ) : (
+                                            <div className="text-slate-500 text-[10px] font-bold uppercase flex items-center">
+                                                <div className="w-2 h-2 bg-slate-400 rounded-full mr-1"></div> Private
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
                 {filteredGames.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 py-6">
@@ -1193,6 +1463,10 @@ const CommunityLibrary: React.FC<{
 
     return (
         <div className="animate-fade-in">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold text-slate-800">Community Saved Games</h2>
+            </div>
+
             {/* Control Bar */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8">
                 <div className="flex w-full gap-2">
@@ -1270,6 +1544,8 @@ const CommunityLibrary: React.FC<{
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
+                        <option value="trending">Trending First</option>
+                        <option value="plays">Most Played</option>
                         <option value="newest">Newest First</option>
                         <option value="oldest">Oldest First</option>
                         <option value="az">A-Z (Title)</option>
@@ -1389,70 +1665,89 @@ const CommunityLibrary: React.FC<{
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        {games.map(game => (
-                            <div key={game.id} className="bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-5 flex flex-col group relative">
-                                <div className="flex justify-between items-start mb-3">
-                                    <div className="flex items-center gap-2 max-w-[60%]">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase truncate max-w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+                        {games.map(game => {
+                            const theme = getLibraryCardTheme(game.config.type);
+
+                            return (
+                            <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`}>
+                                <div className="relative overflow-hidden px-4 py-3 text-white" style={theme.headerStyle}>
+                                    <LibraryHeaderIconTexture type={game.config.type} />
+                                    <div className="relative z-10 flex items-start justify-between gap-3">
+                                        <div className={`inline-flex min-w-0 max-w-[70%] items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase shadow-sm backdrop-blur-sm ${theme.badge}`}>
                                             {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
                                         </div>
-                                        {game.config.isAI && (
-                                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200" title="AI Generated">
-                                                <Sparkles size={10} /> AI
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            {game.config.isAI && (
+                                                <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title="AI Generated">
+                                                    <Sparkles size={10} /> AI
+                                                </div>
+                                            )}
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
+                                                <Globe size={12} />
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-1 flex-col px-4 py-3">
+                                    <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
+                                    <p className="text-sm font-semibold text-slate-600 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
+                                    <div className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
+                                        <span>By</span>
+                                        <Avatar
+                                            name={game.authorName || 'Teacher'}
+                                            src={game.authorAvatar || game.config.authorAvatar}
+                                            className="w-4 h-4"
+                                            textClassName="text-[7px]"
+                                        />
+                                        {game.authorId ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => applyAuthorFilter(game.authorId!, game.authorName || 'Teacher')}
+                                                className="truncate text-slate-700 hover:text-brand-blue hover:underline"
+                                                title={`View all by ${game.authorName || 'Teacher'}`}
+                                            >
+                                                {game.authorName || 'Teacher'}
+                                            </button>
+                                        ) : (
+                                            <span className="truncate">{game.authorName || 'Teacher'}</span>
                                         )}
                                     </div>
-                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-sky-50 text-sky-600 border border-sky-100">
-                                        <Globe size={12} />
+                                    
+                                    {/* STATS BADGES */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <div className="flex flex-wrap gap-2">
+                                            {getGameStats(game).map((stat, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`flex items-center rounded-md border px-2 py-1 text-[10px] font-bold ${theme.stat}`}
+                                                    title={getGameStatTooltip(stat)}
+                                                >
+                                                    <span className="mr-1.5 opacity-60">{stat.icon}</span>
+                                                    <span>{stat.value} {stat.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="ml-auto">
+                                            <PlayCountBadge game={game} />
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
-                                <p className="text-sm text-slate-500 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
-                                <div className="text-xs text-slate-400 mb-2 flex items-center gap-1.5">
-                                    <span>By</span>
-                                    <Avatar
-                                        name={game.authorName || 'Teacher'}
-                                        src={game.authorAvatar || game.config.authorAvatar}
-                                        className="w-4 h-4"
-                                        textClassName="text-[7px]"
-                                    />
-                                    {game.authorId ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => applyAuthorFilter(game.authorId!, game.authorName || 'Teacher')}
-                                            className="truncate text-slate-600 hover:text-brand-blue hover:underline"
-                                            title={`View all by ${game.authorName || 'Teacher'}`}
-                                        >
-                                            {game.authorName || 'Teacher'}
-                                        </button>
-                                    ) : (
-                                        <span className="truncate">{game.authorName || 'Teacher'}</span>
-                                    )}
-                                </div>
-                                
-                                {/* STATS BADGES */}
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {getGameStats(game).map((stat, i) => (
-                                        <div key={i} className="flex items-center text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
-                                            <span className="mr-1.5 opacity-50">{stat.icon}</span>
-                                            <span>{stat.value} {stat.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                
-                                <div className="mt-auto pt-4 border-t border-slate-50 flex items-center">
+                                <div className={`mt-auto border-t px-4 py-3 flex items-center ${theme.footer}`}>
                                     <button 
                                         onClick={() => onLoadGame(game)}
-                                        className="w-full px-3 py-2 bg-white border-2 border-slate-200 text-slate-600 rounded-lg font-bold hover:border-brand-blue hover:text-brand-blue transition-colors flex items-center justify-center gap-2 text-sm"
+                                        className={`w-full px-3 py-2 bg-white/80 border-2 border-white text-slate-700 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${theme.action}`}
                                         title="Open Preview"
                                     >
-                                        <HelpCircle size={14} /> Preview
+                                        <RaisedGameIcon type={game.config.type} />
+                                        Preview
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     {totalCount > 0 && (
@@ -1615,7 +1910,7 @@ const GameHub: React.FC<{
         <div className="max-w-7xl mx-auto px-4 py-8">
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div className="text-center md:text-left">
-                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">AI Classroom Game Maker</h1>
+                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">AI Classroom Games Hub</h1>
                     <p className="text-slate-500">Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.</p>
                 </div>
                 

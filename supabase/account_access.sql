@@ -416,6 +416,30 @@ begin
 end;
 $$;
 
+drop function if exists public.get_public_game_play_counts_since(uuid[], timestamptz);
+create or replace function public.get_public_game_play_counts_since(
+  p_game_ids uuid[],
+  p_since timestamptz
+)
+returns table (
+  game_id uuid,
+  play_count bigint
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    gpe.game_id,
+    count(*)::bigint as play_count
+  from public.game_play_events gpe
+  join public.saved_games sg on sg.id = gpe.game_id
+  where sg.is_public = true
+    and gpe.game_id = any(p_game_ids)
+    and gpe.played_at >= p_since
+  group by gpe.game_id
+$$;
+
 -- Helper: is caller an active school admin?
 create or replace function public.current_user_is_school_admin(p_school_id uuid)
 returns boolean
@@ -2409,8 +2433,10 @@ grant execute on function public.get_school_teacher_spot_summary(uuid) to authen
 grant execute on function public.change_school_teacher_spots(uuid, integer) to authenticated;
 grant execute on function public.increment_game_play(uuid) to authenticated;
 grant execute on function public.record_game_play_event(uuid) to authenticated;
+grant execute on function public.get_public_game_play_counts_since(uuid[], timestamptz) to authenticated;
 grant execute on function public.increment_game_play(uuid) to anon;
 grant execute on function public.record_game_play_event(uuid) to anon;
+grant execute on function public.get_public_game_play_counts_since(uuid[], timestamptz) to anon;
 grant execute on function public.get_school_teacher_directory(uuid) to authenticated;
 grant execute on function public.list_school_teacher_play_events(uuid, uuid, integer) to authenticated;
 grant execute on function public.set_school_member_role(uuid, uuid, text) to authenticated;
