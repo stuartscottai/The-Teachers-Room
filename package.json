@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@marsidev/react-turnstile": "^1.5.3",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "8.17.6",
     "@remotion/whisper-web": "4.0.404",

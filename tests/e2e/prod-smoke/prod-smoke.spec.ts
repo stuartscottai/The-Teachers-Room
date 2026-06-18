@@ -84,34 +84,28 @@ test.describe('production smoke checks', () => {
     expect(Array.isArray(data)).toBe(true);
   });
 
-  test('dedicated teacher account can authenticate against production Supabase', async () => {
-    const supabase = createClient(prodSmokeEnv.supabaseUrl, prodSmokeEnv.supabaseAnonKey);
+  test('production generation API accepts a token from a CAPTCHA-protected UI login', async ({ page, request }) => {
+    await loginThroughUi(page);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: prodSmokeEnv.teacherEmail,
-      password: prodSmokeEnv.teacherPassword,
+    const accessToken = await page.evaluate(() => {
+      const authStorageKey = Object.keys(window.localStorage).find(
+        (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+      );
+      if (!authStorageKey) return null;
+
+      try {
+        const storedSession = JSON.parse(window.localStorage.getItem(authStorageKey) || 'null');
+        return storedSession?.access_token || storedSession?.currentSession?.access_token || null;
+      } catch {
+        return null;
+      }
     });
 
-    expect(error, error?.message || '').toBeNull();
-    expect(data.user?.email?.toLowerCase()).toBe(prodSmokeEnv.teacherEmail.toLowerCase());
-
-    await supabase.auth.signOut();
-  });
-
-  test('production generation API accepts the dedicated teacher auth token', async ({ request }) => {
-    const supabase = createClient(prodSmokeEnv.supabaseUrl, prodSmokeEnv.supabaseAnonKey);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: prodSmokeEnv.teacherEmail,
-      password: prodSmokeEnv.teacherPassword,
-    });
-
-    expect(error, error?.message || '').toBeNull();
-    expect(data.session?.access_token).toBeTruthy();
+    expect(accessToken).toBeTruthy();
 
     const response = await request.post('/api/generate', {
       headers: {
-        Authorization: `Bearer ${data.session?.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       data: {
         action: '__auth_smoke__',
@@ -121,8 +115,6 @@ test.describe('production smoke checks', () => {
 
     expect(response.status()).toBe(400);
     await expect(await response.json()).toEqual({ error: 'Invalid action' });
-
-    await supabase.auth.signOut();
   });
 
   test('dedicated teacher can log in through the production UI', async ({ page }) => {

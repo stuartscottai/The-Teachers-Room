@@ -75,9 +75,10 @@ The current production smoke checks are intentionally non-destructive. They veri
 
 - the production homepage loads without browser console errors
 - the production Supabase anon key can read the public saved-game stats data
-- the dedicated teacher account can authenticate against production Supabase
-- the production generation API accepts the dedicated teacher auth token
 - the dedicated teacher can log in through the production website UI
+- the production generation API accepts the token created by that CAPTCHA-protected UI login
 - the dedicated teacher can see the private `[E2E TEST] Private Library Smoke Game` in the saved-games library
+
+Production authentication checks must go through the website UI so Cloudflare Turnstile can issue the verification token required by Supabase.
 
 Do not commit real credentials. `.env.prod-smoke` is ignored by Git; `.env.prod-smoke.example` is the committed template.

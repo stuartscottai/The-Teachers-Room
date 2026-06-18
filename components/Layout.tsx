@@ -14,6 +14,7 @@ import {
   EmailConfirmationDetail
 } from '../services/accountAccess';
 import { PlanUpgradeModal } from './PlanUpgradeModal';
+import { AuthTurnstile } from './AuthTurnstile';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
@@ -65,6 +66,8 @@ const Navbar: React.FC = () => {
   const [isResendingConfirmation, setIsResendingConfirmation] = useState(false);
   const [emailConfirmationFeedback, setEmailConfirmationFeedback] = useState<string | null>(null);
   const [emailConfirmationError, setEmailConfirmationError] = useState<string | null>(null);
+  const [resendCaptchaToken, setResendCaptchaToken] = useState<string | null>(null);
+  const [resendCaptchaResetKey, setResendCaptchaResetKey] = useState(0);
   const location = useLocation();
   const { user, logout, resendSignupConfirmation } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -112,16 +115,24 @@ const Navbar: React.FC = () => {
     setIsResendingConfirmation(false);
     setEmailConfirmationFeedback(null);
     setEmailConfirmationError(null);
+    setResendCaptchaToken(null);
+    setResendCaptchaResetKey((current) => current + 1);
   };
 
   const handleResendConfirmation = async () => {
     if (!emailConfirmationState?.email || isResendingConfirmation) return;
+    if (!resendCaptchaToken) {
+      setEmailConfirmationError('Please complete the human verification check before resending.');
+      return;
+    }
 
     setIsResendingConfirmation(true);
     setEmailConfirmationFeedback(null);
     setEmailConfirmationError(null);
 
-    const { error } = await resendSignupConfirmation(emailConfirmationState.email);
+    const { error } = await resendSignupConfirmation(emailConfirmationState.email, resendCaptchaToken);
+    setResendCaptchaToken(null);
+    setResendCaptchaResetKey((current) => current + 1);
     if (error) {
       const message = String((error as any)?.message || 'Could not resend the confirmation email.');
       const code = String((error as any)?.code || '').toLowerCase();
@@ -148,6 +159,8 @@ const Navbar: React.FC = () => {
       setIsResendingConfirmation(false);
       setEmailConfirmationFeedback(null);
       setEmailConfirmationError(null);
+      setResendCaptchaToken(null);
+      setResendCaptchaResetKey((current) => current + 1);
       setEmailConfirmationState(detail);
     };
 
@@ -367,7 +380,7 @@ const Navbar: React.FC = () => {
     />
     {emailConfirmationState && (
       <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative animate-fade-in">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto relative animate-fade-in">
           <button
             type="button"
             onClick={dismissEmailConfirmation}
@@ -401,13 +414,19 @@ const Navbar: React.FC = () => {
                 {emailConfirmationError}
               </p>
             )}
+            <div className="mt-5">
+              <AuthTurnstile
+                resetKey={resendCaptchaResetKey}
+                onTokenChange={setResendCaptchaToken}
+              />
+            </div>
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => { void handleResendConfirmation(); }}
-                disabled={isResendingConfirmation}
+                disabled={isResendingConfirmation || !resendCaptchaToken}
                 className={`w-full py-2.5 px-3 bg-brand-blue text-white text-sm font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md flex items-center justify-center ${
-                  isResendingConfirmation ? 'opacity-70 cursor-not-allowed' : ''
+                  isResendingConfirmation || !resendCaptchaToken ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
                 {isResendingConfirmation ? (

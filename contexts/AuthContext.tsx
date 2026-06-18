@@ -14,15 +14,16 @@ const PENDING_SCHOOL_CODE_STORAGE_KEY = 'teachers-room:pending-school-code';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ error: any }>;
+  login: (email: string, password: string, captchaToken: string) => Promise<{ error: any }>;
   signup: (
     email: string,
     password: string,
     name: string,
-    schoolCode?: string
+    schoolCode: string | undefined,
+    captchaToken: string
   ) => Promise<{ error: any; requiresEmailConfirmation?: boolean; email?: string }>;
-  resendSignupConfirmation: (email: string) => Promise<{ error: any }>;
-  requestPasswordReset: (email: string) => Promise<{ error: any }>;
+  resendSignupConfirmation: (email: string, captchaToken: string) => Promise<{ error: any }>;
+  requestPasswordReset: (email: string, captchaToken: string) => Promise<{ error: any }>;
   isPasswordRecovery: boolean;
   clearPasswordRecovery: () => void;
   logout: () => Promise<void>;
@@ -190,15 +191,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, captchaToken: string) => {
     const { error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
+        options: { captchaToken }
     });
     return { error };
   };
 
-  const signup = async (email: string, password: string, name: string, schoolCode?: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    name: string,
+    schoolCode: string | undefined,
+    captchaToken: string
+  ) => {
     const cleanSchoolCode = normalizeSchoolCode(schoolCode);
     const signupMeta: Record<string, any> = {
       full_name: name,
@@ -216,6 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         options: {
             data: signupMeta,
+            captchaToken,
             ...(emailRedirectTo ? { emailRedirectTo } : {})
         }
     });
@@ -261,20 +270,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const resendSignupConfirmation = async (email: string) => {
+  const resendSignupConfirmation = async (email: string, captchaToken: string) => {
     const emailRedirectTo = getAuthEmailRedirectUrl();
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
-      options: emailRedirectTo ? { emailRedirectTo } : undefined
+      options: {
+        captchaToken,
+        ...(emailRedirectTo ? { emailRedirectTo } : {})
+      }
     });
 
     return { error };
   };
 
-  const requestPasswordReset = async (email: string) => {
+  const requestPasswordReset = async (email: string, captchaToken: string) => {
     const redirectTo = getAuthEmailRedirectUrl();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      captchaToken,
       ...(redirectTo ? { redirectTo } : {})
     });
 
