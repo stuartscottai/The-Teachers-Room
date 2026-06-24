@@ -1,6 +1,6 @@
 import { searchStockImages } from '../services/stockImageService';
 import { extractPixabaySourceUrl } from './stockImageUrl';
-import { GameConfig, GeneratedQuestion } from '../types';
+import { GameConfig, GameType, GeneratedQuestion } from '../types';
 
 const STOP_WORDS = new Set([
   'a', 'an', 'the', 'to', 'of', 'and', 'or', 'for', 'in', 'on', 'with', 'at', 'by', 'is', 'are',
@@ -127,8 +127,29 @@ const extractBlankContextTokens = (value: string): string[] => {
   return uniqueStrings(out);
 };
 
-export const getGameImageQuery = (question: GeneratedQuestion, config: GameConfig) => {
+const stripBlockBeatersLetterPrefixForImages = (value: string): string => {
+  let text = String(value || '').trim();
+  if (!text) return '';
+
+  // Keep topic labels such as "History:", but remove the game-only letter rule.
+  text = text.replace(
+    /^([A-Za-z][A-Za-z\s&'-]{1,40}:\s*)?Starts\s+with\s+[A-Z]\s*:\s*/i,
+    '$1'
+  );
+  text = text.replace(/\bStarts\s+with\s+[A-Z]\s*:\s*/gi, '');
+  return text.replace(/\s+/g, ' ').trim();
+};
+
+const getQuestionTextForImageSearch = (question: GeneratedQuestion, config: GameConfig): string => {
   const rawQuestion = question.question || '';
+  if (config.type === GameType.BLOCK_BEATERS && (config.blockBeatersMode || 'letters') === 'letters') {
+    return stripBlockBeatersLetterPrefixForImages(rawQuestion);
+  }
+  return rawQuestion;
+};
+
+export const getGameImageQuery = (question: GeneratedQuestion, config: GameConfig) => {
+  const rawQuestion = getQuestionTextForImageSearch(question, config);
   const hasBlank = /_{3,}/.test(rawQuestion);
   const aiKeywords = (question.imageKeywords || []).map((item) => String(item || '').trim()).filter(Boolean);
   const questionKeywords = extractKeywords(rawQuestion);
@@ -181,6 +202,9 @@ export const getGameImageQuery = (question: GeneratedQuestion, config: GameConfi
 
 type ImageIntent = {
   query: string;
+  effectiveVisualSearch: GeneratedQuestion['visualSearch'] | null;
+  visualSearchSource: 'ai' | 'derived' | 'none';
+  visualQueries: string[];
   queryTokens: string[];
   positiveTokens: string[];
   properPhrases: string[];
@@ -253,9 +277,31 @@ const uniqueStrings = (values: string[]) => {
 
 const buildImageIntent = (question: GeneratedQuestion, config: GameConfig): ImageIntent => {
   const query = getGameImageQuery(question, config);
+  const visualSearch = question.visualSearch || {};
+  const aiVisualQueries = uniqueStrings([
+    visualSearch.primaryQuery || '',
+    visualSearch.backupQuery || '',
+  ].map((value) => String(value || '').trim()).filter(Boolean)).slice(0, 3);
+  const derivedVisualSearch = !aiVisualQueries.length && query
+    ? {
+        primaryQuery: query,
+        answerRevealRisk: 'medium' as const,
+        imageIntent: 'Derived from existing image keywords because AI visualSearch was not available.',
+      }
+    : undefined;
+  const effectiveVisualSearch = question.visualSearch || derivedVisualSearch || null;
+  const visualSearchSource = question.visualSearch
+    ? 'ai'
+    : derivedVisualSearch
+      ? 'derived'
+      : 'none';
+  const visualQueries = uniqueStrings([
+    effectiveVisualSearch?.primaryQuery || '',
+    effectiveVisualSearch?.backupQuery || '',
+  ].map((value) => String(value || '').trim()).filter(Boolean)).slice(0, 3);
   const queryTokens = uniqueStrings(toTokens(query));
   const aiKeywords = (question.imageKeywords || []).map((item) => String(item || '').trim()).filter(Boolean);
-  const questionKeywords = extractKeywords(question.question || '');
+  const questionKeywords = extractKeywords(getQuestionTextForImageSearch(question, config));
   const answerKeywords = question.answer ? extractKeywords(question.answer) : { tokens: [], properPhrases: [] };
   const answerRoots = new Set(answerKeywords.tokens.map(toRootToken).filter(Boolean));
 
@@ -265,20 +311,29 @@ const buildImageIntent = (question: GeneratedQuestion, config: GameConfig): Imag
 
   const querySearchTokens = uniqueStrings(queryTokens.map(normalizeSearchToken))
     .filter((token) => token && !isGenericKeyword(token) && !isPrimaryWeakKeyword(token));
+  const visualQueryTokens = uniqueStrings(visualQueries.flatMap((value) => toTokens(value).map(normalizeSearchToken)))
+    .filter((token) => token && !isGenericKeyword(token) && !isPrimaryWeakKeyword(token));
   const questionSearchTokens = uniqueStrings(questionKeywords.tokens.map(normalizeSearchToken))
     .filter((token) => token && !isGenericKeyword(token) && !isPrimaryWeakKeyword(token))
     .filter((token) => !answerRoots.has(toRootToken(token)));
 
   const positiveTokens = uniqueStrings([
+    ...visualQueryTokens,
     ...querySearchTokens,
     ...questionSearchTokens.slice(0, 2),
     ...aiKeywords.flatMap((value) => toTokens(value).map(normalizeSearchToken)),
     ...(config.topic ? toTokens(config.topic).slice(0, 1) : []),
   ]).filter((token) => token && !CONTEXT_WORDS.has(token) && !isGenericKeyword(token) && !isPrimaryWeakKeyword(token));
 
+  const answerRevealRisk = visualSearch.answerRevealRisk || 'medium';
+  const avoidTokens = Array.isArray(visualSearch.avoidTerms)
+    ? visualSearch.avoidTerms.flatMap((term) => toTokens(term).map(normalizeSearchToken))
+    : [];
+  const shouldBlockAnswer = answerRevealRisk !== 'low';
   const blockedTokens = uniqueStrings([
-    ...answerKeywords.tokens.map(normalizeSearchToken),
-    ...answerKeywords.properPhrases.flatMap((phrase) => toTokens(phrase).map(normalizeSearchToken)),
+    ...avoidTokens,
+    ...(shouldBlockAnswer ? answerKeywords.tokens.map(normalizeSearchToken) : []),
+    ...(shouldBlockAnswer ? answerKeywords.properPhrases.flatMap((phrase) => toTokens(phrase).map(normalizeSearchToken)) : []),
   ]).filter((token) => token && !isGenericKeyword(token)).slice(0, 6);
 
   const mustMatchTokens = uniqueStrings([
@@ -295,6 +350,9 @@ const buildImageIntent = (question: GeneratedQuestion, config: GameConfig): Imag
 
   return {
     query,
+    effectiveVisualSearch,
+    visualSearchSource,
+    visualQueries,
     queryTokens,
     positiveTokens,
     properPhrases,
@@ -518,6 +576,7 @@ const pickBestImageCandidate = (
 
 const buildStagedSearchQueries = (question: GeneratedQuestion, intent: ImageIntent, config: GameConfig): string[] => {
   const planned: string[] = [];
+  planned.push(...intent.visualQueries);
   if (intent.query && intent.query.trim()) planned.push(intent.query.trim());
   const topic = (config.topic || '').trim();
   if (!planned.length && topic) planned.push(topic);
@@ -592,6 +651,42 @@ const getQuestionFallbackImage = async (
   }
 };
 
+const logImageAutoPickDebug = (
+  question: GeneratedQuestion,
+  data: {
+    searchPlan: string[];
+    fallbackQuery: string;
+    pickedQuery?: string;
+    pickedImage?: GeneratedQuestion['image'] | null;
+    cacheKey?: string;
+    cacheHit?: boolean;
+    reason?: string;
+    effectiveVisualSearch?: GeneratedQuestion['visualSearch'] | null;
+    visualSearchSource?: 'ai' | 'derived' | 'none';
+  }
+) => {
+  if (!import.meta.env.DEV) return;
+  const summary = {
+    question: question.question,
+    answer: question.answer,
+    visualSearch: question.visualSearch || null,
+    effectiveVisualSearch: data.effectiveVisualSearch ?? question.visualSearch ?? null,
+    visualSearchSource: data.visualSearchSource || (question.visualSearch ? 'ai' : 'none'),
+    imageKeywords: question.imageKeywords || [],
+    searchPlan: data.searchPlan,
+    fallbackQuery: data.fallbackQuery,
+    pickedQuery: data.pickedQuery || data.pickedImage?.searchQuery || null,
+    pickedStockId: data.pickedImage?.stockId || null,
+    pickedAlt: data.pickedImage?.alt || null,
+    cacheKey: data.cacheKey || null,
+    cacheHit: Boolean(data.cacheHit),
+    reason: data.reason || null,
+  };
+  console.groupCollapsed(`[Image auto-pick] ${summary.pickedQuery || summary.reason || 'no image'} -> ${question.answer || question.question}`);
+  console.table(summary);
+  console.groupEnd();
+};
+
 export const autoPickImagesForQuestions = async (
   questions: GeneratedQuestion[],
   config: GameConfig,
@@ -600,18 +695,31 @@ export const autoPickImagesForQuestions = async (
   const imageCache = cache ?? new Map<string, GeneratedQuestion['image'] | null>();
   const nextQuestions: GeneratedQuestion[] = [];
 
-  for (const question of questions) {
+  for (const rawQuestion of questions) {
+    const initialIntent = buildImageIntent(rawQuestion, config);
+    const question = !rawQuestion.visualSearch && initialIntent.effectiveVisualSearch
+      ? { ...rawQuestion, visualSearch: initialIntent.effectiveVisualSearch }
+      : rawQuestion;
+
     if (question.image?.url) {
       nextQuestions.push(question);
       continue;
     }
 
-    const intent = buildImageIntent(question, config);
+    const intent = question === rawQuestion ? initialIntent : buildImageIntent(question, config);
     const query = intent.query || (config.topic || '').trim();
     const searchPlan = buildStagedSearchQueries(question, intent, config);
-    const key = (query || searchPlan[0] || '').toLowerCase();
+    const key = (searchPlan[0] || query || '').toLowerCase();
     if (!searchPlan.length) {
       const fallbackImage = await getQuestionFallbackImage(imageCache);
+      logImageAutoPickDebug(question, {
+        searchPlan,
+        fallbackQuery: query,
+        pickedImage: fallbackImage,
+        reason: fallbackImage ? 'question fallback image' : 'no search plan',
+        effectiveVisualSearch: intent.effectiveVisualSearch,
+        visualSearchSource: intent.visualSearchSource,
+      });
       if (fallbackImage) {
         nextQuestions.push({ ...question, image: fallbackImage });
       } else {
@@ -623,9 +731,28 @@ export const autoPickImagesForQuestions = async (
     if (imageCache.has(key)) {
       const cached = imageCache.get(key);
       if (cached) {
+        logImageAutoPickDebug(question, {
+          searchPlan,
+          fallbackQuery: query,
+          pickedImage: cached,
+          cacheKey: key,
+          cacheHit: true,
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+        });
         nextQuestions.push({ ...question, image: cached });
       } else {
         const fallbackImage = await getQuestionFallbackImage(imageCache);
+        logImageAutoPickDebug(question, {
+          searchPlan,
+          fallbackQuery: query,
+          pickedImage: fallbackImage,
+          cacheKey: key,
+          cacheHit: true,
+          reason: fallbackImage ? 'cached miss fallback image' : 'cached no image',
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+        });
         nextQuestions.push(fallbackImage ? { ...question, image: fallbackImage } : question);
       }
       continue;
@@ -634,7 +761,7 @@ export const autoPickImagesForQuestions = async (
     try {
       let pickedCandidate: ReturnType<typeof pickBestImageCandidate> = null;
       let relaxedFallback: ReturnType<typeof pickBestImageCandidate> = null;
-      let pickedQuery = query || searchPlan[0] || '';
+      let pickedQuery = searchPlan[0] || query || '';
 
       for (let idx = 0; idx < searchPlan.length; idx += 1) {
         const currentQuery = searchPlan[idx];
@@ -648,6 +775,9 @@ export const autoPickImagesForQuestions = async (
         const queryIntentBase: ImageIntent = {
           ...intent,
           query: currentQuery,
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+          visualQueries: intent.visualQueries,
           queryTokens: uniqueStrings(toTokens(currentQuery)),
           anchorTokens,
           mustMatchTokens: currentQueryTokens.slice(0, 2),
@@ -704,14 +834,40 @@ export const autoPickImagesForQuestions = async (
           alt: (pickedQuery || query || pickedCandidate.alt || QUESTION_FALLBACK_QUERY).trim(),
         };
         imageCache.set(key, picked);
+        logImageAutoPickDebug(question, {
+          searchPlan,
+          fallbackQuery: query,
+          pickedQuery,
+          pickedImage: picked,
+          cacheKey: key,
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+        });
         nextQuestions.push({ ...question, image: picked });
       } else {
         const fallbackImage = await getQuestionFallbackImage(imageCache);
         if (fallbackImage) {
           imageCache.set(key, fallbackImage);
+          logImageAutoPickDebug(question, {
+            searchPlan,
+            fallbackQuery: query,
+            pickedImage: fallbackImage,
+            cacheKey: key,
+            reason: 'candidate scoring fallback image',
+            effectiveVisualSearch: intent.effectiveVisualSearch,
+            visualSearchSource: intent.visualSearchSource,
+          });
           nextQuestions.push({ ...question, image: fallbackImage });
         } else {
           imageCache.set(key, null);
+          logImageAutoPickDebug(question, {
+            searchPlan,
+            fallbackQuery: query,
+            cacheKey: key,
+            reason: 'no acceptable image',
+            effectiveVisualSearch: intent.effectiveVisualSearch,
+            visualSearchSource: intent.visualSearchSource,
+          });
           nextQuestions.push(question);
         }
       }
@@ -720,9 +876,26 @@ export const autoPickImagesForQuestions = async (
       const fallbackImage = await getQuestionFallbackImage(imageCache);
       if (fallbackImage) {
         imageCache.set(key, fallbackImage);
+        logImageAutoPickDebug(question, {
+          searchPlan,
+          fallbackQuery: query,
+          pickedImage: fallbackImage,
+          cacheKey: key,
+          reason: 'search error fallback image',
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+        });
         nextQuestions.push({ ...question, image: fallbackImage });
       } else {
         imageCache.set(key, null);
+        logImageAutoPickDebug(question, {
+          searchPlan,
+          fallbackQuery: query,
+          cacheKey: key,
+          reason: 'search error no image',
+          effectiveVisualSearch: intent.effectiveVisualSearch,
+          visualSearchSource: intent.visualSearchSource,
+        });
         nextQuestions.push(question);
       }
     }

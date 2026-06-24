@@ -122,6 +122,24 @@ const normalizeQuestionOptions = (value: unknown) => normalizeStringArray(value,
 
 const normalizeQuestionImageKeywords = (value: unknown) => normalizeStringArray(value, 2);
 
+const normalizeQuestionVisualSearch = (value: unknown): GeneratedQuestion['visualSearch'] | undefined => {
+  if (!isRecord(value)) return undefined;
+  const primaryQuery = asText(value.primaryQuery ?? value.searchQuery);
+  const backupQuery = asText(value.backupQuery ?? value.fallbackQuery);
+  const avoidTerms = normalizeStringArray(value.avoidTerms, 8);
+  const risk = asText(value.answerRevealRisk).toLowerCase();
+  const answerRevealRisk = risk === 'low' || risk === 'medium' || risk === 'high' ? risk : undefined;
+  const imageIntent = asText(value.imageIntent);
+  if (!primaryQuery && !backupQuery && !avoidTerms.length && !answerRevealRisk && !imageIntent) return undefined;
+  return {
+    ...(primaryQuery ? { primaryQuery } : {}),
+    ...(backupQuery ? { backupQuery } : {}),
+    ...(avoidTerms.length ? { avoidTerms } : {}),
+    ...(answerRevealRisk ? { answerRevealRisk } : {}),
+    ...(imageIntent ? { imageIntent } : {}),
+  };
+};
+
 const normalizeQuestion = (
   raw: unknown,
   config: GameConfig,
@@ -140,6 +158,7 @@ const normalizeQuestion = (
     (surveyAnswers.length ? surveyAnswers[0].text : '');
   const question = asText(record.question ?? record.prompt ?? record.clue ?? record.text);
   const imageKeywords = normalizeQuestionImageKeywords(record.imageKeywords);
+  const visualSearch = normalizeQuestionVisualSearch(record.visualSearch);
   const answerAliases =
     config.type === GameType.WORD_WHEEL
       ? normalizeStringArray(record.answerAliases ?? record.aliases ?? record.acceptedAnswers, 8)
@@ -156,6 +175,7 @@ const normalizeQuestion = (
     ...(normalizeDifficulty(record.difficulty) ? { difficulty: normalizeDifficulty(record.difficulty) } : {}),
     ...(normalizeBonusType(record.bonusType) ? { bonusType: normalizeBonusType(record.bonusType) } : {}),
     ...(imageKeywords.length ? { imageKeywords } : {}),
+    ...(visualSearch ? { visualSearch } : {}),
     ...(surveyAnswers.length ? { surveyAnswers } : {}),
     ...(answerAliases.length ? { answerAliases } : {}),
   };
@@ -642,6 +662,7 @@ const normalizeWordWheelQuestions = (
       points: 10,
       isBonus: false,
       ...(rawQuestion?.imageKeywords ? { imageKeywords: normalizeStringArray(rawQuestion.imageKeywords, 2) } : {}),
+      ...(normalizeQuestionVisualSearch(rawQuestion?.visualSearch) ? { visualSearch: normalizeQuestionVisualSearch(rawQuestion.visualSearch) } : {}),
     });
   });
 
@@ -667,6 +688,76 @@ const normalizeWordWheelQuestions = (
       isBonus: false,
     };
   });
+};
+
+const normalizeBlockBeatersQuestions = (
+  rawQuestions: GeneratedQuestion[],
+  mode: 'letters' | 'numbers' = 'letters'
+): GeneratedQuestion[] => {
+  const isSingleLetterOnly = (value: unknown): boolean =>
+    /^[A-Z]$/i.test(asText(value));
+  const normalizeLabel = (value: string): string =>
+    value.trim().replace(/\s+/g, ' ').replace(/^./, (char) => char.toUpperCase());
+  const formatLetterClue = (question: string, answer: string, letter: string) => {
+    const clean = question
+      .trim()
+      .replace(/\s+/g, ' ');
+    if (!letter || !clean) return clean;
+    const prefix = `Starts with ${letter}:`;
+    const capitalize = (value: string) => value.replace(/^./, (char) => char.toUpperCase());
+    const withPrefix = (value: string) => `${prefix} ${capitalize(value.trim())}`.trim();
+    const existingStartsWith = clean.match(/^starts\s+with\s+[A-Z]\s*:\s*(.+)$/i);
+    if (existingStartsWith) return withPrefix(existingStartsWith[1]);
+
+    const leadingLabelMatch = clean.match(/^([A-Z][\w\s&/-]{1,40}):\s+(.+)$/i);
+    if (leadingLabelMatch && !/^starts\s+with\b/i.test(leadingLabelMatch[1])) {
+      return `${normalizeLabel(leadingLabelMatch[1])}: ${formatLetterClue(leadingLabelMatch[2], answer, letter)}`;
+    }
+
+    const embeddedLabelMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+([A-Z][\\w\\s&/-]{1,40}):\\s+(.+)$`, 'i'));
+    if (embeddedLabelMatch) {
+      return `${normalizeLabel(embeddedLabelMatch[1])}: ${formatLetterClue(embeddedLabelMatch[2], answer, letter)}`;
+    }
+
+    const oldClueMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+(?:the answer to this clue:\\s*)?(.+)$`, 'i'));
+    if (oldClueMatch && /^(who|what|which|how|where|when|why)\b/i.test(oldClueMatch[1])) {
+      return withPrefix(oldClueMatch[1]);
+    }
+
+    return withPrefix(clean);
+  };
+
+  return rawQuestions.map((question, index) => {
+    const answer = asText(question.answer);
+    const questionText = asText(question.question);
+    const answerLetter = normalizeLetter(answer);
+    const savedLetter = normalizeLetter(question.letter);
+    const invalidLetterAnswer = mode === 'letters' && (
+      !answerLetter ||
+      !questionText ||
+      isSingleLetterOnly(answer) ||
+      isSingleLetterOnly(questionText)
+    );
+    const letter = mode === 'letters'
+      ? (answerLetter || savedLetter || WORD_WHEEL_LETTERS[index % WORD_WHEEL_LETTERS.length])
+      : undefined;
+
+    if (invalidLetterAnswer) return null;
+
+    return {
+      ...question,
+      id: index,
+      letter,
+      question: mode === 'letters' ? formatLetterClue(questionText, answer, letter || answerLetter) : questionText,
+      answer,
+      points: 10,
+      isBonus: false,
+      options: mode === 'letters' ? undefined : question.options,
+      answerAliases: normalizeStringArray(question.answerAliases, 8),
+      visualSearch: normalizeQuestionVisualSearch(question.visualSearch),
+    };
+  }).filter((question): question is GeneratedQuestion => Boolean(question))
+    .map((question, index) => ({ ...question, id: index }));
 };
 
 const getJsonOnlyTemplate = (config: GameConfig) => {
@@ -920,12 +1011,13 @@ export const buildExternalLlmGamePrompt = (
     if (blockMode === 'letters') {
       lines.push('Every question must include a single uppercase "letter" field.');
       lines.push('The answer must start with that exact letter. Do not assign letters alphabetically unless the answer truly starts with that letter.');
-      lines.push('Every question must be a complete clue using exactly this style: "What [LETTER] is [a definition or description]?"');
+      lines.push('Every question must be a normal classroom question prefixed with the starting letter using this exact pattern: "Starts with [LETTER]: [normal question]".');
+      lines.push('Good: answer "France", question "Starts with F: What country is Paris the capital of?".');
+      lines.push('Good: answer "Neil Armstrong", question "Starts with N: Who was the first person to walk on the moon?".');
+      lines.push('If custom instructions ask for a topic label, put it before the starts-with marker, e.g. "History: Starts with N: Who was the first person to walk on the moon?".');
+      lines.push('Do not use the old clue format "What [LETTER] is...".');
       lines.push('Never use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.');
       lines.push('Bad: "What W is athletes typically _____ up before a workout?"');
-      lines.push('Good: "What W is a short preparation activity athletes do before strenuous exercise?"');
-      lines.push('Do not include the answer word in the question text, except for the single starting-letter marker after "What".');
-      lines.push('Example: letter F, answer "Fencing", question "What F is a sport which uses a foil, epee, or sabre?".');
       lines.push('Do not include multiple-choice options in letters mode.');
       lines.push('Do not use numeric-only answers, dates, or answers that start with a digit.');
     } else if (QUESTION_TYPES_WITH_MCQ.has(config.questionType)) {
@@ -1109,6 +1201,8 @@ export const parseImportedGameContent = (text: string, config: GameConfig): Gene
   const finalQuestions =
     config.type === GameType.WORD_WHEEL
       ? normalizeWordWheelQuestions(normalizedPayload.questions, (nextConfig.wordWheelLetterRule || 'contains-hard') as WordWheelLetterRule)
+      : config.type === GameType.BLOCK_BEATERS
+        ? normalizeBlockBeatersQuestions(normalizedPayload.questions, nextConfig.blockBeatersMode || 'letters')
       : normalizedPayload.questions;
 
   if (

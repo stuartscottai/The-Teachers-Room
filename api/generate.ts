@@ -802,7 +802,8 @@ const normalizeWordWheelQuestions = (
       isBonus: false,
       imageKeywords: Array.isArray(q.imageKeywords)
         ? q.imageKeywords.map((entry: any) => String(entry || '').trim()).filter(Boolean).slice(0, 6)
-        : undefined
+        : undefined,
+      visualSearch: normalizeVisualSearch(q.visualSearch),
     });
   });
 
@@ -819,6 +820,102 @@ const normalizeWordWheelQuestions = (
       isBonus: false
     };
   });
+};
+
+const normalizeVisualSearch = (value: any) => {
+  if (!value || typeof value !== 'object') return undefined;
+  const primaryQuery = String(value.primaryQuery || value.searchQuery || '').trim();
+  const backupQuery = String(value.backupQuery || value.fallbackQuery || '').trim();
+  const avoidTerms = Array.isArray(value.avoidTerms)
+    ? value.avoidTerms.map((entry: any) => String(entry || '').trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const answerRevealRisk = ['low', 'medium', 'high'].includes(String(value.answerRevealRisk || '').toLowerCase())
+    ? String(value.answerRevealRisk).toLowerCase()
+    : undefined;
+  const imageIntent = String(value.imageIntent || '').trim();
+  if (!primaryQuery && !backupQuery && !avoidTerms.length && !answerRevealRisk && !imageIntent) return undefined;
+  return {
+    ...(primaryQuery ? { primaryQuery } : {}),
+    ...(backupQuery ? { backupQuery } : {}),
+    ...(avoidTerms.length ? { avoidTerms } : {}),
+    ...(answerRevealRisk ? { answerRevealRisk } : {}),
+    ...(imageIntent ? { imageIntent } : {}),
+  };
+};
+
+const normalizeBlockBeatersQuestions = (
+  rawQuestions: any[],
+  mode: 'letters' | 'numbers' = 'letters'
+) => {
+  const normalizeLetter = (value: any) =>
+    String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+  const isSingleLetterOnly = (value: any) =>
+    /^[A-Z]$/i.test(String(value || '').trim());
+  const normalizeAliases = (aliases: any) =>
+    Array.isArray(aliases)
+      ? aliases.map((value: any) => String(value || '').trim()).filter(Boolean).slice(0, 8)
+      : [];
+  const normalizeLabel = (value: string) =>
+    value.trim().replace(/\s+/g, ' ').replace(/^./, (char) => char.toUpperCase());
+  const formatLetterClue = (question: string, answer: string, letter: string) => {
+    const clean = String(question || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+    if (!letter || !clean) return clean;
+    const prefix = `Starts with ${letter}:`;
+    const capitalize = (value: string) => value.replace(/^./, (char) => char.toUpperCase());
+    const withPrefix = (value: string) => `${prefix} ${capitalize(value.trim())}`.trim();
+    const existingStartsWith = clean.match(/^starts\s+with\s+[A-Z]\s*:\s*(.+)$/i);
+    if (existingStartsWith) return withPrefix(existingStartsWith[1]);
+
+    const leadingLabelMatch = clean.match(/^([A-Z][\w\s&/-]{1,40}):\s+(.+)$/i);
+    if (leadingLabelMatch && !/^starts\s+with\b/i.test(leadingLabelMatch[1])) {
+      return `${normalizeLabel(leadingLabelMatch[1])}: ${formatLetterClue(leadingLabelMatch[2], answer, letter)}`;
+    }
+
+    const embeddedLabelMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+([A-Z][\\w\\s&/-]{1,40}):\\s+(.+)$`, 'i'));
+    if (embeddedLabelMatch) {
+      return `${normalizeLabel(embeddedLabelMatch[1])}: ${formatLetterClue(embeddedLabelMatch[2], answer, letter)}`;
+    }
+
+    const oldClueMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+(?:the answer to this clue:\\s*)?(.+)$`, 'i'));
+    if (oldClueMatch && /^(who|what|which|how|where|when|why)\b/i.test(oldClueMatch[1])) {
+      return withPrefix(oldClueMatch[1]);
+    }
+
+    return withPrefix(clean);
+  };
+
+  return (rawQuestions || []).map((q: any, index: number) => {
+    const answer = String(q?.answer || '').trim();
+    const question = String(q?.question || '').trim();
+    const answerLetter = normalizeLetter(answer);
+    const savedLetter = normalizeLetter(q?.letter);
+    const invalidLetterAnswer = mode === 'letters' && (
+      !answerLetter ||
+      !question ||
+      isSingleLetterOnly(answer) ||
+      isSingleLetterOnly(question)
+    );
+    const letter = mode === 'letters'
+      ? (answerLetter || savedLetter || WORD_WHEEL_LETTERS[index % WORD_WHEEL_LETTERS.length])
+      : undefined;
+
+    if (invalidLetterAnswer) return null;
+
+    return {
+      ...q,
+      id: index,
+      letter,
+      question: mode === 'letters' ? formatLetterClue(question, answer, letter || answerLetter) : question,
+      answer,
+      points: 10,
+      isBonus: false,
+      options: mode === 'letters' ? undefined : q?.options,
+      answerAliases: normalizeAliases(q?.answerAliases),
+      visualSearch: normalizeVisualSearch(q?.visualSearch),
+    };
+  }).filter(Boolean).map((question: any, index: number) => ({ ...question, id: index }));
 };
 
 export default async function handler(req: any, res: any) {
@@ -1020,6 +1117,7 @@ Return JSON: { "categories": ["..."] }
       const isTimeBomb = config.type === 'Time Bomb';
       const isSurvey = config.type === 'Survey Showdown';
       const isWordWheel = config.type === 'Word Wheel';
+      const isBlockBeaters = config.type === 'Block Beaters';
       const isLiveQuiz = config.type === 'Live Quiz Challenge';
       const wordWheelLetterRule = config.wordWheelLetterRule || 'contains-hard';
       const gameTitle = config.title || `My ${config.type} Game`;
@@ -1042,8 +1140,16 @@ Return JSON: { "categories": ["..."] }
       
       Ensure questions are appropriate for a classroom setting.
       If images are requested, include imageKeywords as EXACTLY 2 concise visual keywords per question.
+      Also include visualSearch for each question: { primaryQuery, backupQuery, avoidTerms, answerRevealRisk, imageIntent }.
+      visualSearch.primaryQuery and backupQuery must be short stock-photo searches of 1-3 words.
+      Choose visualSearch by asking: "What safe visual scene supports this question without giving away the answer?"
+      Prefer indirect, classroom-useful photo subjects over copied question words.
+      Examples: for "Who wrote To Kill a Mockingbird?" use primaryQuery "classic novel", backupQuery "books writing", avoidTerms ["Harper Lee", "mockingbird"], answerRevealRisk "high".
+      For "What is the longest river in South America?" answer "Amazon River", use primaryQuery "river rainforest", backupQuery "south america river", answerRevealRisk "low".
+      answerRevealRisk must be "low", "medium", or "high".
       These keywords are for stock image search (e.g., Pixabay), so prefer concrete visual nouns or proper nouns.
       Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be supporting context.
+      Ignore game-formatting text such as "Starts with A:" when choosing imageKeywords.
       Do NOT use the exact answer, close synonyms, or wording that makes the answer too obvious.
       Avoid adjectives, verbs, and abstract terms like "education", "concept", "background".
       Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
@@ -1070,6 +1176,16 @@ Return JSON: { "categories": ["..."] }
           letter: { type: Type.STRING },
           answerAliases: { type: Type.ARRAY, items: { type: Type.STRING } },
           imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+          visualSearch: {
+            type: Type.OBJECT,
+            properties: {
+              primaryQuery: { type: Type.STRING },
+              backupQuery: { type: Type.STRING },
+              avoidTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
+              answerRevealRisk: { type: Type.STRING },
+              imageIntent: { type: Type.STRING },
+            },
+          },
           surveyAnswers: {
             type: Type.ARRAY,
             items: {
@@ -1266,6 +1382,58 @@ Return JSON: { "categories": ["..."] }
             required: ["title", "questions"]
           };
 
+      } else if (isBlockBeaters) {
+        const blockMode = config.blockBeatersMode || 'letters';
+        const qTypeInstruction = blockMode === 'letters'
+          ? 'Open-ended typed clues only'
+          : getGameQuestionTypeInstruction(config, "Varied formats chosen by AI");
+        const mcInstruction = blockMode === 'letters' ? '' : getGameMcInstruction(config);
+
+        prompt = `
+          Create a classroom "Block Beaters" game titled "${gameTitle}" about "${config.topic}".
+          Generate exactly ${config.questionCount || 48} questions.
+
+          GAME CONTENT MODE: ${blockMode === 'letters' ? 'Letters' : 'Numbers'}.
+          Question Style: ${qTypeInstruction}.${mcInstruction}
+
+          CRITICAL RULES:
+          1. Use points=10 for every question.
+          2. Do not create bonus questions; the board handles bonuses separately.
+          3. Questions are drawn from a shared queue during play. Do not try to map questions to specific tile numbers.
+          ${blockMode === 'letters' ? `
+          4. Include a "letter" field for every question using one uppercase English letter.
+          5. The answer must start with that exact letter. Do not assign letters alphabetically unless the answer truly starts with that letter.
+          6. Every question must be a normal classroom question prefixed with the starting letter using this exact pattern: "Starts with [LETTER]: [normal question]".
+             Good: answer "France", question "Starts with F: What country is Paris the capital of?"
+             Good: answer "Neil Armstrong", question "Starts with N: Who was the first person to walk on the moon?"
+             Good: answer "Homophone", question "Starts with H: What word sounds the same as another word but has a different meaning and spelling?"
+          7. If custom instructions ask for a topic label, put it before the starts-with marker.
+             Good: "History: Starts with N: Who was the first person to walk on the moon?"
+          8. Do NOT use the old clue format "What [LETTER] is...".
+          9. The "letter" field is only a helper marker. Never use the letter itself as the whole question or the whole answer.
+          10. Do not use the phrase "the answer" in the question.
+          11. NEVER use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.
+          12. Add "answerAliases" with 0-4 accepted alternatives/spellings where useful.
+          13. Do NOT include multiple-choice options in letters mode.
+          14. Spread letters across the alphabet as evenly as possible.
+          15. Generate the requested number of questions exactly.
+          16. Do not use numeric-only answers, dates, or answers that start with a digit. Rewrite those questions so the correct answer is a word beginning with the assigned letter.` : `
+          4. Do not include a "letter" requirement.
+          5. Multiple-choice questions must have one correct answer and the answer must exactly match one option.
+          6. Keep questions short enough for a projected game card.`}
+
+          Custom Instructions: ${config.customInstructions || "None"}.
+        `;
+
+        responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+                title: { type: Type.STRING },
+                questions: { type: Type.ARRAY, items: questionSchema }
+            },
+            required: ["title", "questions"]
+        };
+
       } else {
         // Standard Game
         const qTypeInstruction = isLiveQuiz
@@ -1321,9 +1489,14 @@ Return JSON: { "categories": ["..."] }
       if (config.includeImages) {
         prompt += `
           IMPORTANT: Include imageKeywords as EXACTLY 2 concise visual keywords for EACH question.
+          IMPORTANT: Also include visualSearch for EACH question with primaryQuery, backupQuery, avoidTerms, answerRevealRisk, and imageIntent.
+          visualSearch.primaryQuery and backupQuery must be short 1-3 word stock-photo searches. They should describe a useful image scene, not merely repeat words from the question.
+          Use indirect safe clues when the answer would be revealed by the image. Use answerRevealRisk "low", "medium", or "high".
+          Example: "Who wrote To Kill a Mockingbird?" -> primaryQuery "classic novel", backupQuery "books writing", avoidTerms ["Harper Lee", "mockingbird"], answerRevealRisk "high".
           CRITICAL: Keywords must NOT be the exact answer, close synonyms, or reveal the answer too directly.
           Use stock-search-friendly concrete visual nouns/proper nouns, not adjectives/verbs.
           Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be context.
+          Ignore game-formatting text such as "Starts with A:" when choosing imageKeywords.
           Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
           Avoid role/action words like "person", "people", "call", "study", "learn" unless truly visual.
           Avoid abstract tags (e.g., "education", "concept", "background").
@@ -1360,6 +1533,8 @@ Return JSON: { "categories": ["..."] }
       rebalanceGameAnswerPositions(data, config);
       if (isWordWheel) {
         data.questions = normalizeWordWheelQuestions(data.questions || [], wordWheelLetterRule as WordWheelLetterRule);
+      } else if (isBlockBeaters) {
+        data.questions = normalizeBlockBeatersQuestions(data.questions || [], config.blockBeatersMode || 'letters');
       }
       
       // Ensure ID exists for database

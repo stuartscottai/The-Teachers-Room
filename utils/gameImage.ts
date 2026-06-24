@@ -52,15 +52,22 @@ export const resolveGameQuestionImageUrls = (image?: GeneratedQuestion['image'] 
   const fallbackRaw = String(image.thumbUrl || '').trim();
   const primarySource = extractPixabaySourceUrl(primaryRaw);
   const fallbackSource = extractPixabaySourceUrl(fallbackRaw);
+  const stockId = String(image.stockId || '').trim();
+  const isPexelsStockId = /^pexels:/i.test(stockId);
+  const resolvedStoredUrls = resolveGameImageUrls(primaryRaw, fallbackRaw);
 
-  if (image.source === 'stock' && image.stockId) {
+  if (import.meta.env.DEV && isPexelsStockId) {
+    urls.push(...resolvedStoredUrls);
+  }
+
+  if (image.source === 'stock' && stockId) {
     const stockIdUrl = import.meta.env.DEV
-      ? buildHostedStockImageIdProxyUrl(String(image.stockId), primarySource || fallbackSource || undefined)
-      : buildStockImageIdProxyPath(String(image.stockId), primarySource || fallbackSource || undefined);
+      ? buildHostedStockImageIdProxyUrl(stockId, primarySource || fallbackSource || undefined)
+      : buildStockImageIdProxyPath(stockId, primarySource || fallbackSource || undefined);
     urls.push(stockIdUrl);
   }
 
-  urls.push(...resolveGameImageUrls(primaryRaw, fallbackRaw));
+  urls.push(...resolvedStoredUrls);
   return uniqueUrls(urls);
 };
 

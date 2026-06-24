@@ -14,6 +14,40 @@ type PixabayResponse = {
   hits?: PixabayHit[];
 };
 
+type PexelsPhoto = {
+  id: number;
+  width?: number;
+  height?: number;
+  url?: string;
+  photographer?: string;
+  alt?: string;
+  src?: {
+    original?: string;
+    large2x?: string;
+    large?: string;
+    medium?: string;
+    small?: string;
+    landscape?: string;
+    tiny?: string;
+  };
+};
+
+type PexelsResponse = {
+  total_results?: number;
+  photos?: PexelsPhoto[];
+};
+
+type StockImageItem = {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  alt: string;
+  kind: string;
+  tags: string;
+  width?: number;
+  height?: number;
+};
+
 const normalizeUrl = (value: string | undefined): string => {
   if (!value) return '';
   return value.replace(/^http:\/\//i, 'https://');
@@ -38,7 +72,7 @@ const parseOptionalDimension = (value: unknown): number | undefined => {
 };
 
 const strictSort = (
-  items: Array<{ id: string; url: string; thumbUrl: string; alt: string; kind: string; tags: string; width?: number; height?: number }>,
+  items: StockImageItem[],
   query: string
 ) => {
   if (!items.length) return items;
@@ -88,6 +122,133 @@ const strictSort = (
     .map(({ item }) => item);
 };
 
+const mapPexelsPhotos = (photos: PexelsPhoto[], query: string): StockImageItem[] =>
+  photos
+    .filter((item) => item?.src?.medium || item?.src?.large || item?.src?.original)
+    .map((item) => {
+      const alt = (item.alt || query || 'Pexels photo').trim();
+      const photographer = String(item.photographer || '').trim();
+      return {
+        id: `pexels:${item.id}`,
+        url: toProxyUrl(item.src?.large2x || item.src?.large || item.src?.original || item.src?.medium),
+        thumbUrl: toProxyUrl(item.src?.landscape || item.src?.medium || item.src?.small || item.src?.tiny || item.src?.large),
+        alt,
+        kind: 'photo',
+        tags: [alt, photographer, 'pexels'].filter(Boolean).join(', '),
+        width: parseOptionalDimension(item.width),
+        height: parseOptionalDimension(item.height),
+      };
+    })
+    .filter((item) => item.url);
+
+const mapPixabayHits = (hits: PixabayHit[], query: string, imageId?: string): StockImageItem[] =>
+  hits
+    .filter((item) => item.previewURL || item.webformatURL || item.largeImageURL)
+    .map((item) => ({
+      id: String(item.id),
+      url: toProxyUrl(item.largeImageURL || item.webformatURL || item.previewURL),
+      thumbUrl: toProxyUrl(item.webformatURL || item.previewURL || item.largeImageURL),
+      alt: (item.tags || query || imageId || '').split(',')[0]?.trim() || query || imageId || 'Pixabay image',
+      kind: item.type || 'photo',
+      tags: item.tags || '',
+      width: parseOptionalDimension(item.imageWidth),
+      height: parseOptionalDimension(item.imageHeight),
+    }))
+    .filter((item) => item.url);
+
+const fetchPexelsById = async (imageId: string, apiKey: string): Promise<{ items: StockImageItem[]; totalHits: number }> => {
+  const id = imageId.replace(/^pexels:/i, '').trim();
+  if (!/^\d+$/.test(id) || !apiKey) return { items: [], totalHits: 0 };
+
+  const response = await fetch(`https://api.pexels.com/v1/photos/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: apiKey },
+  });
+  if (!response.ok) return { items: [], totalHits: 0 };
+
+  const photo = (await response.json()) as PexelsPhoto;
+  const items = mapPexelsPhotos(photo ? [photo] : [], imageId);
+  return { items, totalHits: items.length };
+};
+
+const searchPexels = async (
+  query: string,
+  apiKey: string,
+  page: number,
+  perPage: number,
+  strict: boolean
+): Promise<{ items: StockImageItem[]; totalHits: number }> => {
+  if (!apiKey || !query) return { items: [], totalHits: 0 };
+
+  const url = new URL('https://api.pexels.com/v1/search');
+  url.searchParams.set('query', query);
+  url.searchParams.set('per_page', String(perPage));
+  url.searchParams.set('page', String(page));
+  url.searchParams.set('orientation', 'landscape');
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { Authorization: apiKey },
+  });
+  if (!response.ok) return { items: [], totalHits: 0 };
+
+  const data = (await response.json()) as PexelsResponse;
+  const baseItems = mapPexelsPhotos(data.photos || [], query);
+  const items = strict && query ? strictSort(baseItems, query) : baseItems;
+  return {
+    items,
+    totalHits: Math.max(0, data.total_results || baseItems.length || 0),
+  };
+};
+
+const fetchPixabayById = async (imageId: string, apiKey: string): Promise<{ items: StockImageItem[]; totalHits: number }> => {
+  if (!/^\d+$/.test(imageId) || !apiKey) return { items: [], totalHits: 0 };
+
+  const url = new URL('https://pixabay.com/api/');
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('id', imageId);
+  url.searchParams.set('safesearch', 'true');
+  url.searchParams.set('image_type', 'all');
+
+  const response = await fetch(url.toString(), { method: 'GET' });
+  if (!response.ok) return { items: [], totalHits: 0 };
+
+  const data = (await response.json()) as PixabayResponse;
+  const items = mapPixabayHits(data.hits || [], imageId, imageId);
+  return { items, totalHits: Math.max(0, data.totalHits || items.length || 0) };
+};
+
+const searchPixabay = async (
+  query: string,
+  apiKey: string,
+  page: number,
+  perPage: number,
+  strict: boolean
+): Promise<{ items: StockImageItem[]; totalHits: number }> => {
+  if (!apiKey || !query) return { items: [], totalHits: 0 };
+
+  const url = new URL('https://pixabay.com/api/');
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('q', query);
+  url.searchParams.set('per_page', String(perPage));
+  url.searchParams.set('page', String(page));
+  url.searchParams.set('safesearch', 'true');
+  url.searchParams.set('image_type', 'all');
+
+  const response = await fetch(url.toString(), { method: 'GET' });
+  if (!response.ok) {
+    throw new Error(`Pixabay search failed (${response.status})`);
+  }
+
+  const data = (await response.json()) as PixabayResponse;
+  const baseItems = mapPixabayHits(data.hits || [], query);
+  const items = strict && query ? strictSort(baseItems, query) : baseItems;
+  return {
+    items,
+    totalHits: Math.max(0, data.totalHits || 0),
+  };
+};
+
 export default async function handler(req: any, res: any) {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -113,9 +274,10 @@ export default async function handler(req: any, res: any) {
       return;
     }
 
-    const apiKey = process.env.PIXABAY_API_KEY || process.env.VITE_PIXABAY_API_KEY || '';
-    if (!apiKey) {
-      res.status(500).json({ error: 'Missing PIXABAY_API_KEY' });
+    const pexelsApiKey = process.env.PEXELS_API_KEY || '';
+    const pixabayApiKey = process.env.PIXABAY_API_KEY || process.env.VITE_PIXABAY_API_KEY || '';
+    if (!pexelsApiKey && !pixabayApiKey) {
+      res.status(500).json({ error: 'Missing PEXELS_API_KEY or PIXABAY_API_KEY' });
       return;
     }
 
@@ -123,44 +285,32 @@ export default async function handler(req: any, res: any) {
     const perPage = parsePositiveInt(req.query?.perPage, 24, 3, 50);
     const strict = String(req.query?.strict || '').toLowerCase() === 'true';
 
-    const url = new URL('https://pixabay.com/api/');
-    url.searchParams.set('key', apiKey);
     if (imageId) {
-      url.searchParams.set('id', imageId);
-    } else {
-      url.searchParams.set('q', query);
-    }
-    url.searchParams.set('per_page', String(perPage));
-    url.searchParams.set('page', String(page));
-    url.searchParams.set('safesearch', 'true');
-    url.searchParams.set('image_type', 'all');
-
-    const response = await fetch(url.toString(), { method: 'GET' });
-    if (!response.ok) {
-      res.status(response.status).json({ error: `Stock image search failed (${response.status})` });
+      const pexelsResult = /^pexels:/i.test(imageId)
+        ? await fetchPexelsById(imageId, pexelsApiKey)
+        : { items: [], totalHits: 0 };
+      const pixabayResult = !pexelsResult.items.length
+        ? await fetchPixabayById(imageId, pixabayApiKey)
+        : { items: [], totalHits: 0 };
+      const items = pexelsResult.items.length ? pexelsResult.items : pixabayResult.items;
+      res.status(200).json({
+        items,
+        totalHits: pexelsResult.items.length ? pexelsResult.totalHits : pixabayResult.totalHits,
+        page,
+        perPage,
+      });
       return;
     }
 
-    const data = (await response.json()) as PixabayResponse;
-    const baseItems = (data.hits || [])
-      .filter((item) => item.previewURL || item.webformatURL || item.largeImageURL)
-      .map((item) => ({
-        id: String(item.id),
-        url: toProxyUrl(item.largeImageURL || item.webformatURL || item.previewURL),
-        thumbUrl: toProxyUrl(item.webformatURL || item.previewURL || item.largeImageURL),
-        alt: (item.tags || query || imageId).split(',')[0]?.trim() || query || imageId,
-        kind: item.type || 'photo',
-        tags: item.tags || '',
-        width: parseOptionalDimension(item.imageWidth),
-        height: parseOptionalDimension(item.imageHeight),
-      }))
-      .filter((item) => item.url);
-
-    const items = strict && query ? strictSort(baseItems, query) : baseItems;
+    const pexelsResult = await searchPexels(query, pexelsApiKey, page, perPage, strict);
+    const pixabayResult = pexelsResult.items.length
+      ? { items: [], totalHits: 0 }
+      : await searchPixabay(query, pixabayApiKey, page, perPage, strict);
+    const items = pexelsResult.items.length ? pexelsResult.items : pixabayResult.items;
 
     res.status(200).json({
       items,
-      totalHits: Math.max(0, data.totalHits || 0),
+      totalHits: pexelsResult.items.length ? pexelsResult.totalHits : pixabayResult.totalHits,
       page,
       perPage,
     });

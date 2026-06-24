@@ -256,6 +256,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const [timeLeft, setTimeLeft] = useState(options.timerSeconds || 0);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [resizeTick, setResizeTick] = useState(0);
     const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
     const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
@@ -335,16 +336,40 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     }, []);
 
     useEffect(() => {
+        if (!isImageZoomOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsImageZoomOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isImageZoomOpen]);
+
+    useEffect(() => {
+        if (!questionImageUrl && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [questionImageUrl, isImageZoomOpen]);
+
+    useEffect(() => {
+        if (isMobileViewport && isImageZoomOpen) {
+            setIsImageZoomOpen(false);
+        }
+    }, [isMobileViewport, isImageZoomOpen]);
+
+    useEffect(() => {
         const shouldLock = !isGameOver && (
             activeTileId !== null ||
             pendingFinal !== null ||
             editingTeamIndex !== null ||
             showQuitConfirm ||
-            showEndGameConfirm
+            showEndGameConfirm ||
+            isImageZoomOpen
         );
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [activeTileId, pendingFinal, editingTeamIndex, showQuitConfirm, showEndGameConfirm, isGameOver]);
+    }, [activeTileId, pendingFinal, editingTeamIndex, showQuitConfirm, showEndGameConfirm, isImageZoomOpen, isGameOver]);
 
     useEffect(() => {
         if (activeTileId === null || isFlipped || isGameOver || showBonusIntro || showBonusAward || pendingFinal === null && !activeTile) return;
@@ -1402,8 +1427,21 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                         <img
                                                             src={questionImageUrl}
                                                             alt={questionImageAlt}
+                                                            onClick={() => {
+                                                                if (!isMobileViewport) setIsImageZoomOpen(true);
+                                                            }}
+                                                            role={!isMobileViewport ? 'button' : undefined}
+                                                            tabIndex={!isMobileViewport ? 0 : undefined}
+                                                            title={!isMobileViewport ? 'Click to zoom' : undefined}
+                                                            onKeyDown={(event) => {
+                                                                if (isMobileViewport) return;
+                                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                                    event.preventDefault();
+                                                                    setIsImageZoomOpen(true);
+                                                                }
+                                                            }}
                                                             onLoad={() => setResizeTick((prev) => prev + 1)}
-                                                            className="h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm"
+                                                            className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                         />
                                                     </div>
                                                     <div
@@ -1448,28 +1486,56 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                             </>
                                         ) : (
                                             <>
-                                                {questionImageUrl && (
-                                                    <div className="px-4 sm:px-6 md:px-8 mb-2 sm:mb-4 flex items-center justify-center flex-none">
-                                                        <img
-                                                            src={questionImageUrl}
-                                                            alt={questionImageAlt}
-                                                            onLoad={() => setResizeTick((prev) => prev + 1)}
-                                                            className="h-32 sm:h-44 md:h-56 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm"
-                                                        />
+                                                {questionImageUrl && !hasOptions ? (
+                                                    <div className={`flex flex-1 min-h-0 ${isMobileViewport ? 'flex-col' : 'flex-row'} gap-3 px-4 sm:px-6 md:px-8 mb-2 sm:mb-4`}>
+                                                        <div className={isMobileViewport ? 'w-full h-32 sm:h-36 flex items-center justify-center flex-none' : 'w-[42%] min-h-0 flex items-center justify-center'}>
+                                                            <img
+                                                                src={questionImageUrl}
+                                                                alt={questionImageAlt}
+                                                                onClick={() => {
+                                                                    if (!isMobileViewport) setIsImageZoomOpen(true);
+                                                                }}
+                                                                role={!isMobileViewport ? 'button' : undefined}
+                                                                tabIndex={!isMobileViewport ? 0 : undefined}
+                                                                title={!isMobileViewport ? 'Click to zoom' : undefined}
+                                                                onKeyDown={(event) => {
+                                                                    if (isMobileViewport) return;
+                                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                                        event.preventDefault();
+                                                                        setIsImageZoomOpen(true);
+                                                                    }
+                                                                }}
+                                                                onLoad={() => setResizeTick((prev) => prev + 1)}
+                                                                className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                            />
+                                                        </div>
+                                                        <div
+                                                            ref={questionWrapRef}
+                                                            className={`flex-1 min-h-0 flex flex-col items-center overflow-hidden ${isMobileViewport ? 'justify-center text-center' : 'justify-center text-left'}`}
+                                                        >
+                                                            <div
+                                                                ref={questionTextRef}
+                                                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                                className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight w-full whitespace-pre-wrap break-words hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
+                                                            >
+                                                                {shownQuestion.question}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        ref={questionWrapRef}
+                                                        className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
+                                                    >
+                                                        <div
+                                                            ref={questionTextRef}
+                                                            style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
+                                                            className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
+                                                        >
+                                                            {shownQuestion.question}
+                                                        </div>
                                                     </div>
                                                 )}
-                                                <div
-                                                    ref={questionWrapRef}
-                                                    className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
-                                                >
-                                                    <div
-                                                        ref={questionTextRef}
-                                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                        className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
-                                                    >
-                                                        {shownQuestion.question}
-                                                    </div>
-                                                </div>
 
                                                 {hasOptions ? (
                                                     <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
@@ -1588,6 +1654,42 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             </div>
                         </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {isImageZoomOpen && questionImageUrl && (
+                <div
+                    className="fixed inset-0 z-[800] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+                    onClick={() => setIsImageZoomOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-visible"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setIsImageZoomOpen(false)}
+                            className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+                            aria-label="Close image"
+                        >
+                            <X size={18} />
+                        </button>
+                        <img
+                            src={questionImageUrl}
+                            alt={questionImageAlt}
+                            onClick={() => setIsImageZoomOpen(false)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    setIsImageZoomOpen(false);
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            title="Click to close"
+                            className="max-h-[86vh] max-w-[86vw] cursor-zoom-out rounded-2xl border border-white/10 object-contain shadow-2xl"
+                        />
                     </div>
                 </div>
             )}

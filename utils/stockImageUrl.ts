@@ -1,4 +1,4 @@
-const PIXABAY_HOST = /(^|\.)pixabay\.com$/i;
+const STOCK_IMAGE_HOST = /(^|\.)(pixabay|pexels)\.com$/i;
 const HOSTED_STOCK_IMAGE_PROXY_ORIGIN = 'https://www.theteachersroom.app';
 
 const normalizeHttps = (value: string): string => value.replace(/^http:\/\//i, 'https://');
@@ -11,9 +11,9 @@ const parseUrl = (value: string): URL | null => {
   }
 };
 
-const isPixabayHost = (host: string): boolean => PIXABAY_HOST.test(host);
+const isStockImageHost = (host: string): boolean => STOCK_IMAGE_HOST.test(host);
 
-const coerceLikelyPixabayUrl = (value: string): string | null => {
+const coerceLikelyStockImageUrl = (value: string): string | null => {
   const raw = String(value || '').trim();
   if (!raw) return null;
 
@@ -27,6 +27,10 @@ const coerceLikelyPixabayUrl = (value: string): string | null => {
   }
 
   if (/^(?:[a-z0-9-]+\.)*pixabay\.com\//i.test(raw)) {
+    return normalizeHttps(`https://${raw}`);
+  }
+
+  if (/^(?:[a-z0-9-]+\.)*pexels\.com\//i.test(raw)) {
     return normalizeHttps(`https://${raw}`);
   }
 
@@ -46,10 +50,10 @@ export const extractPixabaySourceUrl = (value: string, depth = 0): string | null
   const raw = String(value || '').trim();
   if (!raw) return null;
 
-  const hinted = coerceLikelyPixabayUrl(raw);
+  const hinted = coerceLikelyStockImageUrl(raw);
   if (hinted) {
     const hintedParsed = parseUrl(hinted);
-    if (hintedParsed && isPixabayHost(hintedParsed.hostname)) return hinted;
+    if (hintedParsed && isStockImageHost(hintedParsed.hostname)) return hinted;
   }
 
   const parsed = parseUrl(raw);
@@ -67,7 +71,7 @@ export const extractPixabaySourceUrl = (value: string, depth = 0): string | null
     return null;
   }
 
-  if (isPixabayHost(parsed.hostname)) {
+  if (isStockImageHost(parsed.hostname)) {
     if (!/^https?:\/\//i.test(raw)) {
       return normalizeHttps(`https://${parsed.hostname}${parsed.pathname}${parsed.search}${parsed.hash}`);
     }

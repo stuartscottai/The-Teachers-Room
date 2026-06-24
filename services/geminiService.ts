@@ -691,6 +691,7 @@ const normalizeWordWheelQuestions = (
       imageKeywords: Array.isArray(q.imageKeywords)
         ? q.imageKeywords.map((value: any) => String(value || '').trim()).filter(Boolean).slice(0, 6)
         : undefined,
+      visualSearch: normalizeVisualSearch(q.visualSearch),
     });
   });
 
@@ -711,76 +712,97 @@ const normalizeWordWheelQuestions = (
   });
 };
 
+const normalizeVisualSearch = (value: any): GeneratedQuestion['visualSearch'] | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const primaryQuery = String(value.primaryQuery || value.searchQuery || '').trim();
+  const backupQuery = String(value.backupQuery || value.fallbackQuery || '').trim();
+  const avoidTerms = Array.isArray(value.avoidTerms)
+    ? value.avoidTerms.map((entry: any) => String(entry || '').trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const risk = String(value.answerRevealRisk || '').toLowerCase();
+  const answerRevealRisk = risk === 'low' || risk === 'medium' || risk === 'high' ? risk : undefined;
+  const imageIntent = String(value.imageIntent || '').trim();
+  if (!primaryQuery && !backupQuery && !avoidTerms.length && !answerRevealRisk && !imageIntent) return undefined;
+  return {
+    ...(primaryQuery ? { primaryQuery } : {}),
+    ...(backupQuery ? { backupQuery } : {}),
+    ...(avoidTerms.length ? { avoidTerms } : {}),
+    ...(answerRevealRisk ? { answerRevealRisk } : {}),
+    ...(imageIntent ? { imageIntent } : {}),
+  };
+};
+
 const normalizeBlockBeatersQuestions = (
   rawQuestions: any[],
   mode: 'letters' | 'numbers' = 'letters'
 ): GeneratedQuestion[] => {
   const normalizeLetter = (value: any): string =>
     String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+  const isSingleLetterOnly = (value: any): boolean =>
+    /^[A-Z]$/i.test(String(value || '').trim());
+  const normalizeLabel = (value: string): string =>
+    value.trim().replace(/\s+/g, ' ').replace(/^./, (char) => char.toUpperCase());
   const formatLetterClue = (question: string, answer: string, letter: string) => {
-    const clean = String(question || '').trim().replace(/\s+/g, ' ');
+    const clean = String(question || '')
+      .trim()
+      .replace(/\s+/g, ' ');
     if (!letter || !clean) return clean;
-    const hasBlank = /_{2,}|-{3,}|\.{3,}|\[\s*blank\s*\]|\(\s*blank\s*\)/i.test(clean);
-    const startsCorrectly = new RegExp(`^what\\s+${letter}\\s+is\\b`, 'i').test(clean);
-    if (startsCorrectly && !hasBlank) return clean;
-    const lowerAnswer = String(answer || '').trim().toLowerCase();
-    const answerWords = lowerAnswer
-      .split(/\s+/)
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .filter(Boolean);
-    const answerPattern = answerWords.length ? new RegExp(`\\b(?:${answerWords.join('|')})\\b`, 'ig') : null;
-    const withoutAnswer = answerPattern
-      ? clean.replace(answerPattern, 'the answer').trim()
-      : clean;
-    const clueText = withoutAnswer
-      .replace(new RegExp(`^what\\s+${letter}\\s+is\\s*`, 'i'), '')
-      .replace(/_{2,}|-{3,}|\.{3,}|\[\s*blank\s*\]|\(\s*blank\s*\)/gi, 'the answer')
-      .replace(/\bthe answer\b\s+\bthe answer\b/gi, 'the answer')
-      .replace(/\s+/g, ' ')
-      .replace(/\?+$/g, '')
-      .trim();
-    if (hasBlank && clueText) {
-      return `What ${letter} is the answer to this clue: ${clueText.charAt(0).toLowerCase()}${clueText.slice(1)}?`;
+    const prefix = `Starts with ${letter}:`;
+    const capitalize = (value: string) => value.replace(/^./, (char) => char.toUpperCase());
+    const withPrefix = (value: string) => `${prefix} ${capitalize(value.trim())}`.trim();
+    const existingStartsWith = clean.match(/^starts\s+with\s+[A-Z]\s*:\s*(.+)$/i);
+    if (existingStartsWith) return withPrefix(existingStartsWith[1]);
+
+    const leadingLabelMatch = clean.match(/^([A-Z][\w\s&/-]{1,40}):\s+(.+)$/i);
+    if (leadingLabelMatch && !/^starts\s+with\b/i.test(leadingLabelMatch[1])) {
+      return `${normalizeLabel(leadingLabelMatch[1])}: ${formatLetterClue(leadingLabelMatch[2], answer, letter)}`;
     }
-    const noQuestionMark = clueText || withoutAnswer.replace(/\?+$/g, '').trim();
-    const whichNounMatch = noQuestionMark.match(/^which\s+([a-z][a-z-]*)\s+(.+)$/i);
-    if (whichNounMatch && !/^of$/i.test(whichNounMatch[1])) {
-      return `What ${letter} is a ${whichNounMatch[1].toLowerCase()} which ${whichNounMatch[2]}?`;
+
+    const embeddedLabelMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+([A-Z][\\w\\s&/-]{1,40}):\\s+(.+)$`, 'i'));
+    if (embeddedLabelMatch) {
+      return `${normalizeLabel(embeddedLabelMatch[1])}: ${formatLetterClue(embeddedLabelMatch[2], answer, letter)}`;
     }
-    const whichMatch = noQuestionMark.match(/^which\s+(.+)$/i);
-    if (whichMatch) {
-      return `What ${letter} is ${whichMatch[1]}?`;
+
+    const oldClueMatch = clean.match(new RegExp(`^what\\s+${letter}\\s+is\\s+(?:the answer to this clue:\\s*)?(.+)$`, 'i'));
+    if (oldClueMatch && /^(who|what|which|how|where|when|why)\b/i.test(oldClueMatch[1])) {
+      return withPrefix(oldClueMatch[1]);
     }
-    const whatIsMatch = noQuestionMark.match(/^what\s+is\s+(.+)$/i);
-    if (whatIsMatch) {
-      return `What ${letter} is ${whatIsMatch[1]}?`;
-    }
-    return `What ${letter} is ${noQuestionMark.charAt(0).toLowerCase()}${noQuestionMark.slice(1)}?`;
+
+    return withPrefix(clean);
   };
 
   return (rawQuestions || []).map((q: any, index) => {
     const answer = String(q?.answer || '').trim();
+    const question = String(q?.question || '').trim();
     const answerLetter = normalizeLetter(answer);
     const savedLetter = normalizeLetter(q?.letter);
-    const invalidLetterAnswer = mode === 'letters' && !answerLetter;
+    const invalidLetterAnswer = mode === 'letters' && (
+      !answerLetter ||
+      !question ||
+      isSingleLetterOnly(answer) ||
+      isSingleLetterOnly(question)
+    );
     const letter = mode === 'letters'
       ? (answerLetter || savedLetter || WORD_WHEEL_LETTERS[index % WORD_WHEEL_LETTERS.length])
       : undefined;
+
+    if (invalidLetterAnswer) return null;
 
     return {
       ...q,
       id: index,
       letter,
-      question: invalidLetterAnswer ? '' : mode === 'letters' ? formatLetterClue(String(q?.question || '').trim(), answer, letter || answerLetter) : String(q?.question || '').trim(),
-      answer: invalidLetterAnswer ? '' : answer,
+      question: mode === 'letters' ? formatLetterClue(question, answer, letter || answerLetter) : question,
+      answer,
       points: 10,
       isBonus: false,
       options: mode === 'letters' ? undefined : q?.options,
-      answerAliases: invalidLetterAnswer ? [] : Array.isArray(q?.answerAliases)
+      answerAliases: Array.isArray(q?.answerAliases)
         ? q.answerAliases.map((value: any) => String(value || '').trim()).filter(Boolean).slice(0, 8)
         : [],
+      visualSearch: normalizeVisualSearch(q?.visualSearch),
     };
-  });
+  }).filter(Boolean).map((question: any, index: number) => ({ ...question, id: index }));
 };
 
 export const generateStopTheFireCategories = async (config: GameConfig): Promise<string[]> => {
@@ -926,6 +948,25 @@ const uniqueKeywords = (values: string[]): string[] => {
   return out;
 };
 
+const stripBlockBeatersLetterPrefixForImages = (value: string): string => {
+  let text = String(value || '').trim();
+  if (!text) return '';
+  text = text.replace(
+    /^([A-Za-z][A-Za-z\s&'-]{1,40}:\s*)?Starts\s+with\s+[A-Z]\s*:\s*/i,
+    '$1'
+  );
+  text = text.replace(/\bStarts\s+with\s+[A-Z]\s*:\s*/gi, '');
+  return text.replace(/\s+/g, ' ').trim();
+};
+
+const getQuestionTextForImageKeywords = (question: GeneratedQuestion, config: GameConfig): string => {
+  const rawQuestion = question.question || '';
+  if (config.type === GameType.BLOCK_BEATERS && (config.blockBeatersMode || 'letters') === 'letters') {
+    return stripBlockBeatersLetterPrefixForImages(rawQuestion);
+  }
+  return rawQuestion;
+};
+
 const sanitizeImageKeywordsForQuestion = (
   question: GeneratedQuestion,
   rawKeywords: string[],
@@ -953,10 +994,10 @@ const extractAiImageKeywordsBatch = async (
   ai: GoogleGenAI,
   batch: Array<{ localId: number; question: GeneratedQuestion }>,
   config: GameConfig
-): Promise<Map<number, string[]>> => {
+): Promise<Map<number, { imageKeywords: string[]; visualSearch?: GeneratedQuestion['visualSearch'] }>> => {
   const requestPayload = batch.map((item) => ({
     id: item.localId,
-    question: item.question.question || '',
+    question: getQuestionTextForImageKeywords(item.question, config),
     answer: item.question.answer || '',
     options: Array.isArray(item.question.options) ? item.question.options : [],
     topic: config.topic || '',
@@ -972,8 +1013,18 @@ const extractAiImageKeywordsBatch = async (
           properties: {
             id: { type: Type.INTEGER },
             imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+            visualSearch: {
+              type: Type.OBJECT,
+              properties: {
+                primaryQuery: { type: Type.STRING },
+                backupQuery: { type: Type.STRING },
+                avoidTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
+                answerRevealRisk: { type: Type.STRING },
+                imageIntent: { type: Type.STRING },
+              },
+            },
           },
-          required: ['id', 'imageKeywords'],
+          required: ['id', 'imageKeywords', 'visualSearch'],
         },
       },
     },
@@ -981,17 +1032,25 @@ const extractAiImageKeywordsBatch = async (
   };
 
   const prompt = `
-You are an image keyword extractor for quiz questions.
+You are a quiz image planning assistant.
 Return JSON only.
 
 Rules:
 - Return exactly 2 keywords per item in "imageKeywords".
 - Each keyword must be a single word.
 - Keyword 1 must be the strongest visual subject.
+- Also return "visualSearch" with primaryQuery, backupQuery, avoidTerms, answerRevealRisk, and imageIntent.
+- primaryQuery and backupQuery must be short 1-3 word stock-photo searches.
+- Choose visualSearch by asking: "What safe visual scene supports this question without giving away the answer?"
+- Prefer indirect classroom-useful photo subjects over copied question words.
+- Use answerRevealRisk "low", "medium", or "high".
 - Keywords must not be the answer or close variants of the answer/options.
 - Prefer concrete visual nouns or proper nouns that work in stock image search.
+- Ignore game-formatting text such as "Starts with A:"; it is not an image subject.
 - Avoid weak utility words (service, thing, item, person), pronouns, and filler words.
 - Avoid verbs/adjectives unless they are clearly visual and necessary.
+- Example: "Who wrote To Kill a Mockingbird?" -> visualSearch.primaryQuery "classic novel", backupQuery "books writing", avoidTerms ["Harper Lee", "mockingbird"], answerRevealRisk "high".
+- Example: "What is the longest river in South America?" with answer "Amazon River" -> primaryQuery "river rainforest", backupQuery "south america river", answerRevealRisk "low".
 
 Input:
 ${JSON.stringify(requestPayload)}
@@ -1008,7 +1067,7 @@ ${JSON.stringify(requestPayload)}
 
   const parsed = JSON.parse(cleanJson(response.text || '{}'));
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
-  const out = new Map<number, string[]>();
+  const out = new Map<number, { imageKeywords: string[]; visualSearch?: GeneratedQuestion['visualSearch'] }>();
 
   for (const entry of items) {
     const id = Number(entry?.id);
@@ -1017,8 +1076,9 @@ ${JSON.stringify(requestPayload)}
     if (!question) continue;
     const raw = Array.isArray(entry?.imageKeywords) ? entry.imageKeywords.map((v: any) => String(v || '')) : [];
     const sanitized = sanitizeImageKeywordsForQuestion(question, raw);
-    if (!sanitized.length) continue;
-    out.set(id, sanitized);
+    const visualSearch = normalizeVisualSearch(entry?.visualSearch);
+    if (!sanitized.length && !visualSearch) continue;
+    out.set(id, { imageKeywords: sanitized, visualSearch });
   }
 
   return out;
@@ -1040,11 +1100,12 @@ const withAiImageKeywords = async (
       const extracted = await extractAiImageKeywordsBatch(ai, batch, config);
       batch.forEach((item, idx) => {
         const picked = extracted.get(item.localId);
-        if (!picked || !picked.length) return;
+        if (!picked) return;
         const targetIndex = start + idx;
         next[targetIndex] = {
           ...next[targetIndex],
-          imageKeywords: picked,
+          ...(picked.imageKeywords.length ? { imageKeywords: picked.imageKeywords } : {}),
+          ...(picked.visualSearch ? { visualSearch: picked.visualSearch } : {}),
         };
       });
     } catch (err) {
@@ -1173,8 +1234,16 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   
   Ensure questions are appropriate for a classroom setting.
   If images are requested, include imageKeywords as EXACTLY 2 concise visual keywords per question.
+  Also include visualSearch for each question: { primaryQuery, backupQuery, avoidTerms, answerRevealRisk, imageIntent }.
+  visualSearch.primaryQuery and backupQuery must be short stock-photo searches of 1-3 words.
+  Choose visualSearch by asking: "What safe visual scene supports this question without giving away the answer?"
+  Prefer indirect, classroom-useful photo subjects over copied question words.
+  Examples: for "Who wrote To Kill a Mockingbird?" use primaryQuery "classic novel", backupQuery "books writing", avoidTerms ["Harper Lee", "mockingbird"], answerRevealRisk "high".
+  For "What is the longest river in South America?" answer "Amazon River", use primaryQuery "river rainforest", backupQuery "south america river", answerRevealRisk "low".
+  answerRevealRisk must be "low", "medium", or "high".
   These keywords are for stock image search (e.g., Pixabay), so prefer concrete visual nouns or proper nouns.
   Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be supporting context.
+  Ignore game-formatting text such as "Starts with A:" when choosing imageKeywords.
   Do NOT use the exact answer, close synonyms, or wording that makes the answer too obvious.
   Avoid adjectives, verbs, and abstract terms like "education", "concept", "background".
   Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
@@ -1204,6 +1273,16 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       letter: { type: Type.STRING },
       answerAliases: { type: Type.ARRAY, items: { type: Type.STRING } },
       imageKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+      visualSearch: {
+        type: Type.OBJECT,
+        properties: {
+          primaryQuery: { type: Type.STRING },
+          backupQuery: { type: Type.STRING },
+          avoidTerms: { type: Type.ARRAY, items: { type: Type.STRING } },
+          answerRevealRisk: { type: Type.STRING },
+          imageIntent: { type: Type.STRING },
+        },
+      },
       // Survey specific
       surveyAnswers: {
         type: Type.ARRAY,
@@ -1425,22 +1504,21 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       ${blockMode === 'letters' ? `
       4. Include a "letter" field for every question using one uppercase English letter.
       5. The answer must start with that exact letter. Do not assign letters alphabetically unless the answer truly starts with that letter.
-      6. Every question must be a complete clue using exactly this style: "What [LETTER] is [a definition or description]?"
-      7. NEVER use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.
-         Bad: "What W is athletes typically _____ up before a workout?"
-         Good: "What W is a short preparation activity athletes do before strenuous exercise?"
-      8. Do not include the answer word in the question text, except for the single starting-letter marker after "What".
-         Bad: answer "Warm-up", question "What W is something athletes do to warm up?"
-         Good: answer "Warm-up", question "What W is a short preparation activity athletes do before strenuous exercise?"
-      9. Prefer natural noun/term answers, including short phrases when needed, as long as the first word starts with the assigned letter.
-         Example: letter F, answer "Fencing", question "What F is a sport which uses a foil, epee, or sabre?"
-         Example: letter W, answer "Warm-up", question "What W is a short preparation activity athletes do before strenuous exercise?"
-      10. Do not write generic wording like "Which sport uses...?" in letters mode.
-      11. Add "answerAliases" with 0-4 accepted alternatives/spellings where useful.
-      12. Do NOT include multiple-choice options in letters mode.
-      13. Spread letters across the alphabet as evenly as possible.
-      14. Generate the requested number of questions exactly.
-      15. Do not use numeric-only answers, dates, or answers that start with a digit. Rewrite those questions so the correct answer is a word beginning with the assigned letter.` : `
+      6. Every question must be a normal classroom question prefixed with the starting letter using this exact pattern: "Starts with [LETTER]: [normal question]".
+         Good: answer "France", question "Starts with F: What country is Paris the capital of?"
+         Good: answer "Neil Armstrong", question "Starts with N: Who was the first person to walk on the moon?"
+         Good: answer "Homophone", question "Starts with H: What word sounds the same as another word but has a different meaning and spelling?"
+      7. If custom instructions ask for a topic label, put it before the starts-with marker.
+         Good: "History: Starts with N: Who was the first person to walk on the moon?"
+      8. Do NOT use the old clue format "What [LETTER] is...".
+      9. The "letter" field is only a helper marker. Never use the letter itself as the whole question or the whole answer.
+      10. Do not use the phrase "the answer" in the question.
+      11. NEVER use blanks, underscores, gap-fill wording, missing-word prompts, or sentence-completion prompts.
+      12. Add "answerAliases" with 0-4 accepted alternatives/spellings where useful.
+      13. Do NOT include multiple-choice options in letters mode.
+      14. Spread letters across the alphabet as evenly as possible.
+      15. Generate the requested number of questions exactly.
+      16. Do not use numeric-only answers, dates, or answers that start with a digit. Rewrite those questions so the correct answer is a word beginning with the assigned letter.` : `
       4. Do not include a "letter" requirement.
       5. Multiple-choice questions must have one correct answer and the answer must exactly match one option.
       6. Keep questions short enough for a projected game card.`}
@@ -1513,9 +1591,14 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   if (config.includeImages) {
     prompt += `
     IMPORTANT: Include imageKeywords as EXACTLY 2 concise visual keywords for EACH question.
+    IMPORTANT: Also include visualSearch for EACH question with primaryQuery, backupQuery, avoidTerms, answerRevealRisk, and imageIntent.
+    visualSearch.primaryQuery and backupQuery must be short 1-3 word stock-photo searches. They should describe a useful image scene, not merely repeat words from the question.
+    Use indirect safe clues when the answer would be revealed by the image. Use answerRevealRisk "low", "medium", or "high".
+    Example: "Who wrote To Kill a Mockingbird?" -> primaryQuery "classic novel", backupQuery "books writing", avoidTerms ["Harper Lee", "mockingbird"], answerRevealRisk "high".
     CRITICAL: Keywords must NOT be the exact answer, close synonyms, or reveal the answer too directly.
     Use stock-search-friendly concrete visual nouns/proper nouns, not adjectives/verbs.
     Make keyword 1 the dominant visual subject (object/place/event). Keyword 2 can be context.
+    Ignore game-formatting text such as "Starts with A:" when choosing imageKeywords.
     Avoid weak utility words as standalone keywords, such as "service", "thing", "item", "person".
     Avoid role/action words like "person", "people", "call", "study", "learn" unless truly visual.
     Avoid abstract tags (e.g., "education", "concept", "background").

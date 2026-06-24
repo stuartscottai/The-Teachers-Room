@@ -212,6 +212,13 @@ export interface GeneratedQuestion {
     alt?: string;
   };
   imageKeywords?: string[];
+  visualSearch?: {
+    primaryQuery?: string;
+    backupQuery?: string;
+    avoidTerms?: string[];
+    answerRevealRisk?: 'low' | 'medium' | 'high';
+    imageIntent?: string;
+  };
   // New bonus types for hidden tiles
   bonusType?: 'none' | BonusCardType; 
   difficulty?: 'easy' | 'medium' | 'hard';

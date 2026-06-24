@@ -129,6 +129,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    allowedHosts: ['local.theteachersroom.test'],
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',

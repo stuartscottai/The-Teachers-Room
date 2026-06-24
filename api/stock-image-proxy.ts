@@ -1,4 +1,4 @@
-const isAllowedImageHost = (host: string): boolean => /(^|\.)pixabay\.com$/i.test(host);
+const isAllowedImageHost = (host: string): boolean => /(^|\.)pixabay\.com$/i.test(host) || /(^|\.)pexels\.com$/i.test(host);
 
 type ImageFetchResult =
   | { ok: true; contentType: string; bytes: Buffer }
@@ -12,7 +12,7 @@ const decodeIfEncoded = (value: string): string => {
   }
 };
 
-const coerceLikelyPixabayUrl = (value: string): string | null => {
+const coerceLikelyStockImageUrl = (value: string): string | null => {
   const raw = String(value || '').trim();
   if (!raw) return null;
 
@@ -29,15 +29,19 @@ const coerceLikelyPixabayUrl = (value: string): string | null => {
     return `https://${raw}`.replace(/^http:\/\//i, 'https://');
   }
 
+  if (/^(?:[a-z0-9-]+\.)*pexels\.com\//i.test(raw)) {
+    return `https://${raw}`.replace(/^http:\/\//i, 'https://');
+  }
+
   return null;
 };
 
-const extractPixabayUrl = (value: string, depth = 0): string | null => {
+const extractStockImageUrl = (value: string, depth = 0): string | null => {
   if (depth > 5) return null;
   const raw = String(value || '').trim();
   if (!raw) return null;
 
-  const hinted = coerceLikelyPixabayUrl(raw);
+  const hinted = coerceLikelyStockImageUrl(raw);
   if (hinted) return hinted;
 
   let parsed: URL;
@@ -45,7 +49,7 @@ const extractPixabayUrl = (value: string, depth = 0): string | null => {
     parsed = new URL(raw);
   } catch {
     const decoded = decodeIfEncoded(raw);
-    return decoded !== raw ? extractPixabayUrl(decoded, depth + 1) : null;
+    return decoded !== raw ? extractStockImageUrl(decoded, depth + 1) : null;
   }
 
   if (isAllowedImageHost(parsed.hostname)) {
@@ -56,14 +60,14 @@ const extractPixabayUrl = (value: string, depth = 0): string | null => {
   if (parsed.pathname.startsWith('/api/stock-image-proxy') || parsed.hostname.toLowerCase() === 'images.weserv.nl') {
     const nested = parsed.searchParams.get('url');
     if (!nested) return null;
-    return extractPixabayUrl(nested, depth + 1);
+    return extractStockImageUrl(nested, depth + 1);
   }
 
   return null;
 };
 
 const normalizeTargetUrl = (value: string): URL | null => {
-  const raw = extractPixabayUrl(String(value || '')) || String(value || '').trim();
+  const raw = extractStockImageUrl(String(value || '')) || String(value || '').trim();
   if (!raw) return null;
   try {
     const parsed = new URL(raw);
@@ -78,6 +82,26 @@ const normalizeTargetUrl = (value: string): URL | null => {
 const normalizePixabayImageUrl = (value: string | undefined): string => {
   if (!value) return '';
   return value.replace(/^http:\/\//i, 'https://');
+};
+
+const normalizePexelsImageUrl = normalizePixabayImageUrl;
+
+const resolvePexelsImageById = async (imageId: string): Promise<URL | null> => {
+  const id = String(imageId || '').replace(/^pexels:/i, '').trim();
+  if (!/^\d+$/.test(id)) return null;
+
+  const apiKey = process.env.PEXELS_API_KEY || '';
+  if (!apiKey) return null;
+
+  const response = await fetch(`https://api.pexels.com/v1/photos/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { Authorization: apiKey },
+  });
+  if (!response.ok) return null;
+
+  const data = await response.json().catch(() => null);
+  const imageUrl = normalizePexelsImageUrl(data?.src?.large2x || data?.src?.large || data?.src?.original || data?.src?.medium);
+  return normalizeTargetUrl(imageUrl);
 };
 
 const resolvePixabayImageById = async (imageId: string): Promise<URL | null> => {
@@ -100,6 +124,12 @@ const resolvePixabayImageById = async (imageId: string): Promise<URL | null> => 
   const hit = Array.isArray(data?.hits) ? data.hits[0] : null;
   const imageUrl = normalizePixabayImageUrl(hit?.largeImageURL || hit?.webformatURL || hit?.previewURL);
   return normalizeTargetUrl(imageUrl);
+};
+
+const resolveStockImageById = async (imageId: string): Promise<URL | null> => {
+  const id = String(imageId || '').trim();
+  if (/^pexels:/i.test(id)) return resolvePexelsImageById(id);
+  return resolvePixabayImageById(id);
 };
 
 const buildWeservFallbackUrl = (target: URL): URL => {
@@ -153,7 +183,7 @@ export default async function handler(req: any, res: any) {
 
   const requested = Array.isArray(req.query?.url) ? req.query.url[0] : req.query?.url;
   const requestedId = Array.isArray(req.query?.id) ? req.query.id[0] : req.query?.id;
-  const freshTarget = requestedId ? await resolvePixabayImageById(String(requestedId || '')) : null;
+  const freshTarget = requestedId ? await resolveStockImageById(String(requestedId || '')) : null;
   const target = freshTarget || normalizeTargetUrl(String(requested || ''));
   if (!target) {
     res.status(400).json({ error: 'Invalid image URL' });

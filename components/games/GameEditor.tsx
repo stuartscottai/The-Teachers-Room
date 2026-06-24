@@ -492,7 +492,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             }]
             : [];
         setImagePickerSelection(initialSelection);
-        const nextQuery = question ? getGameImageQuery(question, editedGame.config) : '';
+        const nextQuery = question?.image?.searchQuery || (question ? getGameImageQuery(question, editedGame.config) : '');
         setImagePickerQuery(nextQuery || editedGame.config.topic || '');
         setImagePickerOpen(true);
     };
