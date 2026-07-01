@@ -20,6 +20,8 @@ import { Avatar } from '../components/Avatar';
 import { StudentShareModal } from '../components/games/StudentShareModal';
 import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 
+type GameHubTab = 'create' | 'community' | 'library';
+
 // Helper to extract stats for display
 const getGameStats = (game: GeneratedGame) => {
     const type = game.config.type;
@@ -1792,19 +1794,52 @@ const CommunityLibrary: React.FC<{
 // --- MAIN GAME HUB ---
 const GameHub: React.FC<{ 
     onSelect: (type: GameType) => void, 
-    initialTab?: 'create' | 'community' | 'library',
+    initialTab?: GameHubTab,
     onLoadCommunityGame: (game: GeneratedGame) => void,
     onLoadPersonalGame: (game: GeneratedGame) => void,
     onOpenAiAssistant: () => void,
     initialCommunityAuthorFilter?: { id?: string; name: string } | null,
     initialCommunitySearch?: string
 }> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant, initialCommunityAuthorFilter, initialCommunitySearch }) => {
-    const [activeTab, setActiveTab] = useState<'create' | 'community' | 'library'>(initialTab);
+    const [activeTab, setActiveTab] = useState<GameHubTab>(initialTab);
+    const swipeStart = useRef<{ x: number; y: number } | null>(null);
+    const hubTabs: Array<{ id: GameHubTab; label: string; icon: React.ReactNode }> = [
+        { id: 'create', label: 'Create New', icon: <Sparkles size={16} /> },
+        { id: 'community', label: 'Community', icon: <Globe size={16} /> },
+        { id: 'library', label: 'My Library', icon: <Library size={16} /> },
+    ];
     
     // Sync internal state with prop changes (e.g. from Nav link)
     useEffect(() => {
         setActiveTab(initialTab);
     }, [initialTab]);
+
+    const activeTabIndex = hubTabs.findIndex((tab) => tab.id === activeTab);
+    const goToAdjacentTab = (direction: -1 | 1) => {
+        const nextTab = hubTabs[activeTabIndex + direction];
+        if (nextTab) {
+            setActiveTab(nextTab.id);
+        }
+    };
+
+    const handleSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
+        const touch = event.touches[0];
+        swipeStart.current = { x: touch.clientX, y: touch.clientY };
+    };
+
+    const handleSwipeEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+        const start = swipeStart.current;
+        swipeStart.current = null;
+        if (!start || window.innerWidth >= 768) return;
+
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - start.x;
+        const deltaY = touch.clientY - start.y;
+        const isHorizontalSwipe = Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4;
+
+        if (!isHorizontalSwipe) return;
+        goToAdjacentTab(deltaX < 0 ? 1 : -1);
+    };
 
     // Game Types Data
     const games = [
@@ -1908,96 +1943,115 @@ const GameHub: React.FC<{
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                <div className="text-center md:text-left">
+            <div className="relative mb-12 flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
+                <div className="min-w-0 text-center md:flex-1 md:pr-6 md:text-left">
                     <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">AI Classroom Games Hub</h1>
                     <p className="text-slate-500">Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.</p>
                 </div>
-                
-                {/* PROMINENT TABS */}
-                <div className="bg-white p-1.5 rounded-2xl md:rounded-full flex flex-wrap md:flex-nowrap shadow-md border border-slate-100 gap-1 w-full md:w-auto justify-center">
-                    <button 
-                        onClick={() => setActiveTab('create')}
-                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
-                            ${activeTab === 'create' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-                    >
-                        <Sparkles size={16} /> Create New
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('community')}
-                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
-                            ${activeTab === 'community' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-                    >
-                        <Globe size={16} /> Community
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('library')}
-                        className={`px-3 py-2 md:px-6 md:py-2.5 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 md:gap-2 whitespace-nowrap
-                            ${activeTab === 'library' ? 'bg-brand-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-                    >
-                        <Library size={16} /> My Library
-                    </button>
+
+                <div
+                    role="tablist"
+                    aria-label="Games hub sections"
+                    onTouchStart={handleSwipeStart}
+                    onTouchEnd={handleSwipeEnd}
+                    className="relative flex h-[56px] w-full items-end justify-center gap-1 px-1 md:mt-14 md:w-auto md:flex-shrink-0 md:justify-end"
+                >
+                    {hubTabs.map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={isActive}
+                                aria-controls={`game-hub-panel-${tab.id}`}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`relative min-w-0 flex-1 rounded-t-2xl border px-2 text-xs font-bold transition-[height,color,border-color] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] sm:w-[150px] sm:flex-none sm:px-6 sm:text-sm
+                                    ${isActive
+                                        ? "z-30 h-[56px] border-2 border-brand-blue border-b-0 bg-slate-50 py-3 text-brand-blue after:pointer-events-none after:absolute after:-bottom-[2px] after:left-[2px] after:right-[2px] after:h-[4px] after:bg-slate-50 after:content-['']"
+                                        : 'z-10 h-[48px] border-slate-200 border-b-slate-200 bg-slate-50 py-2.5 text-slate-500 hover:text-slate-800'}`}
+                            >
+                                <span className="flex items-center justify-center gap-1.5 whitespace-nowrap sm:gap-2">
+                                    {tab.icon}
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+                <div aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-0.5 bg-brand-blue"></div>
+            </div>
+
+            <div className="relative">
+                <div
+                    id={`game-hub-panel-${activeTab}`}
+                    role="tabpanel"
+                    onTouchStart={handleSwipeStart}
+                    onTouchEnd={handleSwipeEnd}
+                    className="relative z-0"
+                >
+                    <div key={activeTab} className="animate-tab-content">
+                        {activeTab === 'create' && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    {games.map((game) => (
+                                        <GameCard key={game.type} game={game} onSelect={onSelect} />
+                                    ))}
+                                </div>
+
+                                {/* AI Chatbot Teaser */}
+                                <div className="mt-12 bg-brand-blue rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl shadow-sky-100 overflow-hidden relative animate-slide-up">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+
+                                    <div className="md:w-2/3 mb-8 md:mb-0 relative z-10">
+                                        <h3 className="font-display text-3xl font-bold text-white mb-4">
+                                            Can't decide? Let AI help you.
+                                        </h3>
+                                        <p className="text-sky-100 mb-8 text-lg max-w-xl leading-relaxed">
+                                            Describe your lesson topic, student level, or learning goals, and our AI will recommend the perfect game format and generate content for you instantly.
+                                        </p>
+                                        <button
+                                            onClick={onOpenAiAssistant}
+                                            className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center"
+                                        >
+                                            <img
+                                                src="/assets/game_elements/aiassistanthead.png"
+                                                alt=""
+                                                aria-hidden="true"
+                                                className="mr-3 h-12 w-12 rounded-xl object-cover"
+                                            />
+                                            Open AI Assistant
+                                        </button>
+                                    </div>
+                                    <div className="md:w-1/3 flex justify-center relative z-10">
+                                         <div className="relative">
+                                            <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
+                                            <img
+                                                src="/assets/game_elements/aiassistant.png"
+                                                alt="AI Assistant"
+                                                className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-72 h-72 md:w-80 md:h-80 object-cover"
+                                            />
+                                         </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {activeTab === 'community' && (
+                            <CommunityLibrary
+                                onLoadGame={onLoadCommunityGame}
+                                initialAuthorFilter={initialCommunityAuthorFilter}
+                                initialSearch={initialCommunitySearch}
+                            />
+                        )}
+
+                        {activeTab === 'library' && (
+                            <PersonalLibrary onLoadGame={onLoadPersonalGame} />
+                        )}
+                    </div>
                 </div>
             </div>
-            
-            {activeTab === 'create' && (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-fade-in">
-                        {games.map((game) => (
-                            <GameCard key={game.type} game={game} onSelect={onSelect} />
-                        ))}
-                    </div>
-
-                    {/* AI Chatbot Teaser */}
-                    <div className="mt-20 bg-brand-blue rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl shadow-sky-100 overflow-hidden relative animate-slide-up">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
-
-                        <div className="md:w-2/3 mb-8 md:mb-0 relative z-10">
-                            <h3 className="font-display text-3xl font-bold text-white mb-4">
-                                Can't decide? Let AI help you.
-                            </h3>
-                            <p className="text-sky-100 mb-8 text-lg max-w-xl leading-relaxed">
-                                Describe your lesson topic, student level, or learning goals, and our AI will recommend the perfect game format and generate content for you instantly.
-                            </p>
-                            <button 
-                                onClick={onOpenAiAssistant}
-                                className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center"
-                            >
-                                <img
-                                    src="/assets/game_elements/aiassistanthead.png"
-                                    alt=""
-                                    aria-hidden="true"
-                                    className="mr-3 h-12 w-12 rounded-xl object-cover"
-                                />
-                                Open AI Assistant
-                            </button>
-                        </div>
-                        <div className="md:w-1/3 flex justify-center relative z-10">
-                             <div className="relative">
-                                <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
-                                <img
-                                    src="/assets/game_elements/aiassistant.png"
-                                    alt="AI Assistant"
-                                    className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-72 h-72 md:w-80 md:h-80 object-cover"
-                                />
-                             </div>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {activeTab === 'community' && (
-                <CommunityLibrary
-                    onLoadGame={onLoadCommunityGame}
-                    initialAuthorFilter={initialCommunityAuthorFilter}
-                    initialSearch={initialCommunitySearch}
-                />
-            )}
-
-            {activeTab === 'library' && (
-                <PersonalLibrary onLoadGame={onLoadPersonalGame} />
-            )}
         </div>
     );
 };
