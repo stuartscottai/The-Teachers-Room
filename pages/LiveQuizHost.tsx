@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -55,6 +55,13 @@ const getSharedLiveQuizOptionFontSize = (options: string[], compact = false) => 
 
 const getResponsiveLiveQuizOptionFontSize = (fontSize: number) =>
   `clamp(1.2rem, min(2.6vw, 5.1vh), ${fontSize}px)`;
+
+const getLiveQuizHostQuestionMaxFontSize = () => {
+  const width = window.innerWidth || 1024;
+  const preferred = width >= 1024 ? width * 0.031 : width * 0.062;
+  const min = width >= 1024 ? 32 : 26.4;
+  return Math.min(69.6, Math.max(min, preferred));
+};
 
 const ANSWER_TILE_STYLES = [
   'border-red-400 bg-gradient-to-br from-red-300 via-red-500 to-red-700 text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.45),inset_0_-8px_18px_rgba(127,29,29,0.28),0_8px_0_#7f1d1d,0_14px_24px_rgba(127,29,29,0.24)] [--answer-badge:#fff1f2] [--answer-badge-text:#dc2626]',
@@ -249,6 +256,11 @@ export const LiveQuizHost: React.FC = () => {
   const [musicEnabled, setMusicEnabled] = useState(true);
   const [lobbyTrack, setLobbyTrack] = useState<LobbyTrackId>('chill');
   const [showJoinQr, setShowJoinQr] = useState(false);
+  const [resizeTick, setResizeTick] = useState(0);
+  const questionPanelRef = useRef<HTMLDivElement>(null);
+  const questionCategoryRef = useRef<HTMLDivElement>(null);
+  const questionTextRef = useRef<HTMLHeadingElement>(null);
+  const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
 
   const load = async () => {
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
@@ -319,6 +331,43 @@ export const LiveQuizHost: React.FC = () => {
     }, {});
   }, [currentSubmissions, participants]);
   const imageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
+
+  useLayoutEffect(() => {
+    const panel = questionPanelRef.current;
+    if (!panel || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setResizeTick((value) => value + 1));
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [currentQuestion]);
+
+  useLayoutEffect(() => {
+    if (!currentQuestion) {
+      setQuestionFontSize(null);
+      return;
+    }
+
+    const panel = questionPanelRef.current;
+    const textEl = questionTextRef.current;
+    if (!panel || !textEl) return;
+
+    const categoryHeight = questionCategoryRef.current?.offsetHeight || 0;
+    const availableHeight = Math.max(0, panel.clientHeight - categoryHeight - (categoryHeight ? 8 : 0));
+    const availableWidth = textEl.clientWidth;
+    if (availableHeight <= 0 || availableWidth <= 0) return;
+
+    let size = getLiveQuizHostQuestionMaxFontSize();
+    const minSize = imageUrl ? 22 : 26;
+    textEl.style.fontSize = `${size}px`;
+    textEl.style.lineHeight = '1.08';
+
+    while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > availableWidth) && size > minSize) {
+      size -= 2;
+      textEl.style.fontSize = `${size}px`;
+    }
+
+    setQuestionFontSize(size);
+  }, [currentQuestion?.question, currentQuestion?.category, currentQuestion?.questionIndex, imageUrl, resizeTick]);
+
   const showRoundScores = ['leaderboard', 'ended'].includes(session?.status || '');
   const displayedRanking = useMemo(() => {
     const questionIndex = session?.currentQuestionIndex || 0;
@@ -770,9 +819,15 @@ export const LiveQuizHost: React.FC = () => {
                         <img src={imageUrl} alt="" className="h-full w-full object-contain" />
                       </div>
                     )}
-                    <div className="flex min-w-0 flex-1 flex-col justify-center">
-                      {currentQuestion.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{currentQuestion.category}</div>}
-                      <h1 className={`max-h-full ${imageUrl ? 'max-w-[17ch]' : 'w-full'} shrink-0 overflow-hidden break-words text-[clamp(1.65rem,6.2vw,4.35rem)] font-black leading-[1.08] tracking-normal text-slate-950 lg:text-[clamp(2rem,3.1vw,4.35rem)]`}>{currentQuestion.question}</h1>
+                    <div ref={questionPanelRef} className="flex min-w-0 flex-1 flex-col justify-center">
+                      {currentQuestion.category && <div ref={questionCategoryRef} className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{currentQuestion.category}</div>}
+                      <h1
+                        ref={questionTextRef}
+                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.08' } : undefined}
+                        className={`max-h-full w-full shrink-0 overflow-hidden whitespace-pre-wrap break-normal font-black leading-[1.08] tracking-normal text-slate-950 ${questionFontSize ? '' : 'text-[clamp(1.65rem,6.2vw,4.35rem)] lg:text-[clamp(2rem,3.1vw,4.35rem)]'}`}
+                      >
+                        {currentQuestion.question}
+                      </h1>
                     </div>
                   </div>
                   <LiveQuizAnswerGrid

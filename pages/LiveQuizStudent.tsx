@@ -557,15 +557,15 @@ export const LiveQuizStudent: React.FC = () => {
             elapsedMs={elapsedMs}
             className="-mx-4 -mt-4 mb-4 md:-mx-5 md:-mt-5"
           />
-          <div className={`flex min-h-0 flex-1 rounded-2xl border-2 border-slate-900/85 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_18px_rgba(2,6,23,0.1)] ${imageUrl ? 'gap-4' : ''}`}>
+          <div className={`flex min-h-0 flex-1 rounded-2xl border-2 border-slate-900/85 bg-white/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_18px_rgba(2,6,23,0.1)] ${imageUrl ? 'flex-col gap-3 md:flex-row md:gap-4' : ''}`}>
             {imageUrl && (
-              <div className="w-[34%] min-w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+              <div className="max-h-[180px] w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 md:max-h-none md:w-[34%] md:min-w-[180px]">
                 <img src={imageUrl} alt="" className="h-full w-full object-contain" />
               </div>
             )}
             <div className="flex min-w-0 flex-1 flex-col justify-center">
               {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
-              <h1 className={`min-h-0 max-h-full ${imageUrl ? 'max-w-[19ch]' : 'w-full'} shrink overflow-hidden break-words text-[clamp(1.45rem,min(2.15vw,3.55vh),2.95rem)] font-black leading-[1.08] tracking-normal text-slate-950`}>{question.question}</h1>
+              <h1 className={`min-h-0 max-h-full ${imageUrl ? 'w-full md:max-w-[19ch]' : 'w-full'} shrink overflow-hidden break-normal text-[clamp(1.45rem,min(2.15vw,3.55vh),2.95rem)] font-black leading-[1.08] tracking-normal text-slate-950`}>{question.question}</h1>
             </div>
           </div>
 
