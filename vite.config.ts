@@ -76,7 +76,7 @@ const buildSeoHtml = (html: string, routePath: string) => {
       '@type': 'Organization',
       name: "The Teachers' Room",
       url: PUBLIC_APP_URL,
-      logo: `${PUBLIC_APP_URL}/favicon.svg`
+      logo: `${PUBLIC_APP_URL}/icon-192.png`
     },
     {
       '@context': 'https://schema.org',

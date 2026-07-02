@@ -92,7 +92,7 @@ export const RouteSEO: React.FC = () => {
       '@type': 'Organization',
       name: "The Teachers' Room",
       url: getPublicAppUrl(),
-      logo: `${getPublicAppUrl()}/favicon.svg`
+      logo: `${getPublicAppUrl()}/icon-192.png`
     });
 
     upsertJsonLd('jsonld-website', {
