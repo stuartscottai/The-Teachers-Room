@@ -875,7 +875,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 difficulty: type === GameType.DARTS ? 'easy' : undefined,
                                 options: (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE || (type === GameType.BLOCK_BEATERS && config.blockBeatersMode === 'numbers' && config.questionType === 'multiple-choice')) ? ["", "", "", ""] : undefined,
                                 // Survey Init
-                                surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
+                                surveyAnswers: type === GameType.SURVEY_SHOWDOWN ? Array.from({ length: 10 }, () => ({ text: "", score: 0 })) : undefined
                             }))
                     )
                     : [],

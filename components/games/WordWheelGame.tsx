@@ -387,8 +387,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const [isMobileViewport, setIsMobileViewport] = useState(() =>
         typeof window !== 'undefined' ? window.innerWidth < 768 : false
     );
-    const [mobileQuestionFontSize, setMobileQuestionFontSize] = useState<number | null>(null);
-    const [mobileClueFontSize, setMobileClueFontSize] = useState<number | null>(null);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
+    const [clueFontSize, setClueFontSize] = useState<number | null>(null);
     const [questionResizeTick, setQuestionResizeTick] = useState(0);
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -607,9 +607,9 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     }, [cardState, isFlipped, activeEntry?.id]);
 
     useLayoutEffect(() => {
-        if (!isMobileViewport || cardState !== 'question' || isFlipped || !activeEntry) {
-            setMobileQuestionFontSize(null);
-            setMobileClueFontSize(null);
+        if (cardState !== 'question' || isFlipped || !activeEntry) {
+            setQuestionFontSize(null);
+            setClueFontSize(null);
             return;
         }
 
@@ -622,9 +622,9 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         const availableWidth = textEl.clientWidth || wrap.clientWidth;
         if (availableHeight <= 0 || availableWidth <= 0) return;
 
-        const minQuestionSize = 20;
-        const maxQuestionFromWidth = Math.floor(availableWidth / 6.1);
-        let questionSize = Math.max(minQuestionSize, Math.min(64, maxQuestionFromWidth));
+        const minQuestionSize = isMobileViewport ? 20 : 24;
+        const maxQuestionFromWidth = Math.floor(availableWidth / (isMobileViewport ? 6.1 : 9.5));
+        let questionSize = Math.max(minQuestionSize, Math.min(isMobileViewport ? 64 : 72, maxQuestionFromWidth));
 
         const clueWrapWidth = clueEl?.parentElement?.clientWidth || availableWidth;
         const minClueSize = 10;
@@ -672,8 +672,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             guard += 1;
         }
 
-        setMobileQuestionFontSize(questionSize);
-        setMobileClueFontSize(clueSize);
+        setQuestionFontSize(questionSize);
+        setClueFontSize(clueSize);
     }, [
         isMobileViewport,
         cardState,
@@ -1463,36 +1463,39 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 <div className="flex-1 min-h-0 flex flex-col bg-white">
                                     <div
                                         ref={questionWrapRef}
-                                        className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-7 md:p-10 text-center flex flex-col items-center justify-start sm:justify-center"
+                                        className={`flex-1 min-h-0 overflow-hidden p-4 sm:p-7 md:p-10 text-center flex items-center justify-center ${questionImageUrl ? 'flex-col md:flex-row gap-4 md:gap-7' : 'flex-col'}`}
                                     >
                                         {questionImageUrl && (
                                             <img
                                                 src={questionImageUrl}
                                                 alt={questionImageAlt}
-                                                className="mb-4 h-[30vh] w-full max-w-full rounded-lg border border-slate-200 bg-white object-contain"
+                                                onLoad={() => setQuestionResizeTick((prev) => prev + 1)}
+                                                className="h-[clamp(96px,18vh,220px)] w-full max-w-full flex-none rounded-lg border border-slate-200 bg-white object-contain md:h-full md:min-h-0 md:w-[44%]"
                                             />
                                         )}
-                                        <p
-                                            ref={questionTextRef}
-                                            style={mobileQuestionFontSize ? { fontSize: `${mobileQuestionFontSize}px`, lineHeight: '1.14' } : undefined}
-                                            className="font-display font-bold text-slate-800 leading-tight text-3xl sm:text-4xl md:text-5xl whitespace-pre-wrap break-words"
-                                        >
-                                            {activeEntry.question}
-                                        </p>
-                                        {cluePreview && (
-                                            <div className="mt-5 px-4 py-3 sm:px-5 sm:py-4 rounded-xl bg-sky-50 border border-sky-200 w-full max-w-4xl">
-                                                <div className="text-sm sm:text-base md:text-lg uppercase tracking-wide text-sky-700 font-black mb-2">
-                                                    Clue reveal
+                                        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center">
+                                            <p
+                                                ref={questionTextRef}
+                                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.14' } : undefined}
+                                                className="font-display font-bold text-slate-800 leading-tight text-3xl sm:text-4xl md:text-5xl whitespace-pre-wrap break-normal hyphens-none"
+                                            >
+                                                {activeEntry.question}
+                                            </p>
+                                            {cluePreview && (
+                                                <div className="mt-4 px-4 py-3 sm:px-5 sm:py-4 rounded-xl bg-sky-50 border border-sky-200 w-full max-w-4xl">
+                                                    <div className="text-sm sm:text-base md:text-lg uppercase tracking-wide text-sky-700 font-black mb-2">
+                                                        Clue reveal
+                                                    </div>
+                                                    <div
+                                                        ref={cluePreviewTextRef}
+                                                        style={clueFontSize ? { fontSize: `${clueFontSize}px`, lineHeight: '1.08' } : undefined}
+                                                        className="font-mono font-black text-slate-800 text-3xl sm:text-4xl md:text-5xl leading-tight whitespace-nowrap"
+                                                    >
+                                                        {cluePreview}
+                                                    </div>
                                                 </div>
-                                                <div
-                                                    ref={cluePreviewTextRef}
-                                                    style={mobileClueFontSize ? { fontSize: `${mobileClueFontSize}px`, lineHeight: '1.08' } : undefined}
-                                                    className="font-mono font-black text-slate-800 text-3xl sm:text-4xl md:text-5xl leading-tight whitespace-nowrap"
-                                                >
-                                                    {cluePreview}
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
 
                                     <form onSubmit={handleSubmit} className="border-t border-slate-200 p-3 sm:p-4 bg-slate-50">

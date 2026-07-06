@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -13,6 +13,8 @@ interface SurveyShowdownGameProps {
     onFinish: () => void;
     onReplay: () => void;
 }
+
+const SURVEY_ANSWER_COUNT = 10;
 
 // Levenshtein Distance for fuzzy matching
 const levenshteinDistance = (a: string, b: string): number => {
@@ -138,6 +140,10 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLHeadingElement>(null);
+    const [questionResizeTick, setQuestionResizeTick] = useState(0);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     
@@ -145,12 +151,12 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     
     // Host Mode allows clicking to preview (secret feature)
     const [hostMode, setHostMode] = useState(false);
-    const [hostPreview, setHostPreview] = useState<boolean[]>(() => new Array(8).fill(false));
+    const [hostPreview, setHostPreview] = useState<boolean[]>(() => new Array(SURVEY_ANSWER_COUNT).fill(false));
 
     const toggleHostMode = () => {
         setHostMode(prev => {
             if (prev) {
-                setHostPreview(new Array(8).fill(false));
+                setHostPreview(new Array(SURVEY_ANSWER_COUNT).fill(false));
             }
             return !prev;
         });
@@ -192,7 +198,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const questionImageUrl = resolveGameQuestionImageUrl(currentQ?.image);
     const questionImageAlt = currentQ?.image?.alt || '';
     
-    // Ensure surveyAnswers exists, pad if necessary to 8
+    // Ensure surveyAnswers exists, pad if necessary to the standard board size.
     const answers = React.useMemo(() => {
         if (!currentQ) return [];
         let raw = currentQ.surveyAnswers || [];
@@ -200,19 +206,19 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         if (raw.length === 0 && currentQ.options) {
             raw = currentQ.options.map((o, i) => ({ text: o, score: 20 - i*2, alts: [] }));
         }
-        // Ensure exactly 8 slots for the grid (fill with empty if needed)
+        // Ensure exactly 10 slots for the grid (fill with empty if needed)
         const padded = [...raw];
-        while(padded.length < 8) {
+        while(padded.length < SURVEY_ANSWER_COUNT) {
             padded.push({ text: "---", score: 0, alts: [] });
         }
-        return padded.slice(0, 8); // Cap at 8
+        return padded.slice(0, SURVEY_ANSWER_COUNT);
     }, [currentQ]);
 
     // Reset round state when round changes
     useEffect(() => {
-        setRevealedAnswers(new Array(8).fill(false));
+        setRevealedAnswers(new Array(SURVEY_ANSWER_COUNT).fill(false));
         setTeamStrikes(new Array(teamCount).fill(0));
-        setHostPreview(new Array(8).fill(false));
+        setHostPreview(new Array(SURVEY_ANSWER_COUNT).fill(false));
         setInput("");
         const startingIndex = teamCount > 0 ? currentRound % teamCount : 0;
         setActiveTeamIndex(startingIndex);
@@ -233,6 +239,42 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         media.addEventListener('change', handleChange);
         return () => media.removeEventListener('change', handleChange);
     }, []);
+
+    useLayoutEffect(() => {
+        const wrap = questionWrapRef.current;
+        if (!wrap || typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(() => setQuestionResizeTick((value) => value + 1));
+        observer.observe(wrap);
+        return () => observer.disconnect();
+    }, [phase, currentRound, questionImageUrl]);
+
+    useLayoutEffect(() => {
+        if (phase !== 'play' || !currentQ) {
+            setQuestionFontSize(null);
+            return;
+        }
+
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        if (!wrap || !textEl) return;
+
+        const availableHeight = wrap.clientHeight;
+        const availableWidth = textEl.clientWidth || wrap.clientWidth;
+        if (availableHeight <= 0 || availableWidth <= 0) return;
+
+        const maxSize = Math.min(isMobileViewport ? 24 : questionImageUrl ? 34 : 48, Math.max(isMobileViewport ? 18 : 24, Math.floor(availableWidth / (questionImageUrl ? 8 : 6))));
+        const minSize = isMobileViewport ? 14 : 18;
+        let size = maxSize;
+        textEl.style.fontSize = `${size}px`;
+        textEl.style.lineHeight = '1.12';
+
+        while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > availableWidth) && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+
+        setQuestionFontSize(size);
+    }, [phase, currentQ?.question, questionImageUrl, isMobileViewport, questionResizeTick]);
 
     useEffect(() => {
         if (!isImageZoomOpen) return;
@@ -463,7 +505,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER / SCOREBOARD (Increased Height to match Trivia) */}
-            <div className={`bg-slate-800/90 backdrop-blur-md ${mobileUsesTwoRowHeader ? 'px-2 py-1.5' : 'p-2'} sm:p-4 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[70px] sm:min-h-[140px]`}>
+            <div className={`bg-slate-800/90 backdrop-blur-md ${mobileUsesTwoRowHeader ? 'px-2 py-1.5' : 'p-2'} sm:p-3 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[70px] sm:min-h-[112px]`}>
                 <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                     <div className={`${mobileUsesButtonGrid ? 'grid grid-cols-2' : 'flex'} min-w-fit shrink-0 gap-1.5 sm:flex sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesButtonGrid ? '' : mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
@@ -517,9 +559,9 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 <button 
                                     key={`${name}-${idx}`}
                                     onClick={() => openEditTeam(idx)}
-                                    className={`flex flex-col items-center justify-center transition-all w-full min-w-0 px-2 py-1 ${isCrowdedDesktopHeader ? 'sm:px-3 sm:py-2' : 'sm:px-4 sm:py-3'} rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative min-h-[52px] ${isCrowdedDesktopHeader ? 'sm:min-w-[108px]' : 'sm:min-w-[120px]'} cursor-pointer group
+                                    className={`flex flex-col items-center justify-center transition-all ${isMobileViewport ? 'w-full min-w-0' : isCrowdedDesktopHeader ? 'w-[108px] min-w-[108px]' : 'w-[150px] min-w-[150px]'} px-2 py-1 ${isCrowdedDesktopHeader ? 'sm:px-3 sm:py-2' : 'sm:px-4 sm:py-3'} rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative min-h-[52px] cursor-pointer group
                                     ${isActive 
-                                        ? `border-brand-yellow bg-slate-700 ring-2 ${isCrowdedDesktopHeader ? 'sm:ring-2' : 'sm:ring-4'} ring-yellow-300/30 ${isCrowdedDesktopHeader ? 'sm:scale-[1.03]' : 'sm:scale-110'} z-10` 
+                                        ? `border-brand-yellow bg-slate-700 ring-2 ${isCrowdedDesktopHeader ? 'sm:ring-2' : 'sm:ring-4'} ring-yellow-300/40 shadow-[0_0_18px_rgba(250,204,21,0.35)] z-10` 
                                         : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
                                 >
                                     <div className="absolute top-1 right-1 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">
@@ -560,32 +602,80 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             </div>
 
             {/* 2. MAIN BOARD AREA (Flex Grow, No Scroll) */}
-            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-slate-950 overflow-hidden w-full relative">
+            <div className="flex-1 grid min-h-0 grid-cols-1 gap-3 bg-slate-950 p-3 overflow-hidden w-full relative md:grid-cols-[minmax(280px,0.42fr)_minmax(460px,0.58fr)] md:items-stretch">
                 
                 {/* QUESTION DISPLAY */}
-                <div className="bg-blue-600 text-white px-8 py-3 rounded-2xl border-b-8 border-blue-800 shadow-2xl mb-4 text-center max-w-4xl w-full shrink-0 z-10">
-                    <div className="flex flex-col items-center gap-3">
-                        {questionImageUrl && (
-                            <img
-                                src={questionImageUrl}
-                                alt={questionImageAlt}
-                                onClick={isMobileViewport ? undefined : openImageZoom}
-                                onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
-                                role={isMobileViewport ? undefined : 'button'}
-                                tabIndex={isMobileViewport ? -1 : 0}
-                                title={isMobileViewport ? undefined : 'Click to zoom'}
-                                className={`h-36 sm:h-44 md:h-52 w-full rounded-xl object-contain border border-blue-300/40 bg-blue-900/40 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                <div className="relative z-10 flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-blue-700 via-blue-800 to-blue-950 px-4 py-4 text-center text-white shadow-[0_0_26px_rgba(250,204,21,0.32)] sm:px-6 md:h-full">
+                    <div className="pointer-events-none absolute inset-2 rounded-xl border border-yellow-100/40" />
+                    <div className="pointer-events-none absolute inset-x-5 top-2 z-20 flex justify-between">
+                        {Array.from({ length: 8 }).map((_, index) => (
+                            <span
+                                key={`question-top-light-${index}`}
+                                className="survey-question-light h-3 w-3 rounded-full bg-yellow-200 shadow-[0_0_14px_rgba(253,224,71,0.98)]"
+                                style={{ animationDelay: `${index * 0.16}s` }}
                             />
+                        ))}
+                    </div>
+                    <div className="pointer-events-none absolute inset-x-5 bottom-2 z-20 flex justify-between">
+                        {Array.from({ length: 8 }).map((_, index) => (
+                            <span
+                                key={`question-bottom-light-${index}`}
+                                className="survey-question-light h-3 w-3 rounded-full bg-yellow-200 shadow-[0_0_14px_rgba(253,224,71,0.98)]"
+                                style={{ animationDelay: `${0.24 + index * 0.16}s` }}
+                            />
+                        ))}
+                    </div>
+                    <div className="pointer-events-none absolute inset-y-5 left-2 z-20 flex flex-col justify-between">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <span
+                                key={`question-left-light-${index}`}
+                                className="survey-question-light h-3 w-3 rounded-full bg-yellow-200 shadow-[0_0_14px_rgba(253,224,71,0.98)]"
+                                style={{ animationDelay: `${0.12 + index * 0.22}s` }}
+                            />
+                        ))}
+                    </div>
+                    <div className="pointer-events-none absolute inset-y-5 right-2 z-20 flex flex-col justify-between">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <span
+                                key={`question-right-light-${index}`}
+                                className="survey-question-light h-3 w-3 rounded-full bg-yellow-200 shadow-[0_0_14px_rgba(253,224,71,0.98)]"
+                                style={{ animationDelay: `${0.36 + index * 0.22}s` }}
+                            />
+                        ))}
+                    </div>
+                    <div className={`relative z-10 flex min-h-0 flex-1 items-center justify-center gap-3 overflow-hidden px-6 py-8 md:px-7 md:py-9 ${questionImageUrl ? 'flex-col' : 'flex-col'}`}>
+                        <div ref={questionWrapRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+                            <h2
+                                ref={questionTextRef}
+                                style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.12' } : undefined}
+                                className={`font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-pre-wrap break-normal hyphens-none ${questionFontSize ? '' : 'text-2xl md:text-5xl'}`}
+                            >
+                                {currentQ.question}
+                            </h2>
+                        </div>
+                        {questionImageUrl && (
+                            <div className="h-[36%] min-h-[96px] w-full flex-none overflow-hidden md:h-[42%]">
+                                <img
+                                    src={questionImageUrl}
+                                    alt={questionImageAlt}
+                                    onLoad={() => setQuestionResizeTick((value) => value + 1)}
+                                    onClick={isMobileViewport ? undefined : openImageZoom}
+                                    onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
+                                    role={isMobileViewport ? undefined : 'button'}
+                                    tabIndex={isMobileViewport ? -1 : 0}
+                                    title={isMobileViewport ? undefined : 'Click to zoom'}
+                                    className={`h-full w-full object-contain drop-shadow-lg ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                />
+                            </div>
                         )}
-                        <h2 className="text-xl md:text-2xl font-display font-black leading-tight drop-shadow-md uppercase tracking-wide whitespace-normal break-words">
-                            {currentQ.question}
-                        </h2>
                     </div>
                 </div>
 
-                {/* THE BOARD (Grid - 2 Columns for High -> Low flow) */}
-                <div className="flex-1 w-full max-w-5xl min-h-0 relative">
-                    <div className="absolute inset-0 grid grid-cols-2 grid-rows-4 gap-3 md:gap-4 pb-2">
+                {/* THE BOARD (2 Columns / 5 Rows) */}
+                <div className="relative min-h-0 w-full overflow-hidden rounded-[1.6rem] border-[6px] border-orange-300 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.22),transparent_54%),linear-gradient(135deg,#3b1d12,#111827_38%,#020617)] p-3 shadow-[0_0_32px_rgba(251,146,60,0.38)] md:h-full md:p-4">
+                    <div className="pointer-events-none absolute inset-2 rounded-[1.1rem] border-4 border-yellow-400/80 shadow-[inset_0_0_18px_rgba(250,204,21,0.55)]" />
+                    <div className="relative z-10 h-full rounded-xl border-4 border-slate-950 bg-slate-950/95 p-2 md:p-3">
+                    <div className="grid h-full grid-flow-col grid-cols-2 grid-rows-5 gap-2 md:gap-3">
                         {answers.map((ans, i) => {
                             const isCardRevealed = revealedAnswers[i] || (hostMode && hostPreview[i]);
                             return (
@@ -602,19 +692,19 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
                                     
                                     {/* FRONT (Number) */}
-                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] bg-gradient-to-b from-blue-800 to-blue-950 border-2 border-blue-500 rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-center">
-                                        <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-blue-950 flex items-center justify-center border-2 border-blue-400 shadow-inner group-hover:scale-110 transition-transform">
-                                            <span className="text-xl md:text-3xl font-black text-blue-200">{i + 1}</span>
+                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] bg-gradient-to-b from-sky-300 via-blue-600 to-blue-950 border-2 border-sky-100 rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.75),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-center">
+                                        <div className="w-9 h-9 md:w-12 md:h-12 rounded-full bg-gradient-to-b from-white via-slate-200 to-blue-200 flex items-center justify-center border-2 border-blue-900 shadow-inner group-hover:scale-110 transition-transform">
+                                            <span className="text-xl md:text-3xl font-black text-blue-900 drop-shadow-sm">{i + 1}</span>
                                         </div>
                                         {ans.text === "---" && <div className="absolute inset-0 bg-black/60 rounded-lg backdrop-blur-sm flex items-center justify-center text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Empty</div>}
                                     </div>
 
                                     {/* BACK (Answer) */}
-                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-slate-100 to-slate-200 border-4 border-white rounded-lg shadow-[0_4px_0_rgba(0,0,0,0.3)] flex items-center justify-between px-3 md:px-6 overflow-hidden">
+                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-cyan-200 via-blue-500 to-blue-900 border-2 border-white rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-between px-3 md:px-4 overflow-hidden">
                                         {ans.text !== "---" ? (
                                             <>
                                                 <span
-                                                    className={`font-black text-slate-800 uppercase pr-2 drop-shadow-sm flex-1 min-w-0 text-left whitespace-normal break-words leading-[1.1] ${
+                                                    className={`font-black text-white uppercase pr-2 drop-shadow-[0_2px_0_rgba(15,23,42,0.7)] flex-1 min-w-0 text-left whitespace-normal break-words leading-[1.05] ${
                                                         ans.text.length > 90 ? 'text-[8px] sm:text-[9px] md:text-xs' :
                                                         ans.text.length > 70 ? 'text-[9px] sm:text-[10px] md:text-sm' :
                                                         ans.text.length > 50 ? 'text-[10px] sm:text-xs md:text-base' :
@@ -624,7 +714,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                                 >
                                                     {ans.text}
                                                 </span>
-                                                <div className="bg-blue-600 text-white px-2 py-1 md:px-4 md:py-1 font-mono font-bold text-lg md:text-2xl border-2 border-blue-800 shadow-inner min-w-[2.5rem] text-center rounded-md">
+                                                <div className="bg-blue-950 text-white px-2 py-1 md:px-3 md:py-1 font-mono font-bold text-lg md:text-2xl border-2 border-sky-200 shadow-inner min-w-[2.5rem] text-center rounded-md">
                                                     {ans.score}
                                                 </div>
                                             </>
@@ -636,6 +726,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 </div>
                             );
                         })}
+                    </div>
                     </div>
                 </div>
             </div>
@@ -682,8 +773,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             )}
 
             {/* 3. FOOTER CONTROLS */}
-            <div className="bg-slate-900 border-t-4 border-slate-800 p-4 shrink-0 z-30 shadow-2xl relative min-h-[100px] flex items-center">
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-4 items-center w-full">
+            <div className="bg-slate-900 border-t-4 border-slate-800 p-3 shrink-0 z-30 shadow-2xl relative min-h-[84px] flex items-center">
+                <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-3 items-center w-full">
                     
                     {/* INPUT AREA */}
                     {!roundOver ? (
@@ -727,7 +818,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             <div className="flex items-center justify-between gap-3 w-full">
                                 {!allRevealed ? (
                                     <button
-                                        onClick={() => setRevealedAnswers(new Array(8).fill(true))}
+                                        onClick={() => setRevealedAnswers(new Array(SURVEY_ANSWER_COUNT).fill(true))}
                                         className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg sm:rounded-full text-sm sm:text-base font-bold shadow-md transition-transform hover:scale-105"
                                     >
                                         Reveal All
@@ -889,6 +980,23 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 }
                 .animate-shake {
                     animation: shake 0.3s ease-in-out;
+                }
+                @keyframes surveyQuestionLightPulse {
+                    0%, 100% {
+                        opacity: 0.45;
+                        filter: brightness(0.75);
+                        transform: scale(0.82);
+                        box-shadow: 0 0 6px rgba(253, 224, 71, 0.45);
+                    }
+                    45%, 60% {
+                        opacity: 1;
+                        filter: brightness(1.35);
+                        transform: scale(1.1);
+                        box-shadow: 0 0 18px rgba(253, 224, 71, 1), 0 0 30px rgba(251, 191, 36, 0.7);
+                    }
+                }
+                .survey-question-light {
+                    animation: surveyQuestionLightPulse 1.8s ease-in-out infinite;
                 }
             `}</style>
         </div>

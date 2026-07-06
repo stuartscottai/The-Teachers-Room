@@ -987,7 +987,7 @@ export const buildExternalLlmGamePrompt = (
     }
   } else if (config.type === GameType.SURVEY_SHOWDOWN) {
     lines.push(`Create exactly ${config.questionCount || 5} survey prompts.`);
-    lines.push('Each question must include exactly 8 surveyAnswers.');
+    lines.push('Each question must include exactly 10 surveyAnswers.');
     lines.push('Each survey answer needs text, score, and 2-5 short alts.');
     lines.push('Order surveyAnswers from highest score to lowest score.');
   } else if (config.type === GameType.WORD_WHEEL) {

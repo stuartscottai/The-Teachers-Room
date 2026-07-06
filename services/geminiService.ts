@@ -1434,7 +1434,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       
       FOR EACH QUESTION:
       1. Provide a "survey style" prompt (e.g. "Name something you find in a kitchen", "Name a reason people are late").
-      2. Provide EXACTLY 8 "surveyAnswers".
+      2. Provide EXACTLY 10 "surveyAnswers".
       3. Each answer must have a "text" and a "score".
       4. CRITICAL: Include an "alts" array for each answer containing 3-5 synonyms or acceptable variations (e.g. for "Money", alts=["Cash", "Coins", "Dosh"]).
       5. Rank the answers by score (highest to lowest).

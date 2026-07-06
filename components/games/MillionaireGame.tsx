@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -50,6 +50,10 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const questionWrapRef = useRef<HTMLDivElement>(null);
+    const questionTextRef = useRef<HTMLHeadingElement>(null);
+    const [questionResizeTick, setQuestionResizeTick] = useState(0);
+    const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
 
     // Sanity check for questions
@@ -111,6 +115,42 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
             }
         };
     }, []);
+
+    useLayoutEffect(() => {
+        const wrap = questionWrapRef.current;
+        if (!wrap || typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(() => setQuestionResizeTick((value) => value + 1));
+        observer.observe(wrap);
+        return () => observer.disconnect();
+    }, [gameState, currentLevel, questionImageUrl]);
+
+    useLayoutEffect(() => {
+        if (gameState !== 'question' || !currentQuestion) {
+            setQuestionFontSize(null);
+            return;
+        }
+
+        const wrap = questionWrapRef.current;
+        const textEl = questionTextRef.current;
+        if (!wrap || !textEl) return;
+
+        const availableHeight = wrap.clientHeight;
+        const availableWidth = textEl.clientWidth || wrap.clientWidth;
+        if (availableHeight <= 0 || availableWidth <= 0) return;
+
+        const maxSize = Math.min(isMobileViewport ? 36 : 52, Math.max(isMobileViewport ? 22 : 28, Math.floor(availableWidth / (questionImageUrl ? 9 : 7))));
+        const minSize = isMobileViewport ? 16 : 18;
+        let size = maxSize;
+        textEl.style.fontSize = `${size}px`;
+        textEl.style.lineHeight = '1.14';
+
+        while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > availableWidth) && size > minSize) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+
+        setQuestionFontSize(size);
+    }, [gameState, currentQuestion?.question, questionImageUrl, isMobileViewport, questionResizeTick]);
 
     useEffect(() => {
         if (!isImageZoomOpen) return;
@@ -593,18 +633,19 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         <div className="w-full max-w-6xl flex flex-col gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
                         <div
-                            className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-10 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
+                            className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
                             style={isMobileViewport && questionImageUrl ? { flex: '2 1 0%' } : undefined}
                         >
                             {/* Decorative side bars */}
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-r-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-l-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             {questionImageUrl ? (
-                                <div className={`w-full flex ${isMobileViewport ? 'flex-col' : 'flex-row'} items-center justify-center gap-4`}>
-                                    <div className={isMobileViewport ? 'w-full h-28 sm:h-32 flex items-center justify-center flex-none' : 'flex-1 min-h-0 flex items-center justify-center'}>
+                                <div className={`w-full min-h-0 flex ${isMobileViewport ? 'flex-col' : 'flex-row'} items-center justify-center gap-4`}>
+                                    <div className={isMobileViewport ? 'w-full h-28 sm:h-32 flex items-center justify-center flex-none' : 'w-[42%] min-h-0 flex items-center justify-center'}>
                                         <img
                                             src={questionImageUrl}
                                             alt={questionImageAlt}
+                                            onLoad={() => setQuestionResizeTick((value) => value + 1)}
                                             onClick={isMobileViewport ? undefined : openImageZoom}
                                             onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                             role={isMobileViewport ? undefined : 'button'}
@@ -613,15 +654,23 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                             className={`h-full w-full rounded-xl object-contain border border-indigo-300/40 bg-black/60 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                         />
                                     </div>
-                                    <div className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}>
-                                        <h2 className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md w-full ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}>
+                                    <div ref={questionWrapRef} className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}>
+                                        <h2
+                                            ref={questionTextRef}
+                                            style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.14' } : undefined}
+                                            className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${questionFontSize ? '' : getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                        >
                                             {currentQuestion?.question || "Loading..."}
                                         </h2>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="w-full flex flex-col items-center justify-center gap-3">
-                                    <h2 className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}>
+                                <div ref={questionWrapRef} className="w-full min-h-0 flex flex-col items-center justify-center gap-3">
+                                    <h2
+                                        ref={questionTextRef}
+                                        style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.14' } : undefined}
+                                        className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md whitespace-pre-wrap break-normal hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                    >
                                         {currentQuestion?.question || "Loading..."}
                                     </h2>
                                 </div>

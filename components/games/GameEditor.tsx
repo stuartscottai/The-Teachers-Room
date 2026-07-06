@@ -616,7 +616,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                     isBonus: false,
                     difficulty: prev.config.type === GameType.DARTS ? 'easy' : undefined,
                     options: prev.config.type === GameType.LIVE_QUIZ_CHALLENGE ? ["", "", "", ""] : undefined,
-                    surveyAnswers: prev.config.type === GameType.SURVEY_SHOWDOWN ? Array(8).fill({text: "", score: 0}) : undefined
+                    surveyAnswers: prev.config.type === GameType.SURVEY_SHOWDOWN ? Array.from({ length: 10 }, () => ({ text: "", score: 0 })) : undefined
                 }
             ]
         }));
@@ -1606,9 +1606,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 {/* SURVEY ANSWERS EDITOR */}
                                                 {isSurvey && (
                                                     <div className="col-span-1 md:col-span-2 bg-white rounded border border-slate-200 p-4">
-                                                        <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">Top 8 Survey Answers</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">Top 10 Survey Answers</label>
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                                            {(q.surveyAnswers || Array(8).fill({text:"", score:0})).map((ans, aIdx) => (
+                                                            {(q.surveyAnswers || Array.from({ length: 10 }, () => ({text:"", score:0}))).map((ans, aIdx) => (
                                                                 <div key={aIdx} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-start sm:items-center">
                                                                     <div className="w-7 sm:w-8 flex items-center justify-center font-bold text-slate-400">#{aIdx+1}</div>
                                                                     <textarea 
