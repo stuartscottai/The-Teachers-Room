@@ -136,6 +136,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const [shakeInput, setShakeInput] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
+    const [zoomedAnswer, setZoomedAnswer] = useState<SurveyAnswer | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -602,10 +603,10 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             </div>
 
             {/* 2. MAIN BOARD AREA (Flex Grow, No Scroll) */}
-            <div className="flex-1 grid min-h-0 grid-cols-1 gap-3 bg-slate-950 p-3 overflow-hidden w-full relative md:grid-cols-[minmax(280px,0.42fr)_minmax(460px,0.58fr)] md:items-stretch">
+            <div className="flex-1 grid min-h-0 grid-cols-1 grid-rows-[minmax(150px,0.48fr)_minmax(210px,0.52fr)] gap-2 bg-slate-950 p-2 overflow-hidden w-full relative md:grid-rows-none md:gap-3 md:p-3 md:grid-cols-[minmax(280px,0.42fr)_minmax(460px,0.58fr)] md:items-stretch">
                 
                 {/* QUESTION DISPLAY */}
-                <div className="relative z-10 flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-blue-700 via-blue-800 to-blue-950 px-4 py-4 text-center text-white shadow-[0_0_26px_rgba(250,204,21,0.32)] sm:px-6 md:h-full">
+                <div className="relative z-10 flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border-4 border-yellow-300 bg-gradient-to-b from-blue-700 via-blue-800 to-blue-950 px-3 py-3 text-center text-white shadow-[0_0_26px_rgba(250,204,21,0.32)] sm:px-6 md:h-full md:px-4 md:py-4">
                     <div className="pointer-events-none absolute inset-2 rounded-xl border border-yellow-100/40" />
                     <div className="pointer-events-none absolute inset-x-5 top-2 z-20 flex justify-between">
                         {Array.from({ length: 8 }).map((_, index) => (
@@ -643,7 +644,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             />
                         ))}
                     </div>
-                    <div className={`relative z-10 flex min-h-0 flex-1 items-center justify-center gap-3 overflow-hidden px-6 py-8 md:px-7 md:py-9 ${questionImageUrl ? 'flex-col' : 'flex-col'}`}>
+                    <div className={`relative z-10 flex min-h-0 flex-1 items-center justify-center gap-2 overflow-hidden px-5 py-7 md:gap-3 md:px-7 md:py-9 ${questionImageUrl ? 'flex-col' : 'flex-col'}`}>
                         <div ref={questionWrapRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
                             <h2
                                 ref={questionTextRef}
@@ -654,7 +655,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             </h2>
                         </div>
                         {questionImageUrl && (
-                            <div className="h-[36%] min-h-[96px] w-full flex-none overflow-hidden md:h-[42%]">
+                            <div className="h-[34%] min-h-[68px] w-full flex-none overflow-hidden sm:min-h-[96px] md:h-[42%]">
                                 <img
                                     src={questionImageUrl}
                                     alt={questionImageAlt}
@@ -671,64 +672,113 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     </div>
                 </div>
 
-                {/* THE BOARD (2 Columns / 5 Rows) */}
-                <div className="relative min-h-0 w-full overflow-hidden rounded-[1.6rem] border-[6px] border-orange-300 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.22),transparent_54%),linear-gradient(135deg,#3b1d12,#111827_38%,#020617)] p-3 shadow-[0_0_32px_rgba(251,146,60,0.38)] md:h-full md:p-4">
-                    <div className="pointer-events-none absolute inset-2 rounded-[1.1rem] border-4 border-yellow-400/80 shadow-[inset_0_0_18px_rgba(250,204,21,0.55)]" />
-                    <div className="relative z-10 h-full rounded-xl border-4 border-slate-950 bg-slate-950/95 p-2 md:p-3">
-                    <div className="grid h-full grid-flow-col grid-cols-2 grid-rows-5 gap-2 md:gap-3">
-                        {answers.map((ans, i) => {
-                            const isCardRevealed = revealedAnswers[i] || (hostMode && hostPreview[i]);
-                            return (
-                                <div 
-                                    key={i} 
-                                    className="w-full h-full [perspective:1000px] relative cursor-pointer group"
-                                    onClick={() => { if (hostMode) toggleHostPreview(i); }}
-                                >
-                                    {/* Host Indicator */}
-                                    {hostMode && (
-                                        <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${isCardRevealed ? 'bg-green-500' : 'bg-red-500'} border border-white`} title="Click to Toggle" />
-                                    )}
-
-                                    <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
-                                    
-                                    {/* FRONT (Number) */}
-                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] bg-gradient-to-b from-sky-300 via-blue-600 to-blue-950 border-2 border-sky-100 rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.75),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-center">
-                                        <div className="w-9 h-9 md:w-12 md:h-12 rounded-full bg-gradient-to-b from-white via-slate-200 to-blue-200 flex items-center justify-center border-2 border-blue-900 shadow-inner group-hover:scale-110 transition-transform">
-                                            <span className="text-xl md:text-3xl font-black text-blue-900 drop-shadow-sm">{i + 1}</span>
-                                        </div>
-                                        {ans.text === "---" && <div className="absolute inset-0 bg-black/60 rounded-lg backdrop-blur-sm flex items-center justify-center text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Empty</div>}
-                                    </div>
-
-                                    {/* BACK (Answer) */}
-                                    <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-cyan-200 via-blue-500 to-blue-900 border-2 border-white rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-between px-3 md:px-4 overflow-hidden">
-                                        {ans.text !== "---" ? (
+                {isMobileViewport ? (
+                    <div className="relative min-h-0 w-full overflow-hidden rounded-2xl border-4 border-orange-300 bg-slate-950 p-2 shadow-[0_0_24px_rgba(251,146,60,0.34)]">
+                        <div className="pointer-events-none absolute inset-1 rounded-xl border-2 border-yellow-400/80" />
+                        <div className="relative z-10 grid h-full grid-flow-col grid-cols-2 grid-rows-5 gap-1 rounded-xl bg-slate-950/95 p-1.5">
+                            {answers.map((ans, i) => {
+                                const isCardRevealed = revealedAnswers[i] || (hostMode && hostPreview[i]);
+                                return (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => {
+                                            if (isCardRevealed && ans.text !== "---") {
+                                                setZoomedAnswer(ans);
+                                                return;
+                                            }
+                                            if (hostMode) toggleHostPreview(i);
+                                        }}
+                                        className="relative flex min-h-0 w-full items-center gap-1.5 overflow-hidden rounded-md border border-sky-100/70 bg-gradient-to-b from-sky-300 via-blue-600 to-blue-950 px-1.5 py-0.5"
+                                    >
+                                        {hostMode && (
+                                            <span className={`absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full ${isCardRevealed ? 'bg-green-400' : 'bg-red-400'} border border-white`} title="Click to Toggle" />
+                                        )}
+                                        <span className="flex h-[min(1.65rem,calc(100%-2px))] min-w-[1.55rem] flex-none items-center justify-center rounded-full border-2 border-blue-900 bg-gradient-to-b from-white via-slate-100 to-blue-100 px-1 text-[clamp(0.62rem,2.8vw,0.86rem)] font-black leading-none text-blue-900 shadow-inner">
+                                            {i + 1}
+                                        </span>
+                                        {isCardRevealed && ans.text !== "---" ? (
                                             <>
-                                                <span
-                                                    className={`font-black text-white uppercase pr-2 drop-shadow-[0_2px_0_rgba(15,23,42,0.7)] flex-1 min-w-0 text-left whitespace-normal break-words leading-[1.05] ${
-                                                        ans.text.length > 90 ? 'text-[8px] sm:text-[9px] md:text-xs' :
-                                                        ans.text.length > 70 ? 'text-[9px] sm:text-[10px] md:text-sm' :
-                                                        ans.text.length > 50 ? 'text-[10px] sm:text-xs md:text-base' :
-                                                        ans.text.length > 35 ? 'text-[11px] sm:text-sm md:text-lg' :
-                                                        'text-xs sm:text-base md:text-2xl'
-                                                    }`}
-                                                >
+                                                <span className={`min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-left font-black uppercase leading-none text-white drop-shadow-[0_1px_0_rgba(15,23,42,0.8)] ${
+                                                    ans.text.length > 34 ? 'text-[clamp(0.48rem,2.05vw,0.66rem)]' :
+                                                    ans.text.length > 24 ? 'text-[clamp(0.52rem,2.25vw,0.72rem)]' :
+                                                    'text-[clamp(0.58rem,2.7vw,0.86rem)]'
+                                                }`}>
                                                     {ans.text}
                                                 </span>
-                                                <div className="bg-blue-950 text-white px-2 py-1 md:px-3 md:py-1 font-mono font-bold text-lg md:text-2xl border-2 border-sky-200 shadow-inner min-w-[2.5rem] text-center rounded-md">
+                                                <span className="flex-none rounded-md border border-sky-200 bg-blue-950 px-1 py-0.5 font-mono text-[clamp(0.58rem,2.5vw,0.78rem)] font-black leading-none text-white shadow-inner">
                                                     {ans.score}
-                                                </div>
+                                                </span>
                                             </>
                                         ) : (
-                                            <span className="w-full text-center text-slate-400 font-bold">---</span>
+                                            <span className="h-[28%] min-h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-blue-100/80" />
                                         )}
-                                    </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
+                ) : (
+                    <div className="relative min-h-0 w-full overflow-hidden rounded-[1.6rem] border-[6px] border-orange-300 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.22),transparent_54%),linear-gradient(135deg,#3b1d12,#111827_38%,#020617)] p-3 shadow-[0_0_32px_rgba(251,146,60,0.38)] md:h-full md:p-4">
+                        <div className="pointer-events-none absolute inset-2 rounded-[1.1rem] border-4 border-yellow-400/80 shadow-[inset_0_0_18px_rgba(250,204,21,0.55)]" />
+                        <div className="relative z-10 h-full rounded-xl border-4 border-slate-950 bg-slate-950/95 p-2 md:p-3">
+                        <div className="grid h-full grid-flow-col grid-cols-2 grid-rows-5 gap-2 md:gap-3">
+                            {answers.map((ans, i) => {
+                                const isCardRevealed = revealedAnswers[i] || (hostMode && hostPreview[i]);
+                                return (
+                                    <div 
+                                        key={i} 
+                                        className="w-full h-full [perspective:1000px] relative cursor-pointer group"
+                                        onClick={() => {
+                                            if (isCardRevealed && ans.text !== "---") {
+                                                setZoomedAnswer(ans);
+                                                return;
+                                            }
+                                            if (hostMode) toggleHostPreview(i);
+                                        }}
+                                    >
+                                        {hostMode && (
+                                            <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${isCardRevealed ? 'bg-green-500' : 'bg-red-500'} border border-white`} title="Click to Toggle" />
+                                        )}
+
+                                        <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
+                                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] bg-gradient-to-b from-sky-300 via-blue-600 to-blue-950 border-2 border-sky-100 rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.75),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-center">
+                                            <div className="w-9 h-9 md:w-12 md:h-12 rounded-full bg-gradient-to-b from-white via-slate-200 to-blue-200 flex items-center justify-center border-2 border-blue-900 shadow-inner group-hover:scale-110 transition-transform">
+                                                <span className="text-xl md:text-3xl font-black text-blue-900 drop-shadow-sm">{i + 1}</span>
+                                            </div>
+                                            {ans.text === "---" && <div className="absolute inset-0 bg-black/60 rounded-lg backdrop-blur-sm flex items-center justify-center text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Empty</div>}
+                                        </div>
+
+                                        <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-cyan-200 via-blue-500 to-blue-900 border-2 border-white rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-between px-3 md:px-4 overflow-hidden">
+                                            {ans.text !== "---" ? (
+                                                <>
+                                                    <span
+                                                        className={`font-black text-white uppercase pr-2 drop-shadow-[0_2px_0_rgba(15,23,42,0.7)] flex-1 min-w-0 text-left whitespace-normal break-words leading-[1.05] ${
+                                                            ans.text.length > 90 ? 'text-[8px] sm:text-[9px] md:text-xs' :
+                                                            ans.text.length > 70 ? 'text-[9px] sm:text-[10px] md:text-sm' :
+                                                            ans.text.length > 50 ? 'text-[10px] sm:text-xs md:text-base' :
+                                                            ans.text.length > 35 ? 'text-[11px] sm:text-sm md:text-lg' :
+                                                            'text-xs sm:text-base md:text-2xl'
+                                                        }`}
+                                                    >
+                                                        {ans.text}
+                                                    </span>
+                                                    <div className="bg-blue-950 text-white px-2 py-1 md:px-3 md:py-1 font-mono font-bold text-lg md:text-2xl border-2 border-sky-200 shadow-inner min-w-[2.5rem] text-center rounded-md">
+                                                        {ans.score}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <span className="w-full text-center text-slate-400 font-bold">---</span>
+                                            )}
+                                        </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {isImageZoomOpen && questionImageUrl && (
@@ -772,8 +822,38 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 </div>
             )}
 
+            {zoomedAnswer && (
+                <div
+                    className="fixed inset-0 z-[610] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+                    onClick={() => setZoomedAnswer(null)}
+                >
+                    <div
+                        className="w-full max-w-3xl rounded-3xl border-4 border-sky-200 bg-gradient-to-b from-cyan-200 via-blue-600 to-blue-950 p-4 text-center text-white shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="rounded-xl border-2 border-sky-100 bg-blue-950 px-4 py-2 font-mono text-2xl font-black text-white shadow-inner">
+                                {zoomedAnswer.score}
+                            </div>
+                            <button
+                                onClick={() => setZoomedAnswer(null)}
+                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-black text-slate-900 shadow-lg"
+                                title="Close answer"
+                            >
+                                X
+                            </button>
+                        </div>
+                        <div className="flex min-h-[140px] items-center justify-center rounded-2xl border-2 border-white/60 bg-blue-950/30 px-4 py-6">
+                            <p className="break-words font-display text-3xl font-black uppercase leading-tight drop-shadow-[0_2px_0_rgba(15,23,42,0.85)] sm:text-5xl">
+                                {zoomedAnswer.text}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 3. FOOTER CONTROLS */}
-            <div className="bg-slate-900 border-t-4 border-slate-800 p-3 shrink-0 z-30 shadow-2xl relative min-h-[84px] flex items-center">
+            <div className="bg-slate-900 p-2 sm:p-3 shrink-0 z-30 shadow-2xl relative min-h-[74px] sm:min-h-[84px] flex items-center">
                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-3 items-center w-full">
                     
                     {/* INPUT AREA */}
@@ -791,12 +871,12 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="TYPE ANSWER..."
-                                    className={`w-full p-4 pl-4 md:pl-32 pr-16 rounded-full bg-slate-100 text-slate-900 text-xl md:text-2xl font-bold uppercase tracking-wider focus:ring-4 outline-none transition-all placeholder:text-slate-400 shadow-inner border-4 ${activeRingClass} border-slate-300`}
+                                    className={`w-full p-3 pl-4 sm:p-4 md:pl-32 pr-14 sm:pr-16 rounded-full bg-slate-100 text-slate-900 text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wider focus:ring-4 outline-none transition-all placeholder:text-slate-400 shadow-inner border-4 ${activeRingClass} border-slate-300`}
                                     autoFocus
                                 />
                                 <button 
                                     type="submit" 
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-blue hover:bg-sky-500 text-white p-2.5 rounded-full transition-colors shadow-md active:scale-95"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-blue hover:bg-sky-500 text-white p-2 sm:p-2.5 rounded-full transition-colors shadow-md active:scale-95"
                                 >
                                     <Send size={20} className="ml-0.5" />
                                 </button>
@@ -805,31 +885,29 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             {/* MANUAL STRIKE */}
                             <button 
                                 onClick={triggerStrike}
-                                className="w-12 h-12 sm:w-auto sm:h-auto sm:px-6 sm:py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center shrink-0"
+                                className="w-11 h-11 sm:w-auto sm:h-auto sm:px-6 sm:py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center shrink-0"
                             >
                                 <X size={20} />
                                 <span className="hidden sm:inline ml-2">Strike</span>
                             </button>
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col gap-3 w-full">
-                            <h3 className="text-base sm:text-xl font-bold text-white uppercase tracking-wider text-center">Round Over!</h3>
-
-                            <div className="flex items-center justify-between gap-3 w-full">
-                                {!allRevealed ? (
+                        <div className="grid w-full grid-cols-[1fr_auto] items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
+                            <div className="hidden md:block" />
+                            <h3 className="min-w-0 text-left text-base font-bold uppercase tracking-wider text-white md:text-center md:text-xl">Round Over!</h3>
+                            <div className="flex items-center justify-end gap-2 sm:gap-3">
+                                {!allRevealed && (
                                     <button
                                         onClick={() => setRevealedAnswers(new Array(SURVEY_ANSWER_COUNT).fill(true))}
-                                        className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg sm:rounded-full text-sm sm:text-base font-bold shadow-md transition-transform hover:scale-105"
+                                        className="inline-flex whitespace-nowrap rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-md transition-transform hover:scale-105 hover:bg-blue-500 sm:px-6 sm:py-3 sm:text-base md:rounded-full"
                                     >
                                         Reveal All
                                     </button>
-                                ) : (
-                                    <div />
                                 )}
 
                                 <button 
                                     onClick={nextRound}
-                                    className="px-5 py-2 sm:px-10 sm:py-3 bg-brand-yellow text-slate-900 rounded-lg sm:rounded-full text-sm sm:text-lg font-bold uppercase tracking-wider shadow-md hover:scale-105 transition-transform animate-pulse"
+                                    className="whitespace-nowrap rounded-lg bg-brand-yellow px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-md transition-transform animate-pulse hover:scale-105 sm:px-8 sm:py-3 sm:text-base md:rounded-full md:px-10 md:text-lg"
                                 >
                                     {isLastRound ? "Finish Game" : "Start Next Round"}
                                 </button>

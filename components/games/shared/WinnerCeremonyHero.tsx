@@ -196,7 +196,9 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
         let viewHeight = 0;
         let disposed = false;
         const colors = ['#FFD700', '#FF4500', '#00BFFF', '#7CFC00', '#FF1493', '#22D3EE'];
-        const confetti = Array.from({ length: 150 }, () => ({
+        const isCompactViewport = Math.min(window.innerWidth || 1024, window.innerHeight || 768) < 640;
+        const confettiCount = isCompactViewport ? 80 : 150;
+        const confetti = Array.from({ length: confettiCount }, () => ({
             x: 0,
             y: 0,
             r: Math.random() * 6 + 2,
@@ -425,7 +427,7 @@ const WinnerCeremonyCelebrationEffect: React.FC<{ active: boolean; effect: Winne
     return (
         <canvas
             ref={canvasRef}
-            className={`absolute inset-0 w-full h-full pointer-events-none z-20 ${active ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 w-full h-full pointer-events-none z-[5] ${active ? 'opacity-100' : 'opacity-0'}`}
             aria-hidden="true"
         />
     );
