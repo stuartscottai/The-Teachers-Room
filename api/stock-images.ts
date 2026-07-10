@@ -7,6 +7,7 @@ type PixabayHit = {
   type?: 'photo' | 'illustration' | 'vector';
   imageWidth?: number;
   imageHeight?: number;
+  pageURL?: string;
 };
 
 type PixabayResponse = {
@@ -46,6 +47,9 @@ type StockImageItem = {
   tags: string;
   width?: number;
   height?: number;
+  provider?: 'pexels' | 'pixabay';
+  photographer?: string;
+  sourcePageUrl?: string;
 };
 
 const normalizeUrl = (value: string | undefined): string => {
@@ -137,6 +141,9 @@ const mapPexelsPhotos = (photos: PexelsPhoto[], query: string): StockImageItem[]
         tags: [alt, photographer, 'pexels'].filter(Boolean).join(', '),
         width: parseOptionalDimension(item.width),
         height: parseOptionalDimension(item.height),
+        provider: 'pexels' as const,
+        photographer,
+        sourcePageUrl: normalizeUrl(item.url),
       };
     })
     .filter((item) => item.url);
@@ -153,6 +160,8 @@ const mapPixabayHits = (hits: PixabayHit[], query: string, imageId?: string): St
       tags: item.tags || '',
       width: parseOptionalDimension(item.imageWidth),
       height: parseOptionalDimension(item.imageHeight),
+      provider: 'pixabay' as const,
+      sourcePageUrl: normalizeUrl(item.pageURL),
     }))
     .filter((item) => item.url);
 

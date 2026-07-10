@@ -10,6 +10,9 @@ export type StockImageSelection = {
   label: string;
   searchQuery?: string;
   tags?: string;
+  provider?: 'pexels' | 'pixabay';
+  photographer?: string;
+  sourcePageUrl?: string;
 };
 
 export const StockImagePicker: React.FC<{
@@ -164,6 +167,9 @@ export const StockImagePicker: React.FC<{
           label: defaultLabel,
           searchQuery: activeQuery || trimmedQuery,
           tags: item.tags,
+          provider: item.provider,
+          photographer: item.photographer,
+          sourcePageUrl: item.sourcePageUrl,
         },
       ]);
       return;
@@ -182,6 +188,9 @@ export const StockImagePicker: React.FC<{
         label: defaultLabel,
         searchQuery: activeQuery || trimmedQuery,
         tags: item.tags,
+        provider: item.provider,
+        photographer: item.photographer,
+        sourcePageUrl: item.sourcePageUrl,
       },
     ]);
   };

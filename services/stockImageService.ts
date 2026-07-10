@@ -9,6 +9,9 @@ export type StockImageResult = {
   tags?: string;
   width?: number;
   height?: number;
+  provider?: 'pexels' | 'pixabay';
+  photographer?: string;
+  sourcePageUrl?: string;
 };
 
 export type StockImageSearchResult = {
@@ -29,6 +32,7 @@ type PexelsApiPayload = {
     width?: number;
     height?: number;
     photographer?: string;
+    url?: string;
     alt?: string;
     src?: {
       original?: string;
@@ -53,6 +57,7 @@ type PixabayApiPayload = {
     type?: 'photo' | 'illustration' | 'vector';
     imageWidth?: number;
     imageHeight?: number;
+    pageURL?: string;
   }>;
 };
 
@@ -144,6 +149,9 @@ const mapPexelsPayload = (
         tags: [alt, photographer, 'pexels'].filter(Boolean).join(', '),
         width: normalizeDimension(item.width),
         height: normalizeDimension(item.height),
+        provider: 'pexels' as const,
+        photographer,
+        sourcePageUrl: normalizeUrl(item.url),
       };
     })
     .filter((item) => item.url);
@@ -170,6 +178,8 @@ const mapPixabayPayload = (
       tags: item.tags || '',
       width: normalizeDimension(item.imageWidth),
       height: normalizeDimension(item.imageHeight),
+      provider: 'pixabay' as const,
+      sourcePageUrl: normalizeUrl(item.pageURL),
     }))
     .filter((item) => item.url);
 

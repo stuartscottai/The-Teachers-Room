@@ -42,14 +42,20 @@ const normalizeLiveQuizImage = (value: any): LiveQuizQuestion['image'] | undefin
   const url = String(value.url || value.src || value.href || value.image || '').trim();
   const thumbUrl = String(value.thumbUrl || value.thumbnailUrl || value.thumbnail || value.previewUrl || '').trim();
   const storagePath = String(value.storagePath || value.storage_path || '').trim();
-  if (!url && !thumbUrl && !storagePath) return undefined;
+  const stockId = String(value.stockId || '').trim();
+  if (!url && !thumbUrl && !storagePath && !stockId) return undefined;
 
   return {
-    url: url || thumbUrl,
-    thumbUrl: thumbUrl || url || undefined,
+    url: stockId ? undefined : url || thumbUrl || undefined,
+    thumbUrl: stockId ? undefined : thumbUrl || url || undefined,
     storagePath: storagePath || undefined,
     source: value.source === 'upload' ? 'upload' : value.source === 'stock' ? 'stock' : undefined,
+    stockId: stockId || undefined,
+    searchQuery: value.searchQuery ? String(value.searchQuery) : undefined,
     alt: value.alt ? String(value.alt) : undefined,
+    provider: value.provider === 'pexels' || value.provider === 'pixabay' ? value.provider : undefined,
+    photographer: value.photographer ? String(value.photographer) : undefined,
+    sourcePageUrl: value.sourcePageUrl ? String(value.sourcePageUrl) : undefined,
   };
 };
 

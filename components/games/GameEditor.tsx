@@ -23,6 +23,7 @@ interface GameEditorProps {
     onPlay: (g: GeneratedGame) => void;
     onLiveQuiz?: (g: GeneratedGame) => void;
     onBack: () => void;
+    imageRepairKeys?: string[];
 }
 
 type QuestionImageTarget =
@@ -78,7 +79,7 @@ const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: str
     return `answer should start with "${letter}"`;
 };
 
-export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack }) => {
+export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack, imageRepairKeys = [] }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [activeTab, setActiveTab] = useState<number>(0);
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
@@ -92,6 +93,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [itemsPerPage, setItemsPerPage] = useState(getSavedEditorPageSize);
     const prevIsPublicRef = useRef(isPublic);
     const [bulkCategoryInput, setBulkCategoryInput] = useState('');
+    const imageRepairKeySet = new Set(imageRepairKeys);
+    const imageRepairCount = imageRepairKeys.length;
 
     const [imagePickerOpen, setImagePickerOpen] = useState(false);
     const [imagePickerTarget, setImagePickerTarget] = useState<QuestionImageTarget | null>(null);
@@ -482,13 +485,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     const openImagePicker = (target: QuestionImageTarget, question?: GeneratedQuestion | null) => {
         setImagePickerTarget(target);
-        const initialSelection: StockImageSelection[] = question?.image?.url
+        const existingImageUrl = resolveGameQuestionImageUrl(question?.image);
+        const initialSelection: StockImageSelection[] = question?.image?.stockId || existingImageUrl
             ? [{
-                id: question.image.url,
-                url: question.image.url,
-                thumbUrl: question.image.thumbUrl || question.image.url,
-                label: question.image.alt || '',
-                searchQuery: question.image.searchQuery || '',
+                id: question.image?.stockId || existingImageUrl,
+                url: existingImageUrl,
+                thumbUrl: question.image?.thumbUrl || existingImageUrl,
+                label: question.image?.alt || '',
+                searchQuery: question.image?.searchQuery || '',
+                provider: question.image?.provider,
+                photographer: question.image?.photographer,
+                sourcePageUrl: question.image?.sourcePageUrl,
             }]
             : [];
         setImagePickerSelection(initialSelection);
@@ -538,6 +545,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 stockId: first.id,
                 searchQuery: first.searchQuery || imagePickerQuery || first.label,
                 alt: first.label,
+                provider: first.provider || (/^pexels:/i.test(first.id) ? 'pexels' : 'pixabay'),
+                photographer: first.photographer,
+                sourcePageUrl: first.sourcePageUrl,
             });
         }
         closeImagePicker();
@@ -800,6 +810,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setCurrentPage(1);
     }, [activeTab, itemsPerPage]);
 
+    useEffect(() => {
+        const firstKey = imageRepairKeys[0];
+        if (!firstKey) return;
+        const [scope, firstIndex, secondIndex] = firstKey.split(':');
+
+        if (scope === 'standard') {
+            const questionIndex = Number(firstIndex);
+            if (Number.isFinite(questionIndex)) setCurrentPage(Math.floor(questionIndex / itemsPerPage) + 1);
+            return;
+        }
+
+        const groupIndex = Number(firstIndex);
+        const questionIndex = Number(secondIndex);
+        if (!Number.isFinite(groupIndex) || !Number.isFinite(questionIndex)) return;
+        setActiveTab(groupIndex);
+        setCurrentPage(Math.floor(questionIndex / itemsPerPage) + 1);
+    }, [imageRepairKeys, itemsPerPage]);
+
     return (
         <div className="fixed inset-0 top-16 bg-slate-50 z-50 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
@@ -823,7 +851,21 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </button>
                                 )}
                             </div>
-                            
+
+                            {imageRepairCount > 0 && (
+                                <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-amber-900">
+                                    <AlertCircle size={20} className="mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="font-black">
+                                            {imageRepairCount} {imageRepairCount === 1 ? 'image needs' : 'images need'} replacing
+                                        </p>
+                                        <p className="mt-0.5 text-sm font-semibold text-amber-800">
+                                            Review the question images below and use the image picker to choose replacements before playing.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-3 min-w-0">
@@ -1175,14 +1217,19 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <div className="space-y-6">
                                         {pagedGroupedQuestions.map((q, index) => {
                                             const qIdx = pageStart + index;
+                                            const repairKey = `${editedGame.config.type === GameType.JEOPARDY ? 'jeopardy' : 'pubquiz'}:${activeTab}:${qIdx}`;
+                                            const needsImageRepair = imageRepairKeySet.has(repairKey);
                                             const imageUrl = resolveGameQuestionImageUrl(q.image);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
-                                            <div key={qIdx} className="bg-slate-50 p-6 rounded-xl border border-slate-200 hover:border-sky-200 transition-colors">
+                                            <div key={qIdx} className={`bg-slate-50 p-6 rounded-xl border transition-colors ${needsImageRepair ? 'border-amber-400 ring-4 ring-amber-100' : 'border-slate-200 hover:border-sky-200'}`}>
                                                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                                                    <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
-                                                        {editedGame.config.type === GameType.JEOPARDY ? `${q.points} Points` : `Question ${qIdx + 1}`}
-                                                    </span>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
+                                                            {editedGame.config.type === GameType.JEOPARDY ? `${q.points} Points` : `Question ${qIdx + 1}`}
+                                                        </span>
+                                                        {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Replace this image</span>}
+                                                    </div>
                                                     
                                                     {/* TYPE TOGGLE */}
                                                     <div className="flex flex-wrap items-center gap-2">
@@ -1428,6 +1475,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 <div className="space-y-6">
                                     {pagedQuestions.map((q, index) => {
                                         const questionIndex = pageStart + index;
+                                        const needsImageRepair = imageRepairKeySet.has(`standard:${questionIndex}`);
                                         const imageUrl = resolveGameQuestionImageUrl(q.image);
                                         const imageAlt = q.image?.alt || 'Question image';
                                         const wordWheelLetter = (q.letter || WORD_WHEEL_LETTERS[questionIndex % WORD_WHEEL_LETTERS.length] || '').toUpperCase();
@@ -1436,7 +1484,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const wordWheelRuleHint = getWordWheelRuleHint(activeLetterRule, wordWheelLetter);
                                         const answerFitsWordWheelRule = !isLetterAnswerGame || answerMatchesWordWheelRule(q.answer, wordWheelLetter, activeLetterRule);
                                         return (
-                                        <div key={questionIndex} className="bg-slate-50 p-6 rounded-xl border border-slate-200 relative hover:border-sky-200 transition-colors">
+                                        <div key={questionIndex} className={`bg-slate-50 p-6 rounded-xl border relative transition-colors ${needsImageRepair ? 'border-amber-400 ring-4 ring-amber-100' : 'border-slate-200 hover:border-sky-200'}`}>
                                             {!isWordWheel && (
                                                 <button 
                                                     onClick={() => removeQuestion(questionIndex)}
@@ -1451,6 +1499,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     <span className="bg-slate-200 text-slate-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
                                                         {questionIndex + 1}
                                                     </span>
+                                                    {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Replace this image</span>}
 
                                                     {isLetterAnswerGame && (
                                                         <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase ml-1">

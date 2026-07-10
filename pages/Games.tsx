@@ -16,6 +16,7 @@ import { GameConfigurator, ModeSelector } from '../components/games/GameConfigur
 import { GameSetup } from '../components/games/GameSetup';
 import { AiAssistantChat } from '../components/games/AiAssistantChat';
 import { LazyGameRunner } from '../components/games/LazyGameRunner';
+import { GameImagePreparation } from '../components/games/GameImagePreparation';
 import { Avatar } from '../components/Avatar';
 import { StudentShareModal } from '../components/games/StudentShareModal';
 import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
@@ -2060,7 +2061,7 @@ const GameHub: React.FC<{
 export const Games: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'choose-format' | 'format-setup' | 'editor' | 'setup' | 'play'>('hub');
+    const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'choose-format' | 'format-setup' | 'editor' | 'setup' | 'prepare-images' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
     const [pendingFormatType, setPendingFormatType] = useState<GameType.JEOPARDY | GameType.PUB_QUIZ | null>(null);
     const [creationMode, setCreationMode] = useState<'ai' | 'manual' | 'bank'>('ai');
@@ -2069,6 +2070,8 @@ export const Games: React.FC = () => {
     const [playOptions, setPlayOptions] = useState<GameRunOptions | null>(null);
     const [editorReturnStep, setEditorReturnStep] = useState<'config' | 'hub' | 'preview'>('hub');
     const [playReturnStep, setPlayReturnStep] = useState<'editor' | 'preview'>('editor');
+    const [imagePreparationBackStep, setImagePreparationBackStep] = useState<'setup' | 'editor' | 'preview'>('setup');
+    const [imageRepairKeys, setImageRepairKeys] = useState<string[]>([]);
     const [hubTab, setHubTab] = useState<'create' | 'community' | 'library'>('create');
     const [communitySeedAuthorFilter, setCommunitySeedAuthorFilter] = useState<{ id?: string; name: string } | null>(null);
     const [communitySeedSearch, setCommunitySeedSearch] = useState('');
@@ -2231,6 +2234,31 @@ export const Games: React.FC = () => {
         void recordGamePlay(gameIdToTrack);
     };
 
+    const beginGamePreparation = (
+        game: GeneratedGame,
+        options: GameRunOptions,
+        backStep: 'setup' | 'editor' | 'preview'
+    ) => {
+        setSessionGame(game);
+        setPlayOptions(options);
+        setImagePreparationBackStep(backStep);
+        setImageRepairKeys([]);
+        setStep('prepare-images');
+    };
+
+    const handlePreparedGameReady = (preparedGame: GeneratedGame) => {
+        setSessionGame(preparedGame);
+        setImageRepairKeys([]);
+        trackStartedGame(preparedGame);
+        setStep('play');
+    };
+
+    const handleReplaceUnavailableImages = (unavailableKeys: string[]) => {
+        setImageRepairKeys(unavailableKeys);
+        setStep('editor');
+        setIsDirty(false);
+    };
+
     const handleEditorSave = (updatedGame: GeneratedGame) => {
         setGeneratedGame(updatedGame);
     };
@@ -2255,17 +2283,15 @@ export const Games: React.FC = () => {
         }
         
         if (updatedGame.config.type === GameType.MILLIONAIRE) {
-             setPlayOptions({
+             beginGamePreparation(updatedGame, {
                  players: 1,
                  timerSeconds: 0,
                  enableBonuses: false,
                  strictMode: false,
                  muted: false
-             });
-             trackStartedGame(updatedGame);
-             setStep('play');
+             }, 'editor');
         } else if (updatedGame.config.type === GameType.STOP_THE_FIRE) {
-             setPlayOptions({
+             beginGamePreparation(updatedGame, {
                  players: 2,
                  timerSeconds: 60,
                  enableBonuses: false,
@@ -2273,9 +2299,7 @@ export const Games: React.FC = () => {
                  muted: false,
                  stopTheFireCategoryCount: 10,
                  stopTheFireDifficulty: 'beginner'
-             });
-             trackStartedGame(updatedGame);
-             setStep('play');
+             }, 'editor');
         } else if (updatedGame.config.type === GameType.SURVEY_SHOWDOWN) {
              setPlayOptions({
                  players: 2, 
@@ -2328,15 +2352,13 @@ export const Games: React.FC = () => {
         }
 
         if (converted.config.type === GameType.MILLIONAIRE) {
-            setPlayOptions({
+            beginGamePreparation(converted, {
                 players: 1,
                 timerSeconds: 0,
                 enableBonuses: false,
                 strictMode: false,
                 muted: false
-            });
-            trackStartedGame(sourceGame);
-            setStep('play');
+            }, 'preview');
             return;
         }
 
@@ -2379,9 +2401,9 @@ export const Games: React.FC = () => {
     };
 
     const handleGameStart = (options: GameRunOptions) => {
-        trackStartedGame(sessionGame || generatedGame);
-        setPlayOptions(options);
-        setStep('play');
+        const gameToStart = sessionGame || generatedGame;
+        if (!gameToStart) return;
+        beginGamePreparation(gameToStart, options, 'setup');
     };
 
     const handleLoadPersonalGame = (game: GeneratedGame) => {
@@ -2627,17 +2649,15 @@ export const Games: React.FC = () => {
         }
 
         if (gameToPlay.config.type === GameType.MILLIONAIRE) {
-            setPlayOptions({
+            beginGamePreparation(gameToPlay, {
                 players: 1,
                 timerSeconds: 0,
                 enableBonuses: false,
                 strictMode: false,
                 muted: false
-            });
-            trackStartedGame(gameToPlay);
-            setStep('play');
+            }, 'preview');
         } else if (gameToPlay.config.type === GameType.STOP_THE_FIRE) {
-            setPlayOptions({
+            beginGamePreparation(gameToPlay, {
                 players: 2,
                 timerSeconds: 60,
                 enableBonuses: false,
@@ -2645,9 +2665,7 @@ export const Games: React.FC = () => {
                 muted: false,
                 stopTheFireCategoryCount: 10,
                 stopTheFireDifficulty: 'beginner'
-            });
-            trackStartedGame(gameToPlay);
-            setStep('play');
+            }, 'preview');
         } else if (gameToPlay.config.type === GameType.SURVEY_SHOWDOWN) {
             setPlayOptions({
                 players: 2,
@@ -2668,6 +2686,8 @@ export const Games: React.FC = () => {
             if (step === 'play') {
                 if (selectedType === GameType.MILLIONAIRE || selectedType === GameType.STOP_THE_FIRE) setStep('editor');
                 else setStep('setup');
+            } else if (step === 'prepare-images') {
+                setStep(imagePreparationBackStep);
             } else if (step === 'setup') {
                 setStep(playReturnStep);
             } else if (step === 'editor') {
@@ -2700,14 +2720,12 @@ export const Games: React.FC = () => {
         if (selectedType === GameType.MILLIONAIRE) {
              setStep(playReturnStep); 
              setTimeout(() => {
-                trackStartedGame(replayGame);
-                setStep('play');
+                 if (replayGame && playOptions) beginGamePreparation(replayGame, playOptions, playReturnStep);
              }, 50); 
         } else if (selectedType === GameType.STOP_THE_FIRE) {
              setStep(playReturnStep);
              setTimeout(() => {
-                trackStartedGame(replayGame);
-                setStep('play');
+                 if (replayGame && playOptions) beginGamePreparation(replayGame, playOptions, playReturnStep);
              }, 50);
         } else {
              setStep('setup');
@@ -2737,7 +2755,7 @@ export const Games: React.FC = () => {
     }, [step]);
 
     useEffect(() => {
-        if (step === 'setup' || step === 'play') {
+        if (step === 'setup' || step === 'prepare-images' || step === 'play') {
             window.scrollTo(0, 0);
         }
     }, [step]);
@@ -2865,6 +2883,7 @@ export const Games: React.FC = () => {
                     onPlay={handleEditorPlay} 
                     onLiveQuiz={handleEditorLiveQuiz}
                     onBack={handleBack}
+                    imageRepairKeys={imageRepairKeys}
                 />
             )}
 
@@ -2874,6 +2893,15 @@ export const Games: React.FC = () => {
                     onBack={() => setStep(playReturnStep)}
                     onStart={handleGameStart}
                     backLabel={playReturnStep === 'preview' ? 'Back to Preview' : 'Back to Editor'}
+                />
+            )}
+
+            {step === 'prepare-images' && (sessionGame || generatedGame) && playOptions && (
+                <GameImagePreparation
+                    game={sessionGame || generatedGame!}
+                    onReady={handlePreparedGameReady}
+                    onReplace={handleReplaceUnavailableImages}
+                    onBack={() => setStep(imagePreparationBackStep)}
                 />
             )}
 

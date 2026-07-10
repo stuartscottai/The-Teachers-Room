@@ -458,7 +458,8 @@ const questionHasImage = (question: any) => {
     return Boolean(
         String(image.url || '').trim() ||
         String(image.thumbUrl || image.thumbnailUrl || '').trim() ||
-        String(image.storagePath || image.storage_path || '').trim()
+        String(image.storagePath || image.storage_path || '').trim() ||
+        String(image.stockId || '').trim()
     );
 };
 
@@ -604,6 +605,43 @@ const getQuestionStoragePath = (question?: GeneratedQuestion | null) => {
     return typeof path === 'string' ? path.trim() : '';
 };
 
+const prepareQuestionForStorage = (question: GeneratedQuestion): GeneratedQuestion => {
+    if (!question.image) return question;
+    const { preparedUrl: _preparedUrl, ...imageWithoutPreparedUrl } = question.image;
+
+    if (question.image.stockId) {
+        const {
+            url: _url,
+            thumbUrl: _thumbUrl,
+            storagePath: _storagePath,
+            ...durableStockImage
+        } = imageWithoutPreparedUrl;
+        return {
+            ...question,
+            image: {
+                ...durableStockImage,
+                source: 'stock',
+                provider: durableStockImage.provider || (/^pexels:/i.test(durableStockImage.stockId || '') ? 'pexels' : 'pixabay'),
+            },
+        };
+    }
+
+    return { ...question, image: imageWithoutPreparedUrl };
+};
+
+const prepareGameContentForStorage = (game: GeneratedGame): GeneratedGame => ({
+    ...game,
+    questions: (game.questions || []).map(prepareQuestionForStorage),
+    jeopardyBoard: game.jeopardyBoard?.map((category) => ({
+        ...category,
+        questions: (category.questions || []).map(prepareQuestionForStorage),
+    })),
+    pubQuizRounds: game.pubQuizRounds?.map((round) => ({
+        ...round,
+        questions: (round.questions || []).map(prepareQuestionForStorage),
+    })),
+});
+
 const refreshStoredGameImageUrls = async (game: GeneratedGame): Promise<GeneratedGame> => {
     const paths = new Set<string>();
     const collect = (question?: GeneratedQuestion | null) => {
@@ -680,6 +718,7 @@ export const saveGameToLibrary = async (
     authorName?: string,
     schoolId?: string | null
 ): Promise<{ success: boolean; id?: string }> => {
+    const gameForStorage = prepareGameContentForStorage(game);
     if (!userId) {
         // Local Storage for guests - PRIVATE ONLY
         try {
@@ -687,7 +726,7 @@ export const saveGameToLibrary = async (
             const library = existing ? JSON.parse(existing) : [];
             const index = library.findIndex((g: GeneratedGame) => g.id === game.id);
             // Ensure guest games are never accidentally marked public locally to avoid UI confusion
-            const safeGame = { ...game, config: { ...game.config, isPublic: false } };
+            const safeGame = { ...gameForStorage, config: { ...gameForStorage.config, isPublic: false } };
             
             if (index >= 0) {
                 library[index] = safeGame;
@@ -712,36 +751,36 @@ export const saveGameToLibrary = async (
             ? schoolId.trim()
             : null;
         const stopTheFireCategories =
-            game.config.type === GameType.STOP_THE_FIRE
-                ? (game.stopTheFireCategories || []).map((cat) => cat.trim()).filter(Boolean)
+            gameForStorage.config.type === GameType.STOP_THE_FIRE
+                ? (gameForStorage.stopTheFireCategories || []).map((cat) => cat.trim()).filter(Boolean)
                 : [];
         const configWithBank =
             stopTheFireCategories.length > 0
-                ? { ...sanitizeStoredConfig(game.config), stopTheFireCategories }
-                : sanitizeStoredConfig(game.config);
+                ? { ...sanitizeStoredConfig(gameForStorage.config), stopTheFireCategories }
+                : sanitizeStoredConfig(gameForStorage.config);
         // Prepare payload with top-level is_public column
         const payload: any = {
             user_id: userId,
-            title: game.title,
+            title: gameForStorage.title,
             config: configWithBank,
-            questions: game.questions,
-            jeopardy_board: game.jeopardyBoard,
-            pub_quiz_rounds: game.pubQuizRounds,
-            is_public: game.config.isPublic || false, // Use new column
+            questions: gameForStorage.questions,
+            jeopardy_board: gameForStorage.jeopardyBoard,
+            pub_quiz_rounds: gameForStorage.pubQuizRounds,
+            is_public: gameForStorage.config.isPublic || false, // Use new column
             author_name: authorName || 'Teacher', // New Column
             school_id: normalizedSchoolId,
             created_at: new Date()
         };
 
         const persistPayload = async (nextPayload: any) => {
-            if (game.id && isUUID(game.id)) {
-                nextPayload.id = game.id;
+            if (gameForStorage.id && isUUID(gameForStorage.id)) {
+                nextPayload.id = gameForStorage.id;
                 const { data, error } = await supabase.from('saved_games').upsert(nextPayload).select('id');
                 if (error) throw error;
-                return { success: true, id: extractId(data) || game.id };
+                return { success: true, id: extractId(data) || gameForStorage.id };
             } else {
-                if (game.id && isUUID(game.id)) {
-                    nextPayload.id = game.id;
+                if (gameForStorage.id && isUUID(gameForStorage.id)) {
+                    nextPayload.id = gameForStorage.id;
                 }
                 const { data, error } = await supabase.from('saved_games').insert(nextPayload).select('id');
                 if (error) throw error;

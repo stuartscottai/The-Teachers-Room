@@ -48,6 +48,7 @@ export const resolveGameQuestionImageUrls = (image?: GeneratedQuestion['image'] 
   if (!image) return [];
 
   const urls: string[] = [];
+  const preparedUrl = String(image.preparedUrl || '').trim();
   const primaryRaw = String(image.url || '').trim();
   const fallbackRaw = String(image.thumbUrl || '').trim();
   const primarySource = extractPixabaySourceUrl(primaryRaw);
@@ -56,11 +57,13 @@ export const resolveGameQuestionImageUrls = (image?: GeneratedQuestion['image'] 
   const isPexelsStockId = /^pexels:/i.test(stockId);
   const resolvedStoredUrls = resolveGameImageUrls(primaryRaw, fallbackRaw);
 
+  if (preparedUrl) urls.push(preparedUrl);
+
   if (import.meta.env.DEV && isPexelsStockId) {
     urls.push(...resolvedStoredUrls);
   }
 
-  if (image.source === 'stock' && stockId) {
+  if (stockId) {
     const stockIdUrl = import.meta.env.DEV
       ? buildHostedStockImageIdProxyUrl(stockId, primarySource || fallbackSource || undefined)
       : buildStockImageIdProxyPath(stockId, primarySource || fallbackSource || undefined);

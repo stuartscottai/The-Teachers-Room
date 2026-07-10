@@ -86,30 +86,35 @@ const normalizePixabayImageUrl = (value: string | undefined): string => {
 
 const normalizePexelsImageUrl = normalizePixabayImageUrl;
 
-const resolvePexelsImageById = async (imageId: string): Promise<URL | null> => {
+type StockImageResolution = { target: URL | null; status: number };
+
+const resolvePexelsImageById = async (imageId: string): Promise<StockImageResolution> => {
   const id = String(imageId || '').replace(/^pexels:/i, '').trim();
-  if (!/^\d+$/.test(id)) return null;
+  if (!/^\d+$/.test(id)) return { target: null, status: 400 };
 
   const apiKey = process.env.PEXELS_API_KEY || '';
-  if (!apiKey) return null;
+  if (!apiKey) return { target: null, status: 503 };
 
   const response = await fetch(`https://api.pexels.com/v1/photos/${encodeURIComponent(id)}`, {
     method: 'GET',
     headers: { Authorization: apiKey },
   });
-  if (!response.ok) return null;
+  if (!response.ok) return { target: null, status: response.status };
 
   const data = await response.json().catch(() => null);
-  const imageUrl = normalizePexelsImageUrl(data?.src?.large2x || data?.src?.large || data?.src?.original || data?.src?.medium);
-  return normalizeTargetUrl(imageUrl);
+  const imageUrl = normalizePexelsImageUrl(
+    data?.src?.landscape || data?.src?.large || data?.src?.medium || data?.src?.large2x || data?.src?.original
+  );
+  const target = normalizeTargetUrl(imageUrl);
+  return { target, status: target ? 200 : 404 };
 };
 
-const resolvePixabayImageById = async (imageId: string): Promise<URL | null> => {
+const resolvePixabayImageById = async (imageId: string): Promise<StockImageResolution> => {
   const id = String(imageId || '').trim();
-  if (!/^\d+$/.test(id)) return null;
+  if (!/^\d+$/.test(id)) return { target: null, status: 400 };
 
   const apiKey = process.env.PIXABAY_API_KEY || process.env.VITE_PIXABAY_API_KEY || '';
-  if (!apiKey) return null;
+  if (!apiKey) return { target: null, status: 503 };
 
   const apiUrl = new URL('https://pixabay.com/api/');
   apiUrl.searchParams.set('key', apiKey);
@@ -118,15 +123,16 @@ const resolvePixabayImageById = async (imageId: string): Promise<URL | null> => 
   apiUrl.searchParams.set('image_type', 'all');
 
   const response = await fetch(apiUrl.toString(), { method: 'GET' });
-  if (!response.ok) return null;
+  if (!response.ok) return { target: null, status: response.status };
 
   const data = await response.json().catch(() => null);
   const hit = Array.isArray(data?.hits) ? data.hits[0] : null;
   const imageUrl = normalizePixabayImageUrl(hit?.largeImageURL || hit?.webformatURL || hit?.previewURL);
-  return normalizeTargetUrl(imageUrl);
+  const target = normalizeTargetUrl(imageUrl);
+  return { target, status: target ? 200 : 404 };
 };
 
-const resolveStockImageById = async (imageId: string): Promise<URL | null> => {
+const resolveStockImageById = async (imageId: string): Promise<StockImageResolution> => {
   const id = String(imageId || '').trim();
   if (/^pexels:/i.test(id)) return resolvePexelsImageById(id);
   return resolvePixabayImageById(id);
@@ -183,10 +189,11 @@ export default async function handler(req: any, res: any) {
 
   const requested = Array.isArray(req.query?.url) ? req.query.url[0] : req.query?.url;
   const requestedId = Array.isArray(req.query?.id) ? req.query.id[0] : req.query?.id;
-  const freshTarget = requestedId ? await resolveStockImageById(String(requestedId || '')) : null;
-  const target = freshTarget || normalizeTargetUrl(String(requested || ''));
+  const freshResolution = requestedId ? await resolveStockImageById(String(requestedId || '')) : null;
+  const target = freshResolution?.target || normalizeTargetUrl(String(requested || ''));
   if (!target) {
-    res.status(400).json({ error: 'Invalid image URL' });
+    const status = freshResolution?.status || 400;
+    res.status(status).json({ error: [400, 404, 410].includes(status) ? 'Image is no longer available' : 'Image is temporarily unavailable' });
     return;
   }
   const requestedFallback = Array.isArray(req.query?.fallback) ? req.query.fallback[0] : req.query?.fallback;

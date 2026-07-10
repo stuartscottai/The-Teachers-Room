@@ -12,6 +12,11 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
+const isDynamicImportError = (error: Error) =>
+  /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(
+    error.message
+  );
+
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
 
@@ -24,6 +29,11 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   private reset = () => {
+    if (this.state.error && isDynamicImportError(this.state.error)) {
+      window.location.reload();
+      return;
+    }
+
     this.setState({ error: null });
   };
 
@@ -54,7 +64,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
             >
               <RefreshCw size={18} />
-              Try again
+              {isDynamicImportError(this.state.error) ? 'Reload latest version' : 'Try again'}
             </button>
             <button
               type="button"

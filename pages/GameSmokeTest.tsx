@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LazyGameRunner } from '../components/games/LazyGameRunner';
+import { GameImagePreparation } from '../components/games/GameImagePreparation';
 import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion } from '../types';
 
 const smokeImage =
@@ -110,15 +111,50 @@ const modes: Record<string, GameType> = {
 export const GameSmokeTest: React.FC = () => {
   const [params] = useSearchParams();
   const mode = params.get('mode') || 'trivia';
+  const preparationMode = params.get('prepare') || '';
   const type = modes[mode] || GameType.TRIVIA;
-  const game = makeGame(type);
+  const baseGame = makeGame(type);
+  const game = preparationMode === 'failure' || preparationMode === 'temporary'
+    ? {
+        ...baseGame,
+        questions: (baseGame.questions || []).map((question, index) =>
+          index === 0
+            ? {
+                ...question,
+                image: {
+                  url: preparationMode === 'failure' ? '/test-confirmed-missing-image' : '/test-transient-image',
+                  source: 'upload' as const,
+                  alt: 'Unavailable image',
+                },
+              }
+            : question
+        ),
+      }
+    : baseGame;
+  const [preparedGame, setPreparedGame] = useState<GeneratedGame | null>(() => preparationMode ? null : game);
+  const [replacementRequested, setReplacementRequested] = useState(false);
   const props = {
-    game,
+    game: preparedGame || game,
     options,
     onBack: () => undefined,
     onFinish: () => undefined,
     onReplay: () => undefined,
   };
+
+  if (replacementRequested) {
+    return <div data-testid="image-replacement-requested">Image replacement requested</div>;
+  }
+
+  if (preparationMode && !preparedGame) {
+    return (
+      <GameImagePreparation
+        game={game}
+        onReady={setPreparedGame}
+        onReplace={() => setReplacementRequested(true)}
+        onBack={() => undefined}
+      />
+    );
+  }
 
   return (
     <div data-testid="game-smoke-root" data-mode={mode}>

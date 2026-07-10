@@ -203,13 +203,17 @@ export interface GeneratedQuestion {
   isBonus: boolean;
   category?: string;
   image?: {
-    url: string;
+    url?: string;
     storagePath?: string;
     thumbUrl?: string;
     source?: 'stock' | 'upload';
     stockId?: string;
     searchQuery?: string;
     alt?: string;
+    photographer?: string;
+    sourcePageUrl?: string;
+    provider?: 'pexels' | 'pixabay';
+    preparedUrl?: string;
   };
   imageKeywords?: string[];
   visualSearch?: {
