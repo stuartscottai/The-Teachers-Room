@@ -372,7 +372,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     }, [activeTileId, pendingFinal, editingTeamIndex, showQuitConfirm, showEndGameConfirm, isImageZoomOpen, isGameOver]);
 
     useEffect(() => {
-        if (activeTileId === null || isFlipped || isGameOver || showBonusIntro || showBonusAward || pendingFinal === null && !activeTile) return;
+        const hasTimedQuestion = pendingFinal !== null || (activeTileId !== null && Boolean(activeTile));
+        if (!hasTimedQuestion || isFlipped || isGameOver || showBonusIntro || showBonusAward) return;
         if (options.timerSeconds <= 0) return;
         if (timerRef.current) window.clearInterval(timerRef.current);
         timerRef.current = window.setInterval(() => {

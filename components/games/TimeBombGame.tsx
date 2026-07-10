@@ -5,7 +5,7 @@ import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
-import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Skull, Flag } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle, Heart, Zap, CheckCircle, XCircle, RotateCcw, Clock, Play, SkipForward, Pause, Radiation, Flag } from 'lucide-react';
 
 interface TimeBombGameProps {
     game: GeneratedGame;
@@ -14,6 +14,219 @@ interface TimeBombGameProps {
     onFinish: () => void;
     onReplay: () => void;
 }
+
+const RADIOACTIVE_EXPLOSION_MODAL_DELAY_MS = 5400;
+
+const slimeBubbles = [
+    { left: '8%', size: 5, delay: '-0.6s', duration: '4.8s' },
+    { left: '17%', size: 7, delay: '-2.2s', duration: '5.7s' },
+    { left: '28%', size: 4, delay: '-1.3s', duration: '4.9s' },
+    { left: '39%', size: 6, delay: '-3.7s', duration: '6.2s' },
+    { left: '53%', size: 8, delay: '-0.9s', duration: '5.4s' },
+    { left: '66%', size: 5, delay: '-2.9s', duration: '5.9s' },
+    { left: '78%', size: 7, delay: '-1.8s', duration: '4.7s' },
+    { left: '91%', size: 4, delay: '-3.2s', duration: '5.2s' },
+];
+
+const slimeDrips = [
+    { left: '14%', width: 6, height: 13, delay: '-1.1s' },
+    { left: '33%', width: 5, height: 9, delay: '-2.4s' },
+    { left: '57%', width: 7, height: 15, delay: '-0.5s' },
+    { left: '74%', width: 4, height: 10, delay: '-3.0s' },
+    { left: '88%', width: 6, height: 12, delay: '-1.8s' },
+];
+
+type GooCircle = {
+    id: string;
+    x: number;
+    y: number;
+    xSpeed: number;
+    ySpeed: number;
+    r: number;
+};
+
+const initialGooCircles: GooCircle[] = [
+    { id: 'a', x: 110, y: 26, xSpeed: 0.42, ySpeed: 0.32, r: 20 },
+    { id: 'b', x: 230, y: 68, xSpeed: -0.34, ySpeed: 0.44, r: 17 },
+    { id: 'c', x: 360, y: 38, xSpeed: 0.28, ySpeed: -0.38, r: 23 },
+    { id: 'd', x: 500, y: 76, xSpeed: -0.48, ySpeed: 0.24, r: 19 },
+    { id: 'e', x: 650, y: 30, xSpeed: 0.36, ySpeed: 0.52, r: 22 },
+    { id: 'f', x: 790, y: 62, xSpeed: -0.3, ySpeed: -0.46, r: 18 },
+    { id: 'g', x: 925, y: 24, xSpeed: -0.52, ySpeed: 0.34, r: 15 },
+    { id: 'h', x: 60, y: 82, xSpeed: 0.5, ySpeed: -0.28, r: 13 },
+    { id: 'i', x: 445, y: 17, xSpeed: 0.18, ySpeed: 0.58, r: 14 },
+    { id: 'j', x: 710, y: 88, xSpeed: -0.22, ySpeed: -0.5, r: 16 },
+    { id: 'k', x: 160, y: 54, xSpeed: 0.58, ySpeed: -0.36, r: 12 },
+    { id: 'l', x: 315, y: 92, xSpeed: -0.44, ySpeed: -0.3, r: 15 },
+    { id: 'm', x: 575, y: 14, xSpeed: 0.32, ySpeed: 0.4, r: 18 },
+    { id: 'n', x: 835, y: 44, xSpeed: -0.4, ySpeed: 0.5, r: 14 },
+    { id: 'o', x: 980, y: 92, xSpeed: -0.56, ySpeed: -0.24, r: 17 },
+    { id: 'p', x: 25, y: 42, xSpeed: 0.38, ySpeed: 0.48, r: 15 },
+    { id: 'q', x: 615, y: 54, xSpeed: -0.28, ySpeed: -0.52, r: 12 },
+    { id: 'r', x: 885, y: 12, xSpeed: 0.24, ySpeed: 0.34, r: 13 },
+    { id: 's', x: 95, y: 8, xSpeed: 0.46, ySpeed: 0.42, r: 11 },
+    { id: 't', x: 205, y: 96, xSpeed: -0.26, ySpeed: -0.54, r: 12 },
+    { id: 'u', x: 285, y: 34, xSpeed: 0.5, ySpeed: 0.26, r: 10 },
+    { id: 'v', x: 390, y: 82, xSpeed: -0.36, ySpeed: -0.42, r: 13 },
+    { id: 'w', x: 525, y: 44, xSpeed: 0.34, ySpeed: 0.48, r: 11 },
+    { id: 'x', x: 745, y: 8, xSpeed: -0.5, ySpeed: 0.36, r: 12 },
+    { id: 'y', x: 930, y: 62, xSpeed: -0.32, ySpeed: -0.4, r: 10 },
+    { id: 'z', x: 345, y: 6, xSpeed: 0.22, ySpeed: 0.5, r: 9 },
+];
+
+const gooBounds = {
+    minX: -45,
+    minY: -18,
+    maxX: 1045,
+    maxY: 118,
+};
+
+const MetaballGooField: React.FC = () => {
+    const [circles, setCircles] = useState<GooCircle[]>(initialGooCircles);
+    const circlesRef = useRef<GooCircle[]>(initialGooCircles.map(circle => ({ ...circle })));
+    const frameRef = useRef<number | null>(null);
+    const lastTimeRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        const tick = (time: number) => {
+            const lastTime = lastTimeRef.current ?? time;
+            const delta = Math.min(2.2, Math.max(0.4, (time - lastTime) / 16.667));
+            lastTimeRef.current = time;
+
+            circlesRef.current = circlesRef.current.map(circle => {
+                let x = circle.x + circle.xSpeed * delta;
+                let y = circle.y + circle.ySpeed * delta;
+                let xSpeed = circle.xSpeed;
+                let ySpeed = circle.ySpeed;
+
+                if (x < gooBounds.minX) {
+                    x = gooBounds.minX;
+                    xSpeed = Math.abs(xSpeed);
+                } else if (x > gooBounds.maxX) {
+                    x = gooBounds.maxX;
+                    xSpeed = -Math.abs(xSpeed);
+                }
+
+                if (y < gooBounds.minY) {
+                    y = gooBounds.minY;
+                    ySpeed = Math.abs(ySpeed);
+                } else if (y > gooBounds.maxY) {
+                    y = gooBounds.maxY;
+                    ySpeed = -Math.abs(ySpeed);
+                }
+
+                return { ...circle, x, y, xSpeed, ySpeed };
+            });
+
+            setCircles(circlesRef.current);
+            frameRef.current = window.requestAnimationFrame(tick);
+        };
+
+        frameRef.current = window.requestAnimationFrame(tick);
+        return () => {
+            if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
+        };
+    }, []);
+
+    return (
+        <svg className="time-bomb-slime-goo-field" viewBox="0 0 1000 100" preserveAspectRatio="xMinYMid slice" focusable="false">
+            <defs>
+                <filter id="timeBombGooField" x="-10%" y="-80%" width="120%" height="260%" colorInterpolationFilters="sRGB">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
+                    <feColorMatrix
+                        in="blur"
+                        mode="matrix"
+                        values="1 0 0 0 0
+                            0 1 0 0 0
+                            0 0 1 0 0
+                            0 0 0 23 -8"
+                        result="goo"
+                    />
+                    <feBlend in="SourceGraphic" in2="goo" />
+                </filter>
+                <radialGradient id="timeBombGooYellow" cx="35%" cy="28%" r="72%">
+                    <stop offset="0%" stopColor="#fff9b8" />
+                    <stop offset="32%" stopColor="#ffe91a" />
+                    <stop offset="66%" stopColor="#d5b300" />
+                    <stop offset="100%" stopColor="#7d6500" />
+                </radialGradient>
+            </defs>
+            <g filter="url(#timeBombGooField)" className="time-bomb-slime-goo-group">
+                <ellipse className="time-bomb-goo-rail goo-rail-top" cx="500" cy="6" rx="620" ry="34" fill="url(#timeBombGooYellow)" />
+                <ellipse className="time-bomb-goo-rail goo-rail-bottom" cx="500" cy="94" rx="620" ry="32" fill="url(#timeBombGooYellow)" />
+                <ellipse className="time-bomb-goo-rail goo-rail-left" cx="-18" cy="50" rx="52" ry="72" fill="url(#timeBombGooYellow)" />
+                <ellipse className="time-bomb-goo-rail goo-rail-right" cx="1018" cy="50" rx="52" ry="72" fill="url(#timeBombGooYellow)" />
+                {circles.map(circle => (
+                    <circle
+                        key={circle.id}
+                        className="time-bomb-goo-ball"
+                        cx={circle.x}
+                        cy={circle.y}
+                        r={circle.r}
+                        fill="url(#timeBombGooYellow)"
+                    />
+                ))}
+            </g>
+        </svg>
+    );
+};
+
+const RadioactiveSlimeTimer: React.FC<{ isPaused: boolean; progress: number }> = ({ progress }) => {
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    const slimeFillWidth = `${Math.max(0, clampedProgress * 100)}%`;
+    const showSlime = clampedProgress > 0.01;
+
+    return (
+        <div
+            className="time-bomb-slime-stage"
+            style={{ '--slime-progress': slimeFillWidth } as React.CSSProperties}
+            aria-hidden="true"
+        >
+            <div className="time-bomb-slime-tank">
+                <div className="time-bomb-slime-tank-texture" />
+                <div className="time-bomb-slime-glass" />
+                {showSlime && (
+                    <div className="time-bomb-slime-fill-clip">
+                        <div className="time-bomb-slime-glow" />
+                        <div className="time-bomb-slime-fill">
+                            <div className="time-bomb-slime-surface" />
+                            <div className="time-bomb-slime-inner" />
+                            <MetaballGooField />
+                            <div className="time-bomb-slime-shimmer" />
+                            <div className="time-bomb-slime-bubbles">
+                                {slimeBubbles.map((bubble, index) => (
+                                    <span
+                                        key={index}
+                                        style={{
+                                            left: bubble.left,
+                                            width: bubble.size,
+                                            height: bubble.size,
+                                            animationDelay: bubble.delay,
+                                            animationDuration: bubble.duration,
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                        <div className="time-bomb-slime-bottom-drips">
+                            {slimeDrips.map((drip, index) => (
+                                <span
+                                    key={index}
+                                    style={{
+                                        left: drip.left,
+                                        width: drip.width,
+                                        height: drip.height,
+                                        animationDelay: drip.delay,
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
     // Game State
@@ -257,7 +470,6 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         setGameState('exploded');
         setExplosionKey(prev => prev + 1);
         setShowExplosionModal(false);
-        playSound('incorrect', isMuted, 'Explosion'); 
 
         if (options.studentPractice) {
             if (currentQuestion) {
@@ -277,7 +489,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             }
             explosionTimerRef.current = setTimeout(() => {
                 setShowExplosionModal(true);
-            }, 1400);
+            }, RADIOACTIVE_EXPLOSION_MODAL_DELAY_MS);
             return;
         }
 
@@ -294,7 +506,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         }
         explosionTimerRef.current = setTimeout(() => {
             setShowExplosionModal(true);
-        }, 1400);
+        }, RADIOACTIVE_EXPLOSION_MODAL_DELAY_MS);
     };
 
     const handleContinueAfterExplosion = () => {
@@ -768,7 +980,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     const mobileUsesTwoRowHeader = isMobileViewport && teamNames.length >= 4;
     const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
-    const mobileControlCount = gameState === 'play' ? 4 : 3;
+    const mobileControlCount = 3;
     const mobileUsesButtonGrid = mobileUsesTwoRowHeader && mobileControlCount >= 4;
 
     return (
@@ -793,6 +1005,457 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     0% { opacity: 0.6; transform: scale(0.6); }
                     100% { opacity: 0; transform: scale(1.9); }
                 }
+                @keyframes timeBombGooFlash {
+                    0% { opacity: 0; }
+                    8% { opacity: 0.98; }
+                    100% { opacity: 0.7; }
+                }
+                @keyframes timeBombScreenSplat {
+                    0% {
+                        transform: translate(-50%, -50%) scale(0.18) rotate(var(--splat-rotate, 0deg));
+                        opacity: 0;
+                        filter: blur(4px) brightness(1.4);
+                    }
+                    18% {
+                        opacity: 1;
+                        transform: translate(-50%, -50%) scale(1.18) rotate(var(--splat-rotate, 0deg));
+                        filter: blur(0.5px) brightness(1.12);
+                    }
+                    100% {
+                        transform: translate(-50%, -50%) scale(var(--splat-scale, 1)) rotate(var(--splat-rotate, 0deg));
+                        opacity: var(--splat-opacity, 0.84);
+                        filter: blur(0);
+                    }
+                }
+                @keyframes timeBombScreenStreak {
+                    0% {
+                        transform: translate(-50%, -50%) scaleX(0.12) scaleY(0.7) rotate(var(--streak-rotate, 0deg));
+                        opacity: 0;
+                        filter: blur(3px);
+                    }
+                    16% {
+                        opacity: 0.96;
+                        transform: translate(-50%, -50%) scaleX(1.08) scaleY(1) rotate(var(--streak-rotate, 0deg));
+                        filter: blur(0);
+                    }
+                    100% {
+                        opacity: var(--streak-opacity, 0.74);
+                        transform: translate(-50%, -50%) scaleX(1) scaleY(1) rotate(var(--streak-rotate, 0deg));
+                    }
+                }
+                @keyframes timeBombScreenDrip {
+                    0% { transform: translateY(-18px) scaleY(0.1); opacity: 0; }
+                    22% { opacity: 0.86; }
+                    100% { transform: translateY(0) scaleY(1); opacity: 0.68; }
+                }
+                @keyframes timeBombGlassDrip {
+                    0% {
+                        transform: translateX(-50%) translateY(-10px) scaleY(0.04);
+                        opacity: 0;
+                    }
+                    12% {
+                        opacity: calc(var(--drip-opacity, 0.72) * 0.76);
+                        transform: translateX(-50%) translateY(0) scaleY(0.24);
+                    }
+                    72% {
+                        opacity: var(--drip-opacity, 0.72);
+                        transform: translateX(calc(-50% + var(--drip-sway, 0px))) translateY(calc(var(--drip-fall, 90px) * 0.74)) scaleY(0.92);
+                    }
+                    100% {
+                        transform: translateX(calc(-50% - var(--drip-sway, 0px))) translateY(var(--drip-fall, 90px)) scaleY(1);
+                        opacity: var(--drip-opacity, 0.72);
+                    }
+                }
+                @keyframes timeBombGlassDripBead {
+                    0%, 12% {
+                        transform: translate(-50%, -6px) scale(0.3);
+                        opacity: 0;
+                    }
+                    66% {
+                        opacity: calc(var(--drip-opacity, 0.72) + 0.12);
+                        transform: translate(calc(-50% + var(--drip-sway, 0px)), calc(var(--bead-fall, 112px) * 0.52)) scale(0.82);
+                    }
+                    100% {
+                        transform: translate(calc(-50% - var(--drip-sway, 0px)), var(--bead-fall, 112px)) scale(1);
+                        opacity: calc(var(--drip-opacity, 0.72) + 0.04);
+                    }
+                }
+                @keyframes timeBombSvgSplat {
+                    0% {
+                        transform: scale(0.08) rotate(var(--svg-rotate, 0deg));
+                        opacity: 0;
+                        filter: blur(5px) brightness(1.55);
+                    }
+                    16% {
+                        transform: scale(1.08) rotate(var(--svg-rotate, 0deg));
+                        opacity: 1;
+                        filter: blur(0.3px) brightness(1.15);
+                    }
+                    100% {
+                        transform: scale(1) rotate(var(--svg-rotate, 0deg));
+                        opacity: var(--svg-opacity, 0.82);
+                        filter: blur(0);
+                    }
+                }
+                @keyframes timeBombSplatAssetImpact {
+                    0% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.08);
+                        opacity: 0.18;
+                        filter: blur(5px) brightness(1.8);
+                    }
+                    12% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.18);
+                        opacity: 0.56;
+                        filter: blur(4px) brightness(1.72);
+                    }
+                    25% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.32);
+                        opacity: 0.78;
+                        filter: blur(3px) brightness(1.58);
+                    }
+                    40% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.5);
+                        opacity: 0.9;
+                        filter: blur(2px) brightness(1.42);
+                    }
+                    58% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.72);
+                        opacity: 0.96;
+                        filter: blur(1px) brightness(1.28);
+                    }
+                    76% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(0.91);
+                        opacity: 0.98;
+                        filter: blur(0.4px) brightness(1.12);
+                    }
+                    90% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(1.02);
+                        opacity: 1;
+                        filter: blur(0.1px) brightness(1.05);
+                    }
+                    100% {
+                        transform: translate(-50%, -50%) rotate(var(--splat-rotate, 0deg)) scale(1);
+                        opacity: 0.96;
+                        filter: blur(0) brightness(1);
+                    }
+                }
+                @keyframes timeBombRadioactivePulse {
+                    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.42)); }
+                    50% { transform: scale(1.05); filter: drop-shadow(0 0 24px rgba(250, 204, 21, 0.82)); }
+                }
+                .time-bomb-goo-screen {
+                    position: absolute;
+                    inset: 0;
+                    background:
+                        radial-gradient(circle at 50% 42%, rgba(255, 250, 142, 0.62), transparent 24%),
+                        linear-gradient(180deg, rgba(250, 204, 21, 0.58), rgba(139, 92, 0, 0.42));
+                    animation: timeBombGooFlash 0.28s ease-out forwards;
+                }
+                .time-bomb-goo-screen::before,
+                .time-bomb-goo-screen::after {
+                    content: "";
+                    position: absolute;
+                    inset: -4%;
+                    pointer-events: none;
+                    display: none;
+                }
+                .time-bomb-goo-screen::before {
+                    background:
+                        radial-gradient(ellipse at 11% 51%, rgba(255,248,118,0.54) 0 2.5%, transparent 3.2%),
+                        radial-gradient(ellipse at 34% 45%, rgba(255,230,0,0.5) 0 2.8%, transparent 3.5%),
+                        radial-gradient(ellipse at 79% 47%, rgba(255,236,0,0.52) 0 3.2%, transparent 4%),
+                        radial-gradient(ellipse at 88% 58%, rgba(255,250,156,0.44) 0 2.4%, transparent 3.1%);
+                    opacity: 0;
+                    animation: timeBombScreenSplat 0.34s cubic-bezier(.08,.94,.19,1) forwards;
+                }
+                .time-bomb-goo-screen::after {
+                    background:
+                        linear-gradient(90deg, transparent 10%, rgba(255,238,30,0.46) 10.7% 12.2%, transparent 12.9%),
+                        linear-gradient(90deg, transparent 48%, rgba(255,235,21,0.42) 48.4% 50.7%, transparent 51.3%),
+                        linear-gradient(90deg, transparent 76%, rgba(255,246,112,0.46) 76.5% 78.1%, transparent 78.7%);
+                    opacity: 0;
+                    animation: timeBombScreenDrip 0.42s ease-out forwards;
+                }
+                .time-bomb-screen-splatter {
+                    position: absolute;
+                    left: var(--splat-x, 50%);
+                    top: var(--splat-y, 50%);
+                    width: var(--splat-size, 120px);
+                    aspect-ratio: 1;
+                    border-radius: 48% 52% 42% 58% / 45% 58% 42% 55%;
+                    background:
+                        radial-gradient(circle at 32% 26%, rgba(255,255,205,0.9), transparent 9%),
+                        radial-gradient(circle at 62% 37%, rgba(255,245,73,0.92), transparent 16%),
+                        radial-gradient(circle at 42% 62%, rgba(180,128,0,0.48), transparent 28%),
+                        radial-gradient(circle, rgba(255,226,0,0.94) 0%, rgba(214,157,0,0.9) 56%, rgba(97,67,0,0.5) 100%);
+                    box-shadow:
+                        inset 0 -12px 24px rgba(75, 50, 0, 0.42),
+                        inset 0 10px 16px rgba(255,255,190,0.46),
+                        0 0 20px rgba(250, 204, 21, 0.5);
+                    animation: timeBombScreenSplat var(--splat-speed, 0.38s) cubic-bezier(.08,.94,.19,1) forwards;
+                }
+                .time-bomb-screen-splatter::before,
+                .time-bomb-screen-splatter::after {
+                    content: "";
+                    position: absolute;
+                    border-radius: 999px;
+                    background: radial-gradient(circle at 35% 30%, rgba(255,255,205,0.9), rgba(255,222,0,0.86) 48%, rgba(118,82,0,0.35) 100%);
+                    box-shadow: 0 0 14px rgba(250,204,21,0.42);
+                }
+                .time-bomb-screen-splatter::before {
+                    width: 42%;
+                    height: 20%;
+                    right: -22%;
+                    top: 20%;
+                    transform: rotate(20deg);
+                }
+                .time-bomb-screen-splatter::after {
+                    width: 24%;
+                    height: 34%;
+                    left: 6%;
+                    bottom: -20%;
+                    transform: rotate(-16deg);
+                }
+                .time-bomb-screen-streak {
+                    position: absolute;
+                    left: var(--streak-x, 50%);
+                    top: var(--streak-y, 50%);
+                    width: var(--streak-w, 180px);
+                    height: var(--streak-h, 34px);
+                    border-radius: 999px 55% 55% 999px;
+                    background:
+                        radial-gradient(circle at 18% 42%, rgba(255,255,190,0.82), transparent 13%),
+                        linear-gradient(90deg, rgba(255,246,92,0.94), rgba(218,160,0,0.86), rgba(115,80,0,0.24));
+                    box-shadow:
+                        inset 0 -7px 12px rgba(93,62,0,0.34),
+                        0 0 18px rgba(250,204,21,0.42);
+                    animation: timeBombScreenStreak var(--streak-speed, 0.36s) cubic-bezier(.08,.94,.19,1) forwards;
+                }
+                .time-bomb-screen-impact {
+                    position: absolute;
+                    inset: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: visible;
+                }
+                .time-bomb-screen-impact .goo-main,
+                .time-bomb-screen-impact .goo-small,
+                .time-bomb-screen-impact .goo-fleck {
+                    transform-box: fill-box;
+                    transform-origin: center;
+                    animation: timeBombSvgSplat var(--svg-speed, 0.28s) cubic-bezier(.08,.94,.19,1) forwards;
+                }
+                .time-bomb-screen-impact .goo-small {
+                    --svg-speed: 0.34s;
+                    --svg-opacity: 0.68;
+                }
+                .time-bomb-screen-impact .goo-fleck {
+                    --svg-speed: 0.3s;
+                    --svg-opacity: 0.58;
+                }
+                .time-bomb-splat-asset {
+                    position: absolute;
+                    left: 50%;
+                    top: 50%;
+                    width: min(96vw, 1530px);
+                    max-width: none;
+                    max-height: 96%;
+                    aspect-ratio: 1672 / 941;
+                    transform-origin: center;
+                    opacity: 0;
+                    mix-blend-mode: normal;
+                    filter: drop-shadow(0 18px 34px rgba(88, 58, 0, 0.45));
+                    --splat-rotate: 0deg;
+                    z-index: 1;
+                    animation: timeBombSplatAssetImpact 1s linear forwards;
+                }
+                .time-bomb-splat-video-wrap {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 1;
+                    overflow: hidden;
+                    background: transparent;
+                    box-shadow:
+                        inset 24vw 0 18vw rgba(78, 57, 7, 0.58),
+                        inset -24vw 0 18vw rgba(78, 57, 7, 0.58);
+                    animation: timeBombGooFlash 0.28s ease-out forwards;
+                }
+                .time-bomb-splat-video {
+                    position: absolute;
+                    left: 50%;
+                    top: 50%;
+                    z-index: 1;
+                    height: 100%;
+                    width: auto;
+                    max-width: 100%;
+                    aspect-ratio: 16 / 9;
+                    object-fit: cover;
+                    object-position: center;
+                    transform: translate(-50%, -50%);
+                    filter: saturate(1.08) contrast(1.04) brightness(0.95);
+                    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.3) 5%, #000 16%, #000 84%, rgba(0,0,0,0.3) 95%, transparent 100%);
+                    mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.3) 5%, #000 16%, #000 84%, rgba(0,0,0,0.3) 95%, transparent 100%);
+                }
+                .time-bomb-splat-video-wrap::after {
+                    content: "";
+                    position: absolute;
+                    right: -2%;
+                    bottom: -4%;
+                    width: min(30vw, 430px);
+                    height: min(32vh, 300px);
+                    z-index: 4;
+                    pointer-events: none;
+                    background:
+                        radial-gradient(ellipse at 50% 50%, rgba(47, 50, 48, 1) 0 34%, rgba(47, 50, 48, 0.96) 52%, rgba(47, 50, 48, 0.68) 70%, transparent 84%);
+                    filter: blur(18px);
+                    opacity: 1;
+                }
+                .time-bomb-video-watermark-cover {
+                    position: absolute;
+                    right: -18px;
+                    bottom: -18px;
+                    z-index: 5;
+                    width: min(34vw, 500px);
+                    height: min(34vh, 330px);
+                    pointer-events: none;
+                    background:
+                        radial-gradient(ellipse at 54% 54%, rgba(48, 51, 48, 1) 0 32%, rgba(48, 51, 48, 0.98) 52%, rgba(48, 51, 48, 0.68) 72%, transparent 86%);
+                    filter: blur(18px);
+                    opacity: 1;
+                }
+                .time-bomb-splat-video-tint {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 2;
+                    pointer-events: none;
+                    background:
+                        radial-gradient(circle at 50% 42%, rgba(250, 204, 21, 0.12), transparent 38%),
+                        linear-gradient(180deg, rgba(250, 204, 21, 0.08), rgba(88, 58, 0, 0.2));
+                    mix-blend-mode: screen;
+                    opacity: 0.55;
+                }
+                .time-bomb-splat-image {
+                    position: absolute;
+                    inset: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    z-index: 1;
+                }
+                .time-bomb-glass-drip {
+                    position: absolute;
+                    left: var(--drip-x, 50%);
+                    top: var(--drip-y, 58%);
+                    width: var(--drip-w, 14px);
+                    height: var(--drip-h, 120px);
+                    border-radius: 999px 999px 64% 64%;
+                    transform-origin: top center;
+                    background:
+                        radial-gradient(circle at 35% 8%, rgba(255,255,202,0.94), transparent 15%),
+                        radial-gradient(ellipse at 62% 76%, rgba(116, 83, 0, 0.5), transparent 42%),
+                        linear-gradient(90deg, rgba(255, 255, 176, 0.34), rgba(255, 222, 0, 0.1) 32%, rgba(91, 63, 0, 0.26) 100%),
+                        linear-gradient(180deg, rgba(255,238,0,0.9), rgba(220,158,0,0.8) 58%, rgba(113,76,0,0.5));
+                    box-shadow:
+                        inset -5px 0 10px rgba(80, 53, 0, 0.34),
+                        inset 4px 0 9px rgba(255, 255, 184, 0.38),
+                        0 0 16px rgba(250, 204, 21, 0.34);
+                    opacity: 0;
+                    z-index: 2;
+                    filter: blur(0.15px) saturate(1.08);
+                    mix-blend-mode: normal;
+                    animation: timeBombGlassDrip var(--drip-duration, 1.75s) ease-in-out forwards;
+                    animation-delay: var(--drip-delay, 0.12s);
+                }
+                .time-bomb-glass-drip::before {
+                    content: "";
+                    position: absolute;
+                    left: 50%;
+                    top: -14px;
+                    width: calc(var(--drip-w, 14px) * 3.4);
+                    height: calc(var(--drip-w, 14px) * 1.85);
+                    transform: translateX(-50%);
+                    border-radius: 45% 55% 60% 40% / 48% 44% 56% 52%;
+                    background:
+                        radial-gradient(circle at 31% 24%, rgba(255,255,204,0.82), transparent 21%),
+                        radial-gradient(ellipse at 72% 58%, rgba(108,76,0,0.34), transparent 42%),
+                        radial-gradient(circle, rgba(255,224,0,0.76), rgba(177,122,0,0.46) 72%, transparent 74%);
+                    box-shadow:
+                        inset -6px -4px 9px rgba(85,58,0,0.22),
+                        0 0 13px rgba(250,204,21,0.28);
+                }
+                .time-bomb-glass-drip::after {
+                    content: "";
+                    position: absolute;
+                    left: 50%;
+                    bottom: -14px;
+                    width: calc(var(--drip-w, 14px) * 1.9);
+                    aspect-ratio: 1;
+                    border-radius: 50% 50% 58% 42% / 48% 48% 62% 52%;
+                    background:
+                        radial-gradient(circle at 34% 26%, rgba(255,255,202,0.84), transparent 20%),
+                        radial-gradient(circle at 65% 72%, rgba(105,73,0,0.36), transparent 48%),
+                        radial-gradient(circle, rgba(255,220,0,0.84), rgba(176,123,0,0.64));
+                    box-shadow:
+                        inset -5px -5px 9px rgba(83,55,0,0.28),
+                        0 0 13px rgba(250,204,21,0.32);
+                    opacity: 0;
+                    animation: timeBombGlassDripBead var(--drip-duration, 1.75s) ease-in-out forwards;
+                    animation-delay: var(--drip-delay, 0.12s);
+                }
+                @media (max-width: 640px) {
+                    .time-bomb-splat-asset {
+                        width: min(160vw, 92dvh);
+                        --splat-rotate: 90deg;
+                    }
+                    .time-bomb-splat-video {
+                        width: 165vw;
+                        height: auto;
+                        max-width: none;
+                        max-height: 100%;
+                        transform: translate(-50%, -50%);
+                        -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 6%, #000 18%, #000 82%, rgba(0,0,0,0.35) 94%, transparent 100%);
+                        mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 6%, #000 18%, #000 82%, rgba(0,0,0,0.35) 94%, transparent 100%);
+                    }
+                    .time-bomb-splat-video-wrap {
+                        box-shadow:
+                            inset 0 16vh 14vh rgba(78, 57, 7, 0.58),
+                            inset 0 -16vh 14vh rgba(78, 57, 7, 0.58);
+                    }
+                    .time-bomb-splat-video-wrap::after {
+                        width: 42vw;
+                        height: 28vh;
+                    }
+                    .time-bomb-video-watermark-cover {
+                        width: 48vw;
+                        height: 30vh;
+                    }
+                    .time-bomb-glass-drip {
+                        top: var(--drip-mobile-y, var(--drip-y, 58%));
+                        height: calc(var(--drip-h, 120px) * 0.78);
+                    }
+                }
+                .time-bomb-screen-drip {
+                    position: absolute;
+                    top: var(--drip-y, 0);
+                    width: var(--drip-w, 16px);
+                    height: var(--drip-h, 26vh);
+                    left: var(--drip-x, 50%);
+                    border-radius: 999px 999px 70% 70%;
+                    background: linear-gradient(180deg, rgba(255,241,118,0.86), rgba(230,171,0,0.7), rgba(116,78,0,0.18));
+                    box-shadow: 0 0 18px rgba(250,204,21,0.5);
+                    transform-origin: top center;
+                    animation: timeBombScreenDrip var(--drip-speed, 0.48s) ease-out forwards;
+                }
+                .time-bomb-radioactive-modal {
+                    background:
+                        linear-gradient(135deg, rgba(250,204,21,0.18) 0 12%, rgba(0,0,0,0.28) 12% 24%, rgba(250,204,21,0.18) 24% 36%, rgba(0,0,0,0.28) 36% 48%, rgba(250,204,21,0.18) 48% 60%, rgba(0,0,0,0.28) 60% 72%, rgba(250,204,21,0.18) 72% 84%, rgba(0,0,0,0.28) 84% 100%),
+                        linear-gradient(180deg, #facc15, #b98500);
+                }
+                .time-bomb-radioactive-title {
+                    font-size: clamp(2.15rem, 10vw, 3.5rem);
+                    line-height: 0.92;
+                    text-wrap: balance;
+                }
                 @keyframes mcFlashGreen {
                     0% { transform: scale(1); filter: brightness(1.15); }
                     50% { transform: scale(1.02); filter: brightness(1.3); }
@@ -803,42 +1466,296 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     50% { transform: scale(0.99); filter: brightness(1.25); }
                     100% { transform: scale(1); filter: brightness(1); }
                 }
+                .time-bomb-nuclear-bg {
+                    background:
+                        linear-gradient(to bottom, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0.42)),
+                        url('/assets/background/timebomb-nuclear-bg.png') center / cover no-repeat;
+                }
+                .time-bomb-nuclear-bg::before {
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    pointer-events: none;
+                    background:
+                        radial-gradient(circle at 50% 40%, rgba(254, 240, 138, 0.12), transparent 42%),
+                        linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.26) 100%);
+                }
+                .time-bomb-nuclear-bg::after {
+                    content: "";
+                    display: none;
+                }
+                .time-bomb-hazard-header {
+                    background:
+                        radial-gradient(circle at 18% 22%, rgba(250, 204, 21, 0.08), transparent 22%),
+                        linear-gradient(to bottom, #4b5563 0%, #374151 48%, #1f2937 100%);
+                    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -4px 0 rgba(0, 0, 0, 0.42), inset 0 0 34px rgba(0, 0, 0, 0.26), 0 24px 42px rgba(0, 0, 0, 0.58);
+                }
+                .time-bomb-hazard-header::before {
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    z-index: 0;
+                    pointer-events: none;
+                    background:
+                        radial-gradient(circle at 12% 38%, rgba(0, 0, 0, 0.24) 0 1px, transparent 5px),
+                        radial-gradient(circle at 43% 64%, rgba(0, 0, 0, 0.18) 0 1px, transparent 6px),
+                        radial-gradient(circle at 78% 28%, rgba(0, 0, 0, 0.2) 0 1px, transparent 5px),
+                        linear-gradient(to bottom, rgba(0, 0, 0, 0.08), transparent 42%, rgba(0, 0, 0, 0.24));
+                }
+                .time-bomb-hazard-header::after {
+                    content: "";
+                    position: absolute;
+                    inset: 6px 8px;
+                    z-index: 0;
+                    pointer-events: none;
+                    border-top: 1px solid rgba(255, 255, 255, 0.08);
+                    border-bottom: 1px solid rgba(0, 0, 0, 0.42);
+                }
+                .time-bomb-hazard-header > * {
+                    position: relative;
+                    z-index: 1;
+                }
+                .time-bomb-slime-stage {
+                    position: absolute;
+                    inset: 0;
+                    overflow: visible;
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                .time-bomb-slime-tank {
+                    position: absolute;
+                    inset: 0;
+                    overflow: hidden;
+                    background:
+                        radial-gradient(circle at 18% 30%, rgba(101, 163, 13, 0.18), transparent 22%),
+                        radial-gradient(circle at 68% 55%, rgba(22, 101, 52, 0.2), transparent 28%),
+                        linear-gradient(180deg, #071405 0%, #031000 44%, #010701 100%);
+                    box-shadow:
+                        inset 0 3px 8px rgba(255, 255, 255, 0.12),
+                        inset 0 -8px 16px rgba(0, 0, 0, 0.72),
+                        inset 0 0 30px rgba(0, 0, 0, 0.62);
+                }
+                .time-bomb-slime-tank-texture {
+                    position: absolute;
+                    inset: 0;
+                    overflow: hidden;
+                    opacity: 0.42;
+                    background:
+                        repeating-linear-gradient(90deg, rgba(190, 242, 100, 0.05) 0 1px, transparent 1px 28px),
+                        linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 42%, rgba(0, 0, 0, 0.42));
+                }
+                .time-bomb-slime-glass {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 8;
+                    background:
+                        linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.06) 14%, transparent 36%),
+                        linear-gradient(90deg, rgba(255, 255, 255, 0.13), transparent 12%, transparent 88%, rgba(255, 255, 255, 0.08));
+                    box-shadow: inset 0 0 0 1px rgba(250, 250, 160, 0.12);
+                }
+                .time-bomb-slime-fill-clip {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    bottom: 0;
+                    width: var(--slime-progress);
+                    min-width: 0;
+                    overflow: visible;
+                    transition: width 80ms linear;
+                    z-index: 2;
+                }
+                .time-bomb-slime-glow {
+                    position: absolute;
+                    inset: -6px -28px -8px -6px;
+                    background: radial-gradient(ellipse at right center, rgba(255, 230, 0, 0.58), rgba(177, 143, 0, 0.24) 34%, transparent 72%);
+                    filter: blur(8px);
+                    opacity: 0.85;
+                }
+                .time-bomb-slime-fill {
+                    position: absolute;
+                    inset: 2px 0 2px 2px;
+                    overflow: hidden;
+                    background:
+                        radial-gradient(ellipse at 18% 20%, rgba(255, 236, 52, 0.28), transparent 16%),
+                        radial-gradient(ellipse at 42% 62%, rgba(86, 68, 0, 0.48), transparent 24%),
+                        radial-gradient(ellipse at 72% 34%, rgba(221, 180, 0, 0.22), transparent 20%),
+                        linear-gradient(180deg, #c8a900 0%, #9b7e00 28%, #655200 64%, #2f2700 100%);
+                    box-shadow:
+                        inset 0 4px 8px rgba(255, 239, 93, 0.34),
+                        inset 0 -10px 18px rgba(58, 45, 0, 0.78),
+                        0 0 14px rgba(255, 218, 0, 0.5);
+                }
+                .time-bomb-slime-fill::after {
+                    content: "";
+                    position: absolute;
+                    inset: 0;
+                    background:
+                        radial-gradient(ellipse at 18% 76%, rgba(57, 44, 0, 0.48), transparent 21%),
+                        radial-gradient(ellipse at 46% 64%, rgba(91, 71, 0, 0.34), transparent 20%),
+                        radial-gradient(ellipse at 76% 78%, rgba(47, 36, 0, 0.42), transparent 22%),
+                        linear-gradient(90deg, rgba(255, 241, 128, 0.12), transparent 18%, rgba(55, 43, 0, 0.2) 58%, rgba(255, 225, 50, 0.1));
+                    mix-blend-mode: multiply;
+                    opacity: 0.9;
+                }
+                .time-bomb-slime-surface {
+                    position: absolute;
+                    left: -6%;
+                    top: -6px;
+                    width: 112%;
+                    height: 24px;
+                    z-index: 4;
+                    background:
+                        radial-gradient(ellipse at 18% 50%, rgba(255, 243, 97, 0.62), transparent 27%),
+                        radial-gradient(ellipse at 58% 42%, rgba(255, 226, 0, 0.48), transparent 30%),
+                        linear-gradient(180deg, rgba(255, 232, 0, 0.52), rgba(155, 125, 0, 0.34) 74%, transparent);
+                    clip-path: polygon(0 40%, 8% 33%, 18% 45%, 29% 28%, 40% 42%, 52% 31%, 64% 44%, 76% 30%, 89% 43%, 100% 34%, 100% 100%, 0 100%);
+                    animation: timeBombSlimeSurface 3.2s ease-in-out infinite;
+                    filter: drop-shadow(0 0 5px rgba(238, 255, 0, 0.78));
+                }
+                .time-bomb-slime-inner {
+                    position: absolute;
+                    inset: 9px 0 4px;
+                    z-index: 3;
+                    background:
+                        radial-gradient(ellipse at 14% 18%, rgba(255, 243, 96, 0.5), transparent 9%),
+                        radial-gradient(ellipse at 37% 42%, rgba(255, 226, 0, 0.44), transparent 12%),
+                        radial-gradient(ellipse at 61% 28%, rgba(255, 239, 120, 0.38), transparent 10%),
+                        radial-gradient(ellipse at 83% 68%, rgba(65, 49, 0, 0.44), transparent 14%),
+                        linear-gradient(90deg, rgba(96, 74, 0, 0.22), transparent 42%, rgba(255, 222, 0, 0.22));
+                    animation: timeBombSlimeInner 5.5s linear infinite;
+                    opacity: 0.92;
+                }
+                .time-bomb-slime-goo-field {
+                    position: absolute;
+                    inset: -12px -1% -12px -1%;
+                    width: 102%;
+                    height: calc(100% + 24px);
+                    z-index: 5;
+                    overflow: visible;
+                    opacity: 0.82;
+                    mix-blend-mode: screen;
+                    filter: drop-shadow(0 0 8px rgba(255, 221, 0, 0.58));
+                }
+                .time-bomb-slime-goo-group {
+                    transform-box: fill-box;
+                    transform-origin: center;
+                }
+                .time-bomb-goo-rail {
+                    opacity: 0.78;
+                }
+                .time-bomb-goo-ball {
+                    transform-box: fill-box;
+                    transform-origin: center;
+                    opacity: 0.95;
+                    filter: drop-shadow(0 0 4px rgba(255, 232, 0, 0.34));
+                }
+                .time-bomb-slime-shimmer {
+                    position: absolute;
+                    inset: 0;
+                    z-index: 6;
+                    background: linear-gradient(105deg, transparent 0%, transparent 28%, rgba(255, 255, 190, 0.42) 38%, rgba(196, 255, 0, 0.16) 49%, transparent 62%, transparent 100%);
+                    mix-blend-mode: screen;
+                    transform: translateX(-80%);
+                    animation: timeBombSlimeShimmer 4.8s ease-in-out infinite;
+                }
+                .time-bomb-slime-bubbles {
+                    position: absolute;
+                    inset: 5px 0 4px;
+                    z-index: 5;
+                }
+                .time-bomb-slime-bubbles span {
+                    position: absolute;
+                    bottom: -8px;
+                    border-radius: 999px;
+                    border: 1px solid rgba(245, 255, 115, 0.7);
+                    background:
+                        radial-gradient(circle at 32% 28%, rgba(255, 255, 230, 0.88), rgba(223, 255, 42, 0.48) 34%, rgba(66, 181, 0, 0.12) 72%, rgba(66, 181, 0, 0));
+                    box-shadow: 0 0 6px rgba(219, 255, 0, 0.5);
+                    animation-name: timeBombSlimeBubble;
+                    animation-timing-function: ease-in-out;
+                    animation-iteration-count: infinite;
+                }
+                .time-bomb-slime-bottom-drips {
+                    position: absolute;
+                    left: 2px;
+                    right: 0;
+                    bottom: 0;
+                    height: 10px;
+                    z-index: 4;
+                    overflow: hidden;
+                }
+                .time-bomb-slime-bottom-drips span {
+                    position: absolute;
+                    top: 0;
+                    border-radius: 999px 999px 70% 70%;
+                    background: linear-gradient(180deg, rgba(227, 255, 0, 0.9), rgba(81, 206, 0, 0.74), rgba(27, 115, 0, 0));
+                    box-shadow: 0 0 7px rgba(193, 255, 0, 0.62);
+                    transform-origin: top center;
+                    animation: timeBombSlimeDrip 3.6s ease-in-out infinite;
+                }
+                @keyframes timeBombSlimeSurface {
+                    0%, 100% {
+                        transform: translateX(0) translateY(0);
+                        clip-path: polygon(0 40%, 8% 33%, 18% 45%, 29% 28%, 40% 42%, 52% 31%, 64% 44%, 76% 30%, 89% 43%, 100% 34%, 100% 100%, 0 100%);
+                    }
+                    50% {
+                        transform: translateX(-2%) translateY(2px);
+                        clip-path: polygon(0 35%, 10% 44%, 22% 30%, 33% 45%, 45% 31%, 57% 43%, 68% 29%, 80% 46%, 91% 32%, 100% 42%, 100% 100%, 0 100%);
+                    }
+                }
+                @keyframes timeBombSlimeInner {
+                    0% { transform: translateX(-2%); }
+                    100% { transform: translateX(4%); }
+                }
+                @keyframes timeBombSlimeShimmer {
+                    0%, 46% { transform: translateX(-85%); opacity: 0; }
+                    56% { opacity: 0.72; }
+                    100% { transform: translateX(85%); opacity: 0; }
+                }
+                @keyframes timeBombSlimeBubble {
+                    0% {
+                        transform: translateY(10px) scale(0.76);
+                        opacity: 0;
+                    }
+                    18% { opacity: 0.66; }
+                    72% { opacity: 0.46; }
+                    100% {
+                        transform: translateY(-28px) scale(1.12);
+                        opacity: 0;
+                    }
+                }
+                @keyframes timeBombSlimeDrip {
+                    0%, 100% { transform: scaleY(0.28); opacity: 0.12; }
+                    42% { transform: scaleY(1); opacity: 0.72; }
+                    68% { transform: scaleY(0.62) translateY(2px); opacity: 0.36; }
+                }
             `}</style>
             
             {/* 1. HEADER */}
-            <div className={`bg-slate-900/90 backdrop-blur-md px-2 py-2 sm:p-2.5 lg:p-3 shrink-0 z-50 border-b border-slate-800 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[148px]' : 'min-h-[70px]'} sm:min-h-[88px] lg:min-h-[92px] shadow-2xl relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+            <div className={`time-bomb-hazard-header px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-yellow-500/70 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[110px]' : 'min-h-[70px]'} sm:min-h-[140px] relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                 <div className={`min-w-fit shrink-0 sm:hidden gap-1.5 ${mobileUsesButtonGrid ? 'grid grid-cols-2' : mobileUsesTwoRowHeader ? 'flex flex-col items-start' : 'flex flex-row items-center'}`}>
-                    <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-slate-400 hover:text-red-500 bg-slate-800 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                    <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-yellow-100 hover:text-white bg-black/70 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-yellow-400/60 hover:border-white/70">
                         <ArrowLeft size={17} />
                     </button>
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
-                        className="w-9 h-9 text-white bg-rose-700 hover:bg-rose-600 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-rose-800"
+                        className="w-9 h-9 text-black bg-yellow-400 hover:bg-yellow-300 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-black/60"
                         title="End game now"
                     >
                         <Flag size={14} />
                     </button>
-                    {gameState === 'play' && (
-                        <button 
-                            onClick={() => setIsPaused(!isPaused)} 
-                            className={`w-9 h-9 text-slate-400 hover:text-white rounded-lg transition-colors border flex items-center justify-center ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
-                            title={isPaused ? "Resume" : "Pause"}
-                        >
-                            {isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} fill="currentColor" />}
-                        </button>
-                    )}
-                    <button onClick={() => setIsMuted(!isMuted)} className="w-9 h-9 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 flex items-center justify-center">
+                    <button onClick={() => setIsMuted(!isMuted)} className="w-9 h-9 text-yellow-100 hover:text-white bg-black/70 hover:bg-black/80 rounded-lg transition-colors border border-yellow-400/60 flex items-center justify-center">
                         {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                     </button>
                 </div>
 
                 <div className="hidden sm:flex flex-col items-start gap-2 min-w-[140px]">
-                    <button onClick={() => setShowQuitConfirm(true)} className="w-[140px] justify-center text-slate-400 hover:text-red-500 bg-slate-800 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-slate-700 hover:border-red-500/50">
+                    <button onClick={() => setShowQuitConfirm(true)} className="w-[140px] justify-center text-yellow-100 hover:text-white bg-black/70 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-yellow-400/60 hover:border-white/70">
                         <ArrowLeft size={16} className="mr-2" /> Quit
                     </button>
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
-                        className="w-[140px] justify-center text-white bg-rose-700 hover:bg-rose-600 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-rose-800"
+                        className="w-[140px] justify-center text-black bg-yellow-400 hover:bg-yellow-300 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-black/60"
                         title="End game now"
                     >
                         <Flag size={16} className="mr-2" /> End Game
@@ -849,7 +1766,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 <div
                     className={isMobileViewport
                         ? 'flex-1 grid gap-1.5 items-stretch px-1'
-                        : 'flex-1 sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:no-scrollbar sm:px-3 sm:py-2 sm:items-center'}
+                        : 'flex-1 sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:no-scrollbar sm:px-3 sm:items-center sm:h-full'}
                     style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                 >
                     {teamNames.map((name, idx) => {
@@ -859,17 +1776,17 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             <div 
                                 key={idx} 
                                 className={`
-                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-2 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:min-h-[4.25rem] sm:w-auto sm:min-w-[130px] flex flex-col items-center justify-center text-center
+                                    relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-3 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:h-28 sm:w-auto sm:min-w-[150px] flex flex-col items-center justify-center text-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
-                                      isActive ? 'border-yellow-500 bg-yellow-500/10 shadow-[0_0_25px_rgba(234,179,8,0.4)] sm:scale-110 z-10 ring-2 ring-yellow-500/50' : 
-                                      'border-slate-700 bg-slate-800/80 text-slate-400'}
+                                      isActive ? 'border-black bg-yellow-400 text-black shadow-[0_0_28px_rgba(250,204,21,0.55)] z-10 ring-2 ring-black/40' : 
+                                      'border-yellow-400/60 bg-black/70 text-yellow-100'}
                                 `}
                             >
                                 <div className="text-[10px] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center truncate w-full">
                                     {name}
                                 </div>
                                 {options.studentPractice ? (
-                                    <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-yellow-200">
+                                    <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-current">
                                         Practice mode
                                     </div>
                                 ) : (
@@ -893,17 +1810,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 </div>
 
                 <div className="hidden sm:flex flex-col items-end gap-2 min-w-[72px] justify-center">
-                    {gameState === 'play' && (
-                        <button 
-                            onClick={() => setIsPaused(!isPaused)} 
-                            className={`text-slate-400 hover:text-white p-2.5 rounded-xl transition-colors border ${isPaused ? 'bg-yellow-500 text-slate-900 border-yellow-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
-                            title={isPaused ? "Resume" : "Pause"}
-                        >
-                            {isPaused ? <Play size={20} fill="currentColor" /> : <Pause size={20} fill="currentColor" />}
-                        </button>
-                    )}
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-white p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                    <button onClick={toggleFullscreen} className="text-slate-400 hover:text-white p-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors border border-slate-700">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-yellow-100 hover:text-white p-2.5 bg-black/70 hover:bg-black/80 rounded-xl transition-colors border border-yellow-400/60">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                    <button onClick={toggleFullscreen} className="text-yellow-100 hover:text-white p-2.5 bg-black/70 hover:bg-black/80 rounded-xl transition-colors border border-yellow-400/60">{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
                 </div>
             </div>
 
@@ -911,52 +1819,32 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             <div ref={arenaRef} className="flex-1 relative flex flex-col md:flex-row overflow-hidden">
                 
                 {/* Background Effects */}
-                <div className={`absolute inset-0 transition-colors duration-200 z-0 ${isExploded ? 'bg-red-900/60' : 'bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black'}`}>
-                    {!isExploded && <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120vw] h-[120vh] bg-blue-900/10 blur-[100px] rounded-full pointer-events-none"></div>}
+                <div className="absolute inset-0 transition-colors duration-200 z-0 overflow-hidden time-bomb-nuclear-bg">
+                    {!isExploded ? (
+                        <>
+                            <div className="absolute left-1/2 bottom-[-18%] h-[34vh] w-[120vw] -translate-x-1/2 rounded-[50%] bg-yellow-200/12 blur-[70px] pointer-events-none" />
+                            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+                        </>
+                    ) : (
+                        <div className="absolute inset-0 bg-yellow-500/20 pointer-events-none" />
+                    )}
                 </div>
 
                 {isExploded && (
-                    <div className="pointer-events-none absolute inset-0 z-[420]">
-                        <div
-                            key={explosionKey}
-                            className="absolute rounded-full"
-                            style={{
-                                left: explosionOrigin.x,
-                                top: explosionOrigin.y,
-                                width: '18vmax',
-                                height: '18vmax',
-                                animation: 'timeBombBlast 1.4s ease-out forwards'
-                            }}
-                        >
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(253,224,71,0.95) 18%, rgba(249,115,22,0.8) 45%, rgba(239,68,68,0.6) 70%, rgba(239,68,68,0) 100%)'
-                                }}
+                    <div className="pointer-events-none absolute inset-0 z-[420] overflow-hidden">
+                        <div className="time-bomb-splat-video-wrap">
+                            <video
+                                key={`${explosionKey}-video`}
+                                className="time-bomb-splat-video"
+                                src="/assets/effects/timebomb-radioactive-splat-animation.mp4"
+                                autoPlay
+                                muted={isMuted}
+                                playsInline
+                                preload="auto"
+                                poster="/assets/effects/timebomb-radioactive-splat.png"
                             />
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(255,214,102,0.9) 0%, rgba(249,115,22,0.65) 50%, rgba(239,68,68,0) 80%)',
-                                    animation: 'timeBombFire 1.4s ease-out forwards',
-                                    mixBlendMode: 'screen'
-                                }}
-                            />
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(148,163,184,0.6) 0%, rgba(71,85,105,0.35) 40%, rgba(30,41,59,0) 75%)',
-                                    animation: 'timeBombSmoke 1.8s ease-out forwards',
-                                    filter: 'blur(6px)'
-                                }}
-                            />
-                            <div
-                                className="absolute inset-0 rounded-full"
-                                style={{
-                                    border: '4px solid rgba(248,250,252,0.35)',
-                                    animation: 'timeBombShockwave 1.2s ease-out forwards'
-                                }}
-                            />
+                            <div className="time-bomb-splat-video-tint" />
+                            <div className="time-bomb-video-watermark-cover" />
                         </div>
                     </div>
                 )}
@@ -965,7 +1853,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
                 {/* INTRO OVERLAY (Centered Full Screen) */}
                 {gameState === 'intro' ? (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-lime-950/55 backdrop-blur-sm animate-fade-in">
                         <div className="flex flex-col items-center justify-center max-w-2xl relative">
                             <h1 className="text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-tight drop-shadow-2xl text-center">TIME BOMB</h1>
                             <p className="text-2xl text-slate-300 mb-12 leading-relaxed font-light text-center">
@@ -984,107 +1872,32 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 ) : (
                     <>
                         {/* MAIN CONTENT */}
-                        <div className="flex-1 min-h-0 p-2 sm:p-3 flex flex-col items-center justify-start relative z-10">
-                            <div className="w-full min-h-0 flex-1 flex flex-col items-center justify-center gap-3 sm:gap-5 md:gap-6">
-                                {(gameState === 'play' || gameState === 'exploded') && (
-                                    <div className="relative flex items-center justify-center w-full">
-                                        <div
-                                            ref={dynamiteRef}
-                                            className="relative w-[min(120px,34vw)] sm:w-[min(170px,32vw)] md:w-[min(210px,22vw)] transition-transform duration-200 origin-center"
-                                            style={{ transform: `scale(${getBombScale()})` }}
-                                        >
-                                            <img
-                                                src="/assets/game_elements/dynamite.png"
-                                                alt="Dynamite"
-                                                className="w-full h-auto drop-shadow-[0_10px_30px_rgba(0,0,0,0.6)]"
-                                            />
-                                            <div className="absolute left-[47%] top-1/2 -translate-x-1/2 -translate-y-[45%]">
-                                                <span
-                                                    className="font-mono text-[clamp(19px,4.7vw,28px)] sm:text-[1.85rem] tracking-normal drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]"
-                                                    style={{ color: getTimerColor() }}
-                                                >
-                                                    {formatBombTime(bombTime)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
+                        <div className="flex-1 min-h-0 p-3 sm:p-4 flex flex-col items-center justify-center relative z-10">
+                            <div className="w-full min-h-0 flex-1 flex flex-col items-center justify-center">
                                 {!isExploded && gameState === 'play' && (
                                     <div
                                         ref={cardFrameRef}
-                                        className="relative w-full max-w-[92vw] h-[min(56vh,500px)] sm:max-w-[min(92vw,860px)] sm:h-[min(54vh,500px)] md:max-w-5xl md:h-[min(50vh,500px)] [perspective:1000px] overflow-visible"
+                                        className="relative w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] overflow-visible"
                                     >
-                                        <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
-                                            <svg
-                                                className="w-full h-full"
-                                                viewBox={fuseViewBox}
-                                                preserveAspectRatio="none"
-                                            >
-                                            <defs>
-                                                <filter id="fuseGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                                    <feGaussianBlur stdDeviation="4" result="blur" />
-                                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                                </filter>
-                                            </defs>
-                                            {fusePath && (
-                                                <>
-                                                    <path
-                                                        ref={fusePathRef}
-                                                        d={fusePath}
-                                                        fill="none"
-                                                        stroke="none"
-                                                    />
-                                                    <path
-                                                        d={fusePath}
-                                                        fill="none"
-                                                        stroke="#fbbf24"
-                                                        strokeWidth="6"
-                                                        strokeLinecap="round"
-                                                        filter="url(#fuseGlow)"
-                                                    />
-                                                    <path
-                                                        d={fusePath}
-                                                        pathLength={1000}
-                                                        fill="none"
-                                                        stroke="#7c2d12"
-                                                        strokeWidth="4"
-                                                        strokeLinecap="round"
-                                                        strokeDasharray={`${1000 * fuseProgress} 1000`}
-                                                        strokeDashoffset={0}
-                                                        className="transition-all duration-100 ease-linear"
-                                                    />
-                                                    {isTicking && !isPaused && bombTime > 0 && (
-                                                        <g transform={`translate(${sparkPos.x}, ${sparkPos.y})`}>
-                                                            <circle r="8" fill="#fef08a" className="animate-ping" opacity="0.8" />
-                                                            <circle r="5" fill="#fff" />
-                                                            <path
-                                                                d="M-8,0 L8,0 M0,-8 L0,8 M-6,-6 L6,6 M-6,6 L6,-6"
-                                                                stroke="#fbbf24"
-                                                                strokeWidth="2"
-                                                                className="animate-spin"
-                                                                style={{ animationDuration: '1s', transformBox: 'fill-box', transformOrigin: 'center' }}
-                                                            />
-                                                        </g>
-                                                    )}
-                                                </>
-                                            )}
-                                            </svg>
-                                        </div>
                                         <div className="relative w-full h-full">
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
-                                        <div className={`absolute inset-0 rounded-3xl shadow-2xl overflow-hidden flex-col bg-slate-900 border-4 border-indigo-500 ${isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
-                                            <div className="bg-indigo-900/50 px-3 py-[clamp(5px,1.4vh,8px)] sm:p-4 border-b border-indigo-800 flex justify-between items-center shrink-0">
-                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-[clamp(9px,2vw,12px)] sm:text-sm">Question</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-3 h-3 rounded-full bg-red-600 animate-pulse border border-red-800"></span>
-                                                    <span className="text-indigo-200 font-bold text-[clamp(9px,2vw,12px)] sm:text-xs uppercase">Live Timer</span>
+                                        <div className={`absolute inset-0 rounded-2xl shadow-2xl overflow-hidden flex-col bg-white border-4 border-yellow-400 ${isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
+                                            <div className="relative z-10 h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] flex-shrink-0 overflow-visible bg-lime-950 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.28)]">
+                                                <RadioactiveSlimeTimer
+                                                    isPaused={isPaused || !isTicking}
+                                                    progress={Math.max(0, Math.min(1, bombTime / (options.bombDuration || 60)))}
+                                                />
+                                                <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                                                    <div className="flex items-center justify-center rounded-full border border-yellow-200/85 bg-black/78 px-3 py-0.5 text-yellow-100 font-black tracking-wider text-sm sm:text-lg md:text-xl shadow-[0_0_16px_rgba(0,0,0,0.72),0_0_12px_rgba(250,204,21,0.42)] backdrop-blur-sm ring-1 ring-black/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
+                                                    <Clock size={isMobileViewport ? 16 : 20} className="mr-2 text-yellow-200 drop-shadow" />
+                                                    {formatBombTime(bombTime)}
+                                                    </div>
                                                 </div>
                                             </div>
                                             
                                             {/* CONTENT BODY */}
-                                            <div className={`flex-1 min-h-0 flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} overflow-hidden bg-slate-800 relative`}>
+                                            <div className={`flex-1 min-h-0 flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} overflow-hidden bg-white relative`}>
                                                 {questionImageUrl && hasOptions ? (
                                                     <div className="flex flex-col flex-1 min-h-0">
                                                         <div
@@ -1101,7 +1914,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                     role={isMobileViewport ? undefined : 'button'}
                                                                     tabIndex={isMobileViewport ? -1 : 0}
                                                                     title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                                    className={`h-full w-full rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                                    className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                                 />
                                                             </div>
                                                             <div
@@ -1111,7 +1924,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                 <h3
                                                                     ref={questionTextRef}
                                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                                    className={`w-full font-display font-bold text-white leading-tight whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                                                    className={`w-full font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
                                                                 >
                                                                     {currentQuestion?.question || "Loading question..."}
                                                                 </h3>
@@ -1141,15 +1954,15 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                             : isWrong
                                                                                 ? 'bg-red-600 border-red-500 text-white animate-[mcFlashRed_0.3s_ease-out_1]'
                                                                                 : isDisabled
-                                                                                    ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through'
-                                                                            : 'bg-slate-700 border-slate-600 text-slate-200 sm:hover:bg-indigo-600 sm:hover:border-indigo-400 sm:hover:text-white active:scale-95 shadow-sm';
+                                                                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed line-through'
+                                                                            : 'bg-slate-50 border-slate-200 text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 active:scale-95 shadow-sm';
                                                                         return (
                                                                         <button
                                                                             key={i}
                                                                             disabled={isDisabled || isPaused || isResolvingMc}
                                                                             onClick={() => handleMCOptionClick(opt, i)}
                                                                             style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                            className={`relative p-3 sm:p-4 md:p-5 rounded-none border-2 font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize} ${stateClass} focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                            className={`relative p-4 sm:p-6 rounded-none border font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize} ${stateClass} focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                         >
                                                                             <span
                                                                                 aria-hidden="true"
@@ -1187,7 +2000,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             role={isMobileViewport ? undefined : 'button'}
                                                             tabIndex={isMobileViewport ? -1 : 0}
                                                             title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                            className={`h-44 sm:h-52 md:h-60 w-full rounded-xl object-contain border border-slate-700/70 bg-slate-900 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                            className={`h-44 sm:h-52 md:h-60 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                         />
                                                         <div
                                                             ref={questionWrapRef}
@@ -1196,7 +2009,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             <h3
                                                                 ref={questionTextRef}
                                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                                className={`w-full font-display font-bold text-white text-center leading-tight whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                                                className={`w-full font-display font-bold text-slate-800 text-center leading-tight whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
                                                             >
                                                                 {currentQuestion?.question || "Loading question..."}
                                                             </h3>
@@ -1213,7 +2026,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             <h3
                                                                 ref={questionTextRef}
                                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                                className={`w-full font-display font-bold text-white text-center leading-tight whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                                                className={`w-full font-display font-bold text-slate-800 text-center leading-tight whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
                                                             >
                                                                 {currentQuestion?.question || "Loading question..."}
                                                             </h3>
@@ -1244,15 +2057,15 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                             : isWrong
                                                                                 ? 'bg-red-600 border-red-500 text-white animate-[mcFlashRed_0.3s_ease-out_1]'
                                                                                 : isDisabled
-                                                                                    ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed line-through'
-                                                                            : 'bg-slate-700 border-slate-600 text-slate-200 sm:hover:bg-indigo-600 sm:hover:border-indigo-400 sm:hover:text-white active:scale-95 shadow-sm';
+                                                                                    ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed line-through'
+                                                                            : 'bg-slate-50 border-slate-200 text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 active:scale-95 shadow-sm';
                                                                         return (
                                                                         <button
                                                                             key={i}
                                                                             disabled={isDisabled || isPaused || isResolvingMc}
                                                                             onClick={() => handleMCOptionClick(opt, i)}
                                                                             style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                            className={`relative p-3 sm:p-4 md:p-5 rounded-none border-2 font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize} ${stateClass} focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                            className={`relative p-4 sm:p-6 rounded-none border font-bold transition-all flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none ${uniformSize} ${stateClass} focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
                                                                         >
                                                                             <span
                                                                                 aria-hidden="true"
@@ -1284,11 +2097,19 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                             </div>
                                             
                                             {/* FOOTER */}
-                                            <div className="px-3 py-[clamp(3px,0.8vh,5px)] sm:px-4 sm:py-2 bg-slate-900 border-t border-indigo-900 flex justify-center gap-2 sm:gap-4 shrink-0">
+                                            <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-8 bg-white border-t border-slate-200 shrink-0 ${hasOptions ? 'py-2 sm:py-2.5' : 'py-3 sm:py-4'}`}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsPaused(!isPaused)}
+                                                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-b-4 transition-all flex items-center justify-center font-bold active:border-b-0 active:translate-y-1 ${isPaused ? 'bg-yellow-400 text-slate-950 border-yellow-600' : 'bg-slate-800 text-slate-100 border-slate-950 hover:bg-slate-700'}`}
+                                                    title={isPaused ? "Resume" : "Pause"}
+                                                >
+                                                    {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                                                </button>
                                                 <button 
                                                     onClick={handlePass}
                                                     disabled={isPaused}
-                                                    className="bg-slate-800 text-slate-300 w-[clamp(160px,60%,240px)] sm:w-auto px-4 sm:px-6 py-[clamp(3px,1.1vh,8px)] sm:py-2 rounded-full font-bold text-[clamp(11px,2.4vw,14px)] sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
+                                                    className="bg-slate-800 text-slate-100 w-[clamp(150px,54%,240px)] sm:w-auto px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                 >
                                                     <SkipForward size={14} className="mr-2" /> Skip (-5s)
                                                 </button>
@@ -1306,25 +2127,33 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         </div>
 
                                         {/* BACK: ANSWER & SCORING */}
-                                        <div className={`absolute inset-0 rounded-3xl shadow-2xl overflow-hidden flex-col bg-slate-900 border-4 border-indigo-500 ${!isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
-                                            <div className="bg-indigo-900/50 p-3 sm:p-4 border-b border-indigo-800 flex justify-between items-center">
-                                                <span className="font-bold text-indigo-300 uppercase tracking-widest text-[10px] sm:text-sm">Answer</span>
-                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-indigo-800 rounded-full text-indigo-200 hover:text-white transition-colors" title="Back to question">
+                                        <div className={`absolute inset-0 rounded-2xl shadow-2xl overflow-hidden flex-col bg-white border-4 border-yellow-400 ${!isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
+                                            <div className="bg-slate-800 text-white h-[clamp(52px,8vh,72px)] sm:h-20 md:h-24 px-3 sm:px-4 border-b border-slate-700 flex justify-between items-center gap-3 shrink-0">
+                                                <span className="font-bold uppercase tracking-widest text-[10px] sm:text-sm text-slate-300">Answer</span>
+                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-slate-700 rounded-full text-slate-200 hover:text-white hover:bg-slate-600 transition-colors" title="Back to question">
                                                     <RotateCcw size={20} />
                                                 </button>
                                             </div>
                                             
-                                            <div ref={answerWrapRef} className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 md:p-8 text-center overflow-hidden bg-slate-800">
+                                            <div ref={answerWrapRef} className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 md:p-8 text-center overflow-hidden bg-white">
                                                 <h3
                                                     ref={answerTextRef}
                                                     style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                    className={`font-display font-bold text-white leading-tight whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion?.answer || "")}`}
+                                                    className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion?.answer || "")}`}
                                                 >
                                                     {currentQuestion?.answer}
                                                 </h3>
                                             </div>
                                             
-                                            <div className="p-3 sm:p-4 md:p-6 bg-slate-900 border-t border-indigo-900 grid grid-cols-2 gap-2 sm:gap-4">
+                                            <div className="p-3 sm:p-4 md:p-6 bg-white border-t border-slate-200 grid grid-cols-[auto_1fr_1fr] gap-2 sm:gap-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsPaused(!isPaused)}
+                                                    className={`w-10 h-full min-h-[48px] sm:w-12 rounded-xl border-b-4 transition-all flex items-center justify-center font-bold active:border-b-0 active:translate-y-1 ${isPaused ? 'bg-yellow-400 text-slate-950 border-yellow-600' : 'bg-slate-800 text-slate-100 border-slate-950 hover:bg-slate-700'}`}
+                                                    title={isPaused ? "Resume" : "Pause"}
+                                                >
+                                                    {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                                                </button>
                                                 <button 
                                                     onClick={handleIncorrect}
                                                     disabled={isPaused}
@@ -1374,33 +2203,36 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
             {/* EXPLOSION MODAL */}
             {showExplosionModal && (
-                <div className="fixed inset-0 z-[400] flex items-center justify-center bg-red-900/80 backdrop-blur-md p-4 animate-fade-in">
-                    <div className="bg-black border-4 border-red-600 text-white p-12 rounded-[2rem] max-w-lg w-full text-center shadow-[0_0_60px_rgba(220,38,38,0.5)] relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-2 bg-red-600 animate-[pulse_0.5s_ease-in-out_infinite]"></div>
-                        <div className="mb-8 relative">
-                            <div className="absolute inset-0 bg-red-500 blur-[40px] opacity-30 rounded-full"></div>
-                            <div className="relative z-10 flex justify-center items-center">
-                                {options.studentPractice ? (
-                                    <XCircle size={100} className="text-red-500 animate-bounce" />
-                                ) : (
-                                    <Skull size={100} className="text-red-500 animate-bounce" />
-                                )}
+                <div className="fixed inset-0 z-[500] flex items-center justify-center bg-yellow-950/60 backdrop-blur-md p-4 animate-fade-in">
+                    <div className="time-bomb-radioactive-modal text-black p-2 rounded-[2rem] max-w-lg w-full text-center shadow-[0_0_70px_rgba(250,204,21,0.75)] relative overflow-hidden border-4 border-black">
+                        <div className="bg-yellow-300/95 border-4 border-black rounded-[1.5rem] p-7 sm:p-10 relative overflow-hidden">
+                            <div className="absolute left-0 top-0 h-8 w-full bg-[repeating-linear-gradient(135deg,#facc15_0_18px,#111827_18px_36px)] opacity-90" />
+                            <div className="absolute inset-x-0 top-8 h-px bg-yellow-100/80" />
+                            <div className="relative z-10 pt-7">
+                                <div className="mb-6 relative">
+                                    <div className="absolute inset-0 bg-yellow-300 blur-[42px] opacity-60 rounded-full" />
+                                    <div className="relative z-10 flex justify-center items-center">
+                                        <Radiation size={104} className="text-black animate-[timeBombRadioactivePulse_1.1s_ease-in-out_infinite]" />
+                                    </div>
+                                </div>
+                                <h2 className="time-bomb-radioactive-title font-display font-black mb-4 text-black drop-shadow-[0_2px_0_rgba(250,204,21,0.7)] uppercase">
+                                    <span className="block">Radioactive</span>
+                                    <span className="block">Explosion</span>
+                                </h2>
+                                <div className="bg-black/90 rounded-xl p-4 mb-8 border-2 border-yellow-500 shadow-inner">
+                                    <p className="text-xl sm:text-2xl text-yellow-100 font-mono tracking-widest uppercase">
+                                        {options.studentPractice ? "Time's up!" : `${teamNames[activeTeamIndex]} has lost a life.`}
+                                    </p>
+                                </div>
+                                
+                                <button 
+                                    onClick={handleContinueAfterExplosion}
+                                    className="bg-black text-yellow-300 text-3xl sm:text-4xl font-black py-4 px-12 rounded-full shadow-xl hover:bg-slate-900 transition-transform hover:scale-105 active:scale-95 border-b-4 border-yellow-700 active:border-b-0 active:translate-y-1"
+                                >
+                                    Continue
+                                </button>
                             </div>
                         </div>
-                        <h2 className="text-6xl font-display font-black mb-4 text-red-500 drop-shadow-md">BOOM!</h2>
-                        <div className="bg-slate-900/80 rounded-xl p-4 mb-8 border border-red-900/50">
-                            <p className="text-3xl font-bold text-white mb-2">{teamNames[activeTeamIndex]}</p>
-                            <p className="text-xl text-red-400 font-mono tracking-widest uppercase">
-                                {options.studentPractice ? "Time's up!" : 'Lost a Life!'}
-                            </p>
-                        </div>
-                        
-                        <button 
-                            onClick={handleContinueAfterExplosion}
-                            className="bg-white text-red-900 text-3xl sm:text-4xl font-black py-4 px-12 rounded-full shadow-xl hover:bg-red-50 transition-transform hover:scale-105 active:scale-95 border-b-4 border-slate-300 active:border-b-0 active:translate-y-1"
-                        >
-                            Continue
-                        </button>
                     </div>
                 </div>
             )}
