@@ -128,7 +128,8 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
     ],
     [GameType.SURVEY_SHOWDOWN]: [
         "/assets/games/survey.png",
-        "/assets/games/survey1.png"
+        "/assets/games/survey1.png",
+        "/assets/games/survey2.png"
     ],
     [GameType.STOP_THE_FIRE]: [
         "/assets/games/stopthefire.png",
@@ -141,7 +142,9 @@ const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
         "/assets/games/wordwheel2.png"
     ],
     [GameType.BLOCK_BEATERS]: [
-        "/assets/games/blockbeaters.png"
+        "/assets/games/blockbeaters.png",
+        "/assets/games/block1.png",
+        "/assets/games/block2.png"
     ],
     [GameType.LIVE_QUIZ_CHALLENGE]: [
         "/assets/games/livequiz.png",
