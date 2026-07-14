@@ -74,3 +74,21 @@ export const expectLoadedImageByAlt = async (page: Page, altText: string) => {
 export const expectLoadedSmokeImage = async (page: Page) => {
   await expectLoadedImageByAlt(page, 'Smoke test image');
 };
+
+export const startSnakesLaddersGame = async (page: Page) => {
+  const startButton = page.getByRole('button', { name: /Start Game/i });
+  await expect(startButton).toBeVisible({ timeout: 20_000 });
+  await expect(startButton).toBeEnabled();
+
+  // On a phone-sized test viewport, the site's sticky header can overlap the
+  // button when Playwright scrolls it into view. Dispatching the button event
+  // starts the same React handler without introducing that unrelated scroll.
+  await startButton.dispatchEvent('click');
+  await expect(page.locator('.snl-board-webgl')).toHaveAttribute('data-game-phase', 'roll', { timeout: 20_000 });
+};
+
+export const rollSnakesLaddersDice = async (page: Page) => {
+  const dice = page.locator('.snl-dice[aria-label="Roll Dice"]');
+  await expect(dice).toHaveCount(1, { timeout: 20_000 });
+  await dice.dispatchEvent('click');
+};

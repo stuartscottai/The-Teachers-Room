@@ -2324,6 +2324,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         className="snl-board snl-board-webgl relative overflow-hidden shrink-0 max-w-full max-h-full"
                         style={boardVisualStyle}
                         data-bonus-orb-count={bonusTiles.length - consumedBonusTiles.length}
+                        data-team-positions={positions.map(position => position + 1).join(',')}
+                        data-game-phase={phase}
                     >
                         <SnakesLaddersBoard3D
                             positions={positions}

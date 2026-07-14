@@ -10,10 +10,17 @@ export default defineConfig({
   expect: {
     timeout: 5_000,
   },
-  fullyParallel: true,
+  // The Snakes & Ladders checks load a full WebGL room. GitHub's runner can
+  // exhaust its graphics resources when several copies run at once, so CI
+  // uses one worker while local development can remain fully parallel.
+  fullyParallel: !process.env.CI,
+  workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL,
+    // Smoke tests verify game state rather than animation smoothness. This
+    // also exercises the accessibility path intended for reduced motion.
+    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

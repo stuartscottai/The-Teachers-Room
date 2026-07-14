@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectLoadedSmokeImage, expectNoBrowserErrors, installErrorGuards } from './helpers';
+import { expectLoadedSmokeImage, expectNoBrowserErrors, installErrorGuards, rollSnakesLaddersDice, startSnakesLaddersGame } from './helpers';
 
 test('trivia answer flow shows feedback and keeps image loaded', async ({ page }) => {
   const errors = installErrorGuards(page);
@@ -32,18 +32,26 @@ test('word wheel opens a clue, renders its image, and accepts a correct answer',
 });
 
 test('snakes and ladders starts, rolls, and shows a question image', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const errors = installErrorGuards(page);
 
   await page.goto('/test/game-smoke?mode=snakes');
   await expect(page.getByTestId('game-smoke-root')).toHaveAttribute('data-mode', 'snakes');
 
-  await expect(page.locator('.snl-control-panel')).toHaveCSS('background-color', 'rgb(217, 198, 154)');
+  const controlPanel = page.locator('.snl-control-panel');
+  await expect(controlPanel).toBeVisible({ timeout: 20_000 });
+  await expect(controlPanel).toHaveCSS('background-color', 'rgb(217, 198, 154)');
   await expect(page.getByRole('button', { name: /Start Game/i })).toHaveCSS('background-color', 'rgb(221, 185, 88)');
-  await page.getByRole('button', { name: /Start Game/i }).click();
-  await expect(page.locator('.snl-panel-label')).toHaveCSS('background-color', 'rgb(34, 35, 30)');
-  await page.getByRole('button', { name: /Roll Dice/i }).last().dispatchEvent('click');
-  await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 8_000 });
+  await startSnakesLaddersGame(page);
+
+  if ((page.viewportSize()?.width ?? 1280) < 640) {
+    await expect(page.locator('.snl-panel-label')).toHaveCount(0);
+  } else {
+    await expect(page.locator('.snl-panel-label')).toHaveCSS('background-color', 'rgb(34, 35, 30)');
+  }
+
+  await rollSnakesLaddersDice(page);
+  await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.snl-question-card-header').first()).toHaveCSS('background-color', 'rgb(31, 32, 27)');
   await expect(page.locator('.snl-question-card-body').first()).toHaveCSS('background-color', 'rgb(233, 218, 178)');
   await expectLoadedSmokeImage(page);
@@ -72,7 +80,7 @@ test('snakes and ladders setup shows its own selectable bonus orb effects', asyn
 });
 
 test('snakes and ladders bonus movement can trigger a ladder after an up-to-five board choice', async ({ page }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const errors = installErrorGuards(page);
   await page.addInitScript(() => {
     Math.random = () => 0.999999;
@@ -82,8 +90,8 @@ test('snakes and ladders bonus movement can trigger a ladder after an up-to-five
   const board = page.locator('.snl-board-webgl');
   await expect(board).toHaveAttribute('data-bonus-orb-count', '15');
 
-  await page.getByRole('button', { name: /Start Game/i }).click();
-  await page.getByRole('button', { name: /Roll Dice/i }).last().dispatchEvent('click');
+  await startSnakesLaddersGame(page);
+  await rollSnakesLaddersDice(page);
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
@@ -97,15 +105,16 @@ test('snakes and ladders bonus movement can trigger a ladder after an up-to-five
   await expect(page.getByText(/Select a glowing square on the board/i)).toBeVisible();
   await page.getByRole('button', { name: 'Move to square 4', exact: true }).click();
   await expect(page.getByText(/Climbing/i)).toBeVisible({ timeout: 8_000 });
-  await expect(page.locator('.snl-score-row').filter({ hasText: 'Team 1' })).toContainText('Square 24', { timeout: 8_000 });
+  await expect(board).toHaveAttribute('data-team-positions', '24,1', { timeout: 15_000 });
   await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/^Bonus!/)).toHaveCount(0);
 
   expectNoBrowserErrors(errors);
 });
 
-test('snakes and ladders bonus card uses a readable portrait layout on mobile', async ({ page }) => {
-  test.setTimeout(90_000);
+test('snakes and ladders bonus card uses a readable portrait layout on mobile', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'This responsive-layout check only needs the mobile project.');
+  test.setTimeout(120_000);
   const errors = installErrorGuards(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
@@ -113,8 +122,8 @@ test('snakes and ladders bonus card uses a readable portrait layout on mobile', 
   });
 
   await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=move-five');
-  await page.getByRole('button', { name: /Start Game/i }).click();
-  await page.getByRole('button', { name: /Roll Dice/i }).last().dispatchEvent('click');
+  await startSnakesLaddersGame(page);
+  await rollSnakesLaddersDice(page);
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();

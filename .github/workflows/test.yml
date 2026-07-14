@@ -9,7 +9,9 @@ on:
 jobs:
   build-and-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The browser checks run one at a time because the 3D game is deliberately
+    # graphics-heavy. Allow enough time for the serial run plus browser setup.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout

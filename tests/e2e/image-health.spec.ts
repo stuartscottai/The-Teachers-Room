@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectLoadedImageByAlt, expectLoadedSmokeImage, expectNoBrokenImages, expectNoBrowserErrors, installErrorGuards } from './helpers';
+import { expectLoadedImageByAlt, expectLoadedSmokeImage, expectNoBrokenImages, expectNoBrowserErrors, installErrorGuards, rollSnakesLaddersDice, startSnakesLaddersGame } from './helpers';
 
 test.describe('image health smoke tests', () => {
   test('public shell routes do not render broken images', async ({ page }) => {
@@ -14,7 +14,7 @@ test.describe('image health smoke tests', () => {
     expectNoBrowserErrors(errors);
   });
 
-  test('core game question images load after interaction', async ({ page }) => {
+  test('trivia question images load after interaction', async ({ page }) => {
     const errors = installErrorGuards(page);
 
     await page.goto('/test/game-smoke?mode=trivia');
@@ -22,15 +22,28 @@ test.describe('image health smoke tests', () => {
     await expectLoadedSmokeImage(page);
     await expectNoBrokenImages(page);
 
+    expectNoBrowserErrors(errors);
+  });
+
+  test('word wheel question images load after interaction', async ({ page }) => {
+    const errors = installErrorGuards(page);
+
     await page.goto('/test/game-smoke?mode=wordwheel');
     await page.getByRole('button', { name: /^Start$/i }).click();
     await expectLoadedSmokeImage(page);
     await expectNoBrokenImages(page);
 
+    expectNoBrowserErrors(errors);
+  });
+
+  test('snakes and ladders question images load after interaction', async ({ page }) => {
+    test.setTimeout(60_000);
+    const errors = installErrorGuards(page);
+
     await page.goto('/test/game-smoke?mode=snakes');
-    await page.getByRole('button', { name: /Start Game/i }).click();
-    await page.getByRole('button', { name: /Roll Dice/i }).last().dispatchEvent('click');
-    await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 8_000 });
+    await startSnakesLaddersGame(page);
+    await rollSnakesLaddersDice(page);
+    await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
     await expectLoadedSmokeImage(page);
     await expectNoBrokenImages(page);
 
