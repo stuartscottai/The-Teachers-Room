@@ -1176,7 +1176,7 @@ const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, 
     return (
         <Canvas
             shadows
-            dpr={compact ? [1.5, 2] : [1, 1.5]}
+            dpr={compact ? [2, 3] : [1, 1.5]}
             camera={{ position: [-25, 14.5, 12], fov: 58 }}
             gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {
