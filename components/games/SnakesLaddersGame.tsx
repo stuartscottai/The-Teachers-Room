@@ -801,7 +801,7 @@ let stableOrbShadowTexture: THREE.DataTexture | null = null;
 const getStableOrbShadowTexture = () => {
     if (stableOrbShadowTexture) return stableOrbShadowTexture;
 
-    const size = 64;
+    const size = 128;
     const pixels = new Uint8Array(size * size * 4);
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
@@ -1176,14 +1176,17 @@ const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, 
     return (
         <Canvas
             shadows
-            dpr={compact ? 1 : [1, 1.25]}
+            dpr={compact ? [1.5, 2] : [1, 1.5]}
             camera={{ position: [-25, 14.5, 12], fov: 58 }}
-            gl={{ antialias: true, alpha: false }}
-            onCreated={({ gl }) => gl.setClearColor('#4d554a', 1)}
+            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+            onCreated={({ gl }) => {
+                gl.setClearColor('#4d554a', 1);
+                gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            }}
         >
             <ambientLight intensity={0.52} />
             <hemisphereLight args={["#dff9f5", "#071b24", 0.92]} />
-            <directionalLight position={[-5, 12, 7]} intensity={2.05} color="#fff7e5" castShadow shadow-mapSize={compact ? [512, 512] : [1024, 1024]} shadow-bias={-0.0002} shadow-normalBias={0.035} shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} />
+            <directionalLight position={[-5, 12, 7]} intensity={2.05} color="#fff7e5" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0002} shadow-normalBias={0.035} shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} />
             <spotLight position={[7, 9, -5]} intensity={0.68} angle={0.55} penumbra={0.85} color="#8de6db" />
             <BoardCamera animatedPositionRef={activePiecePositionRef} following={following} reducedMotion={reducedMotion} introReady={roomReady} />
             <BoardShadowController ready={roomReady} />
