@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BonusCardType, GeneratedGame, GameRunOptions, GameType } from '../../types';
+import { BonusCardType, GeneratedGame, GameRunOptions, GameType, SnakesLaddersBonusType } from '../../types';
 import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List, Hexagon } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
@@ -11,6 +11,21 @@ interface GameSetupProps {
   backLabel?: string;
 }
 
+const SNAKES_LADDERS_BONUS_CHOICES: Array<{
+  id: SnakesLaddersBonusType;
+  label: string;
+  description: string;
+  requiresOpponent?: boolean;
+}> = [
+  { id: 'move-forward', label: 'Move forward', description: 'Move forward by 2, 5, 7 or 10 spaces.' },
+  { id: 'move-five', label: 'Up to 5 forward or back', description: 'Choose any square from 1 to 5 spaces ahead or behind.' },
+  { id: 'swap-positions', label: 'Swap positions', description: 'Choose another player and exchange positions.', requiresOpponent: true },
+  { id: 'extra-turn', label: 'Take another turn', description: 'Roll again and answer another question.' },
+  { id: 'skip-next', label: 'Skip next player', description: 'The next player in turn order misses one turn.', requiresOpponent: true },
+  { id: 'move-rival-back', label: 'Move a rival back', description: 'Choose another player and move them back 5 spaces.', requiresOpponent: true },
+  { id: 'send-rival-to-snake', label: 'Send rival down a snake', description: 'Choose a rival and send them down the nearest snake behind them.', requiresOpponent: true },
+];
+
 export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, backLabel = 'Back to Editor' }) => {
   // Default settings
   const [options, setOptions] = useState<GameRunOptions>({
@@ -18,6 +33,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     timerSeconds: game.config.type === GameType.TIME_BOMB ? 60 : 30, // Default for time bomb
     enableBonuses: false,
     bonusOptions: ['double', 'bust', 'steal', 'lose-all', 'reset-score', 'first-place', 'last-place'],
+    snakesLaddersBonusOptions: SNAKES_LADDERS_BONUS_CHOICES.map((choice) => choice.id),
     strictMode: game.config.strictMode || false,
     questionLimit: game.questions?.length || 0,
     teamNames: ['Team 1', 'Team 2'],
@@ -149,6 +165,17 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
         ? current.filter((item) => item !== bonusType)
         : [...current, bonusType];
       return { ...prev, bonusOptions: next.length ? next : current };
+    });
+  };
+  const toggleSnakesLaddersBonusChoice = (bonusType: SnakesLaddersBonusType) => {
+    setOptions((prev) => {
+      const current = prev.snakesLaddersBonusOptions?.length
+        ? prev.snakesLaddersBonusOptions
+        : SNAKES_LADDERS_BONUS_CHOICES.map((choice) => choice.id);
+      const next = current.includes(bonusType)
+        ? current.filter((item) => item !== bonusType)
+        : [...current, bonusType];
+      return { ...prev, snakesLaddersBonusOptions: next.length ? next : current };
     });
   };
   const setupCardClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
@@ -330,7 +357,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
           <section className={`${setupCardClass} lg:col-span-2`}>
             <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Game Options</h2>
             <div className="grid gap-5 lg:grid-cols-2">
-              <div className="space-y-5">
+              <div className={game.config.type === GameType.SNAKES_LADDERS ? 'hidden' : 'space-y-5'}>
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -546,7 +573,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 )}
               </div>
 
-              <div>
+              <div className={game.config.type === GameType.SNAKES_LADDERS ? 'lg:col-span-2' : ''}>
                 {game.config.type === GameType.BLOCK_BEATERS ? (
                   <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'} ${blockBeatersSinglePlayer ? 'opacity-75' : ''}`}>
                     <div className="flex items-center justify-between gap-3">
@@ -598,6 +625,59 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <span className="block text-xs leading-4 text-slate-500">{description}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+                ) : game.config.type === GameType.SNAKES_LADDERS ? (
+                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        className="flex min-w-0 items-center text-left"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                      >
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'}`}>
+                          <Gift size={22} />
+                        </div>
+                        <div>
+                          <h3 className="font-display text-xl font-black text-slate-900">Bonus Orbs</h3>
+                          <p className="text-sm font-semibold text-slate-500">Land on a floating star to trigger one of your selected effects.</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-amber-600 bg-amber-500' : 'border-slate-300 bg-white'}`}
+                        aria-label={options.enableBonuses ? 'Disable bonus orbs' : 'Enable bonus orbs'}
+                      >
+                        {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
+                      </button>
+                    </div>
+                    {options.enableBonuses && (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        {SNAKES_LADDERS_BONUS_CHOICES.map((choice) => {
+                          const unavailable = Boolean(choice.requiresOpponent && options.players < 2);
+                          const checked = !unavailable && (options.snakesLaddersBonusOptions || []).includes(choice.id);
+                          return (
+                            <button
+                              key={choice.id}
+                              type="button"
+                              disabled={unavailable}
+                              onClick={() => toggleSnakesLaddersBonusChoice(choice.id)}
+                              className={`flex min-h-[78px] items-start gap-2 rounded-xl border p-3 text-left transition-colors ${checked ? 'border-amber-500 bg-white text-slate-800' : 'border-slate-200 bg-white/70 text-slate-500'} ${unavailable ? 'cursor-not-allowed opacity-55' : ''}`}
+                            >
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? 'border-amber-600 bg-amber-500' : 'border-slate-300 bg-white'}`}>
+                                {checked && <span className="h-2 w-2 rounded-sm bg-white" />}
+                              </span>
+                              <span>
+                                <span className="block text-sm font-black">{choice.label}</span>
+                                <span className="block text-xs leading-4">
+                                  {unavailable ? 'Requires at least two players.' : choice.description}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameImagePreparation } from '../components/games/GameImagePreparation';
-import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion } from '../types';
+import { GameSetup } from '../components/games/GameSetup';
+import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion, SnakesLaddersBonusType } from '../types';
 
 const smokeImage =
   'data:image/svg+xml;utf8,' +
@@ -112,6 +113,9 @@ export const GameSmokeTest: React.FC = () => {
   const [params] = useSearchParams();
   const mode = params.get('mode') || 'trivia';
   const preparationMode = params.get('prepare') || '';
+  const bonusesEnabled = params.get('bonuses') === '1';
+  const snakesBonusType = params.get('bonusType') as SnakesLaddersBonusType | null;
+  const showSetup = params.get('setup') === '1';
   const type = modes[mode] || GameType.TRIVIA;
   const baseGame = makeGame(type);
   const game = preparationMode === 'failure' || preparationMode === 'temporary'
@@ -135,7 +139,11 @@ export const GameSmokeTest: React.FC = () => {
   const [replacementRequested, setReplacementRequested] = useState(false);
   const props = {
     game: preparedGame || game,
-    options,
+    options: {
+      ...options,
+      enableBonuses: bonusesEnabled,
+      snakesLaddersBonusOptions: snakesBonusType ? [snakesBonusType] : undefined,
+    },
     onBack: () => undefined,
     onFinish: () => undefined,
     onReplay: () => undefined,
@@ -143,6 +151,10 @@ export const GameSmokeTest: React.FC = () => {
 
   if (replacementRequested) {
     return <div data-testid="image-replacement-requested">Image replacement requested</div>;
+  }
+
+  if (showSetup) {
+    return <GameSetup game={game} onBack={() => undefined} onStart={() => undefined} />;
   }
 
   if (preparationMode && !preparedGame) {

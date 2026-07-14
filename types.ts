@@ -87,6 +87,7 @@ export interface GameRunOptions {
   timerSeconds: number;
   enableBonuses: boolean;
   bonusOptions?: BonusCardType[];
+  snakesLaddersBonusOptions?: SnakesLaddersBonusType[];
   strictMode: boolean; // Can override config
   questionLimit?: number; // For Trivia: ensure divisible by players
   triviaRandomPoints?: boolean; // Trivia-only runtime option
@@ -122,6 +123,15 @@ export interface GameRunOptions {
 }
 
 export type BonusCardType = 'double' | 'bust' | 'steal' | 'lose-all' | 'reset-score' | 'first-place' | 'last-place';
+
+export type SnakesLaddersBonusType =
+  | 'move-forward'
+  | 'move-five'
+  | 'swap-positions'
+  | 'extra-turn'
+  | 'skip-next'
+  | 'move-rival-back'
+  | 'send-rival-to-snake';
 
 export type LiveQuizSessionStatus = 'lobby' | 'question' | 'locked' | 'reveal' | 'leaderboard' | 'ended';
 
