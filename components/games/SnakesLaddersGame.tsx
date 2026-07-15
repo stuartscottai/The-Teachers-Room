@@ -1294,9 +1294,10 @@ interface SnakesLaddersGameProps {
     onBack: () => void;
     onFinish: () => void;
     onReplay: () => void;
+    testMode?: boolean;
 }
 
-export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false }) => {
     const [positions, setPositions] = useState<number[]>(Array(options.players).fill(0));
     const [turnOrder, setTurnOrder] = useState<number[]>(Array.from({length: options.players}, (_, i) => i));
     const [currentTurnIndex, setCurrentTurnIndex] = useState(0); 
@@ -2377,23 +2378,43 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         data-current-team-id={currentTeamId}
                         data-skip-turn-counts={turnOrder.map((teamId) => skipTurnCounts[teamId] || 0).join(',')}
                     >
-                        <SnakesLaddersBoard3D
-                            positions={positions}
-                            currentTeamId={currentTeamId}
-                            trackedTeamId={motionTeamId}
-                            phase={phase}
-                            statusMessage={statusMessage}
-                            snakes={snakes}
-                            ladders={ladders}
-                            bonusTiles={bonusTiles}
-                            consumedBonusTiles={consumedBonusTiles}
-                            selectableBonusTargets={selectableBonusTargets}
-                            bonusChoiceOrigin={pendingBonusChoice?.effect.type === 'move-five' ? pendingBonusChoice.origin : null}
-                            onSelectBonusTarget={resolveMoveFiveBonus}
-                            teamColors={teamColors}
-                            reducedMotion={prefersReducedMotion}
-                            compact={isMobileViewport}
-                        />
+                        {testMode ? (
+                            <div
+                                className="snl-test-board"
+                                data-testid="snakes-test-board"
+                                aria-label="Snakes and Ladders test board"
+                                style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(5, 24px)', gap: '4px', placeContent: 'center' }}
+                            >
+                                {selectableBonusTargets.map((index) => (
+                                    <button
+                                        key={`test-bonus-target-${index}`}
+                                        type="button"
+                                        className="snl-test-board-target"
+                                        aria-label={`Move to square ${index + 1}`}
+                                        onClick={() => resolveMoveFiveBonus(index)}
+                                        style={{ width: '24px', height: '24px', opacity: 0.01 }}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <SnakesLaddersBoard3D
+                                positions={positions}
+                                currentTeamId={currentTeamId}
+                                trackedTeamId={motionTeamId}
+                                phase={phase}
+                                statusMessage={statusMessage}
+                                snakes={snakes}
+                                ladders={ladders}
+                                bonusTiles={bonusTiles}
+                                consumedBonusTiles={consumedBonusTiles}
+                                selectableBonusTargets={selectableBonusTargets}
+                                bonusChoiceOrigin={pendingBonusChoice?.effect.type === 'move-five' ? pendingBonusChoice.origin : null}
+                                onSelectBonusTarget={resolveMoveFiveBonus}
+                                teamColors={teamColors}
+                                reducedMotion={prefersReducedMotion}
+                                compact={isMobileViewport}
+                            />
+                        )}
                     </div>
                 </div>
 
@@ -2459,24 +2480,30 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     style={isMobileViewport ? { width: `${diceSize ?? 96}px`, height: `${diceSize ?? 96}px` } : undefined}
                                     aria-label={canRollDice ? 'Roll Dice' : 'Dice rolling'}
                                 >
-                                    <Canvas
-                                        shadows
-                                        camera={{ position: [0, 0, 4], fov: 45 }}
-                                        children={[
-                                            <ambientLight key="ambient" intensity={0.8} />,
-                                            <spotLight key="spot" position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />,
-                                            <Environment key="env" preset="studio" />,
-                                            <Suspense key="suspense" fallback={null}>
-                                                <Dice3D 
-                                                    rolling={isDiceRolling} 
-                                                    result={diceValue} 
-                                                    onLand={handleDiceLand} 
-                                                    isMoving={phase === 'moving'} 
-                                                />
-                                                <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} />
-                                            </Suspense>
-                                        ]}
-                                    />
+                                    {testMode ? (
+                                        <div className="snl-test-dice" data-testid="snakes-test-dice" aria-hidden="true">
+                                            {diceValue}
+                                        </div>
+                                    ) : (
+                                        <Canvas
+                                            shadows
+                                            camera={{ position: [0, 0, 4], fov: 45 }}
+                                            children={[
+                                                <ambientLight key="ambient" intensity={0.8} />,
+                                                <spotLight key="spot" position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />,
+                                                <Environment key="env" preset="studio" />,
+                                                <Suspense key="suspense" fallback={null}>
+                                                    <Dice3D
+                                                        rolling={isDiceRolling}
+                                                        result={diceValue}
+                                                        onLand={handleDiceLand}
+                                                        isMoving={phase === 'moving'}
+                                                    />
+                                                    <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} />
+                                                </Suspense>
+                                            ]}
+                                        />
+                                    )}
                                 </div>
                                 {!isMobileViewport && !isDiceRolling && phase === 'roll' && (
                                     <button 

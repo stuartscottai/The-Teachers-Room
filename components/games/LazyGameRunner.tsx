@@ -7,6 +7,7 @@ type GameRunnerProps = {
   onBack: () => void;
   onFinish: () => void;
   onReplay: () => void;
+  testMode?: boolean;
 };
 
 const DartsGame = lazy(() => import('./DartsGame').then(({ DartsGame }) => ({ default: DartsGame })));

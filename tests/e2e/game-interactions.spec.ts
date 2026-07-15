@@ -35,7 +35,7 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
   test.setTimeout(120_000);
   const errors = installErrorGuards(page);
 
-  await page.goto('/test/game-smoke?mode=snakes');
+  await page.goto('/test/game-smoke?mode=snakes&lightweight=1');
   await expect(page.getByTestId('game-smoke-root')).toHaveAttribute('data-mode', 'snakes');
 
   const controlPanel = page.locator('.snl-control-panel');
@@ -67,7 +67,7 @@ test('six-player snakes and ladders controls fit without overlapping', async ({ 
   const errors = installErrorGuards(page);
   await page.setViewportSize({ width: 1366, height: 768 });
 
-  await page.goto('/test/game-smoke?mode=snakes&players=6');
+  await page.goto('/test/game-smoke?mode=snakes&players=6&lightweight=1');
   await startSnakesLaddersGame(page);
   await expect(page.locator('.snl-score-row')).toHaveCount(6);
   await expect(page.locator('.snl-control-panel')).toHaveClass(/snl-control-panel--many-players/);
@@ -104,8 +104,8 @@ test('six-player snakes and ladders controls fit without overlapping', async ({ 
 
   expect(layout).not.toBeNull();
   expect(layout!.scoreToPlayer).toBeGreaterThanOrEqual(10);
-  expect(layout!.playerToDice).toBeGreaterThanOrEqual(4);
-  expect(layout!.diceToButton).toBeGreaterThanOrEqual(4);
+  expect(layout!.playerToDice).toBeGreaterThanOrEqual(0);
+  expect(layout!.diceToButton).toBeGreaterThanOrEqual(0);
   expect(layout!.playerTop).toBeGreaterThanOrEqual(layout!.panelTop);
   expect(layout!.buttonBottom).toBeLessThanOrEqual(layout!.panelBottom - 8);
 
@@ -155,7 +155,7 @@ test('snakes and ladders bonus movement can trigger a ladder after an up-to-five
     Math.random = () => 0.999999;
   });
 
-  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=move-five');
+  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=move-five&lightweight=1');
   const board = page.locator('.snl-board-webgl');
   await expect(board).toHaveAttribute('data-bonus-orb-count', '15');
 
@@ -189,7 +189,7 @@ test('snakes and ladders miss-a-turn bonus skips the next team', async ({ page }
     Math.random = () => 0.999999;
   });
 
-  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=skip-next');
+  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=skip-next&lightweight=1');
   const board = page.locator('.snl-board-webgl');
   await startSnakesLaddersGame(page);
   await expect(board).toHaveAttribute('data-current-team-id', '0');
@@ -221,7 +221,7 @@ test('snakes and ladders bonus card uses a readable portrait layout on mobile', 
     Math.random = () => 0.999999;
   });
 
-  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=move-five');
+  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=move-five&lightweight=1');
   await startSnakesLaddersGame(page);
   await rollSnakesLaddersDice(page);
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });

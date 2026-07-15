@@ -116,6 +116,7 @@ export const GameSmokeTest: React.FC = () => {
   const bonusesEnabled = params.get('bonuses') === '1';
   const snakesBonusType = params.get('bonusType') as SnakesLaddersBonusType | null;
   const requestedPlayers = params.get('players');
+  const lightweightTestMode = params.get('lightweight') === '1';
   const playerCount = requestedPlayers
     ? Math.min(6, Math.max(1, Number.parseInt(requestedPlayers, 10) || options.players))
     : options.players;
@@ -153,6 +154,7 @@ export const GameSmokeTest: React.FC = () => {
     onBack: () => undefined,
     onFinish: () => undefined,
     onReplay: () => undefined,
+    testMode: lightweightTestMode,
   };
 
   if (replacementRequested) {
@@ -175,7 +177,7 @@ export const GameSmokeTest: React.FC = () => {
   }
 
   return (
-    <div data-testid="game-smoke-root" data-mode={mode}>
+    <div data-testid="game-smoke-root" data-mode={mode} data-lightweight={lightweightTestMode ? 'true' : 'false'}>
       <LazyGameRunner {...props} />
     </div>
   );

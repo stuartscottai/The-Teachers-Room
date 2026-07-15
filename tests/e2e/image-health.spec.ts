@@ -40,7 +40,7 @@ test.describe('image health smoke tests', () => {
     test.setTimeout(60_000);
     const errors = installErrorGuards(page);
 
-    await page.goto('/test/game-smoke?mode=snakes');
+    await page.goto('/test/game-smoke?mode=snakes&lightweight=1');
     await startSnakesLaddersGame(page);
     await rollSnakesLaddersDice(page);
     await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
