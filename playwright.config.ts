@@ -38,7 +38,10 @@ export default defineConfig({
     },
     {
       name: 'mobile-chromium',
-      use: { ...devices['Pixel 5'] },
+      // Keep the Pixel 5 viewport and touch behaviour, but avoid allocating a
+      // multi-million-pixel WebGL buffer for functional smoke tests. Real
+      // phones still receive the game's full high-density rendering.
+      use: { ...devices['Pixel 5'], deviceScaleFactor: 1 },
     },
   ],
 });

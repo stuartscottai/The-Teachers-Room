@@ -4,14 +4,21 @@ test('signup dialog remains usable on a short phone with a school code', async (
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/');
   await page.evaluate(() => window.scrollTo(0, 250));
-  const pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
+  let pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
 
   const desktopLogin = page.getByRole('button', { name: /^Login$/i });
   if (await desktopLogin.isVisible().catch(() => false)) {
+    pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
     await desktopLogin.click();
   } else {
     await page.locator('nav button:visible').first().click();
-    await page.getByRole('button', { name: /Login \/ Sign Up/i }).click();
+    const mobileLogin = page.getByRole('button', { name: /Login \/ Sign Up/i });
+    await expect(mobileLogin).toBeVisible();
+    // Playwright may scroll the expanded mobile-menu action into view. Capture
+    // the page position immediately before the modal opens so this assertion
+    // checks the modal's scroll lock rather than the navigation interaction.
+    pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
+    await mobileLogin.click();
   }
 
   await page.getByRole('button', { name: /Sign Up/i }).click();

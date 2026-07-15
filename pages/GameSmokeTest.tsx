@@ -115,6 +115,10 @@ export const GameSmokeTest: React.FC = () => {
   const preparationMode = params.get('prepare') || '';
   const bonusesEnabled = params.get('bonuses') === '1';
   const snakesBonusType = params.get('bonusType') as SnakesLaddersBonusType | null;
+  const requestedPlayers = params.get('players');
+  const playerCount = requestedPlayers
+    ? Math.min(6, Math.max(1, Number.parseInt(requestedPlayers, 10) || options.players))
+    : options.players;
   const showSetup = params.get('setup') === '1';
   const type = modes[mode] || GameType.TRIVIA;
   const baseGame = makeGame(type);
@@ -141,6 +145,8 @@ export const GameSmokeTest: React.FC = () => {
     game: preparedGame || game,
     options: {
       ...options,
+      players: playerCount,
+      teamNames: Array.from({ length: playerCount }, (_, index) => `Team ${index + 1}`),
       enableBonuses: bonusesEnabled,
       snakesLaddersBonusOptions: snakesBonusType ? [snakesBonusType] : undefined,
     },

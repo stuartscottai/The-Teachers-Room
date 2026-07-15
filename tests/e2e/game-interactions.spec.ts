@@ -40,8 +40,8 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
 
   const controlPanel = page.locator('.snl-control-panel');
   await expect(controlPanel).toBeVisible({ timeout: 20_000 });
-  await expect(controlPanel).toHaveCSS('background-color', 'rgb(217, 198, 154)');
-  await expect(page.getByRole('button', { name: /Start Game/i })).toHaveCSS('background-color', 'rgb(221, 185, 88)');
+  await expect(controlPanel).toHaveCSS('background-color', 'rgb(23, 23, 19)');
+  await expect(page.getByRole('button', { name: /Start Game/i })).toHaveCSS('background-color', 'rgb(217, 183, 86)');
   await startSnakesLaddersGame(page);
 
   if ((page.viewportSize()?.width ?? 1280) < 640) {
@@ -57,6 +57,75 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
   await expectLoadedSmokeImage(page);
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await expect(page.getByText(/^Correct$/i).first()).toBeVisible();
+
+  expectNoBrowserErrors(errors);
+});
+
+test('six-player snakes and ladders controls fit without overlapping', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'The desktop panel layout only needs the desktop project.');
+  test.setTimeout(90_000);
+  const errors = installErrorGuards(page);
+  await page.setViewportSize({ width: 1366, height: 768 });
+
+  await page.goto('/test/game-smoke?mode=snakes&players=6');
+  await startSnakesLaddersGame(page);
+  await expect(page.locator('.snl-score-row')).toHaveCount(6);
+  await expect(page.locator('.snl-control-panel')).toHaveClass(/snl-control-panel--many-players/);
+  await expect.poll(async () => page.locator('.snl-control-panel').evaluate((panel) => {
+    const scoreboard = panel.querySelector('.snl-scoreboard')?.getBoundingClientRect();
+    const playerLabel = panel.querySelector('.snl-dice-player-label')?.getBoundingClientRect();
+    return scoreboard && playerLabel ? playerLabel.top - scoreboard.bottom : -1;
+  }), { timeout: 8_000 }).toBeGreaterThanOrEqual(10);
+
+  const layout = await page.locator('.snl-control-panel').evaluate((panel) => {
+    const scoreboard = panel.querySelector('.snl-scoreboard');
+    const playerCard = panel.querySelector('.snl-dice-player-card');
+    const playerLabel = panel.querySelector('.snl-dice-player-label');
+    const dice = panel.querySelector('.snl-dice');
+    const rollButton = panel.querySelector('.snl-roll-button');
+    if (!scoreboard || !playerCard || !playerLabel || !dice || !rollButton) return null;
+
+    const panelBox = panel.getBoundingClientRect();
+    const scoreboardBox = scoreboard.getBoundingClientRect();
+    const playerCardBox = playerCard.getBoundingClientRect();
+    const playerLabelBox = playerLabel.getBoundingClientRect();
+    const diceBox = dice.getBoundingClientRect();
+    const rollButtonBox = rollButton.getBoundingClientRect();
+    return {
+      scoreToPlayer: playerLabelBox.top - scoreboardBox.bottom,
+      playerToDice: diceBox.top - playerCardBox.bottom,
+      diceToButton: rollButtonBox.top - diceBox.bottom,
+      panelTop: panelBox.top,
+      playerTop: playerLabelBox.top,
+      panelBottom: panelBox.bottom,
+      buttonBottom: rollButtonBox.bottom,
+    };
+  });
+
+  expect(layout).not.toBeNull();
+  expect(layout!.scoreToPlayer).toBeGreaterThanOrEqual(10);
+  expect(layout!.playerToDice).toBeGreaterThanOrEqual(4);
+  expect(layout!.diceToButton).toBeGreaterThanOrEqual(4);
+  expect(layout!.playerTop).toBeGreaterThanOrEqual(layout!.panelTop);
+  expect(layout!.buttonBottom).toBeLessThanOrEqual(layout!.panelBottom - 8);
+
+  await rollSnakesLaddersDice(page);
+  await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /Correct/i }).first().click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 20_000 });
+  const completedLayoutFits = await page.locator('.snl-control-panel').evaluate((panel) => {
+    const scoreboard = panel.querySelector('.snl-scoreboard')?.getBoundingClientRect();
+    const completedState = panel.querySelector('.snl-turn-complete-state')?.getBoundingClientRect();
+    const action = panel.querySelector('.snl-turn-complete-action')?.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    return Boolean(
+      scoreboard && completedState && action &&
+      completedState.top - scoreboard.bottom >= 10 &&
+      action.bottom <= panelBox.bottom - 8
+    );
+  });
+  expect(completedLayoutFits).toBe(true);
 
   expectNoBrowserErrors(errors);
 });
@@ -108,6 +177,37 @@ test('snakes and ladders bonus movement can trigger a ladder after an up-to-five
   await expect(board).toHaveAttribute('data-team-positions', '24,1', { timeout: 15_000 });
   await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/^Bonus!/)).toHaveCount(0);
+
+  expectNoBrowserErrors(errors);
+});
+
+test('snakes and ladders miss-a-turn bonus skips the next team', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Turn-order logic only needs one browser project.');
+  test.setTimeout(120_000);
+  const errors = installErrorGuards(page);
+  await page.addInitScript(() => {
+    Math.random = () => 0.999999;
+  });
+
+  await page.goto('/test/game-smoke?mode=snakes&bonuses=1&bonusType=skip-next');
+  const board = page.locator('.snl-board-webgl');
+  await startSnakesLaddersGame(page);
+  await expect(board).toHaveAttribute('data-current-team-id', '0');
+  await rollSnakesLaddersDice(page);
+  await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /Correct/i }).first().click();
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+  await expect(page.getByRole('article', { name: /Bonus card: Miss A Turn/i })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Use card', exact: true }).click();
+  await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText(/Team 2 misses this turn\. Team 1 plays next\./i)).toBeVisible();
+  await expect(board).toHaveAttribute('data-skip-turn-counts', '0,1');
+
+  await page.getByRole('button', { name: 'Continue with Team 1', exact: true }).click();
+  await expect(board).toHaveAttribute('data-current-team-id', '0');
+  await expect(board).toHaveAttribute('data-skip-turn-counts', '0,0');
+  await expect(board).toHaveAttribute('data-game-phase', 'roll');
 
   expectNoBrowserErrors(errors);
 });

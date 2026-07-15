@@ -283,6 +283,37 @@ interface BonusCardDetails {
     action: string;
 }
 
+interface NextTurnResolution {
+    nextTurnIndex: number;
+    remainingSkips: Record<number, number>;
+    skippedTeamIds: number[];
+}
+
+const resolveNextPlayableTurn = (
+    currentTurnIndex: number,
+    turnOrder: number[],
+    skipTurnCounts: Record<number, number>,
+): NextTurnResolution => {
+    const remainingSkips = { ...skipTurnCounts };
+    const skippedTeamIds: number[] = [];
+    let nextTurnIndex = currentTurnIndex;
+
+    if (!turnOrder.length) return { nextTurnIndex, remainingSkips, skippedTeamIds };
+
+    for (let attempt = 0; attempt < turnOrder.length; attempt++) {
+        nextTurnIndex = (nextTurnIndex + 1) % turnOrder.length;
+        const nextTeamId = turnOrder[nextTurnIndex];
+        if ((remainingSkips[nextTeamId] || 0) > 0) {
+            remainingSkips[nextTeamId] -= 1;
+            skippedTeamIds.push(nextTeamId);
+            continue;
+        }
+        break;
+    }
+
+    return { nextTurnIndex, remainingSkips, skippedTeamIds };
+};
+
 const getBonusCardDetails = (effect: SnakesLaddersBonusEffect): BonusCardDetails => {
     switch (effect.type) {
         case 'move-forward': {
@@ -971,13 +1002,16 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
         const activePosition = animatedPositionRef.current;
         const canvasAspect = size.height > 0 ? size.width / size.height : 1;
         const narrowFrame = THREE.MathUtils.clamp((1.28 - canvasAspect) / 0.28, 0, 1);
-        restingLook.current.set(0, -0.65, -0.45);
+        // Keep the whole board in view, but frame it as the hero of the room.
+        // Compact canvases retain a little more height so their square edges
+        // remain visible, while wide screens use the spare space around it.
+        restingLook.current.set(0, -0.65, 0.05);
         restingPosition.current.set(
             0,
-            THREE.MathUtils.lerp(16, 17.4, narrowFrame),
-            THREE.MathUtils.lerp(8, 9.8, narrowFrame)
+            THREE.MathUtils.lerp(15.2, 15.8, narrowFrame),
+            THREE.MathUtils.lerp(7.4, 8.5, narrowFrame)
         );
-        const restingFov = THREE.MathUtils.lerp(45.5, 48, narrowFrame);
+        const restingFov = THREE.MathUtils.lerp(42.5, 43, narrowFrame);
 
         if (introReady && introStartedAt.current === null) {
             introStartedAt.current = clock.getElapsedTime();
@@ -1298,6 +1332,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [pendingBonusChoice, setPendingBonusChoice] = useState<PendingBonusChoice | null>(null);
     const [extraTurnTeamId, setExtraTurnTeamId] = useState<number | null>(null);
     const [skipTurnCounts, setSkipTurnCounts] = useState<Record<number, number>>({});
+    const skipTurnCountsRef = useRef<Record<number, number>>({});
     const [motionTeamId, setMotionTeamId] = useState(0);
 
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
@@ -1332,6 +1367,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     useEffect(() => {
         setMotionTeamId(currentTeamId);
     }, [currentTeamId]);
+
+    useEffect(() => {
+        skipTurnCountsRef.current = skipTurnCounts;
+    }, [skipTurnCounts]);
 
     // SCROLL LOCK EFFECT
     useEffect(() => {
@@ -1906,13 +1945,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             return;
         }
 
-        const ownerTurnIndex = turnOrder.indexOf(teamId);
-        const nextTeamId = turnOrder[((ownerTurnIndex >= 0 ? ownerTurnIndex : currentTurnIndex) + 1) % turnOrder.length];
-        setSkipTurnCounts((previous) => ({
-            ...previous,
-            [nextTeamId]: (previous[nextTeamId] || 0) + 1,
-        }));
-        showBonusResult(`Bonus! ${teamNames[nextTeamId]} misses a turn`);
+        if (effect.type === 'skip-next') {
+            const ownerTurnIndex = turnOrder.indexOf(teamId);
+            const nextTeamId = turnOrder[((ownerTurnIndex >= 0 ? ownerTurnIndex : currentTurnIndex) + 1) % turnOrder.length];
+            setSkipTurnCounts((previous) => {
+                const next = {
+                    ...previous,
+                    [nextTeamId]: (previous[nextTeamId] || 0) + 1,
+                };
+                skipTurnCountsRef.current = next;
+                return next;
+            });
+            showBonusResult(`Bonus! ${teamNames[nextTeamId]} misses a turn`);
+        }
     };
 
     const useCollectedBonusCard = () => {
@@ -2070,20 +2115,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             return;
         }
 
-        const remainingSkips = { ...skipTurnCounts };
-        let nextTurnIndex = currentTurnIndex;
-        for (let attempt = 0; attempt < options.players; attempt++) {
-            nextTurnIndex = (nextTurnIndex + 1) % options.players;
-            const nextTeamId = turnOrder[nextTurnIndex];
-            if ((remainingSkips[nextTeamId] || 0) > 0) {
-                remainingSkips[nextTeamId] -= 1;
-                continue;
-            }
-            break;
-        }
-
-        setSkipTurnCounts(remainingSkips);
-        setCurrentTurnIndex(nextTurnIndex);
+        const resolution = resolveNextPlayableTurn(currentTurnIndex, turnOrder, skipTurnCountsRef.current);
+        skipTurnCountsRef.current = resolution.remainingSkips;
+        setSkipTurnCounts(resolution.remainingSkips);
+        setCurrentTurnIndex(resolution.nextTurnIndex);
         setPhase('roll');
     };
 
@@ -2142,6 +2177,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         ? getBonusCardDetails(collectedBonusCard.effect)
         : null;
     const showExpandedBonusCard = !!collectedBonusCard && isBonusCardExpanded;
+    const nextTurnPreview = resolveNextPlayableTurn(currentTurnIndex, turnOrder, skipTurnCounts);
+    const nextPlayableTeamId = turnOrder[nextTurnPreview.nextTurnIndex] ?? currentTeamId;
+    const skippedTeamLabel = nextTurnPreview.skippedTeamIds.map((teamId) => teamNames[teamId]).join(', ');
+    const turnCompleteCopy = extraTurnTeamId !== null
+        ? 'The table is yours again.'
+        : nextTurnPreview.skippedTeamIds.length
+            ? `${skippedTeamLabel} ${nextTurnPreview.skippedTeamIds.length === 1 ? 'misses' : 'miss'} this turn. ${teamNames[nextPlayableTeamId]} plays next.`
+            : 'Pass play to the next player.';
+    const turnCompleteAction = extraTurnTeamId !== null
+        ? 'Roll Again'
+        : nextTurnPreview.skippedTeamIds.length
+            ? `Continue with ${teamNames[nextPlayableTeamId]}`
+            : 'Next Player';
     const boardVisualStyle = isMobileViewport
         ? {
             width: boardSize ? `${boardSize}px` : 'min(100%, calc(100vh - 100px))',
@@ -2326,6 +2374,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         data-bonus-orb-count={bonusTiles.length - consumedBonusTiles.length}
                         data-team-positions={positions.map(position => position + 1).join(',')}
                         data-game-phase={phase}
+                        data-current-team-id={currentTeamId}
+                        data-skip-turn-counts={turnOrder.map((teamId) => skipTurnCounts[teamId] || 0).join(',')}
                     >
                         <SnakesLaddersBoard3D
                             positions={positions}
@@ -2349,7 +2399,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                 {/* RIGHT SIDE (Controls) */}
                 <aside className="snl-controls w-full flex flex-col items-stretch justify-start">
-                    <div className={`snl-control-panel w-full p-2 sm:p-4 text-center flex flex-col items-center justify-center overflow-hidden ${isMobileViewport ? 'h-[clamp(150px,22vh,220px)]' : 'flex-1 min-h-0'}`}>
+                    <div className={`snl-control-panel w-full p-2 sm:p-4 text-center flex flex-col items-center overflow-hidden ${isMobileViewport ? `snl-control-panel-mobile snl-control-panel-mobile--${phase}` : 'flex-1 min-h-0'} ${!isMobileViewport && teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}>
                         {!isMobileViewport && phase !== 'setup' && !showExpandedBonusCard && (
                             <div className="snl-scoreboard w-full" aria-label="Team positions">
                                 <div className="snl-panel-label">Players</div>
@@ -2387,24 +2437,18 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         )}
 
                         {/* PERSISTENT DICE CONTAINER - Fix for WebGL Context Thrashing */}
-                        <div className="h-full" style={{ width: '100%', display: !showExpandedBonusCard && (phase === 'roll' || phase === 'moving') ? 'block' : 'none' }}>
+                        <div className="snl-dice-region" style={{ display: !showExpandedBonusCard && (phase === 'roll' || phase === 'moving') ? 'flex' : 'none' }}>
                             <div ref={diceRowRef} className={`snl-dice-zone w-full animate-fade-in ${isMobileViewport ? 'flex items-center justify-between gap-2 h-full' : 'flex flex-col items-center flex-1 justify-center'}`}>
                                 <div
-                                    className={`${isMobileViewport ? 'flex-1 text-left flex flex-col justify-center' : 'text-center'}`}
+                                    className={`snl-dice-player-card ${isMobileViewport ? 'is-mobile flex-1' : ''}`}
                                     style={isMobileViewport && diceSize ? { minHeight: `${diceSize}px` } : undefined}
                                 >
-                                    <h3
-                                        className={`snl-dice-team-name font-bold ${isMobileViewport ? '' : 'text-base sm:text-xl'} ${isMobileViewport ? 'mb-0.5' : 'mb-2'}`}
-                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(10, Math.floor(diceSize * 0.2))}px`, lineHeight: '1.1' } : undefined}
-                                    >
-                                        {teamNames[currentTeamId]}
-                                    </h3>
-                                    <div
-                                        className={`snl-dice-turn-copy ${isMobileViewport ? '' : 'text-sm'}`}
-                                        style={isMobileViewport && diceSize ? { fontSize: `${Math.max(9, Math.floor(diceSize * 0.14))}px`, lineHeight: '1.15' } : undefined}
-                                    >
-                                        {isMobileViewport ? "It's your turn" : "It's your turn"}
+                                    <span className="snl-dice-player-label">Now playing</span>
+                                    <div className="snl-dice-player-name">
+                                        <span className="snl-dice-player-dot" style={{ backgroundColor: teamColors[currentTeamId % teamColors.length].solid }} aria-hidden="true" />
+                                        <h3 className="snl-dice-team-name">{teamNames[currentTeamId]}</h3>
                                     </div>
+                                    <div className="snl-dice-turn-copy">Your turn to roll</div>
                                 </div>
                                 <div
                                     role="button"
@@ -2460,8 +2504,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         )}
 
                         {!showExpandedBonusCard && phase === 'bonus-choice' && pendingBonusChoice && (
-                            <div className="w-full animate-fade-in text-center">
-                                <Gift size={isMobileViewport ? 34 : 54} className="mx-auto mb-2 text-amber-500" />
+                            <div className="snl-bonus-choice-state w-full animate-fade-in text-center">
+                                <Gift size={isMobileViewport ? 34 : 54} className="snl-bonus-choice-icon mx-auto mb-2 text-amber-500" />
                                 <h3 className={`snl-bonus-choice-title font-black ${isMobileViewport ? 'mb-2 text-sm' : 'mb-4 text-xl'}`}>
                                     {pendingBonusChoice.effect.type === 'move-five' ? 'Choose your move' : 'Choose another player'}
                                 </h3>
@@ -2507,16 +2551,23 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         )}
 
                         {!showExpandedBonusCard && phase === 'turn-complete' && (
-                            <div className="text-center animate-fade-in">
-                                <CheckCircle size={isMobileViewport ? 45 : 80} className="text-green-500 mx-auto mb-3 sm:mb-4" />
-                                <h3 className={`snl-turn-complete-title font-bold ${isMobileViewport ? 'text-[14px] mb-1' : 'text-2xl mb-2'}`}>
+                            <div className="snl-turn-complete-state animate-fade-in">
+                                <div className="snl-turn-complete-seal" aria-hidden="true">
+                                    <CheckCircle size={isMobileViewport ? 28 : 46} />
+                                </div>
+                                <span className="snl-turn-complete-label">Move resolved</span>
+                                <h3 className="snl-turn-complete-title">
                                     {extraTurnTeamId !== null ? 'Bonus Turn!' : 'Turn Complete'}
                                 </h3>
+                                <p className="snl-turn-complete-copy">
+                                    {turnCompleteCopy}
+                                </p>
                                 <button 
                                     onClick={nextTurn}
-                                    className={`snl-panel-primary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-2 text-[12px]' : 'px-10 py-5 text-lg'}`}
+                                    className="snl-panel-primary snl-turn-complete-action"
                                 >
-                                    {extraTurnTeamId !== null ? 'Roll Again' : 'Next Player'} <ArrowRight size={isMobileViewport ? 18 : 24} className="ml-2" />
+                                    <span>{turnCompleteAction}</span>
+                                    <ArrowRight size={isMobileViewport ? 17 : 20} />
                                 </button>
                             </div>
                         )}
