@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run seo:sitemap && vite build && npm run seo:prerender && npm run seo:validate",
     "preview": "vite preview",
+    "seo:sitemap": "node scripts/generate-sitemap.mjs",
+    "seo:prerender": "node scripts/prerender.mjs",
+    "seo:validate": "node scripts/validate-seo.mjs",
     "test:e2e": "playwright test",
     "test:e2e:prod-smoke": "playwright test -c playwright.prod-smoke.config.ts",
     "test:e2e:ui": "playwright test --ui",

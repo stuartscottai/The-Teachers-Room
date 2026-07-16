@@ -24,6 +24,13 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+// Public builds include crawlable HTML inside #root. The interactive app is
+// intentionally rendered fresh so account-dependent screens cannot suffer a
+// server/client hydration mismatch.
+if (rootElement.hasChildNodes()) {
+  rootElement.replaceChildren();
+}
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>

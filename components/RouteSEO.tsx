@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getPublicAppUrl } from '../utils/appUrl';
-import { resolveMeta } from '../utils/seoMeta';
+import { buildStructuredData, resolveMeta } from '../utils/seoMeta';
 
 const upsertMeta = (selector: string, create: () => HTMLMetaElement, content: string) => {
   let element = document.head.querySelector<HTMLMetaElement>(selector);
@@ -22,7 +22,11 @@ const upsertLink = (rel: string, href: string) => {
   element.href = href;
 };
 
-const upsertJsonLd = (id: string, data: Record<string, unknown>) => {
+const removeMeta = (selector: string) => {
+  document.head.querySelector(selector)?.remove();
+};
+
+const upsertJsonLd = (id: string, data: Record<string, unknown>[]) => {
   let element = document.getElementById(id) as HTMLScriptElement | null;
   if (!element) {
     element = document.createElement('script');
@@ -40,6 +44,10 @@ export const RouteSEO: React.FC = () => {
     const meta = resolveMeta(location.pathname);
     const canonicalUrl = `${getPublicAppUrl()}${meta.path}`;
     const robots = meta.noindex ? 'noindex,nofollow' : 'index,follow';
+    const imageUrl = /^https?:\/\//i.test(meta.image)
+      ? meta.image
+      : `${getPublicAppUrl()}${meta.image}`;
+    const socialType = meta.structuredData === 'article' ? 'article' : 'website';
 
     document.title = meta.title;
 
@@ -73,6 +81,18 @@ export const RouteSEO: React.FC = () => {
       return element;
     }, canonicalUrl);
 
+    upsertMeta('meta[property="og:type"]', () => {
+      const element = document.createElement('meta');
+      element.setAttribute('property', 'og:type');
+      return element;
+    }, socialType);
+
+    upsertMeta('meta[property="og:image"]', () => {
+      const element = document.createElement('meta');
+      element.setAttribute('property', 'og:image');
+      return element;
+    }, imageUrl);
+
     upsertMeta('meta[name="twitter:title"]', () => {
       const element = document.createElement('meta');
       element.name = 'twitter:title';
@@ -85,22 +105,28 @@ export const RouteSEO: React.FC = () => {
       return element;
     }, meta.description);
 
+    upsertMeta('meta[name="twitter:image"]', () => {
+      const element = document.createElement('meta');
+      element.name = 'twitter:image';
+      return element;
+    }, imageUrl);
+
+    if (meta.publishedTime) {
+      upsertMeta('meta[property="article:published_time"]', () => {
+        const element = document.createElement('meta');
+        element.setAttribute('property', 'article:published_time');
+        return element;
+      }, meta.publishedTime);
+    } else {
+      removeMeta('meta[property="article:published_time"]');
+    }
+
     upsertLink('canonical', canonicalUrl);
 
-    upsertJsonLd('jsonld-organization', {
-      '@context': 'https://schema.org',
-      '@type': 'Organization',
-      name: "The Teachers' Room",
-      url: getPublicAppUrl(),
-      logo: `${getPublicAppUrl()}/icon-192.png`
-    });
-
-    upsertJsonLd('jsonld-website', {
-      '@context': 'https://schema.org',
-      '@type': 'WebSite',
-      name: "The Teachers' Room",
-      url: getPublicAppUrl()
-    });
+    document.getElementById('jsonld-static-seo')?.remove();
+    document.getElementById('jsonld-organization')?.remove();
+    document.getElementById('jsonld-website')?.remove();
+    upsertJsonLd('jsonld-route', buildStructuredData(meta));
   }, [location.pathname]);
 
   return null;
