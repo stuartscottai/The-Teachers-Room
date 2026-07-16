@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
+import { ImportedDartboardModel, ImportedDartModel, OldBarRoomModel } from './models/DartsModels';
 import { ArrowLeft, Clock, Check, X as XIcon, Edit2, Maximize2, Minimize2, RotateCcw, Volume2, VolumeX, Target, FileQuestion, AlertTriangle, Flag } from 'lucide-react';
 
 interface DartsGameProps {
@@ -33,167 +35,53 @@ interface DartObject {
     points: number;
 }
 
-const BOARD_RADIUS = 10;
-const TEXTURE_SCALE = 0.84375; 
-
+const BOARD_RADIUS = 1.15;
+const BOARD_Z = -47.1;
+const BOARD_Y = -0.35;
 const SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
 const SLICE_ANGLE = (Math.PI * 2) / 20;
 
-const R_BULL_INNER = 0.03;
-const R_BULL_OUTER = 0.08;
-const R_TRIPLE_INNER = 0.55;
-const R_TRIPLE_OUTER = 0.60;
-const R_DOUBLE_INNER = 0.95;
-const R_DOUBLE_OUTER = 1.0;
+// These are distances on the imported 3D model, expressed as a fraction of
+// the complete board radius. The texture is cropped and stretched inside the
+// model, so using image pixels alone shifts the scoring strips inward.
+const R_BULL_INNER = 11 / 512;
+const R_BULL_OUTER = 34 / 512;
+const R_TRIPLE_INNER = 1.073736906 / 2.46887803;
+const R_TRIPLE_OUTER = 1.180746913 / 2.46887803;
+const R_DOUBLE_INNER = 1.760491967 / 2.46887803;
+const R_DOUBLE_OUTER = 1.856203198 / 2.46887803;
 
-const COLORS = {
-    black: '#1a1a1a',
-    white: '#f3f4f6',
-    red: '#e11d48',
-    green: '#10b981',
-    wire: '#94a3b8'
-};
 const CHALK_FONT = '"Schoolbell", "Chalkboard SE", "Chalkboard", "Bradley Hand", "Marker Felt", "Comic Sans MS", "Comic Sans", cursive';
 
-const createDartboardTexture = () => {
-    const size = 1024;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return new THREE.Texture();
+const LocalReflectionEnvironment: React.FC = () => {
+    const { gl, scene } = useThree();
 
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size / 2 - 80; 
+    useEffect(() => {
+        const generator = new THREE.PMREMGenerator(gl);
+        const room = new RoomEnvironment();
+        const target = generator.fromScene(room, 0.04);
+        const previousEnvironment = scene.environment;
+        const previousIntensity = scene.environmentIntensity;
 
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, size, size);
+        scene.environment = target.texture;
+        scene.environmentIntensity = 0.35;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, size/2 - 5, 0, Math.PI*2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
+        return () => {
+            scene.environment = previousEnvironment;
+            scene.environmentIntensity = previousIntensity;
+            target.dispose();
+            room.dispose();
+            generator.dispose();
+        };
+    }, [gl, scene]);
 
-    for (let i = 0; i < 20; i++) {
-        const angle = (i * SLICE_ANGLE) - (Math.PI / 2) - (SLICE_ANGLE / 2);
-        const isEven = i % 2 === 0;
-        
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, radius, angle, angle + SLICE_ANGLE);
-        ctx.closePath();
-        ctx.fillStyle = isEven ? COLORS.black : COLORS.white;
-        ctx.fill();
-        ctx.strokeStyle = COLORS.wire;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
-
-    const drawRing = (inner: number, outer: number) => {
-        for (let i = 0; i < 20; i++) {
-            const angle = (i * SLICE_ANGLE) - (Math.PI / 2) - (SLICE_ANGLE / 2);
-            const isEven = i % 2 === 0;
-            
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius * outer, angle, angle + SLICE_ANGLE);
-            ctx.arc(cx, cy, radius * inner, angle + SLICE_ANGLE, angle, true);
-            ctx.closePath();
-            ctx.fillStyle = isEven ? COLORS.red : COLORS.green;
-            ctx.fill();
-            ctx.stroke();
-        }
-    };
-
-    drawRing(R_DOUBLE_INNER, R_DOUBLE_OUTER);
-    drawRing(R_TRIPLE_INNER, R_TRIPLE_OUTER);
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * R_BULL_OUTER, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS.green;
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * R_BULL_INNER, 0, Math.PI * 2);
-    ctx.fillStyle = COLORS.red;
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * R_DOUBLE_OUTER, 0, Math.PI * 2);
-    ctx.strokeStyle = COLORS.wire;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.font = 'bold 60px Quicksand, sans-serif';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    for (let i = 0; i < 20; i++) {
-        const angle = (i * SLICE_ANGLE) - (Math.PI / 2);
-        const numRadius = radius + 45; 
-        const x = cx + Math.cos(angle) * numRadius;
-        const y = cy + Math.sin(angle) * numRadius;
-        ctx.fillText(SECTORS[i].toString(), x, y);
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
+    return null;
 };
 
-// Generate a textured cream wall
-const createWallTexture = () => {
-    const size = 512;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return new THREE.Texture();
+const getBoardPointData = (x: number, y: number) => {
+    const r = Math.sqrt(x * x + y * y) / BOARD_RADIUS;
     
-    // Base Cream Color
-    ctx.fillStyle = '#fdf6e3'; 
-    ctx.fillRect(0, 0, size, size);
-    
-    // Add subtle noise/texture
-    ctx.globalAlpha = 0.05;
-    ctx.fillStyle = '#5c5c5c';
-    
-    for(let i=0; i<8000; i++) {
-        const x = Math.random() * size;
-        const y = Math.random() * size;
-        const r = Math.random() * 2;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI*2);
-        ctx.fill();
-    }
-    
-    // Add faint scratches
-    ctx.globalAlpha = 0.03;
-    for(let i=0; i<200; i++) {
-        ctx.beginPath();
-        ctx.moveTo(Math.random() * size, Math.random() * size);
-        ctx.lineTo(Math.random() * size, Math.random() * size);
-        ctx.stroke();
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(4, 4); // Repeat for detail
-    return texture;
-};
-
-const getHitData = (uv: THREE.Vector2 | { x: number, y: number }) => {
-    const dx = uv.x - 0.5;
-    const dy = uv.y - 0.5;
-    const scaleFactor = 1 / TEXTURE_SCALE; 
-    const r = Math.sqrt(dx*dx + dy*dy) * 2 * scaleFactor; 
-    
-    let degrees = Math.atan2(dx, dy) * (180 / Math.PI);
+    let degrees = Math.atan2(x, y) * (180 / Math.PI);
     if (degrees < 0) degrees += 360;
     
     const index = Math.floor(((degrees + 9) % 360) / 18);
@@ -207,7 +95,7 @@ const getHitData = (uv: THREE.Vector2 | { x: number, y: number }) => {
     
     if (r > R_TRIPLE_INNER && r < R_TRIPLE_OUTER) { zone = 'Treble'; multiplier = 3; }
     else if (r > R_DOUBLE_INNER && r < R_DOUBLE_OUTER) { zone = 'Double'; multiplier = 2; }
-    else if (r > 1.0) { return { points: 0, label: 'MISS', multiplier: 0, sector: 0 }; }
+    else if (r > R_DOUBLE_OUTER) { return { points: 0, label: 'MISS', multiplier: 0, sector: 0 }; }
     
     return {
         points: sector * multiplier,
@@ -215,6 +103,12 @@ const getHitData = (uv: THREE.Vector2 | { x: number, y: number }) => {
         multiplier,
         sector
     };
+};
+
+const getHitData = (uv: THREE.Vector2 | { x: number, y: number }) => {
+    const x = (uv.x - 0.5) * 2 * BOARD_RADIUS;
+    const y = (uv.y - 0.5) * 2 * BOARD_RADIUS;
+    return getBoardPointData(x, y);
 };
 
 // --- 3D DART ---
@@ -229,28 +123,11 @@ const AnimatedDart: React.FC<{
     const hasLanded = useRef(false);
     const startTimeRef = useRef<number | null>(null);
 
-    // Random roll: determines the angle of the "X" flight cross when landing
+    // Random roll gives each imported dart a slightly different landing angle.
     const randomRoll = useMemo(() => Math.random() * Math.PI * 2, []);
     
     // Random "sag": gravity effect on the dart's tail
-    const sagAngle = useMemo(() => (Math.random() * 0.15) + 0.05, []);
-
-    // Realistic 2D Flight Geometry (Standard Shape) - SCALED UP Another 25% (Total ~56% increase from base)
-    const flightGeometry = useMemo(() => {
-        const s = new THREE.Shape();
-        // Shape drawn in XY plane. 
-        // Scaled up by 1.25x from previous
-        
-        s.moveTo(0, 0);         
-        s.lineTo(0.04, 0.09);   
-        s.lineTo(0.47, 0.30);   
-        s.lineTo(0.47, 0.78);   
-        s.lineTo(0.09, 0.98);   
-        s.lineTo(0, 0.98);      
-        s.lineTo(0, 0);         
-        
-        return new THREE.ShapeGeometry(s);
-    }, []);
+    const sagAngle = useMemo(() => (Math.random() * 0.12) + 0.24, []);
 
     useFrame(({ clock }) => {
         if (!groupRef.current || hasLanded.current) return;
@@ -284,8 +161,9 @@ const AnimatedDart: React.FC<{
             groupRef.current.lookAt(nextPos);
         } else {
             hasLanded.current = true;
-            // Embed tip
-            groupRef.current.translateZ(0.15);
+            // Embed only the steel point. The imported dart is small enough
+            // that the previous offset buried its bronze barrel in the board.
+            groupRef.current.translateZ(0.025);
             // Apply slight sag to mimic weight
             groupRef.current.rotation.x += sagAngle;
             onLand(dart);
@@ -294,50 +172,69 @@ const AnimatedDart: React.FC<{
 
     return (
         <group ref={groupRef} position={dart.startPosition}>
-            {/* Z-Rotation Group: Rotates the entire dart around its axis for random landing angle */}
             <group rotation={[0, 0, randomRoll]}>
-                <group rotation={[0, 0, 0]}>
-                    {/* 1. Steel Tip - Longer (0.5) */}
-                    <mesh position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.02, 0.02, 0.5, 8]} />
-                        <meshStandardMaterial color="#999" metalness={1} roughness={0.3} />
-                    </mesh>
-                    
-                    {/* 2. Barrel - Longer (1.75), shifted back to connect to tip */}
-                    <mesh position={[0, 0, -1.125]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.08, 0.08, 1.75, 16]} />
-                        <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
-                    </mesh>
-                    <mesh position={[0, 0, -1.125]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.085, 0.085, 1.2, 16]} />
-                        <meshStandardMaterial color="#334155" transparent opacity={0.3} /> 
-                    </mesh>
-                    
-                    {/* 3. Shaft (Stem) - Longer (1.0), shifted back */}
-                    <mesh position={[0, 0, -2.5]} rotation={[Math.PI / 2, 0, 0]}>
-                        <cylinderGeometry args={[0.05, 0.08, 1.0, 12]} />
-                        <meshStandardMaterial color="#111" roughness={0.6} />
-                    </mesh>
-
-                    {/* 4. Flights (2D Cross) - Scaled Up and Shifted */}
-                    <group position={[0, 0, -3.0]}>
-                        {[0, 1, 2, 3].map((i) => (
-                            <group key={i} rotation={[0, 0, (Math.PI / 2) * i]}>
-                                <mesh geometry={flightGeometry} rotation={[-Math.PI / 2, 0, 0]}>
-                                    <meshStandardMaterial 
-                                        color={dart.color} 
-                                        side={THREE.DoubleSide}
-                                        transparent={false}
-                                        opacity={1}
-                                    />
-                                </mesh>
-                            </group>
-                        ))}
-                    </group>
-                </group>
+                <ImportedDartModel color={dart.color} />
             </group>
         </group>
     );
+};
+
+const DartsCameraRig: React.FC<{
+    introActive: boolean;
+    duration: number;
+    lightweight: boolean;
+    onIntroComplete: () => void;
+}> = ({ introActive, duration, lightweight, onIntroComplete }) => {
+    const startTimeRef = useRef<number | null>(null);
+    const hasCompletedRef = useRef(false);
+    const finalPosition = useMemo(() => new THREE.Vector3(0, BOARD_Y, BOARD_Z + 3), []);
+    const finalTarget = useMemo(() => new THREE.Vector3(0, BOARD_Y, BOARD_Z), []);
+    const cameraPath = useMemo(() => new THREE.CatmullRomCurve3([
+        // Begin inside the room, close to the bar. The previous x=7.5 start
+        // sat beyond the side wall, allowing ceiling geometry to show through.
+        new THREE.Vector3(4.65, -3.35, -4),
+        new THREE.Vector3(4.1, -3.15, -18),
+        new THREE.Vector3(2, -2, -33),
+        finalPosition.clone(),
+    ]), [finalPosition]);
+    const targetPath = useMemo(() => new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-4, -2.8, -28),
+        new THREE.Vector3(-2, -2.2, -40),
+        new THREE.Vector3(0, -0.7, -46),
+        finalTarget.clone(),
+    ]), [finalTarget]);
+
+    useFrame(({ camera, clock }) => {
+        if (camera instanceof THREE.PerspectiveCamera) {
+            const verticalHalfAngle = THREE.MathUtils.degToRad(camera.fov * 0.5);
+            const limitingAxis = Math.min(1, camera.aspect);
+            const screenFill = lightweight ? 0.86 : 0.9;
+            const fittedDistance = BOARD_RADIUS / (Math.tan(verticalHalfAngle) * limitingAxis * screenFill);
+            finalPosition.set(0, BOARD_Y, BOARD_Z + fittedDistance);
+            cameraPath.points[cameraPath.points.length - 1].copy(finalPosition);
+        }
+
+        if (!introActive) {
+            camera.position.copy(finalPosition);
+            camera.lookAt(finalTarget);
+            return;
+        }
+
+        if (startTimeRef.current === null) startTimeRef.current = clock.getElapsedTime();
+        const elapsed = clock.getElapsedTime() - startTimeRef.current;
+        const progress = THREE.MathUtils.clamp(elapsed / Math.max(duration, 0.01), 0, 1);
+        const eased = THREE.MathUtils.smootherstep(progress, 0, 1);
+
+        camera.position.copy(cameraPath.getPoint(eased));
+        camera.lookAt(targetPath.getPoint(eased));
+
+        if (progress >= 1 && !hasCompletedRef.current) {
+            hasCompletedRef.current = true;
+            onIntroComplete();
+        }
+    });
+
+    return null;
 };
 
 const DartboardScene = ({ 
@@ -347,7 +244,10 @@ const DartboardScene = ({
     isAiming,
     hoverData,
     onDartLand,
-    wallTexture
+    introActive,
+    introDuration,
+    lightweight,
+    onIntroComplete,
 }: { 
     onHover: (data: any, pos: THREE.Vector3) => void, 
     onClick: (data: any) => void,
@@ -355,11 +255,11 @@ const DartboardScene = ({
     isAiming: boolean,
     hoverData: any,
     onDartLand: (dart: DartObject) => void,
-    wallTexture?: THREE.Texture
+    introActive: boolean,
+    introDuration: number,
+    lightweight: boolean,
+    onIntroComplete: () => void,
 }) => {
-    const texture = useMemo(() => createDartboardTexture(), []);
-    const fallbackWallTexture = useMemo(() => createWallTexture(), []);
-    const wallTextureMap = wallTexture ?? fallbackWallTexture;
     const highlightRef = useRef<THREE.Mesh>(null);
     const lastHoverLabel = useRef<string>("");
     const lastHoverYPositive = useRef<boolean>(true);
@@ -377,7 +277,7 @@ const DartboardScene = ({
         return topSectors.includes(s);
     }, [hoverData]);
 
-    const bubbleY = isTopSector ? -5 : 5;
+    const bubbleY = isTopSector ? -0.5 : 0.5;
 
     const handlePointerMove = (e: any) => {
         if (!isAiming) return;
@@ -396,40 +296,50 @@ const DartboardScene = ({
 
         if (highlightRef.current) {
             highlightRef.current.position.copy(e.point);
-            highlightRef.current.position.z = 0.1;
+            highlightRef.current.position.z = BOARD_Z + 0.2;
         }
     };
 
     return (
         <group>
-            <ambientLight intensity={1.5} />
-            <spotLight position={[10, 10, 30]} angle={0.3} penumbra={1} intensity={2} castShadow />
-            <pointLight position={[-10, -10, 10]} intensity={0.5} />
+            <DartsCameraRig introActive={introActive} duration={introDuration} lightweight={lightweight} onIntroComplete={onIntroComplete} />
+            <LocalReflectionEnvironment />
+            <ambientLight intensity={lightweight ? 1.35 : 1.05} />
+            <hemisphereLight args={['#f6d6a5', '#20140f', lightweight ? 1.2 : 0.9]} />
+            <spotLight position={[7, 12, -36]} angle={0.42} penumbra={0.8} intensity={2.8} castShadow={!lightweight} />
+            <pointLight position={[-14, 3, -24]} color="#d98b4d" intensity={1.3} />
+            <pointLight position={[15, -4, -40]} color="#f2c879" intensity={0.8} />
 
-            <mesh position={[0, 0, -2]}>
-                <planeGeometry args={[100, 100]} />
-                <meshBasicMaterial map={wallTextureMap} toneMapped={false} />
+            <OldBarRoomModel lightweight={lightweight} />
+
+            <mesh position={[0, BOARD_Y, BOARD_Z - 0.12]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+                <cylinderGeometry args={[BOARD_RADIUS + 0.12, BOARD_RADIUS + 0.12, 0.16, 64]} />
+                <meshStandardMaterial color="#29160f" roughness={0.82} metalness={0.04} />
             </mesh>
 
+            <group position={[0, BOARD_Y, BOARD_Z]}>
+                <ImportedDartboardModel radius={BOARD_RADIUS} />
+            </group>
+
             <mesh 
-                position={[0, 0, 0]} 
+                position={[0, BOARD_Y, BOARD_Z + 0.16]}
                 onPointerMove={handlePointerMove}
                 onClick={(e) => isAiming && e.uv && onClick(getHitData(e.uv))}
             >
                 <circleGeometry args={[BOARD_RADIUS, 64]} />
-                <meshBasicMaterial map={texture} />
+                <meshBasicMaterial side={THREE.DoubleSide} transparent opacity={0} depthWrite={false} />
             </mesh>
 
             {isAiming && (
                 <mesh ref={highlightRef} position={[0, 0, 100]} raycast={() => null}>
-                    <ringGeometry args={[0.2, 0.4, 32]} />
+                    <ringGeometry args={[0.045, 0.09, 32]} />
                     <meshBasicMaterial color="#fbbf24" toneMapped={false} transparent opacity={0.8} />
                     {hoverData && hoverData.points > 0 && (
                         /* Smart positioning based on sector + Transparency */
                         <Html position={[0, bubbleY, 0]} center pointerEvents="none" zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
-                            <div className="bg-slate-900/80 text-white px-8 py-6 rounded-3xl whitespace-nowrap text-center backdrop-blur-md border-4 border-brand-yellow shadow-2xl scale-125 origin-center pointer-events-none select-none">
-                                <div className="text-6xl font-black font-mono leading-none text-brand-yellow mb-2 drop-shadow-md">{hoverData.points}</div>
-                                <div className="text-xl font-bold font-display uppercase tracking-widest text-white/90">{hoverData.label}</div>
+                            <div className="bg-slate-900/90 text-white px-4 py-3 rounded-2xl whitespace-nowrap text-center backdrop-blur-md border-2 border-brand-yellow shadow-xl pointer-events-none select-none">
+                                <div className="text-3xl font-black font-mono leading-none text-brand-yellow mb-1 drop-shadow-md">{hoverData.points}</div>
+                                <div className="text-sm font-bold font-display uppercase tracking-widest text-white/90">{hoverData.label}</div>
                             </div>
                         </Html>
                     )}
@@ -514,6 +424,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const boardAreaRef = useRef<HTMLDivElement>(null);
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    const [introActive, setIntroActive] = useState(true);
     const [showAimOverlay, setShowAimOverlay] = useState(true);
     const [boardSize, setBoardSize] = useState<number | null>(null);
     const [boardOffsetY, setBoardOffsetY] = useState(0);
@@ -544,20 +456,6 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             } as GeneratedQuestion];
     }, [game.questions]);
 
-    const wallTexture = useMemo(() => createWallTexture(), []);
-    const wallTextureUrl = useMemo(() => {
-        const canvas = wallTexture?.image as HTMLCanvasElement | undefined;
-        if (!canvas || typeof canvas.toDataURL !== 'function') return null;
-        return canvas.toDataURL('image/png');
-    }, [wallTexture]);
-    const wallBackgroundStyle = wallTextureUrl
-        ? {
-            backgroundColor: '#fdf6e3',
-            backgroundImage: `url(${wallTextureUrl})`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: '128px 128px'
-        }
-        : { backgroundColor: '#fdf6e3' };
     const chalkboardStyle = {
         backgroundColor: '#0f1b14',
         backgroundImage: "url('/assets/background/chalkboard.jpg')",
@@ -660,38 +558,36 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const spawnDart = (hit: boolean) => {
         const sectorIndex = SECTORS.indexOf(lockedTarget.sector);
-        let baseAngle = (Math.PI / 2) - (sectorIndex * SLICE_ANGLE);
-        const BOARD_VISUAL_R = BOARD_RADIUS * TEXTURE_SCALE;
-
-        let targetR = 0;
-        let angleVariance = 0.05; 
-        let rVariance = 0.15; 
+        const baseAngle = (Math.PI / 2) - (Math.max(sectorIndex, 0) * SLICE_ANGLE);
+        const BOARD_VISUAL_R = BOARD_RADIUS;
 
         if (hit) {
+            let radialMin = R_TRIPLE_OUTER + 0.06;
+            let radialMax = R_DOUBLE_INNER - 0.06;
+
             if (lockedTarget.multiplier === 3) {
-                targetR = ((R_TRIPLE_INNER + R_TRIPLE_OUTER) / 2) * BOARD_VISUAL_R;
-                rVariance = 0.1; 
+                radialMin = R_TRIPLE_INNER + 0.012;
+                radialMax = R_TRIPLE_OUTER - 0.012;
             } else if (lockedTarget.multiplier === 2) {
-                targetR = ((R_DOUBLE_INNER + R_DOUBLE_OUTER) / 2) * BOARD_VISUAL_R;
-                rVariance = 0.1;
+                radialMin = R_DOUBLE_INNER + 0.01;
+                radialMax = R_DOUBLE_OUTER - 0.01;
             } else if (lockedTarget.points === 50) {
-                targetR = 0;
-                rVariance = 0.1;
+                radialMin = 0;
+                radialMax = R_BULL_INNER * 0.65;
             } else if (lockedTarget.points === 25) {
-                targetR = ((R_BULL_INNER + R_BULL_OUTER) / 2) * BOARD_VISUAL_R;
-                rVariance = 0.1;
-            } else {
-                targetR = ((R_TRIPLE_OUTER + R_DOUBLE_INNER) / 2) * BOARD_VISUAL_R; 
-                rVariance = 0.8; 
+                radialMin = R_BULL_INNER + 0.008;
+                radialMax = R_BULL_OUTER - 0.008;
             }
 
-            const randAngle = baseAngle + (Math.random() - 0.5) * angleVariance;
-            const randR = targetR + (Math.random() - 0.5) * rVariance;
+            const normalizedR = THREE.MathUtils.lerp(radialMin, radialMax, 0.3 + Math.random() * 0.4);
+            const randAngle = baseAngle + (Math.random() - 0.5) * 0.04;
+            const randR = normalizedR * BOARD_VISUAL_R;
             
             const finalX = Math.cos(randAngle) * randR;
             const finalY = Math.sin(randAngle) * randR;
-            
-            launchDart(new THREE.Vector3(finalX, finalY, 0), lockedTarget.points, lockedTarget.label, lockedTarget.multiplier);
+            const actualResult = getBoardPointData(finalX, finalY);
+
+            launchDart(new THREE.Vector3(finalX, finalY, 0), actualResult.points, actualResult.label, actualResult.multiplier);
 
         } else {
             const missAngleOffset = (Math.random() - 0.5) * Math.PI; 
@@ -699,40 +595,22 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             
             const finalX = Math.cos(baseAngle + missAngleOffset) * missRadius;
             const finalY = Math.sin(baseAngle + missAngleOffset) * missRadius;
+            const actualResult = getBoardPointData(finalX, finalY);
+            const resultLabel = actualResult.points > 0 ? `LUCKY ${actualResult.label}` : 'MISS';
 
-            const dist = Math.sqrt(finalX*finalX + finalY*finalY);
-            const normalizedDist = dist / BOARD_VISUAL_R; 
-            
-            let score = 0;
-            let label = "";
-            let mult = 0;
-
-            if (normalizedDist > 1.0) {
-                score = 0;
-                label = "MISS";
-            } else {
-                const hitAngle = Math.atan2(finalY, finalX);
-                let indexRaw = (Math.PI / 2 - hitAngle) / SLICE_ANGLE;
-                indexRaw = Math.round(indexRaw);
-                const hitIndex = ((indexRaw % 20) + 20) % 20; 
-                const hitSector = SECTORS[hitIndex];
-                
-                if (normalizedDist < 0.03) { score = 50; label = "LUCKY BULL!"; mult = 2; }
-                else if (normalizedDist < 0.08) { score = 25; label = "LUCKY BULL!"; mult = 1; }
-                else if (normalizedDist > 0.55 && normalizedDist < 0.60) { score = hitSector * 3; label = `LUCKY TREBLE ${hitSector}`; mult = 3; }
-                else if (normalizedDist > 0.95 && normalizedDist < 1.0) { score = hitSector * 2; label = `LUCKY DOUBLE ${hitSector}`; mult = 2; }
-                else { score = hitSector; label = `LUCKY ${hitSector}`; mult = 1; }
-            }
-            launchDart(new THREE.Vector3(finalX, finalY, 0), score, label, mult);
+            launchDart(new THREE.Vector3(finalX, finalY, 0), actualResult.points, resultLabel, actualResult.multiplier);
         }
     };
 
     const launchDart = (targetPos: THREE.Vector3, score: number, label: string, multiplier: number) => {
-        const startPos = new THREE.Vector3(0, -5, 25);
+        targetPos.y += BOARD_Y;
+        targetPos.z = BOARD_Z + 0.18;
+
+        const startPos = new THREE.Vector3(0, BOARD_Y - 0.7, BOARD_Z + 2.6);
         const controlPos = new THREE.Vector3(
             targetPos.x * 0.5, 
-            targetPos.y * 0.5 + 8, 
-            12
+            BOARD_Y + ((targetPos.y - BOARD_Y) * 0.5) + 1.1,
+            BOARD_Z + 1.5
         );
 
         const newDart: DartObject = {
@@ -942,6 +820,14 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
         const handleChange = () => setIsMobileViewport(media.matches);
+        handleChange();
+        media.addEventListener('change', handleChange);
+        return () => media.removeEventListener('change', handleChange);
+    }, []);
+
+    useEffect(() => {
+        const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const handleChange = () => setPrefersReducedMotion(media.matches);
         handleChange();
         media.addEventListener('change', handleChange);
         return () => media.removeEventListener('change', handleChange);
@@ -1162,6 +1048,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     }
 
     const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
+    const lightweightScene = isMobileViewport;
+    const introDuration = prefersReducedMotion ? 0.01 : (isMobileViewport ? 3.25 : 6);
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
     const questionOverlayTopClass = isFullscreen
         ? `${mobileUsesTwoRowHeader ? 'top-[calc(7rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
@@ -1254,8 +1142,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
             <div
                 ref={boardAreaRef}
-                className="flex-grow relative cursor-crosshair overflow-hidden min-h-0"
-                style={wallBackgroundStyle}
+                className={`flex-grow relative overflow-hidden min-h-0 bg-[#160d09] ${introActive ? 'cursor-default' : 'cursor-crosshair'}`}
             >
                 <div className="absolute inset-0 flex items-center justify-center">
                     {isMobileViewport ? (
@@ -1266,34 +1153,40 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 transform: `translateY(-${boardOffsetY}px)`
                             } : undefined}
                         >
-                                <Canvas camera={{ position: [0, 0, 20], fov: 54 }} shadows style={{ width: '100%', height: '100%' }}>
-                                    <color attach="background" args={['#fdf6e3']} />
+                                <Canvas camera={{ position: [4.65, -3.35, -4], fov: 54 }} dpr={[1, 1.35]} shadows={!lightweightScene} style={{ width: '100%', height: '100%' }}>
+                                    <color attach="background" args={['#160d09']} />
                                     <Suspense fallback={null}>
                                         <DartboardScene 
                                             onHover={handleBoardHover} 
                                             onClick={handleBoardClick}
                                             darts={darts}
-                                            isAiming={phase === 'aim'}
+                                            isAiming={phase === 'aim' && !introActive}
                                             hoverData={hoverData}
                                             onDartLand={handleDartLand}
-                                            wallTexture={wallTexture}
+                                            introActive={introActive}
+                                            introDuration={introDuration}
+                                            lightweight={lightweightScene}
+                                            onIntroComplete={() => setIntroActive(false)}
                                         />
                                     </Suspense>
                                 </Canvas>
                         </div>
                     ) : (
                         <div className="w-full h-full">
-                            <Canvas camera={{ position: [0, 0, 28], fov: 45 }} shadows style={{ width: '100%', height: '100%' }}>
-                                <color attach="background" args={['#fdf6e3']} />
+                            <Canvas camera={{ position: [4.65, -3.35, -4], fov: 45 }} dpr={[1, 1.75]} shadows style={{ width: '100%', height: '100%' }}>
+                                <color attach="background" args={['#160d09']} />
                                 <Suspense fallback={null}>
                                     <DartboardScene 
                                         onHover={handleBoardHover} 
                                         onClick={handleBoardClick}
                                         darts={darts}
-                                        isAiming={phase === 'aim'}
+                                        isAiming={phase === 'aim' && !introActive}
                                         hoverData={hoverData}
                                         onDartLand={handleDartLand}
-                                        wallTexture={wallTexture}
+                                        introActive={introActive}
+                                        introDuration={introDuration}
+                                        lightweight={lightweightScene}
+                                        onIntroComplete={() => setIntroActive(false)}
                                     />
                                 </Suspense>
                             </Canvas>
@@ -1301,7 +1194,24 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     )}
                 </div>
 
-                {phase === 'aim' && !hoverData && (
+                {introActive && (
+                    <div className="absolute inset-0 z-20 pointer-events-none flex items-end justify-center p-5 sm:p-7 bg-gradient-to-t from-black/55 via-transparent to-black/15">
+                        <div className="w-full max-w-xl flex items-center justify-between gap-4 rounded-2xl border border-amber-200/25 bg-black/55 px-4 py-3 text-white shadow-2xl backdrop-blur-md pointer-events-auto">
+                            <div>
+                                <div className="font-display text-lg sm:text-2xl font-black tracking-wide text-amber-100">Welcome to the old bar</div>
+                                <div className="text-xs sm:text-sm text-amber-50/70">Taking you to the dartboard…</div>
+                            </div>
+                            <button
+                                onClick={() => setIntroActive(false)}
+                                className="shrink-0 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors"
+                            >
+                                Skip
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {phase === 'aim' && !hoverData && !introActive && (
                     isMobileViewport ? (
                         showAimOverlay && (
                             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-[520px] pointer-events-none animate-fade-in">
@@ -1360,18 +1270,18 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             </div>
 
             {phase === 'question' && currentQuestion && (
-                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-[#120a07]/75 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
-                                    <div className="font-bold text-sm sm:text-xl opacity-90 truncate max-w-[40%]">{teamNames[currentTeam]}'s Turn</div>
-                                    <div className="bg-white/20 px-3 py-1 rounded-full font-black text-sm sm:text-xl">Target: {lockedTarget?.label}</div>
-                                    <div className="font-bold text-sm sm:text-xl opacity-80 text-right">{lockedTarget?.points} Points</div>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div className="bg-gradient-to-r from-[#32170f] via-[#6b351f] to-[#32170f] text-amber-50 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-amber-500/45 shadow-[inset_0_-8px_18px_rgba(0,0,0,0.3)]">
+                                    <div className="font-bold text-sm sm:text-xl text-amber-100/90 truncate max-w-[40%]">{teamNames[currentTeam]}'s Turn</div>
+                                    <div className="bg-black/35 border border-amber-300/45 px-3 py-1 rounded-full font-black text-sm sm:text-xl text-amber-200 shadow-inner">Target: {lockedTarget?.label}</div>
+                                    <div className="font-bold text-sm sm:text-xl text-amber-100/80 text-right">{lockedTarget?.points} Points</div>
                                 </div>
 
-                                <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                <div className={`bg-[#0f1b14] flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`} style={chalkboardStyle}>
                                     {questionImageUrl && hasOptions ? (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div
@@ -1388,7 +1298,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                         role={isMobileViewport ? undefined : 'button'}
                                                         tabIndex={isMobileViewport ? -1 : 0}
                                                         title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                        className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                        className={`h-full w-full rounded-xl object-contain border border-amber-200/30 bg-black/35 shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                     />
                                                 </div>
                                                 <div
@@ -1398,7 +1308,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                     <div
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                        className={`font-display font-bold text-slate-800 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                        className={`font-display font-bold text-amber-50 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                     >
                                                         {currentQuestion.question}
                                                     </div>
@@ -1431,7 +1341,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                             setIsFlipped(true);
                                                                         }}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                        className={`relative p-4 sm:p-6 bg-[#19251d]/95 border border-amber-200/20 rounded-none font-bold text-amber-50 sm:hover:bg-[#6b351f] sm:hover:border-amber-300/70 sm:hover:text-amber-50 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-[inset_0_0_24px_rgba(0,0,0,0.18)]`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -1470,13 +1380,13 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 role={isMobileViewport ? undefined : 'button'}
                                                 tabIndex={isMobileViewport ? -1 : 0}
                                                 title={isMobileViewport ? undefined : 'Click to zoom'}
-                                                className={`h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
+                                                className={`h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain border border-amber-200/30 bg-black/35 shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                             />
                                             <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
                                                 <div
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    className={`font-display font-bold text-amber-50 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                 >
                                                     {currentQuestion.question}
                                                 </div>
@@ -1491,7 +1401,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 <div
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    className={`font-display font-bold text-amber-50 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                 >
                                                     {currentQuestion.question}
                                                 </div>
@@ -1519,7 +1429,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                                             setIsFlipped(true);
                                                                         }}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
-                                                                        className={`relative p-4 sm:p-6 bg-slate-50 border border-slate-200 rounded-none font-bold text-slate-800 sm:hover:bg-brand-yellow sm:hover:border-yellow-400 sm:hover:text-slate-900 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0`}
+                                                                        className={`relative p-4 sm:p-6 bg-[#19251d]/95 border border-amber-200/20 rounded-none font-bold text-amber-50 sm:hover:bg-[#6b351f] sm:hover:border-amber-300/70 sm:hover:text-amber-50 transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-[inset_0_0_24px_rgba(0,0,0,0.18)]`}
                                                                     >
                                                                         <span
                                                                             aria-hidden="true"
@@ -1550,13 +1460,13 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                     )}
                                 </div>
 
-                                <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                <div className={`flex flex-col relative flex-shrink-0 z-50 bg-[#26150f] border-t border-amber-500/35 ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                     {options.timerSeconds > 0 && (
-                                        <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
+                                        <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-black/35 overflow-hidden flex items-center justify-start pointer-events-none`}>
                                             {!isTimesUp && (
-                                                <div className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                                <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-400 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
                                             )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
+                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-amber-50 tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
                                                 {isTimesUp ? "TIME'S UP!" : (
                                                     <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                 )}
@@ -1567,7 +1477,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                         <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                             <button
                                                 onClick={() => setIsFlipped(true)}
-                                                className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center"
+                                                className="bg-gradient-to-b from-amber-300 to-amber-500 text-[#24120b] border border-amber-100/70 px-6 sm:px-12 py-2 rounded-full font-black text-base sm:text-xl shadow-[0_8px_20px_rgba(0,0,0,0.4)] hover:from-amber-200 hover:to-amber-400 hover:scale-105 transition-transform relative z-50 flex items-center"
                                             >
                                                 Check Answer
                                             </button>
@@ -1576,13 +1486,13 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 </div>
                             </div>
 
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
-                                    <div className="font-bold text-sm sm:text-xl opacity-80">Answer</div>
-                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500" title="Flip Back"><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div className="bg-gradient-to-r from-[#32170f] via-[#6b351f] to-[#32170f] text-amber-100 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-amber-500/45 shadow-[inset_0_-8px_18px_rgba(0,0,0,0.3)]">
+                                    <div className="font-black text-sm sm:text-xl tracking-wide">Answer</div>
+                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-black/30 border border-amber-200/30 rounded-full hover:bg-amber-300/20 text-amber-100" title="Flip Back"><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
                                 </div>
 
-                                <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-white text-center overflow-hidden w-full relative z-0">
+                                <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[#0f1b14] text-center overflow-hidden w-full relative z-0" style={chalkboardStyle}>
                                     <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
                                         {hasOptions && mcResult && (
                                             <div className="animate-bounce mb-4 sm:mb-8">
@@ -1592,7 +1502,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                         <div
                                             ref={answerTextRef}
                                             style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
-                                            className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}
+                                            className={`font-display font-bold text-amber-50 leading-tight whitespace-pre-wrap break-words hyphens-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] ${getAnswerFontSizeClass(currentQuestion.answer)}`}
                                         >
                                             {currentQuestion.answer}
                                         </div>
