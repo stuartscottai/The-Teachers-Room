@@ -257,6 +257,8 @@ export const LiveQuizHost: React.FC = () => {
   const [lobbyTrack, setLobbyTrack] = useState<LobbyTrackId>('chill');
   const [showJoinQr, setShowJoinQr] = useState(false);
   const [resizeTick, setResizeTick] = useState(0);
+  const [lobbyQrSize, setLobbyQrSize] = useState(1);
+  const lobbyQrContainerRef = useRef<HTMLDivElement>(null);
   const questionPanelRef = useRef<HTMLDivElement>(null);
   const questionCategoryRef = useRef<HTMLDivElement>(null);
   const questionTextRef = useRef<HTMLHeadingElement>(null);
@@ -320,6 +322,8 @@ export const LiveQuizHost: React.FC = () => {
   );
   const answeredCount = answeredParticipantIds.size;
   const allPlayersAnswered = participants.length > 0 && answeredCount >= participants.length;
+  const hasCrowdedLobby = participants.length > 8;
+  const hasDenseLobby = participants.length > 12;
   const participantsByOption = useMemo(() => {
     const byId = new Map(participants.map((participant) => [participant.id, participant]));
     return currentSubmissions.reduce<Record<string, LiveQuizParticipant[]>>((acc, submission) => {
@@ -339,6 +343,27 @@ export const LiveQuizHost: React.FC = () => {
     observer.observe(panel);
     return () => observer.disconnect();
   }, [currentQuestion]);
+
+  useLayoutEffect(() => {
+    const container = lobbyQrContainerRef.current;
+    if (!container || session?.status !== 'lobby') return;
+
+    const updateQrSize = () => {
+      const styles = window.getComputedStyle(container);
+      const horizontalPadding = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const verticalPadding = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+      const availableWidth = container.clientWidth - horizontalPadding;
+      const availableHeight = container.clientHeight - verticalPadding;
+      const maxSize = isMobileViewport ? 210 : 330;
+      setLobbyQrSize(Math.max(1, Math.floor(Math.min(maxSize, availableWidth, availableHeight))));
+    };
+
+    updateQrSize();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateQrSize);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isMobileViewport, session?.status]);
 
   useLayoutEffect(() => {
     if (!currentQuestion) {
@@ -562,7 +587,7 @@ export const LiveQuizHost: React.FC = () => {
 
   const JoinQrModal = showJoinQr && session ? createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
-      <div className="relative z-[10000] w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 text-slate-950 shadow-2xl">
+      <div className="relative z-[10000] max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 text-slate-950 shadow-2xl">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
@@ -580,8 +605,8 @@ export const LiveQuizHost: React.FC = () => {
             <X size={20} />
           </button>
         </div>
-        <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
-          <QRCodeCanvas value={joinUrl} size={300} includeMargin />
+        <div className="flex justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-4">
+          <QRCodeCanvas value={joinUrl} size={300} includeMargin className="h-auto max-w-full" />
         </div>
         <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-3">
           <div className="flex min-w-0 items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-center font-mono text-4xl font-black tracking-[0.22em] text-brand-yellow">
@@ -731,8 +756,13 @@ export const LiveQuizHost: React.FC = () => {
             <div className="flex min-h-0 flex-col rounded-3xl bg-white p-4 text-slate-900 shadow-2xl lg:p-5">
               <h1 className="text-[clamp(1.35rem,2vw,2.25rem)] font-black leading-tight">{session.title}</h1>
               <p className="mt-1 text-base font-bold text-slate-500">{questions.length} live questions</p>
-              <div className="mt-4 flex min-h-[230px] flex-1 items-center justify-center rounded-2xl border border-slate-200 p-3 lg:min-h-0">
-                <QRCodeCanvas value={joinUrl} size={isMobileViewport ? 210 : 330} includeMargin />
+              <div ref={lobbyQrContainerRef} className="mt-4 flex min-h-[230px] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 p-3 lg:min-h-0">
+                <QRCodeCanvas
+                  value={joinUrl}
+                  size={lobbyQrSize}
+                  includeMargin
+                  className="h-auto max-h-full w-auto max-w-full shrink"
+                />
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className="flex min-w-0 items-center justify-center rounded-2xl bg-slate-950 p-3 text-center font-mono text-[clamp(2rem,3.3vw,3.2rem)] font-black tracking-[0.2em] text-brand-yellow">{session.joinCode}</div>
@@ -750,27 +780,44 @@ export const LiveQuizHost: React.FC = () => {
                 Start Game
               </button>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-md sm:p-6">
-              <div className="mb-5 flex items-center gap-3 text-2xl font-black sm:text-3xl">
+            <div className={`flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-md ${hasCrowdedLobby ? 'sm:p-4' : 'sm:p-6'}`}>
+              <div className={`flex shrink-0 items-center gap-3 font-black ${hasCrowdedLobby ? 'mb-3 text-2xl' : 'mb-5 text-2xl sm:text-3xl'}`}>
                 <Users size={30} />
                 Players Joined ({participants.length})
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className={`grid min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 ${
+                hasDenseLobby
+                  ? 'grid-cols-2 gap-2 lg:grid-cols-3'
+                  : hasCrowdedLobby
+                    ? 'grid-cols-2 gap-3'
+                    : 'gap-4 md:grid-cols-2'
+              }`}>
                 {participants.map((participant) => {
                   const player = parseLiveQuizDisplayName(participant.displayName);
 
                   return (
-                    <div key={participant.id} className="rounded-2xl bg-white p-5 text-3xl font-black text-slate-900 shadow-lg ring-2 ring-white/50">
+                    <div
+                      key={participant.id}
+                      className={`min-w-0 rounded-2xl bg-white font-black text-slate-900 shadow-lg ring-2 ring-white/50 ${
+                        hasDenseLobby ? 'p-2.5 text-lg' : hasCrowdedLobby ? 'p-3 text-2xl' : 'p-5 text-3xl'
+                      }`}
+                    >
                       <button
                         type="button"
                         onClick={() => void removeParticipant(participant)}
                         disabled={removingParticipantId === participant.id}
                         title={`Remove ${player.name}`}
                         aria-label={`Remove ${player.name}`}
-                        className="group flex min-w-0 items-center gap-3 text-left disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`group flex w-full min-w-0 items-center text-left disabled:cursor-not-allowed disabled:opacity-50 ${hasDenseLobby ? 'gap-2' : 'gap-3'}`}
                       >
-                        {player.avatarId && <LiveQuizAvatarIcon avatarId={player.avatarId} className="h-12 w-12 shrink-0" iconSize={24} />}
-                        <span className="min-w-0 truncate group-hover:line-through">{player.name}</span>
+                        {player.avatarId && (
+                          <LiveQuizAvatarIcon
+                            avatarId={player.avatarId}
+                            className={`${hasDenseLobby ? 'h-9 w-9' : hasCrowdedLobby ? 'h-10 w-10' : 'h-12 w-12'} shrink-0`}
+                            iconSize={hasDenseLobby ? 19 : hasCrowdedLobby ? 21 : 24}
+                          />
+                        )}
+                        <span className="min-w-0 break-words leading-tight [overflow-wrap:anywhere] group-hover:line-through">{player.name}</span>
                       </button>
                     </div>
                   );
