@@ -15,7 +15,7 @@ const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
 // Vercel receives attachments inside a JSON request, where base64 encoding
 // makes files roughly one third larger. Keep the complete request below the
-// platform body limit after images and Word documents have been processed.
+// platform body limit after images and Word documents have been prepared.
 const MAX_AI_SOURCE_TOTAL_BYTES = 3 * 1024 * 1024;
 const getProcessedSourceBytes = (file: UploadedFile) => Math.ceil(String(file.data || '').length * 0.75);
 const BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS = 12;
@@ -520,7 +520,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     const nextTotalBytes = [...uploadedFiles, ...newFiles, nextUploadedFile]
                         .reduce((sum, source) => sum + getProcessedSourceBytes(source), 0);
                     if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
-                        alert(`"${file.name}" could not be attached because the processed AI attachments would exceed 3 MB in total. Large images and Word files are reduced automatically; PDFs cannot be reduced safely.`);
+                        alert(`"${file.name}" could not be attached. The maximum total attachment size is 3 MB.`);
                         continue;
                     }
                     newFiles.push(nextUploadedFile);
@@ -667,7 +667,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     0
                 );
                 if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
-                    alert(`"${file.name}" could not be attached because the processed AI attachments would exceed 3 MB in total.`);
+                    alert(`"${file.name}" could not be attached. The maximum total attachment size is 3 MB.`);
                     continue;
                 }
                 next.push(file);
@@ -1844,7 +1844,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
-                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. PDFs, Word docs, and images are supported (maximum 3 MB total after automatic processing).</p>
+                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. Maximum total attachment size: 3 MB.</p>
                                     {dictation.statusMessage && (
                                         <p className={`mt-1 text-xs ${dictation.isListening || dictation.status === 'error' ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
                                             {dictation.statusMessage}
