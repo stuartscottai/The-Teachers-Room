@@ -40,8 +40,8 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[760] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-[760] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-4">
+      <div className="w-full max-w-lg max-h-full overflow-y-auto rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">

@@ -25,8 +25,8 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden relative animate-fade-in">
+    <div className="fixed inset-0 z-[130] flex items-center justify-center overflow-y-auto bg-slate-900/55 p-3 backdrop-blur-sm sm:p-4">
+      <div className="w-full max-w-lg max-h-full bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-y-auto relative animate-fade-in">
         <button
           type="button"
           onClick={onClose}
@@ -36,7 +36,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
           <X size={18} />
         </button>
 
-        <div className="p-8">
+        <div className="p-5 sm:p-8">
           <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
             {title || 'Activate Teacher Plan'}
           </h2>

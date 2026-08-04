@@ -37,8 +37,8 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
   };
 
   return (
-    <div className="fixed inset-0 z-[700] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-[700] flex items-center justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-4">
+      <div className="w-full max-w-md max-h-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase text-sky-700">
@@ -58,7 +58,7 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
         </div>
 
         <div ref={qrWrapRef} className="mt-5 flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
-          <QRCodeCanvas value={url} size={220} includeMargin />
+          <QRCodeCanvas value={url} size={Math.min(220, typeof window === 'undefined' ? 220 : Math.max(120, window.innerHeight - 390))} includeMargin />
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">

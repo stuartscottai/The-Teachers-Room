@@ -206,8 +206,8 @@ export const StockImagePicker: React.FC<{
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+      <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50">
           <div>
             <div className="text-sm font-extrabold text-slate-800">Stock Image Bank</div>
@@ -234,7 +234,7 @@ export const StockImagePicker: React.FC<{
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row min-h-[520px]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row">
           <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-slate-200">
             <div className="flex items-center gap-2 mb-3">
               <div className="relative flex-1">
@@ -271,7 +271,7 @@ export const StockImagePicker: React.FC<{
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[420px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[min(420px,55dvh)] overflow-y-auto pr-1">
               {results.map((item) => {
                 const isSelected = selectedMap.has(item.id);
                 return (

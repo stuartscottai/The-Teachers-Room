@@ -197,8 +197,8 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl max-h-[88vh] overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm p-3 sm:p-4">
+      <div className="flex w-full max-w-4xl max-h-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border border-slate-200">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-blue">
@@ -258,7 +258,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
           </div>
         </div>
 
-        <div className="overflow-y-auto px-5 py-4" style={{ maxHeight: 'calc(88vh - 190px)' }}>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {error && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -365,7 +365,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200 px-5 py-4">
           <p className="text-xs text-slate-500">
             School files are attached as source material only. They are not copied into the saved game.
           </p>

@@ -13,7 +13,11 @@ import { buildExternalLlmGamePrompt, MANUAL_GAME_IMPORT_ACCEPT, parseImportedGam
 
 const WORD_WHEEL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
-const SOURCE_MAX_SIZE_BYTES = 4 * 1024 * 1024;
+// Vercel receives attachments inside a JSON request, where base64 encoding
+// makes files roughly one third larger. Keep the complete request below the
+// platform body limit after images and Word documents have been processed.
+const MAX_AI_SOURCE_TOTAL_BYTES = 3 * 1024 * 1024;
+const getProcessedSourceBytes = (file: UploadedFile) => Math.ceil(String(file.data || '').length * 0.75);
 const BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS = 12;
 const BLOCK_BEATERS_BOARD_OPTIONS: Array<{ value: 'small' | 'medium' | 'large'; label: string; tiles: number }> = [
     { value: 'small', label: 'Small - 5 x 5', tiles: 25 },
@@ -98,12 +102,10 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
 
     return (
         <div
-            className={`fixed inset-0 z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto pb-6' : 'items-center'} justify-center px-4 animate-fade-in`}
-            style={(isCompactHeight || shouldOffsetForTour)
+            className={`fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto' : 'items-center'} justify-center p-3 sm:p-4 animate-fade-in`}
+            style={shouldOffsetForTour
                 ? {
-                    paddingTop: shouldOffsetForTour
-                        ? `calc(4rem + env(safe-area-inset-top) + ${mobileTopInset}px)`
-                        : 'calc(4rem + env(safe-area-inset-top))'
+                    top: `calc(4rem + env(safe-area-inset-top) + ${mobileTopInset}px)`,
                   }
                 : undefined}
         >
@@ -132,20 +134,20 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
             </div>
             {showDialog && (
             <div
-                className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-lg w-full relative animate-slide-up border border-white/60"
+                className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-5 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto relative animate-slide-up border border-white/60"
             >
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
                 <h2 className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">Create {type}</h2>
-                <p className="text-center text-slate-500 mb-8">How would you like to build your game?</p>
+                <p className="text-center text-slate-500 mb-5 sm:mb-8">How would you like to build your game?</p>
                 
                 <div className="space-y-4">
                     {isStopTheFire ? (
                         <>
                             <button 
                                 onClick={() => onModeSelect('manual')}
-                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                                className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
                                 <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
                                     <Edit className="text-orange-600" size={24} />
@@ -157,7 +159,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                             </button>
                             <button 
                                 onClick={() => onModeSelect('bank')}
-                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                                className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
                                 <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
                                     <Sparkles className="text-orange-600" size={24} />
@@ -169,7 +171,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                             </button>
                             <button 
                                 onClick={() => onModeSelect('ai')}
-                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
+                                className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
                                 <div className="bg-orange-100 p-3 rounded-full mr-4 group-hover:bg-white">
                                     <Sparkles className="text-orange-600" size={24} />
@@ -184,7 +186,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                         <>
                             <button 
                                 onClick={() => onModeSelect('manual')}
-                                className="w-full p-6 border-2 border-slate-200 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all group flex items-center"
+                                className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all group flex items-center"
                             >
                                 <div className="bg-slate-100 p-3 rounded-full mr-4 group-hover:bg-white">
                                     <Edit className="text-slate-700 group-hover:text-sky-600" size={24} />
@@ -196,7 +198,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                             </button>
                             <button 
                                 onClick={() => onModeSelect('ai')}
-                                className="w-full p-6 border-2 border-brand-yellow/50 rounded-xl hover:border-brand-yellow hover:bg-yellow-50 transition-all group flex items-center"
+                                className="w-full p-4 sm:p-6 border-2 border-brand-yellow/50 rounded-xl hover:border-brand-yellow hover:bg-yellow-50 transition-all group flex items-center"
                             >
                                 <div className="bg-brand-yellow p-3 rounded-full mr-4">
                                     <Sparkles className="text-slate-900" size={24} />
@@ -503,10 +505,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             
             for (let i = 0; i < rawFiles.length; i++) {
                 const file = rawFiles[i];
-                if (file.size > SOURCE_MAX_SIZE_BYTES) {
-                    alert(`File "${file.name}" exceeds the 4MB limit.`);
-                    continue;
-                }
                 if (uploadedFiles.length + newFiles.length >= 3) {
                     alert("Maximum 3 files allowed.");
                     break;
@@ -519,6 +517,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         sizeBytes: file.size,
                         savedToSchoolStorage: false,
                     };
+                    const nextTotalBytes = [...uploadedFiles, ...newFiles, nextUploadedFile]
+                        .reduce((sum, source) => sum + getProcessedSourceBytes(source), 0);
+                    if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
+                        alert(`"${file.name}" could not be attached because the processed AI attachments would exceed 3 MB in total. Large images and Word files are reduced automatically; PDFs cannot be reduced safely.`);
+                        continue;
+                    }
                     newFiles.push(nextUploadedFile);
                     if (saveUploadsToSchoolStorage && canUseSchoolStorage) {
                         filesToSaveToSchool.push({ rawFile: file, uploadedFile: nextUploadedFile });
@@ -654,7 +658,22 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     const handleAttachSchoolFiles = (filesFromSchool: UploadedFile[]) => {
-        setUploadedFiles((prev) => [...prev, ...filesFromSchool].slice(0, 3));
+        setUploadedFiles((prev) => {
+            const next = [...prev];
+            for (const file of filesFromSchool) {
+                if (next.length >= 3) break;
+                const nextTotalBytes = [...next, file].reduce(
+                    (sum, source) => sum + getProcessedSourceBytes(source),
+                    0
+                );
+                if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
+                    alert(`"${file.name}" could not be attached because the processed AI attachments would exceed 3 MB in total.`);
+                    continue;
+                }
+                next.push(file);
+            }
+            return next;
+        });
     };
 
     const hasLocalUploads = uploadedFiles.some((file) => file.source !== 'school-storage');
@@ -1825,7 +1844,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
-                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. PDFs, Word docs, and images are supported.</p>
+                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. PDFs, Word docs, and images are supported (maximum 3 MB total after automatic processing).</p>
                                     {dictation.statusMessage && (
                                         <p className={`mt-1 text-xs ${dictation.isListening || dictation.status === 'error' ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
                                             {dictation.statusMessage}

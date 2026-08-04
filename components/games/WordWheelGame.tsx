@@ -390,6 +390,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
     const [clueFontSize, setClueFontSize] = useState<number | null>(null);
     const [questionResizeTick, setQuestionResizeTick] = useState(0);
+    const [answerFontSize, setAnswerFontSize] = useState<number | null>(null);
+    const [answerResizeTick, setAnswerResizeTick] = useState(0);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const headerRef = useRef<HTMLDivElement>(null);
@@ -397,6 +399,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const questionWrapRef = useRef<HTMLDivElement>(null);
     const questionTextRef = useRef<HTMLParagraphElement>(null);
     const cluePreviewTextRef = useRef<HTMLDivElement>(null);
+    const answerWrapRef = useRef<HTMLDivElement>(null);
+    const answerTextRef = useRef<HTMLDivElement>(null);
     const spinTimeoutRef = useRef<number | null>(null);
     const spinFrameRef = useRef<number | null>(null);
     const popTimeoutRef = useRef<number | null>(null);
@@ -472,14 +476,31 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
         const anchor = entries.length ? normalizeWheelAnchor(wheelAnchor, entries.length) : 0;
         const total = entries.length;
-        const width = Math.max(320, wheelTrackWidth || 0);
-        const height = Math.max(280, wheelTrackHeight || 0);
-        const frontSize = width >= 1200 ? 176 : width >= 900 ? 164 : width >= 720 ? 146 : 126;
+        const width = Math.max(1, wheelTrackWidth || 0);
+        const height = Math.max(1, wheelTrackHeight || 0);
+        const widthBasedFrontSize = width >= 1200 ? 176 : width >= 900 ? 164 : width >= 720 ? 146 : 126;
+        // On short laptop screens, preserve the focal sphere and compress the
+        // horizontal arc instead of shrinking the whole carousel into dots.
+        const minimumReadableFrontSize = Math.min(widthBasedFrontSize, Math.max(1, height - 16), 82);
+        const frontSize = clamp(
+            Math.min(widthBasedFrontSize, height * 0.42),
+            minimumReadableFrontSize,
+            widthBasedFrontSize
+        );
         const frontBase = getWheelBallSizeSmooth(0) || 176;
         const baseScale = frontSize / frontBase;
-        const radiusX = Math.max(108, width / 2 - Math.max(24, frontSize * 0.48));
-        const radiusY = clamp(height * 0.24, 64, 160);
-        const centerY = clamp(height * 0.42, frontSize * 0.45, height - frontSize * 0.62);
+        const minimumPeripheralSize = clamp(frontSize * 0.24, 30, 42);
+        const maximumRadiusX = Math.max(0, width / 2 - Math.max(24, frontSize * 0.48));
+        const minimumRadiusX = Math.min(maximumRadiusX, frontSize * 2.5);
+        const radiusX = clamp(
+            height * 1.05 + frontSize * 0.55,
+            minimumRadiusX,
+            maximumRadiusX
+        );
+        const activeBallSize = frontSize * 1.04;
+        const verticalRoom = Math.max(0, (height - activeBallSize) / 2 - 8);
+        const radiusY = Math.min(height * 0.22, verticalRoom);
+        const centerY = height / 2;
 
         return entries
             .map((entry, index) => {
@@ -490,7 +511,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                 const depth = (y + 1) / 2; // 0 back -> 1 front
                 const absRel = Math.abs(rel);
                 const focusSize = getWheelBallSizeSmooth(absRel) * baseScale;
-                const size = Math.max(24, focusSize * (0.42 + depth * 0.58));
+                const size = Math.max(minimumPeripheralSize, focusSize * (0.42 + depth * 0.58));
                 const isActive = isWheelSpinning ? absRel < 0.5 : index === activeIndex;
                 const finalSize = size * (isActive ? 1.04 : 1);
                 const focusFont = getWheelBallFontSmooth(absRel) * baseScale;
@@ -686,6 +707,37 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         activeEntry?.revealedLetterIndices,
         questionResizeTick,
     ]);
+
+    useEffect(() => {
+        const node = answerWrapRef.current;
+        if (!node || !isFlipped) return;
+
+        const observer = new ResizeObserver(() => setAnswerResizeTick((prev) => prev + 1));
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [isFlipped, activeEntry?.id]);
+
+    useLayoutEffect(() => {
+        if (!isFlipped || !activeEntry || revealState?.revealAnswer === false) {
+            setAnswerFontSize(null);
+            return;
+        }
+
+        const wrap = answerWrapRef.current;
+        const textEl = answerTextRef.current;
+        if (!wrap || !textEl || wrap.clientHeight <= 0 || wrap.clientWidth <= 0) return;
+
+        const minSize = 14;
+        let size = Math.max(minSize, Math.min(60, Math.floor(wrap.clientWidth / 5.5)));
+        textEl.style.fontSize = `${size}px`;
+        textEl.style.lineHeight = '1.08';
+
+        while (size > minSize && (wrap.scrollHeight > wrap.clientHeight || textEl.scrollWidth > wrap.clientWidth)) {
+            size -= 1;
+            textEl.style.fontSize = `${size}px`;
+        }
+        setAnswerFontSize(size);
+    }, [isFlipped, activeEntry?.id, activeEntry?.answer, revealState?.answer, revealState?.revealAnswer, answerResizeTick]);
 
     useEffect(() => {
         if (phase !== 'play') return;
@@ -1320,8 +1372,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     </div>
 
                     <div className="w-full max-w-[1200px] flex-1 min-h-0 flex items-center">
-                        <div className="relative w-full h-full min-h-[320px] max-h-[560px] mx-auto overflow-hidden">
-                            <div ref={wheelTrackRef} className="absolute inset-0 overflow-hidden">
+                        <div className="relative w-full h-full min-h-0 max-h-[560px] mx-auto overflow-hidden">
+                            <div ref={wheelTrackRef} data-testid="word-wheel-track" className="absolute inset-0 overflow-hidden">
                                 {wheelRingEntries.map((item) => {
                                     const isPopping = item.index === poppingLetterIndex;
                                     const isCurrentLetter = item.index === activeIndex && !isWheelSpinning;
@@ -1363,6 +1415,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     return (
                                         <div
                                             key={`${item.entry.letter}-${item.index}`}
+                                            data-word-wheel-active={item.isActive ? 'true' : 'false'}
                                             className={`absolute overflow-hidden rounded-full bg-gradient-to-br font-black flex items-center justify-center transition-[opacity,box-shadow,filter] duration-300 ease-out ${shellBorderClass} ${spherePalette.gradient} ${spherePalette.text} ${spherePalette.shadow} ${item.isActive ? 'ring-4 ring-brand-yellow shadow-[0_12px_34px_rgba(250,204,21,0.45)]' : ''}`}
                                             style={{
                                                 left: `${item.leftPx}px`,
@@ -1547,12 +1600,12 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     <div className="font-black text-lg sm:text-3xl">Result</div>
                                 </div>
 
-                                <div className="flex-1 min-h-0 flex flex-col p-5 sm:p-8 md:p-12 overflow-auto">
-                                    <div className="flex-1 flex flex-col items-center justify-center text-center">
+                                <div ref={answerWrapRef} data-testid="word-wheel-answer-card" className="flex-1 min-h-0 flex flex-col p-4 sm:p-6 md:p-10 overflow-hidden">
+                                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center">
                                         {revealState?.kind === 'correct' ? (
-                                            <div className="flex flex-col items-center mb-5 sm:mb-7">
-                                                <CheckCircle2 size={72} className="text-green-500 sm:w-24 sm:h-24" />
-                                                <h2 className="mt-3 text-4xl sm:text-6xl font-black text-green-500 uppercase">Correct</h2>
+                                            <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
+                                                <CheckCircle2 className="text-green-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
+                                                <h2 className="mt-2 font-black text-green-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Correct</h2>
                                                 {Number(revealState.speedBonus) > 0 ? (
                                                     <div className="mt-2 text-center">
                                                         <p className="text-lg sm:text-3xl font-black text-slate-700">
@@ -1569,23 +1622,23 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                                 )}
                                             </div>
                                         ) : revealState?.kind === 'incorrect' ? (
-                                            <div className="flex flex-col items-center mb-5 sm:mb-7">
-                                                <XCircle size={72} className="text-red-500 sm:w-24 sm:h-24" />
-                                                <h2 className="mt-3 text-4xl sm:text-6xl font-black text-red-500 uppercase">Incorrect</h2>
+                                            <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
+                                                <XCircle className="text-red-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
+                                                <h2 className="mt-2 font-black text-red-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Incorrect</h2>
                                                 <p className="mt-2 text-lg sm:text-3xl font-black text-slate-700">
                                                     -{revealState.penalty || activeEntry.points}
                                                 </p>
                                             </div>
                                         ) : revealState?.kind === 'timeout' ? (
-                                            <div className="flex flex-col items-center mb-5 sm:mb-7">
-                                                <Clock size={72} className="text-amber-500 sm:w-24 sm:h-24" />
-                                                <h2 className="mt-3 text-4xl sm:text-6xl font-black text-amber-500 uppercase">Time Up</h2>
+                                            <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
+                                                <Clock className="text-amber-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
+                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Time Up</h2>
                                                 <p className="mt-2 text-base sm:text-xl font-bold text-slate-600">Letter marked as passed.</p>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col items-center mb-5 sm:mb-7">
-                                                <Clock size={72} className="text-amber-500 sm:w-24 sm:h-24" />
-                                                <h2 className="mt-3 text-4xl sm:text-6xl font-black text-amber-500 uppercase">Passed</h2>
+                                            <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
+                                                <Clock className="text-amber-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
+                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Passed</h2>
                                             </div>
                                         )}
 
@@ -1594,15 +1647,19 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                                 Answer hidden. This clue stays in play.
                                             </p>
                                         ) : (
-                                            <div className="font-display font-black text-slate-800 leading-tight text-3xl sm:text-6xl whitespace-pre-wrap break-words max-w-full">
+                                            <div
+                                                ref={answerTextRef}
+                                                style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.08', overflowWrap: 'anywhere' } : undefined}
+                                                className="font-display font-black text-slate-800 leading-tight text-3xl sm:text-6xl whitespace-pre-wrap break-words max-w-full"
+                                            >
                                                 {revealState?.answer || activeEntry.answer || 'No answer'}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="mt-4 flex justify-end">
+                                    <div className="mt-2 sm:mt-4 flex justify-end shrink-0">
                                         <button
                                             onClick={handleReturnToWheel}
-                                            className="px-5 sm:px-8 py-3 sm:py-4 rounded-xl bg-brand-blue text-white font-black text-2xl sm:text-4xl hover:brightness-110 transition-all"
+                                            className="px-5 sm:px-8 py-2.5 sm:py-4 rounded-xl bg-brand-blue text-white font-black text-xl sm:text-4xl hover:brightness-110 transition-all"
                                         >
                                             Continue
                                         </button>

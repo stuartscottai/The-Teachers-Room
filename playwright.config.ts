@@ -43,5 +43,9 @@ export default defineConfig({
       // phones still receive the game's full high-density rendering.
       use: { ...devices['Pixel 5'], deviceScaleFactor: 1 },
     },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
   ],
 });

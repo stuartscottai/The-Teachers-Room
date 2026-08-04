@@ -17,7 +17,6 @@ import {
 } from '../../services/schoolStorage';
 
 const SOURCE_ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp';
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 interface SchoolStorageManagerProps {
   schoolId: string;
@@ -290,11 +289,6 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
     setBusy(true);
     setFeedback(null);
     try {
-      const oversized = fileList.find((file) => file.size > MAX_UPLOAD_BYTES);
-      if (oversized) {
-        throw new Error(`"${oversized.name}" exceeds the 4 MB limit.`);
-      }
-
       const totalUploadBytes = fileList.reduce(
         (sum, file) => sum + Math.max(0, Number(file.size || 0)),
         0
@@ -580,7 +574,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                   />
                 </label>
                 <p className="mt-2 text-xs text-slate-500">
-                  Maximum 4 MB per file. Shared school storage is capped at {SCHOOL_STORAGE_LIMIT_LABEL}.
+                  No separate per-file limit is applied here. Shared school storage is capped at {SCHOOL_STORAGE_LIMIT_LABEL} in total.
                 </p>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameImagePreparation } from '../components/games/GameImagePreparation';
 import { GameSetup } from '../components/games/GameSetup';
+import { ModeSelector } from '../components/games/GameConfigurator';
 import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion, SnakesLaddersBonusType } from '../types';
 
 const smokeImage =
@@ -114,15 +115,37 @@ export const GameSmokeTest: React.FC = () => {
   const mode = params.get('mode') || 'trivia';
   const preparationMode = params.get('prepare') || '';
   const bonusesEnabled = params.get('bonuses') === '1';
+  const useFullWordWheel = params.get('fullWheel') === '1';
   const snakesBonusType = params.get('bonusType') as SnakesLaddersBonusType | null;
   const requestedPlayers = params.get('players');
   const lightweightTestMode = params.get('lightweight') === '1';
+  const useLongContent = params.get('long') === '1';
   const playerCount = requestedPlayers
     ? Math.min(6, Math.max(1, Number.parseInt(requestedPlayers, 10) || options.players))
     : options.players;
   const showSetup = params.get('setup') === '1';
+  const showModeSelector = params.get('modeSelector') === '1';
   const type = modes[mode] || GameType.TRIVIA;
   const baseGame = makeGame(type);
+  if (useFullWordWheel && type === GameType.WORD_WHEEL) {
+    baseGame.questions = Array.from({ length: 26 }, (_, index) => {
+      const letter = String.fromCharCode(65 + index);
+      return makeQuestion(index + 1, {
+        letter,
+        question: `Which classroom word begins with ${letter}?`,
+        answer: `${letter}word`,
+        answerAliases: [],
+      });
+    });
+    baseGame.config.questionCount = 26;
+  }
+  if (useLongContent && type === GameType.WORD_WHEEL && baseGame.questions[0]) {
+    baseGame.questions[0] = {
+      ...baseGame.questions[0],
+      question: 'What exceptionally long classroom vocabulary answer begins with A and should shrink to remain fully visible inside this result card?',
+      answer: 'Antidisestablishmentarianism and additional classroom context',
+    };
+  }
   const game = preparationMode === 'failure' || preparationMode === 'temporary'
     ? {
         ...baseGame,
@@ -159,6 +182,10 @@ export const GameSmokeTest: React.FC = () => {
 
   if (replacementRequested) {
     return <div data-testid="image-replacement-requested">Image replacement requested</div>;
+  }
+
+  if (showModeSelector) {
+    return <ModeSelector type={type} onBack={() => undefined} onModeSelect={() => undefined} />;
   }
 
   if (showSetup) {

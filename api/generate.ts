@@ -1512,21 +1512,75 @@ Return JSON: { "categories": ["..."] }
       }
       parts.push({ text: prompt });
 
-      const response = await generateTrackedContent({
-        model: DEFAULT_MODEL,
-        contents: { parts },
-        config: {
-          systemInstruction,
-          ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
-            ? { thinkingConfig: getGameGenerationThinkingConfig(DEFAULT_MODEL) }
-            : {}),
-          responseMimeType: "application/json",
-          responseSchema: responseSchema
+      const expectedQuestionCount = isJeopardy
+        ? (config.jeopardyCategories || 5) * (config.jeopardyRows || 5)
+        : isPubQuiz
+          ? (config.pubQuizRoundsCount || 3) * (config.pubQuizQuestionsPerRound || 5)
+          : isMillionaire
+            ? 15
+            : isDarts
+              ? (config.questionCount || 15) + 10
+              : isWordWheel
+                ? 26
+                : Number(config.questionCount || 0);
+      const countGeneratedQuestions = (value: any) => {
+        if (Array.isArray(value?.questions)) return value.questions.length;
+        if (Array.isArray(value?.jeopardyBoard)) {
+          return value.jeopardyBoard.reduce(
+            (sum: number, category: any) => sum + (Array.isArray(category?.questions) ? category.questions.length : 0),
+            0
+          );
         }
-      }, config);
+        if (Array.isArray(value?.pubQuizRounds)) {
+          return value.pubQuizRounds.reduce(
+            (sum: number, round: any) => sum + (Array.isArray(round?.questions) ? round.questions.length : 0),
+            0
+          );
+        }
+        return 0;
+      };
+      const buildGenerationParams = (attempt: number, previousCount = 0) => {
+        const attemptParts = parts.map((part, index) => {
+          if (attempt === 0 || index !== parts.length - 1 || typeof part?.text !== 'string') return part;
+          return {
+            ...part,
+            text: `${part.text}\n\nRETRY REQUIRED: The previous response returned only ${previousCount} of ${expectedQuestionCount} required questions. Return the complete game again, with every required question. Do not shorten or summarize the result.`,
+          };
+        });
+        return {
+          model: DEFAULT_MODEL,
+          contents: { parts: attemptParts },
+          config: {
+            systemInstruction,
+            ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
+              ? { thinkingConfig: getGameGenerationThinkingConfig(DEFAULT_MODEL) }
+              : {}),
+            maxOutputTokens: 65_536,
+            responseMimeType: "application/json",
+            responseSchema: responseSchema
+          }
+        };
+      };
 
-      const text = response.text;
-      const data = JSON.parse(cleanJson(text || "{}"));
+      let data: any = null;
+      let generatedCount = 0;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await generateTrackedContent(buildGenerationParams(attempt, generatedCount), config);
+        const candidate = JSON.parse(cleanJson(response.text || "{}"));
+        const candidateCount = countGeneratedQuestions(candidate);
+        if (!data || candidateCount > generatedCount) {
+          data = candidate;
+          generatedCount = candidateCount;
+        }
+        if (!expectedQuestionCount || candidateCount >= expectedQuestionCount) break;
+      }
+
+      if (expectedQuestionCount && generatedCount < expectedQuestionCount) {
+        return sendJson(502, {
+          error: `The AI returned ${generatedCount} of ${expectedQuestionCount} questions after two attempts. Please try again; no incomplete game was saved.`,
+          code: 'INCOMPLETE_GAME_GENERATION',
+        });
+      }
 
       enforceGameOptionCounts(data, config);
       enforceGameAnswerMatchesOptions(data);
@@ -1535,6 +1589,13 @@ Return JSON: { "categories": ["..."] }
         data.questions = normalizeWordWheelQuestions(data.questions || [], wordWheelLetterRule as WordWheelLetterRule);
       } else if (isBlockBeaters) {
         data.questions = normalizeBlockBeatersQuestions(data.questions || [], config.blockBeatersMode || 'letters');
+      }
+
+      if ((isWordWheel || isBlockBeaters) && data.questions.length < expectedQuestionCount) {
+        return sendJson(502, {
+          error: `The AI produced ${data.questions.length} valid questions, but this game requires ${expectedQuestionCount}. Please try again; no incomplete game was saved.`,
+          code: 'INCOMPLETE_GAME_GENERATION',
+        });
       }
       
       // Ensure ID exists for database

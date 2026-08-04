@@ -48,9 +48,7 @@ const GENERIC_IMAGE_TERMS = new Set([
 const MIN_CONFIDENCE_SCORE = 6;
 const MIN_CONFIDENCE_MARGIN = 2;
 const QUESTION_FALLBACK_QUERY = 'question';
-const QUESTION_FALLBACK_CACHE_KEY = '__fallback_question_image__';
-const QUESTION_FALLBACK_POSITIVE = new Set(['question', 'mark', 'quiz', 'help', 'faq', 'symbol', 'icon']);
-const QUESTION_FALLBACK_NEGATIVE = new Set(['person', 'people', 'portrait', 'face', 'selfie', 'model']);
+const IMAGE_SEARCH_CONCURRENCY = 4;
 
 const PROPER_NOUN_PHRASE = /\b(?:[A-Z][a-z]{2,})(?:\s+[A-Z][a-z]{2,})*\b/g;
 const VISUAL_ING_EXCEPTIONS = new Set(['streaming', 'painting', 'building', 'clothing', 'wedding']);
@@ -592,68 +590,6 @@ const buildStagedSearchQueries = (question: GeneratedQuestion, intent: ImageInte
   return uniquePlanned;
 };
 
-const scoreQuestionFallbackCandidate = (
-  candidate: { alt: string; tags?: string; kind?: string }
-) => {
-  const normalized = normalizeText(`${candidate.alt || ''} ${candidate.tags || ''}`);
-  const words = new Set(normalized.split(' ').filter(Boolean));
-  let score = 0;
-  for (const token of QUESTION_FALLBACK_POSITIVE) {
-    if (words.has(token) || normalized.includes(token)) score += token === 'question' ? 5 : 2;
-  }
-  if (normalized.includes('question mark') || (words.has('question') && words.has('mark'))) {
-    score += 4;
-  }
-  for (const token of QUESTION_FALLBACK_NEGATIVE) {
-    if (words.has(token) || normalized.includes(token)) score -= 2;
-  }
-  if (candidate.kind === 'vector' || candidate.kind === 'illustration') score += 1;
-  if (candidate.kind === 'photo') score -= 1;
-  return score;
-};
-
-const getQuestionFallbackImage = async (
-  imageCache: Map<string, GeneratedQuestion['image'] | null>
-): Promise<GeneratedQuestion['image'] | null> => {
-  if (imageCache.has(QUESTION_FALLBACK_CACHE_KEY)) {
-    return imageCache.get(QUESTION_FALLBACK_CACHE_KEY) || null;
-  }
-
-  try {
-    const result = await searchStockImages(QUESTION_FALLBACK_QUERY, { page: 1, perPage: 24, strict: false });
-    const candidates = Array.isArray(result.items) ? result.items : [];
-    if (!candidates.length) {
-      imageCache.set(QUESTION_FALLBACK_CACHE_KEY, null);
-      return null;
-    }
-
-    const pickedCandidate = [...candidates].sort(
-      (a, b) => scoreQuestionFallbackCandidate(b) - scoreQuestionFallbackCandidate(a)
-    )[0];
-    if (!pickedCandidate) {
-      imageCache.set(QUESTION_FALLBACK_CACHE_KEY, null);
-      return null;
-    }
-
-    const picked = {
-      url: pickedCandidate.url,
-      thumbUrl: pickedCandidate.thumbUrl,
-      source: 'stock' as const,
-      stockId: pickedCandidate.id,
-      searchQuery: QUESTION_FALLBACK_QUERY,
-      alt: QUESTION_FALLBACK_QUERY,
-      provider: pickedCandidate.provider,
-      photographer: pickedCandidate.photographer,
-      sourcePageUrl: pickedCandidate.sourcePageUrl,
-    };
-    imageCache.set(QUESTION_FALLBACK_CACHE_KEY, picked);
-    return picked;
-  } catch {
-    imageCache.set(QUESTION_FALLBACK_CACHE_KEY, null);
-    return null;
-  }
-};
-
 const logImageAutoPickDebug = (
   question: GeneratedQuestion,
   data: {
@@ -690,7 +626,7 @@ const logImageAutoPickDebug = (
   console.groupEnd();
 };
 
-export const autoPickImagesForQuestions = async (
+const autoPickImagesForQuestionsSequential = async (
   questions: GeneratedQuestion[],
   config: GameConfig,
   cache?: Map<string, GeneratedQuestion['image'] | null>
@@ -714,20 +650,14 @@ export const autoPickImagesForQuestions = async (
     const searchPlan = buildStagedSearchQueries(question, intent, config);
     const key = (searchPlan[0] || query || '').toLowerCase();
     if (!searchPlan.length) {
-      const fallbackImage = await getQuestionFallbackImage(imageCache);
       logImageAutoPickDebug(question, {
         searchPlan,
         fallbackQuery: query,
-        pickedImage: fallbackImage,
-        reason: fallbackImage ? 'question fallback image' : 'no search plan',
+        reason: 'no search plan',
         effectiveVisualSearch: intent.effectiveVisualSearch,
         visualSearchSource: intent.visualSearchSource,
       });
-      if (fallbackImage) {
-        nextQuestions.push({ ...question, image: fallbackImage });
-      } else {
-        nextQuestions.push(question);
-      }
+      nextQuestions.push(question);
       continue;
     }
 
@@ -745,18 +675,16 @@ export const autoPickImagesForQuestions = async (
         });
         nextQuestions.push({ ...question, image: cached });
       } else {
-        const fallbackImage = await getQuestionFallbackImage(imageCache);
         logImageAutoPickDebug(question, {
           searchPlan,
           fallbackQuery: query,
-          pickedImage: fallbackImage,
           cacheKey: key,
           cacheHit: true,
-          reason: fallbackImage ? 'cached miss fallback image' : 'cached no image',
+          reason: 'cached no image',
           effectiveVisualSearch: intent.effectiveVisualSearch,
           visualSearchSource: intent.visualSearchSource,
         });
-        nextQuestions.push(fallbackImage ? { ...question, image: fallbackImage } : question);
+        nextQuestions.push(question);
       }
       continue;
     }
@@ -851,61 +779,57 @@ export const autoPickImagesForQuestions = async (
         });
         nextQuestions.push({ ...question, image: picked });
       } else {
-        const fallbackImage = await getQuestionFallbackImage(imageCache);
-        if (fallbackImage) {
-          imageCache.set(key, fallbackImage);
-          logImageAutoPickDebug(question, {
-            searchPlan,
-            fallbackQuery: query,
-            pickedImage: fallbackImage,
-            cacheKey: key,
-            reason: 'candidate scoring fallback image',
-            effectiveVisualSearch: intent.effectiveVisualSearch,
-            visualSearchSource: intent.visualSearchSource,
-          });
-          nextQuestions.push({ ...question, image: fallbackImage });
-        } else {
-          imageCache.set(key, null);
-          logImageAutoPickDebug(question, {
-            searchPlan,
-            fallbackQuery: query,
-            cacheKey: key,
-            reason: 'no acceptable image',
-            effectiveVisualSearch: intent.effectiveVisualSearch,
-            visualSearchSource: intent.visualSearchSource,
-          });
-          nextQuestions.push(question);
-        }
-      }
-    } catch (err) {
-      console.warn('Game image auto-pick failed for query:', query, err);
-      const fallbackImage = await getQuestionFallbackImage(imageCache);
-      if (fallbackImage) {
-        imageCache.set(key, fallbackImage);
-        logImageAutoPickDebug(question, {
-          searchPlan,
-          fallbackQuery: query,
-          pickedImage: fallbackImage,
-          cacheKey: key,
-          reason: 'search error fallback image',
-          effectiveVisualSearch: intent.effectiveVisualSearch,
-          visualSearchSource: intent.visualSearchSource,
-        });
-        nextQuestions.push({ ...question, image: fallbackImage });
-      } else {
         imageCache.set(key, null);
         logImageAutoPickDebug(question, {
           searchPlan,
           fallbackQuery: query,
           cacheKey: key,
-          reason: 'search error no image',
+          reason: 'no acceptable image',
           effectiveVisualSearch: intent.effectiveVisualSearch,
           visualSearchSource: intent.visualSearchSource,
         });
         nextQuestions.push(question);
       }
+    } catch (err) {
+      console.warn('Game image auto-pick failed for query:', query, err);
+      imageCache.set(key, null);
+      logImageAutoPickDebug(question, {
+        searchPlan,
+        fallbackQuery: query,
+        cacheKey: key,
+        reason: 'search error no image',
+        effectiveVisualSearch: intent.effectiveVisualSearch,
+        visualSearchSource: intent.visualSearchSource,
+      });
+      nextQuestions.push(question);
     }
   }
 
   return nextQuestions;
+};
+
+export const autoPickImagesForQuestions = async (
+  questions: GeneratedQuestion[],
+  config: GameConfig,
+  cache?: Map<string, GeneratedQuestion['image'] | null>
+) => {
+  if (questions.length <= 1) {
+    return autoPickImagesForQuestionsSequential(questions, config, cache);
+  }
+
+  const imageCache = cache ?? new Map<string, GeneratedQuestion['image'] | null>();
+  const results = new Array<GeneratedQuestion>(questions.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(IMAGE_SEARCH_CONCURRENCY, questions.length);
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < questions.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const [prepared] = await autoPickImagesForQuestionsSequential([questions[index]], config, imageCache);
+      results[index] = prepared || questions[index];
+    }
+  }));
+
+  return results;
 };

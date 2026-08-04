@@ -23,7 +23,13 @@ export type StockImageSearchResult = {
 
 const PUBLIC_PEXELS_API_KEY = import.meta.env.VITE_PEXELS_API_KEY || '';
 const PUBLIC_PIXABAY_API_KEY = import.meta.env.VITE_PIXABAY_API_KEY || '';
-const STOCK_IMAGE_API_URL = '/api/stock-images';
+const STOCK_IMAGE_API_PATH = '/api/stock-images';
+const HOSTED_STOCK_IMAGE_API_ORIGIN = 'https://www.theteachersroom.app';
+
+const getStockImageApiUrl = () =>
+  import.meta.env.DEV
+    ? `${HOSTED_STOCK_IMAGE_API_ORIGIN}${STOCK_IMAGE_API_PATH}`
+    : new URL(STOCK_IMAGE_API_PATH, window.location.origin).toString();
 
 type PexelsApiPayload = {
   total_results?: number;
@@ -290,7 +296,7 @@ export const searchStockImages = async (
   const perPage = Math.max(3, Math.min(50, Math.floor(opts?.perPage ?? 24)));
   const strict = Boolean(opts?.strict);
 
-  const proxyUrl = new URL(STOCK_IMAGE_API_URL, window.location.origin);
+  const proxyUrl = new URL(getStockImageApiUrl());
   proxyUrl.searchParams.set('q', trimmed);
   proxyUrl.searchParams.set('page', String(page));
   proxyUrl.searchParams.set('perPage', String(perPage));
@@ -333,7 +339,13 @@ export const searchStockImages = async (
     }
   }
 
-  // Local fallback path for Vite dev where /api may not be running.
+  // Production browsers always stay on the app's first-party API so
+  // privacy/tracking protection cannot block a direct provider request.
+  if (!import.meta.env.DEV) {
+    throw new Error('Stock image search is temporarily unavailable.');
+  }
+
+  // Development-only fallback for unusual local setups.
   return searchDirectFallback(trimmed, page, perPage, strict, opts?.signal);
 };
 
@@ -347,7 +359,7 @@ export const refreshStockImage = async (params: {
   const searchQuery = String(params.searchQuery || params.fallbackQuery || '').trim();
 
   if (stockId) {
-    const proxyUrl = new URL(STOCK_IMAGE_API_URL, window.location.origin);
+    const proxyUrl = new URL(getStockImageApiUrl());
     proxyUrl.searchParams.set('id', stockId);
     proxyUrl.searchParams.set('perPage', '3');
     proxyUrl.searchParams.set('strict', 'false');
@@ -367,7 +379,7 @@ export const refreshStockImage = async (params: {
       // Fall through to query refresh.
     }
 
-    if (PUBLIC_PEXELS_API_KEY && /^pexels:/i.test(stockId)) {
+    if (import.meta.env.DEV && PUBLIC_PEXELS_API_KEY && /^pexels:/i.test(stockId)) {
       try {
         const id = stockId.replace(/^pexels:/i, '').trim();
         const directResponse = await fetch(`https://api.pexels.com/v1/photos/${encodeURIComponent(id)}`, {
@@ -386,7 +398,7 @@ export const refreshStockImage = async (params: {
       }
     }
 
-    if (PUBLIC_PIXABAY_API_KEY && !/^pexels:/i.test(stockId)) {
+    if (import.meta.env.DEV && PUBLIC_PIXABAY_API_KEY && !/^pexels:/i.test(stockId)) {
       try {
         const directUrl = new URL('https://pixabay.com/api/');
         directUrl.searchParams.set('key', PUBLIC_PIXABAY_API_KEY);
