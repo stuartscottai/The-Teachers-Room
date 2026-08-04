@@ -3,8 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
+    "dev:full": "node scripts/dev-full.mjs",
     "build": "npm run seo:sitemap && vite build && npm run seo:prerender && npm run seo:validate",
     "preview": "vite preview",
     "seo:sitemap": "node scripts/generate-sitemap.mjs",
@@ -40,6 +44,7 @@
     "lucide-react": "0.300.0",
     "maath": "0.10.8",
     "mammoth": "^1.12.0",
+    "openai": "^7.4.0",
     "path": "^0.12.7",
     "qrcode.react": "^4.2.0",
     "react": "18.3.1",

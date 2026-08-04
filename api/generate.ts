@@ -1,21 +1,25 @@
 
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { Type, Schema } from "@google/genai";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import mammoth from "mammoth";
 import WordExtractor from "word-extractor";
 import {
   ACTIVE_GEMINI_MODEL,
+  ACTIVE_OPENAI_MODEL,
+  getGameGenerationOutputTokenLimit,
   getGameGenerationThinkingConfig,
-  getGeminiModelPricing
+  getGeminiModelPricing,
+  getOpenAIModelPricing,
+  normalizeAiProvider,
 } from "../utils/aiModelConfig.js";
+import { createAiRuntime } from "./aiRuntime.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
   process.env.SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZWZnd2h5d2N1emZuYXd0eXJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MzMxMDEsImV4cCI6MjA4MDEwOTEwMX0._ZxWGsoU-rN8Yuf_v_7zGrivk2GKgb6QHBbT3QgtrCk';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const DEFAULT_MODEL = ACTIVE_GEMINI_MODEL;
 const MAX_EXTRACTED_TEXT_CHARS = 150_000;
 const DOCX_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -277,6 +281,7 @@ const buildSourceFileParts = async (files: any[] | undefined) => {
           mimeType,
           data,
         },
+        _fileName: name,
       });
       continue;
     }
@@ -306,6 +311,7 @@ const buildSourceFileParts = async (files: any[] | undefined) => {
         mimeType,
         data,
       },
+      _fileName: name,
     });
   }
 
@@ -319,10 +325,9 @@ Do NOT mention attached files, notes, documents, passages, or source material in
 Write all questions, prompts, explanations, and worksheet text as standalone classroom content.
 `;
 
-const countTokensSafe = async (ai: GoogleGenAI, model: string, contents: any) => {
+const countTokensSafe = async (ai: { countTokens: (contents: any) => Promise<number> }, contents: any) => {
   try {
-    const response = await ai.models.countTokens({ model, contents });
-    return Number.isFinite(response?.totalTokens) ? Number(response.totalTokens) : 0;
+    return await ai.countTokens(contents);
   } catch (error) {
     console.error('Count tokens failed:', error);
     return 0;
@@ -334,14 +339,34 @@ const estimateCostUsd = ({
   promptTokens,
   outputTokens,
   thoughtsTokens,
+  cachedInputTokens,
+  cacheWriteTokens,
   hasAudioInput
 }: {
   model: string;
   promptTokens: number;
   outputTokens: number;
   thoughtsTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
   hasAudioInput: boolean;
 }) => {
+  if (model.startsWith('gpt-')) {
+    const pricing = getOpenAIModelPricing(model);
+    const largePrompt = promptTokens > pricing.largePromptThreshold;
+    const inputRate = largePrompt ? pricing.inputLarge : pricing.inputStandard;
+    const cachedInputRate = largePrompt ? pricing.cachedInputLarge : pricing.cachedInputStandard;
+    const cacheWriteRate = largePrompt ? pricing.cacheWriteLarge : pricing.cacheWriteStandard;
+    const outputRate = largePrompt ? pricing.outputLarge : pricing.outputStandard;
+    const uncachedInputTokens = Math.max(0, promptTokens - cachedInputTokens);
+    return Number((
+      (uncachedInputTokens / 1_000_000) * inputRate +
+      (cachedInputTokens / 1_000_000) * cachedInputRate +
+      (cacheWriteTokens / 1_000_000) * cacheWriteRate +
+      ((outputTokens + thoughtsTokens) / 1_000_000) * outputRate
+    ).toFixed(6));
+  }
+
   const pricing = getGeminiModelPricing(model);
   const largePrompt = pricing.largePromptThreshold !== null && promptTokens > pricing.largePromptThreshold;
   const inputRate = hasAudioInput
@@ -369,7 +394,7 @@ const buildUsageSnapshot = async ({
   response,
   config
 }: {
-  ai: GoogleGenAI;
+  ai: { countTokens: (contents: any) => Promise<number> };
   model: string;
   contents: any;
   response: any;
@@ -379,13 +404,15 @@ const buildUsageSnapshot = async ({
   const responseText = typeof response?.text === 'string' ? response.text : '';
   const promptTokens = Number.isFinite(usage?.promptTokenCount)
     ? Number(usage.promptTokenCount)
-    : await countTokensSafe(ai, model, contents);
+    : await countTokensSafe(ai, contents);
   const outputTokens = Number.isFinite(usage?.candidatesTokenCount)
     ? Number(usage.candidatesTokenCount)
     : responseText
-      ? await countTokensSafe(ai, model, responseText)
+      ? await countTokensSafe(ai, responseText)
       : 0;
   const thoughtsTokens = Number.isFinite(usage?.thoughtsTokenCount) ? Number(usage.thoughtsTokenCount) : 0;
+  const cachedInputTokens = Number.isFinite(usage?.cachedContentTokenCount) ? Number(usage.cachedContentTokenCount) : 0;
+  const cacheWriteTokens = Number.isFinite(usage?.cacheWriteTokenCount) ? Number(usage.cacheWriteTokenCount) : 0;
   const totalTokens = Number.isFinite(usage?.totalTokenCount)
     ? Number(usage.totalTokenCount)
     : promptTokens + outputTokens + thoughtsTokens;
@@ -395,12 +422,16 @@ const buildUsageSnapshot = async ({
     promptTokens,
     outputTokens,
     thoughtsTokens,
+    cachedInputTokens,
+    cacheWriteTokens,
     totalTokens,
     estimatedCostUsd: estimateCostUsd({
       model,
       promptTokens,
       outputTokens,
       thoughtsTokens,
+      cachedInputTokens,
+      cacheWriteTokens,
       hasAudioInput: hasAudioFiles(config)
     }),
     responseId: typeof response?.responseId === 'string' ? response.responseId : null,
@@ -444,13 +475,21 @@ const resolveAccountTypeForUser = async (user: any): Promise<'free' | 'teacher' 
 const recordUsageEvent = async (payload: Record<string, any>) => {
   if (!supabaseAdminClient) {
     console.warn('SUPABASE_SERVICE_ROLE_KEY is missing. Skipping usage log insert.');
-    return;
+    return { status: 'skipped', reason: 'missing_service_role_key' } as const;
   }
 
   const { error } = await supabaseAdminClient.from('generation_usage').insert(payload);
   if (error) {
     console.error('Failed to insert generation usage log:', error);
+    return { status: 'error', reason: error.code || 'insert_failed' } as const;
   }
+
+  console.info('Generation usage log written.', {
+    provider: payload?.meta?.aiProvider || null,
+    model: payload?.model || null,
+    clientEnv: payload?.client_env || null,
+  });
+  return { status: 'written', reason: '' } as const;
 };
 
 // Helper to clean JSON
@@ -930,6 +969,11 @@ export default async function handler(req: any, res: any) {
   let resolvedAccountType: 'free' | 'teacher' | 'school' = 'free';
   let usageSnapshot: any = null;
   let usageLogged = false;
+  let usageLogResult: { status: 'written' | 'skipped' | 'error'; reason: string } | null = null;
+  const selectedProvider = normalizeAiProvider(process.env.AI_PROVIDER);
+  const selectedModel = selectedProvider === 'openai'
+    ? String(process.env.OPENAI_MODEL || ACTIVE_OPENAI_MODEL)
+    : String(process.env.GEMINI_MODEL || ACTIVE_GEMINI_MODEL);
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
@@ -951,11 +995,11 @@ export default async function handler(req: any, res: any) {
     if (usageLogged || !usageSnapshot || !authenticatedUser || !requestAction) return;
     usageLogged = true;
 
-    await recordUsageEvent({
+    usageLogResult = await recordUsageEvent({
       user_id: authenticatedUser.id,
       user_email: authenticatedUser.email || null,
       action: requestAction,
-      model: usageSnapshot.model || DEFAULT_MODEL,
+      model: usageSnapshot.model || selectedModel,
       status,
       prompt_tokens: usageSnapshot.promptTokens || 0,
       output_tokens: usageSnapshot.outputTokens || 0,
@@ -970,7 +1014,10 @@ export default async function handler(req: any, res: any) {
       error_message: errorMessage || null,
       meta: {
         ...buildUsageMeta(requestBody),
-        accountType: resolvedAccountType
+        accountType: resolvedAccountType,
+        aiProvider: selectedProvider,
+        cachedInputTokens: usageSnapshot.cachedInputTokens || 0,
+        cacheWriteTokens: usageSnapshot.cacheWriteTokens || 0,
       }
     });
   };
@@ -981,6 +1028,15 @@ export default async function handler(req: any, res: any) {
     } else {
       const errorMessage = payload && typeof payload.error === 'string' ? payload.error : undefined;
       await finalizeUsage('error', errorMessage);
+    }
+
+    // These contain no credentials or prompt data. They make local provider and
+    // usage-log verification possible from the browser Network panel.
+    res.setHeader('X-AI-Provider', selectedProvider);
+    res.setHeader('X-AI-Model', usageSnapshot?.model || selectedModel);
+    res.setHeader('X-Generation-Usage-Log', usageLogResult?.status || 'not-attempted');
+    if (usageLogResult?.reason) {
+      res.setHeader('X-Generation-Usage-Reason', usageLogResult.reason);
     }
 
     return res.status(statusCode).json(payload);
@@ -1000,7 +1056,7 @@ export default async function handler(req: any, res: any) {
     resolvedAccountType = await resolveAccountTypeForUser(authenticatedUser);
     if (resolvedAccountType === 'free') {
       usageSnapshot = {
-        model: DEFAULT_MODEL,
+        model: selectedModel,
         promptTokens: 0,
         outputTokens: 0,
         thoughtsTokens: 0,
@@ -1016,27 +1072,45 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // 2. Initialize AI Client safely inside the request
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      console.error("Server Error: API_KEY or GEMINI_API_KEY environment variable is missing.");
-      return sendJson(500, { 
-        error: "Server Configuration Error: API Key is missing. Please add API_KEY to Vercel Environment Variables." 
+    // 2. Select the server-side provider. API keys never enter the browser bundle.
+    let ai: ReturnType<typeof createAiRuntime>;
+    try {
+      ai = createAiRuntime({
+        provider: selectedProvider,
+        action: requestAction,
+        userId: authenticatedUser.id,
       });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The selected AI provider is not configured.';
+      console.error('Server AI configuration error:', message);
+      return sendJson(500, { error: `Server Configuration Error: ${message}` });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const mergeUsageSnapshot = (previous: any, next: any) => {
+      if (!previous) return { ...next, provider: ai.provider };
+      return {
+        ...next,
+        provider: ai.provider,
+        promptTokens: (previous.promptTokens || 0) + (next.promptTokens || 0),
+        outputTokens: (previous.outputTokens || 0) + (next.outputTokens || 0),
+        thoughtsTokens: (previous.thoughtsTokens || 0) + (next.thoughtsTokens || 0),
+        cachedInputTokens: (previous.cachedInputTokens || 0) + (next.cachedInputTokens || 0),
+        cacheWriteTokens: (previous.cacheWriteTokens || 0) + (next.cacheWriteTokens || 0),
+        totalTokens: (previous.totalTokens || 0) + (next.totalTokens || 0),
+        estimatedCostUsd: Number(((previous.estimatedCostUsd || 0) + (next.estimatedCostUsd || 0)).toFixed(6)),
+      };
+    };
 
     const generateTrackedContent = async (params: any, usageConfig?: any) => {
-      const response = await ai.models.generateContent(params);
-      usageSnapshot = await buildUsageSnapshot({
+      const response = await ai.generateContent(params);
+      const nextSnapshot = await buildUsageSnapshot({
         ai,
-        model: params?.model || DEFAULT_MODEL,
+        model: ai.model,
         contents: params?.contents,
         response,
         config: usageConfig
       });
+      usageSnapshot = mergeUsageSnapshot(usageSnapshot, nextSnapshot);
       return response;
     };
 
@@ -1078,7 +1152,7 @@ Return JSON: { "categories": ["..."] }
       parts.push({ text: prompt });
 
       const response = await generateTrackedContent({
-        model: DEFAULT_MODEL,
+        model: ai.model,
         contents: { parts },
         config: {
           systemInstruction,
@@ -1539,23 +1613,30 @@ Return JSON: { "categories": ["..."] }
         }
         return 0;
       };
-      const buildGenerationParams = (attempt: number, previousCount = 0) => {
+      const maxGameOutputTokens = getGameGenerationOutputTokenLimit(
+        expectedQuestionCount,
+        Boolean(config.includeImages)
+      );
+      const buildGenerationParams = (attempt: number, previousCount = 0, retryReason = '') => {
         const attemptParts = parts.map((part, index) => {
           if (attempt === 0 || index !== parts.length - 1 || typeof part?.text !== 'string') return part;
+          const retryInstruction = retryReason === 'invalid-json'
+            ? 'The previous response was cut off or was not valid JSON. Return the complete game again as compact, valid JSON with every string correctly escaped. Do not include markdown or commentary.'
+            : `The previous response returned only ${previousCount} of ${expectedQuestionCount} required questions. Return the complete game again, with every required question. Do not shorten or summarize the result.`;
           return {
             ...part,
-            text: `${part.text}\n\nRETRY REQUIRED: The previous response returned only ${previousCount} of ${expectedQuestionCount} required questions. Return the complete game again, with every required question. Do not shorten or summarize the result.`,
+            text: `${part.text}\n\nRETRY REQUIRED: ${retryInstruction}`,
           };
         });
         return {
-          model: DEFAULT_MODEL,
+          model: ai.model,
           contents: { parts: attemptParts },
           config: {
             systemInstruction,
-            ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
-              ? { thinkingConfig: getGameGenerationThinkingConfig(DEFAULT_MODEL) }
+            ...(ai.provider === 'gemini' && getGameGenerationThinkingConfig(ai.model)
+              ? { thinkingConfig: getGameGenerationThinkingConfig(ai.model) }
               : {}),
-            maxOutputTokens: 65_536,
+            maxOutputTokens: maxGameOutputTokens,
             responseMimeType: "application/json",
             responseSchema: responseSchema
           }
@@ -1564,15 +1645,40 @@ Return JSON: { "categories": ["..."] }
 
       let data: any = null;
       let generatedCount = 0;
+      let retryReason = '';
+      let invalidJsonAttempts = 0;
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await generateTrackedContent(buildGenerationParams(attempt, generatedCount), config);
-        const candidate = JSON.parse(cleanJson(response.text || "{}"));
+        const response = await generateTrackedContent(buildGenerationParams(attempt, generatedCount, retryReason), config);
+        let candidate: any;
+        try {
+          candidate = JSON.parse(cleanJson(response.text || "{}"));
+        } catch (error) {
+          invalidJsonAttempts += 1;
+          retryReason = 'invalid-json';
+          console.warn(`AI game response was incomplete or invalid JSON (attempt ${attempt + 1}/2).`, {
+            provider: ai.provider,
+            model: ai.model,
+            responseStatus: response?.status || null,
+            incompleteReason: response?.incompleteReason || null,
+            responseLength: typeof response?.text === 'string' ? response.text.length : 0,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          continue;
+        }
         const candidateCount = countGeneratedQuestions(candidate);
         if (!data || candidateCount > generatedCount) {
           data = candidate;
           generatedCount = candidateCount;
         }
         if (!expectedQuestionCount || candidateCount >= expectedQuestionCount) break;
+        retryReason = 'incomplete-count';
+      }
+
+      if (!data && invalidJsonAttempts > 0) {
+        return sendJson(502, {
+          error: 'The AI response was cut off before the complete game arrived. The site retried automatically, but the second response was also incomplete. Please try again; no incomplete game was saved.',
+          code: 'INVALID_AI_JSON',
+        });
       }
 
       if (expectedQuestionCount && generatedCount < expectedQuestionCount) {
@@ -1909,7 +2015,7 @@ RULES:
        parts.push({ text: prompt });
 
        const response = await generateTrackedContent({
-        model: DEFAULT_MODEL,
+        model: ai.model,
         contents: { parts },
         config: {
             systemInstruction,
@@ -2213,7 +2319,7 @@ RULES:
         });
 
         const response = await generateTrackedContent({
-            model: DEFAULT_MODEL,
+            model: ai.model,
             contents: contents,
             config: {
                 systemInstruction: systemInstruction,
@@ -2289,7 +2395,7 @@ RULES:
       `;
 
         const response = await generateTrackedContent({
-          model: DEFAULT_MODEL,
+          model: ai.model,
           contents: prompt
         });
 

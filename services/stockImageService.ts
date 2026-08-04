@@ -24,12 +24,7 @@ export type StockImageSearchResult = {
 const PUBLIC_PEXELS_API_KEY = import.meta.env.VITE_PEXELS_API_KEY || '';
 const PUBLIC_PIXABAY_API_KEY = import.meta.env.VITE_PIXABAY_API_KEY || '';
 const STOCK_IMAGE_API_PATH = '/api/stock-images';
-const HOSTED_STOCK_IMAGE_API_ORIGIN = 'https://www.theteachersroom.app';
-
-const getStockImageApiUrl = () =>
-  import.meta.env.DEV
-    ? `${HOSTED_STOCK_IMAGE_API_ORIGIN}${STOCK_IMAGE_API_PATH}`
-    : new URL(STOCK_IMAGE_API_PATH, window.location.origin).toString();
+const getStockImageApiUrl = () => new URL(STOCK_IMAGE_API_PATH, window.location.origin).toString();
 
 type PexelsApiPayload = {
   total_results?: number;

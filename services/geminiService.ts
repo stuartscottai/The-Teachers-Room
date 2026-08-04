@@ -20,22 +20,12 @@ export interface ChatWizardResponse {
   suggestions?: WizardSuggestion[];
 }
 
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+// AI provider keys live only on the server. Never place them in a VITE_ variable,
+// because Vite variables are downloaded into every visitor's browser.
+const apiKey = '';
 const DEFAULT_MODEL = ACTIVE_GEMINI_MODEL;
-// Always use current origin for API calls to avoid CORS issues with Vercel preview deployments
-const DEFAULT_EXTERNAL_API = '/api/generate';
-const externalApiUrl = import.meta.env.VITE_EXTERNAL_API_URL;
-const LOCAL_DEV_EXTERNAL_API = 'https://www.theteachersroom.app/api/generate';
-
-const getGenerationApiUrl = () => {
-  if (externalApiUrl) return externalApiUrl;
-  if (import.meta.env.DEV) {
-    throw new Error(
-      `Set VITE_EXTERNAL_API_URL=${LOCAL_DEV_EXTERNAL_API} in .env.local so local generations use the hosted API.`
-    );
-  }
-  return DEFAULT_EXTERNAL_API;
-};
+// Production and local full-stack development both use the site's own API.
+const getGenerationApiUrl = () => '/api/generate';
 
 const getRequiredAccessToken = async () => {
   const { data, error } = await supabase.auth.getSession();
@@ -85,6 +75,14 @@ const tryExternalApi = async <T>(body: Record<string, any>): Promise<T> => {
       });
 
       const payload = await response.json().catch(() => null);
+      if (import.meta.env.DEV) {
+          console.info('Local AI request:', {
+            provider: response.headers.get('x-ai-provider') || 'unknown',
+            model: response.headers.get('x-ai-model') || 'unknown',
+            usageLog: response.headers.get('x-generation-usage-log') || 'unknown',
+            usageReason: response.headers.get('x-generation-usage-reason') || '',
+          });
+      }
       if (!response.ok) {
           const message =
             payload && typeof payload.error === 'string'

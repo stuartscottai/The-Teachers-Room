@@ -695,7 +695,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
                 <h3>7. Third-Party Services</h3>
                 <p>
-                    Some features rely on third-party providers, including Supabase (auth/database/storage), Google Gemini API (AI generation),
+                    Some features rely on third-party providers, including Supabase (auth/database/storage), Google Gemini API and OpenAI API (AI generation),
                     and Pixabay (stock image search). Your use of those integrated services may also be subject to their terms and policies.
                 </p>
 
@@ -835,10 +835,10 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                 <li>Legal obligations (compliance, dispute handling, lawful requests).</li>
             </ul>
 
-            <h3>4. AI Providers and Gemini Data Handling</h3>
+            <h3>4. AI Providers and Data Handling</h3>
             <p>
-                When you use AI features, prompts, uploaded source files, and related context are sent to Google Gemini API
-                (either through our server endpoint or direct client-side integration where configured).
+                When you use AI features, prompts, uploaded source files, and related context are sent through our server to
+                the AI provider selected for the site: either Google Gemini API or OpenAI API. Provider API keys are not sent to your browser.
             </p>
             <p>
                 Based on Google Gemini API documentation and terms currently published (including Google AI Studio terms effective December 18, 2025):
@@ -847,6 +847,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                 <li>For Google &quot;Paid Services,&quot; Google states prompts/responses are not used to improve Google products.</li>
                 <li>For Google &quot;Unpaid Services,&quot; Google states prompts/responses may be used to improve its products and machine-learning technologies.</li>
                 <li>Google may retain logs for abuse and safety monitoring under its own policies.</li>
+                <li>When OpenAI is selected, requests are processed under OpenAI&apos;s API data-usage and retention policies.</li>
             </ul>
             <p>
                 Because provider plans and configuration can vary over time, do not submit highly sensitive personal data in prompts or uploads unless you are legally authorized and comfortable with provider-side processing terms.
@@ -855,7 +856,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <h3>5. Where Data Is Stored</h3>
             <ul>
                 <li>Supabase is used for authentication, database storage, and file storage.</li>
-                <li>AI generation requests are processed through Google Gemini API.</li>
+                <li>AI generation requests are processed through the selected provider: Google Gemini API or OpenAI API.</li>
                 <li>Stock image search uses Pixabay via our API route/proxy.</li>
                 <li>Hosting/infrastructure providers may process request logs needed to run the site.</li>
             </ul>
@@ -872,7 +873,7 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <h3>7. Data Sharing</h3>
             <p>We do not sell your personal data. We share data only when needed:</p>
             <ul>
-                <li>With processors/service providers that run platform features (for example, Supabase, Google, Pixabay, hosting providers).</li>
+                <li>With processors/service providers that run platform features (for example, Supabase, Google, OpenAI, Pixabay, hosting providers).</li>
                 <li>With other users only for content you intentionally mark as public/community.</li>
                 <li>When required by law, court order, or to protect rights, safety, and service integrity.</li>
                 <li>As part of a merger, acquisition, or business transfer (with notice where required).</li>
