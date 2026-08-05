@@ -19,6 +19,23 @@ export const expectNoBrowserErrors = (errors: string[]) => {
   expect(errors, errors.join('\n')).toEqual([]);
 };
 
+export const waitForPageImages = async (page: Page) => {
+  // These routes are rendered by React after the initial document loads.
+  // Wait for those follow-up image requests before navigating elsewhere so
+  // Firefox does not report deliberately cancelled downloads as truncated.
+  await page.waitForLoadState('networkidle');
+  await expect.poll(
+    async () =>
+      page.locator('img').evaluateAll((images) =>
+        images.every((image) => {
+          const element = image as HTMLImageElement;
+          return !element.src || element.complete;
+        })
+      ),
+    { timeout: 15_000 }
+  ).toBe(true);
+};
+
 export const expectAtLeastOneLoadedImage = async (page: Page) => {
   await expect.poll(
     async () =>

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoBrowserErrors, installErrorGuards } from './helpers';
+import { expectNoBrowserErrors, installErrorGuards, waitForPageImages } from './helpers';
 
 const gameModes = [
   'trivia',
@@ -34,6 +34,7 @@ test('core public routes render without browser errors', async ({ page }) => {
   for (const route of ['/', '/games', '/live', '/test']) {
     await page.goto(route);
     await expect(page.locator('body')).toBeVisible();
+    await waitForPageImages(page);
   }
 
   expectNoBrowserErrors(errors);
