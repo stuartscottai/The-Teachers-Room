@@ -31,6 +31,56 @@ test('word wheel opens a clue, renders its image, and accepts a correct answer',
   expectNoBrowserErrors(errors);
 });
 
+test('pub quiz team editor opens above the question card', async ({ page }) => {
+  const errors = installErrorGuards(page);
+
+  await page.goto('/test/game-smoke?mode=pubquiz');
+  await expect(page.getByTestId('game-smoke-root')).toHaveAttribute('data-mode', 'pubquiz');
+
+  await page.getByRole('button', { name: /Round 1/i }).first().click();
+  await page.getByRole('button', { name: /^Start$/i }).click();
+  const questionOverlay = page.getByTestId('pubquiz-question-overlay');
+  await expect(questionOverlay).toBeVisible();
+
+  await page.getByRole('button', { name: /Team 1/i }).first().click();
+  const teamEditor = page.getByTestId('pubquiz-team-edit-modal');
+  await expect(teamEditor).toBeVisible();
+  await expect(teamEditor.getByRole('heading', { name: 'Edit Team Details' })).toBeVisible();
+
+  const layers = await Promise.all([
+    teamEditor.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex, 10)),
+    questionOverlay.evaluate((element) => Number.parseInt(getComputedStyle(element).zIndex, 10)),
+  ]);
+  expect(layers[0]).toBeGreaterThan(layers[1]);
+
+  expectNoBrowserErrors(errors);
+});
+
+test('pub quiz score change stays beside the score inside the team banner', async ({ page }) => {
+  const errors = installErrorGuards(page);
+
+  await page.goto('/test/game-smoke?mode=pubquiz');
+  await page.getByRole('button', { name: /Round 1/i }).first().click();
+  await page.getByRole('button', { name: /^Start$/i }).click();
+  await page.getByRole('button', { name: /Reveal Answer/i }).click();
+
+  const teamBanner = page.getByRole('button', { name: /Team 1/i }).first();
+  await page.getByRole('button', { name: 'Team 1', exact: true }).click();
+  const score = teamBanner.getByTestId('pubquiz-score-value');
+  const change = teamBanner.getByTestId('pubquiz-score-change');
+  await expect(score).toHaveText('1');
+  await expect(change).toHaveText('+1');
+
+  const boxes = await Promise.all([teamBanner.boundingBox(), score.boundingBox(), change.boundingBox()]);
+  expect(boxes.every(Boolean)).toBe(true);
+  expect(boxes[2]!.x).toBeGreaterThanOrEqual(boxes[1]!.x + boxes[1]!.width);
+  expect(boxes[2]!.x + boxes[2]!.width).toBeLessThanOrEqual(boxes[0]!.x + boxes[0]!.width);
+  expect(boxes[2]!.y).toBeGreaterThanOrEqual(boxes[0]!.y);
+  expect(boxes[2]!.y + boxes[2]!.height).toBeLessThanOrEqual(boxes[0]!.y + boxes[0]!.height);
+
+  expectNoBrowserErrors(errors);
+});
+
 test('snakes and ladders starts, rolls, and shows a question image', async ({ page }) => {
   test.setTimeout(120_000);
   const errors = installErrorGuards(page);
@@ -104,7 +154,9 @@ test('six-player snakes and ladders controls fit without overlapping', async ({ 
 
   expect(layout).not.toBeNull();
   expect(layout!.scoreToPlayer).toBeGreaterThanOrEqual(10);
-  expect(layout!.playerToDice).toBeGreaterThanOrEqual(0);
+  // Browser layout calculations can land a fraction of a pixel either side
+  // of zero even when the elements meet cleanly on screen.
+  expect(layout!.playerToDice).toBeGreaterThanOrEqual(-0.5);
   expect(layout!.diceToButton).toBeGreaterThanOrEqual(0);
   expect(layout!.playerTop).toBeGreaterThanOrEqual(layout!.panelTop);
   expect(layout!.buttonBottom).toBeLessThanOrEqual(layout!.panelBottom - 8);

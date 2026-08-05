@@ -43,13 +43,13 @@ const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName
     }, [score]);
 
     return (
-        <div className="relative">
-            <div className={`font-black font-mono leading-none tracking-tight transition-all text-slate-900 ${className || 'text-5xl'}`}>
+        <div className="flex items-center justify-center gap-1.5">
+            <div data-testid="pubquiz-score-value" className={`font-black font-mono leading-none tracking-tight transition-all text-white ${className || 'text-5xl'}`}>
                 {displayScore}
             </div>
             {diff !== 0 && (
-                <div className={`absolute -top-8 left-1/2 -translate-x-1/2 font-bold animate-bounce ${diffClassName || 'text-xl'}
-                    ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <div data-testid="pubquiz-score-change" className={`shrink-0 whitespace-nowrap font-black leading-none animate-pulse ${diffClassName || 'text-xl'}
+                    ${diff > 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
                     {diff > 0 ? '+' : ''}{diff}
                 </div>
             )}
@@ -475,6 +475,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         }
     };
 
+    const pubQuizBackgroundStyle = {
+        backgroundImage: `linear-gradient(rgba(7, 34, 37, 0.36), rgba(7, 27, 31, 0.52)), url("${isMobileViewport ? '/assets/background/pub-quiz-background-mobile.webp' : '/assets/background/pub-quiz-background.webp'}")`,
+        backgroundPosition: isMobileViewport ? 'center top' : 'center center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: 'cover',
+    };
+
     if (phase === 'gameover') {
         if (options.studentPractice) {
             const allQuestions = (game.pubQuizRounds || []).flatMap((round, roundIndex) =>
@@ -515,7 +522,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-teal-900 via-cyan-900 to-slate-950 text-white`}
+                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-[#102b2d] text-white`}
+                style={pubQuizBackgroundStyle}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
@@ -554,21 +562,21 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
 
     return (
-        <div ref={containerRef} className={`bg-slate-800 flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`}>
+        <div ref={containerRef} className={`bg-[#102b2d] flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`} style={pubQuizBackgroundStyle}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div ref={scorebarRef} className={`bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-md border-b border-slate-200 relative sm:min-h-[140px]`}>
+            <div ref={scorebarRef} className={`bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[140px]`}>
                 <div className="hidden sm:flex justify-between items-center gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[140px]">
                         <button 
                             onClick={() => setShowQuitConfirm(true)} 
-                            className="w-[140px] justify-center text-slate-500 hover:text-red-600 flex items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
+                            className="w-[140px] justify-center text-[#29464d] hover:text-[#e05245] flex items-center text-sm bg-white hover:bg-[#e1efed] px-4 py-2 rounded-lg transition-colors font-bold border border-[#99beb8]"
                         >
                             <ArrowLeft size={16} className="mr-2" /> Quit
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className="w-[140px] justify-center text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
+                            className="w-[140px] justify-center text-white flex items-center text-sm bg-[#e05245] hover:bg-[#ef6759] px-4 py-2 rounded-lg transition-colors font-bold border border-[#ad3c34]"
                             title="End game now"
                         >
                             <Flag size={16} className="mr-2" /> End Game
@@ -580,13 +588,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             <button 
                                 key={idx} 
                                 onClick={() => openEditTeam(idx)}
-                                className="px-6 py-3 rounded-xl text-center transition-all border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-sm bg-brand-yellow border-yellow-500 text-slate-900 hover:bg-yellow-300 hover:border-yellow-400 hover:scale-105 hover:-rotate-1"
+                                className="px-6 py-3 rounded-xl text-center transition-all border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-[0_5px_12px_rgba(5,50,52,0.3)] bg-[#126c68] border-[#0b4745] text-white hover:bg-[#16807b] hover:border-[#105957] hover:scale-105 hover:-rotate-1"
                             >
                                 <div className="text-lg uppercase font-bold tracking-wider truncate max-w-[130px] mb-1 flex items-center gap-1">
                                     {teamNames[idx]}
                                 </div>
                                 <AnimatedScore score={score} />
-                                <div className="absolute top-2 right-2 bg-slate-900/10 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute top-2 right-2 bg-white/15 text-[#ffd166] rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Edit2 size={12} />
                                 </div>
                             </button>
@@ -596,12 +604,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     <div className="flex flex-col items-end justify-center min-w-[72px] gap-2">
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
-                            className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
+                            className="text-[#45646a] hover:text-[#126c68] p-3 bg-white hover:bg-[#e1efed] rounded-xl transition-colors border border-[#99beb8]"
                             title={isMuted ? "Unmute" : "Mute"}
                         >
                              {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </button>
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
+                        <button onClick={toggleFullscreen} className="text-[#45646a] hover:text-[#126c68] p-3 bg-white hover:bg-[#e1efed] rounded-xl transition-colors border border-[#99beb8]">
                             {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                         </button>
                     </div>
@@ -611,21 +619,21 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     <div className={`flex shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 
                             onClick={() => setShowQuitConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-slate-400 hover:text-red-600 bg-slate-100 hover:bg-red-50 transition-colors border border-slate-200`}
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-[#45646a] hover:text-[#e05245] bg-white hover:bg-[#e1efed] transition-colors border border-[#99beb8]`}
                             title="Quit"
                         >
                             <X size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-white bg-rose-700 hover:bg-rose-600 transition-colors border border-rose-800`}
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-white bg-[#e05245] hover:bg-[#ef6759] transition-colors border border-[#ad3c34]`}
                             title="End game now"
                         >
                             <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-slate-400 hover:text-brand-blue bg-slate-100 hover:bg-sky-50 transition-colors border border-slate-200`}
+                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-[#45646a] hover:text-[#126c68] bg-white hover:bg-[#e1efed] transition-colors border border-[#99beb8]`}
                             title={isMuted ? "Unmute" : "Mute"}
                         >
                              {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
@@ -639,7 +647,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             <button
                                 key={idx}
                                 onClick={() => openEditTeam(idx)}
-                                className={`w-full min-w-0 ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} px-2 py-1 rounded-xl text-center transition-all border-b-4 flex flex-col justify-center items-center shadow-sm bg-brand-yellow border-yellow-500 text-slate-900`}
+                                className={`w-full min-w-0 ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} px-2 py-1 rounded-xl text-center transition-all border-b-4 flex flex-col justify-center items-center shadow-sm bg-[#126c68] border-[#0b4745] text-white`}
                             >
                                 <div className="text-[10px] uppercase font-bold tracking-wider truncate w-full text-center">
                                     {teamNames[idx]}
@@ -658,8 +666,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 {phase === 'home' && (
                     <div className="w-full max-w-6xl animate-fade-in pb-24">
                         <div className="text-center mb-10">
-                            <h2 className="text-5xl font-display font-black text-white mb-2 drop-shadow-md">Select a Round</h2>
-                            <p className="text-white/60 font-bold text-lg">Choose the next category to play.</p>
+                            <h2 className="text-5xl font-display font-black text-white mb-2 drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">Select a Round</h2>
+                            <p className="text-[#d9ebe8] font-bold text-lg drop-shadow-md">Choose the next category to play.</p>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -673,21 +681,21 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                         disabled={isCompleted}
                                         className={`group relative overflow-hidden rounded-2xl p-8 text-left transition-all border-4 shadow-xl
                                             ${isCompleted 
-                                                ? 'bg-slate-700 border-slate-600 opacity-60 cursor-not-allowed grayscale' 
-                                                : `bg-white border-slate-200 hover:border-brand-blue hover:scale-105 hover:shadow-brand-blue/20`}`}
+                                                ? 'bg-[#526468] border-[#33474b] opacity-70 cursor-not-allowed grayscale'
+                                                : `bg-[#f8fbfa] border-[#6fa8a2] hover:border-[#e05245] hover:scale-105 hover:shadow-[0_12px_35px_rgba(5,40,43,0.5)]`}`}
                                     >
                                         <div className="flex justify-between items-start mb-6">
                                             <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider 
-                                                ${isCompleted ? 'bg-slate-600 text-slate-400' : 'bg-brand-blue text-white'}`}>
+                                                ${isCompleted ? 'bg-[#42575b] text-[#c6d4d2]' : 'bg-[#e05245] text-white'}`}>
                                                 Round {idx + 1}
                                             </span>
-                                            {isCompleted ? <CheckCircle className="text-green-500" size={32} /> : <Star className="text-brand-yellow group-hover:scale-110 transition-transform" size={32} fill="currentColor" />}
+                                            {isCompleted ? <CheckCircle className="text-[#8fc6aa]" size={32} /> : <Star className="text-[#f3b844] group-hover:scale-110 transition-transform" size={32} fill="currentColor" />}
                                         </div>
                                         <h3 className={`text-4xl font-display font-black mb-2 drop-shadow-sm leading-tight
-                                            ${isCompleted ? 'text-slate-500' : 'text-slate-800 group-hover:text-brand-blue'}`}>
+                                            ${isCompleted ? 'text-[#9babad]' : 'text-[#172d36] group-hover:text-[#126c68]'}`}>
                                             {round.name}
                                         </h3>
-                                        <p className="text-slate-500 font-bold text-lg">
+                                        <p className="text-[#526c72] font-bold text-lg">
                                             {round.questions.length} Questions
                                         </p>
                                     </button>
@@ -699,12 +707,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             {completedRounds.length === rounds.length ? (
                                 <button 
                                     onClick={() => setPhase('gameover')}
-                                    className="px-12 py-4 bg-brand-yellow text-slate-900 rounded-full font-bold text-2xl hover:scale-105 transition-transform shadow-lg animate-bounce"
+                                    className="px-12 py-4 bg-[#f3b844] text-[#17333b] rounded-full font-bold text-2xl hover:bg-[#ffc957] hover:scale-105 transition-transform shadow-lg animate-bounce border-2 border-[#ffe09a]"
                                 >
                                     Finish Game & See Winners
                                 </button>
                             ) : (
-                                <p className="text-white/40 italic font-medium">Complete all rounds to finish the game.</p>
+                                <p className="text-[#d9ebe8] italic font-medium drop-shadow-md">Complete all rounds to finish the game.</p>
                             )}
                         </div>
                     </div>
@@ -713,11 +721,11 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 {/* INTRO PHASE */}
                 {phase === 'intro' && currentRound && (
                     <div className="text-center animate-fade-in max-w-4xl w-full">
-                        <h2 className="text-3xl font-bold text-white/40 mb-4 uppercase tracking-widest">Round {currentRoundIndex! + 1}</h2>
-                        <h1 className="text-7xl md:text-9xl font-display font-black text-white mb-16 drop-shadow-lg">{currentRound.name}</h1>
+                        <h2 className="text-3xl font-bold text-[#ffd166] mb-4 uppercase tracking-widest drop-shadow-lg">Round {currentRoundIndex! + 1}</h2>
+                        <h1 className="text-7xl md:text-9xl font-display font-black text-white mb-16 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">{currentRound.name}</h1>
                         <button 
                             onClick={() => { setPhase('play'); setTimeLeft(options.timerSeconds); setIsTimesUp(false); }}
-                            className="bg-brand-yellow text-slate-900 px-16 py-6 rounded-full font-bold text-3xl hover:scale-105 hover:shadow-2xl transition-all border-b-8 border-yellow-600 active:border-b-0 active:translate-y-2 flex items-center mx-auto"
+                            className="bg-[#f3b844] text-[#17333b] px-16 py-6 rounded-full font-bold text-3xl hover:bg-[#ffc957] hover:scale-105 hover:shadow-2xl transition-all border-b-8 border-[#b77a16] active:border-b-0 active:translate-y-2 flex items-center mx-auto"
                         >
                             <Play size={32} fill="currentColor" className="mr-4" /> Start
                         </button>
@@ -728,16 +736,16 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 {phase === 'review' && currentRound && (
                     <div className="w-full max-w-6xl h-full min-h-0 flex flex-col animate-fade-in">
                         <div className="text-center mb-3 sm:mb-6">
-                            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-white drop-shadow-md">Round Review: {currentRound.name}</h2>
-                            <p className="text-white/60 font-bold text-sm sm:text-base md:text-lg">Review answers before scoring.</p>
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-white drop-shadow-lg">Round Review: {currentRound.name}</h2>
+                            <p className="text-[#d9ebe8] font-bold text-sm sm:text-base md:text-lg">Review answers before scoring.</p>
                         </div>
                         
-                        <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-3xl shadow-2xl border-4 border-slate-200 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+                        <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fbfa] rounded-3xl shadow-2xl border-4 border-[#6fa8a2] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                             {currentRound.questions.map((q, idx) => (
-                                <div key={idx} className="border-b border-slate-100 pb-4 sm:pb-6 last:border-0">
+                                <div key={idx} className="border-b border-[#c5dad7] pb-4 sm:pb-6 last:border-0">
                                     <div className="flex justify-between items-start mb-2 sm:mb-3">
-                                        <span className="bg-slate-900 text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-lg flex-shrink-0 mr-3 sm:mr-4 shadow-sm">{idx + 1}</span>
-                                        <p className="font-bold text-base sm:text-xl md:text-2xl text-slate-800 flex-1 leading-tight">{q.question}</p>
+                                        <span className="bg-[#126c68] text-white w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-lg flex-shrink-0 mr-3 sm:mr-4 shadow-sm">{idx + 1}</span>
+                                        <p className="font-bold text-base sm:text-xl md:text-2xl text-[#172d36] flex-1 leading-tight">{q.question}</p>
                                     </div>
                                     <div className="ml-11 sm:ml-14">
                                         {revealedReviewAnswers[idx] ? (
@@ -751,7 +759,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                     newRevealed[idx] = true;
                                                     setRevealedReviewAnswers(newRevealed);
                                                 }}
-                                                className="text-sm sm:text-base font-bold text-brand-blue hover:text-white hover:bg-brand-blue border-2 border-brand-blue px-3 sm:px-4 py-2 rounded-lg transition-colors mt-2"
+                                                className="text-sm sm:text-base font-bold text-[#126c68] hover:text-white hover:bg-[#126c68] border-2 border-[#126c68] px-3 sm:px-4 py-2 rounded-lg transition-colors mt-2"
                                             >
                                                 Reveal Answer
                                             </button>
@@ -767,13 +775,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     const allRevealed = Array(currentRound.questions.length).fill(true);
                                     setRevealedReviewAnswers(allRevealed);
                                 }}
-                                className="px-4 sm:px-6 py-2 sm:py-3 bg-white text-slate-700 rounded-xl font-bold text-sm sm:text-base hover:bg-slate-100 shadow-lg transition-transform hover:scale-105"
+                                className="px-4 sm:px-6 py-2 sm:py-3 bg-white text-[#29464d] rounded-xl font-bold text-sm sm:text-base hover:bg-[#e1efed] shadow-lg transition-transform hover:scale-105 border border-[#99beb8]"
                             >
                                 Reveal All
                             </button>
                             <button 
                                 onClick={() => setPhase('scoring')}
-                                className="px-5 sm:px-6 py-2 sm:py-3 bg-brand-yellow text-slate-900 rounded-xl font-bold text-sm sm:text-base hover:bg-yellow-300 shadow-lg transition-transform hover:scale-105"
+                                className="px-5 sm:px-6 py-2 sm:py-3 bg-[#f3b844] text-[#17333b] rounded-xl font-bold text-sm sm:text-base hover:bg-[#ffc957] shadow-lg transition-transform hover:scale-105"
                             >
                                 Go to Scoring
                             </button>
@@ -783,24 +791,24 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                 {/* SCORING PHASE */}
                 {phase === 'scoring' && (
-                    <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-4 sm:p-8 animate-fade-in border-4 border-slate-200 flex flex-col h-full max-h-full sm:h-auto sm:max-h-none min-h-0">
-                        <h2 className="text-2xl sm:text-4xl font-display font-bold text-slate-800 text-center mb-2">Round Complete!</h2>
-                        <p className="text-center text-slate-500 mb-4 sm:mb-8 text-sm sm:text-lg font-medium">Enter points for this round.</p>
+                    <div className="w-full max-w-2xl bg-[#f8fbfa] rounded-2xl shadow-2xl p-4 sm:p-8 animate-fade-in border-4 border-[#6fa8a2] flex flex-col h-full max-h-full sm:h-auto sm:max-h-none min-h-0">
+                        <h2 className="text-2xl sm:text-4xl font-display font-bold text-[#172d36] text-center mb-2">Round Complete!</h2>
+                        <p className="text-center text-[#526c72] mb-4 sm:mb-8 text-sm sm:text-lg font-medium">Enter points for this round.</p>
                         <div className="space-y-3 sm:space-y-4 overflow-y-auto pr-1 sm:pr-0 flex-1 min-h-0">
                             {scores.map((score, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                    <div className="font-bold text-base sm:text-xl text-slate-700 w-1/3 truncate">{teamNames[i]}</div>
-                                    <div className="font-mono font-bold text-2xl sm:text-3xl text-brand-blue w-1/3 text-center">{score}</div>
+                                <div key={i} className="flex items-center justify-between p-3 sm:p-4 bg-white rounded-xl border border-[#b9d2cf]">
+                                    <div className="font-bold text-base sm:text-xl text-[#29464d] w-1/3 truncate">{teamNames[i]}</div>
+                                    <div className="font-mono font-bold text-2xl sm:text-3xl text-[#126c68] w-1/3 text-center">{score}</div>
                                     <div className="flex items-center gap-2 w-1/3 justify-end">
                                         <button 
                                             onClick={() => handleScoreUpdate(i, -1)}
-                                            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border-2 border-slate-200 rounded-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
+                                            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border-2 border-[#b9d2cf] rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
                                         >
                                             <Minus size={20} className="sm:w-6 sm:h-6" />
                                         </button>
                                         <button 
                                             onClick={() => handleScoreUpdate(i, 1)}
-                                            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border-2 border-slate-200 rounded-lg hover:bg-green-50 hover:text-green-500 hover:border-green-200 transition-colors"
+                                            className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white border-2 border-[#b9d2cf] rounded-lg hover:bg-green-50 hover:text-green-600 hover:border-green-300 transition-colors"
                                         >
                                             <Plus size={20} className="sm:w-6 sm:h-6" />
                                         </button>
@@ -810,7 +818,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                         </div>
                         <button 
                             onClick={finishRound}
-                            className="w-full mt-4 sm:mt-8 py-3 sm:py-4 bg-brand-blue text-white rounded-xl font-bold text-base sm:text-xl hover:bg-sky-600 transition-all shadow-md flex items-center justify-center"
+                            className="w-full mt-4 sm:mt-8 py-3 sm:py-4 bg-[#126c68] text-white rounded-xl font-bold text-base sm:text-xl hover:bg-[#16807b] transition-all shadow-md flex items-center justify-center"
                         >
                             Return to Dashboard <ArrowRight className="ml-2" />
                         </button>
@@ -820,16 +828,16 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* TEAM EDIT MODAL */}
             {editingTeamIndex !== null && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">Edit Team Details</h3>
+                <div data-testid="pubquiz-team-edit-modal" className="fixed inset-0 z-[700] flex items-center justify-center bg-[#09282a]/70 backdrop-blur-sm p-4">
+                    <div className="bg-[#f8fbfa] p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border-2 border-[#6fa8a2]">
+                        <h3 className="text-lg sm:text-xl font-bold text-[#172d36] mb-3 sm:mb-4">Edit Team Details</h3>
                         <div className="mb-4">
                             <label className="block text-xs font-bold text-slate-500 mb-1">Team Name</label>
                             <input 
                                 type="text" 
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg"
+                                className="w-full p-2.5 sm:p-3 border border-[#99beb8] bg-white rounded-lg focus:ring-2 focus:ring-[#126c68] outline-none font-bold text-base sm:text-lg text-[#172d36]"
                             />
                         </div>
                         <div className="mb-6">
@@ -854,7 +862,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             </button>
                             <button 
                                 onClick={saveTeamEdit}
-                                className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600"
+                                className="flex-1 py-3 bg-[#126c68] text-white font-bold rounded-lg hover:bg-[#16807b]"
                             >
                                 Save Changes
                             </button>
@@ -865,21 +873,21 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(4,28,31,0.6)] overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 {/* Header */}
-                                <div className="bg-brand-blue text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                <div className="bg-[#126c68] text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-90 truncate max-w-[55%]">{currentRound?.name}</div>
-                                    <div className="bg-white/20 px-3 py-1 rounded-full font-black text-lg sm:text-xl md:text-2xl">Q{currentQuestionIndex + 1}</div>
+                                    <div className="bg-[#ffd166] text-[#17333b] px-3 py-1 rounded-full font-black text-lg sm:text-xl md:text-2xl shadow-inner">Q{currentQuestionIndex + 1}</div>
                                     <div className="font-bold text-sm sm:text-base md:text-xl opacity-80 text-right">{currentRound?.questions.length} Total</div>
                                 </div>
 
                                 {/* Body */}
-                                <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                <div className={`bg-[#f8fbfa] flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {questionImageUrl && hasOptions ? (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div
@@ -906,7 +914,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                     <div
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                        className={`font-display font-bold text-slate-800 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    className={`font-display font-bold text-[#172d36] leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                     >
                                                         {currentQuestion.question}
                                                     </div>
@@ -938,9 +946,9 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                                 : 'bg-red-100 border-red-400 text-red-800'
                                                                             : isCorrect
                                                                             ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                                                            : 'bg-slate-50 border-slate-200 text-slate-500'
-                                                                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-brand-blue cursor-pointer'
-                                                                    : 'bg-slate-50 border-slate-200 text-slate-700';
+                                                                            : 'bg-[#e6f0ee] border-[#b9d2cf] text-[#61767b]'
+                                                                        : 'bg-white border-[#b9d2cf] text-[#213a43] hover:bg-[#e4f2f0] hover:border-[#e05245] cursor-pointer'
+                                                                    : 'bg-white border-[#b9d2cf] text-[#213a43]';
                                                                 return (
                                                                     <button
                                                                         type="button"
@@ -996,7 +1004,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                 <div
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    className={`font-display font-bold text-[#172d36] leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                 >
                                                     {currentQuestion.question}
                                                 </div>
@@ -1008,7 +1016,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                 <div
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
-                                                    className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
+                                                    className={`font-display font-bold text-[#172d36] leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
                                                 >
                                                     {currentQuestion.question}
                                                 </div>
@@ -1036,9 +1044,9 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                                 : 'bg-red-100 border-red-400 text-red-800'
                                                                             : isCorrect
                                                                             ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                                                            : 'bg-slate-50 border-slate-200 text-slate-500'
-                                                                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-sky-50 hover:border-brand-blue cursor-pointer'
-                                                                    : 'bg-slate-50 border-slate-200 text-slate-700';
+                                                                            : 'bg-[#e6f0ee] border-[#b9d2cf] text-[#61767b]'
+                                                                        : 'bg-white border-[#b9d2cf] text-[#213a43] hover:bg-[#e4f2f0] hover:border-[#e05245] cursor-pointer'
+                                                                    : 'bg-white border-[#b9d2cf] text-[#213a43]';
                                                                 return (
                                                                     <button
                                                                         type="button"
@@ -1078,12 +1086,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex flex-col relative flex-shrink-0 z-50 bg-white px-0">
+                                <div className="flex flex-col relative flex-shrink-0 z-50 bg-[#f8fbfa] px-0 border-t border-[#b9d2cf]">
                                     <div className="w-full flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 md:px-8 py-2 sm:py-3">
                                         {!(options.studentPractice && hasOptions) ? (
                                             <button
                                                 onClick={() => setIsFlipped(true)}
-                                                className="bg-brand-blue text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-brand-blue"
+                                                className="bg-[#e05245] text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:bg-[#ef6759] hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-[#ad3c34]"
                                             >
                                                 Reveal Answer
                                             </button>
@@ -1095,7 +1103,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                                         <button 
                                             onClick={handleNextQuestion}
-                                            className="text-slate-700 font-bold text-xs sm:text-base md:text-xl hover:bg-slate-100 px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center relative z-50"
+                                            className="text-[#29464d] font-bold text-xs sm:text-base md:text-xl hover:bg-[#e1efed] px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center relative z-50"
                                         >
                                             <span className="sm:hidden">Next</span>
                                             <span className="hidden sm:inline">Go to next question</span>
@@ -1104,11 +1112,11 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     </div>
 
                                     {options.timerSeconds > 0 && (
-                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-white overflow-hidden flex items-center justify-start pointer-events-none">
+                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-[#dcebea] overflow-hidden flex items-center justify-start pointer-events-none border-t border-[#99beb8]">
                                             {!isTimesUp && (
-                                                <div className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                                <div className="absolute inset-y-0 left-0 bg-[#f3b844] transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
                                             )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-base md:text-lg font-black text-slate-900 tracking-wider">
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-base md:text-lg font-black text-[#17333b] tracking-wider">
                                                 {isTimesUp ? "TIME'S UP!" : (
                                                     <><Clock size={12} className="mr-1" /> {timeLeft}s</>
                                                 )}
@@ -1119,18 +1127,18 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             </div>
 
                             {/* BACK (Answer) */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-20 md:h-24 flex-shrink-0 relative z-10">
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div className="bg-[#0f5555] text-white p-3 md:p-4 flex justify-between items-center h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-80">Answer</div>
-                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500" title="Flip Back"><RotateCcw size={20} className="md:w-6 md:h-6" /></button>
+                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-[#e1efed] text-[#29464d]" title="Flip Back"><RotateCcw size={20} className="md:w-6 md:h-6" /></button>
                                 </div>
 
-                                <div className="flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-white text-center overflow-hidden w-full relative z-0">
+                                <div className="flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8fbfa] text-center overflow-hidden w-full relative z-0">
                                     <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
                                         <div
                                             ref={answerTextRef}
                                             style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
-                                            className={`font-display font-bold text-slate-800 leading-snug whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}
+                                            className={`font-display font-bold text-[#172d36] leading-snug whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}
                                         >
                                             {currentQuestion.answer}
                                         </div>
@@ -1138,14 +1146,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     
                                     {/* IMMEDIATE SCORING PANEL */}
                                     {!options.studentPractice && (
-                                    <div className="mt-3 w-full bg-slate-50 rounded-2xl p-3 md:p-4 border-2 border-slate-200 flex-shrink-0 relative z-10">
-                                        <h4 className="text-xs md:text-sm font-bold text-slate-400 uppercase mb-2 md:mb-3 tracking-widest">Quick Score (+1 Point)</h4>
+                                    <div className="mt-3 w-full bg-[#e6f0ee] rounded-2xl p-3 md:p-4 border-2 border-[#b9d2cf] flex-shrink-0 relative z-10">
+                                        <h4 className="text-xs md:text-sm font-bold text-[#61767b] uppercase mb-2 md:mb-3 tracking-widest">Quick Score (+1 Point)</h4>
                                         <div className="flex flex-wrap justify-center gap-2 md:gap-3">
                                             {scores.map((s, i) => (
                                                 <button 
                                                     key={i}
                                                     onClick={(e) => { e.stopPropagation(); handleScoreUpdate(i, 1); }}
-                                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-slate-200 rounded-lg text-slate-700 text-xs md:text-sm font-bold hover:bg-green-50 hover:border-green-300 hover:text-green-600 transition-all shadow-sm active:scale-95 flex items-center"
+                                                    className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-[#99beb8] rounded-lg text-[#29464d] text-xs md:text-sm font-bold hover:bg-[#eef8f1] hover:border-green-400 hover:text-green-700 transition-all shadow-sm active:scale-95 flex items-center"
                                                 >
                                                     {teamNames[i]} <Plus size={14} className="ml-1" />
                                                 </button>
@@ -1158,7 +1166,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 <div className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
                                     <button 
                                         onClick={handleNextQuestion}
-                                        className="flex-1 bg-brand-blue text-white font-bold text-base sm:text-lg md:text-2xl hover:bg-sky-600 transition-colors flex items-center justify-center"
+                                        className="flex-1 bg-[#e05245] text-white font-bold text-base sm:text-lg md:text-2xl hover:bg-[#ef6759] transition-colors flex items-center justify-center"
                                     >
                                         Go to next question <ArrowRight size={18} className="ml-2 md:w-6 md:h-6" />
                                     </button>
