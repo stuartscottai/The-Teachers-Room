@@ -1,5 +1,8 @@
 create extension if not exists pgcrypto;
 
+-- After this base schema, also run gdpr_hardening.sql to install the narrowly
+-- scoped student functions used by the live-quiz interface.
+
 create table if not exists public.live_quiz_sessions (
   id uuid primary key default gen_random_uuid(),
   teacher_id uuid not null references auth.users (id) on delete cascade,
@@ -82,10 +85,12 @@ alter table public.live_quiz_participants enable row level security;
 alter table public.live_quiz_submissions enable row level security;
 
 drop policy if exists live_quiz_sessions_select_open on public.live_quiz_sessions;
-create policy live_quiz_sessions_select_open
+drop policy if exists live_quiz_sessions_select_teacher on public.live_quiz_sessions;
+create policy live_quiz_sessions_select_teacher
   on public.live_quiz_sessions
   for select
-  using (true);
+  to authenticated
+  using (auth.uid() = teacher_id);
 
 drop policy if exists live_quiz_sessions_insert_teacher on public.live_quiz_sessions;
 create policy live_quiz_sessions_insert_teacher
@@ -133,36 +138,23 @@ create policy live_quiz_questions_insert_teacher
   );
 
 drop policy if exists live_quiz_participants_select_session on public.live_quiz_participants;
-create policy live_quiz_participants_select_session
+drop policy if exists live_quiz_participants_select_teacher on public.live_quiz_participants;
+create policy live_quiz_participants_select_teacher
   on public.live_quiz_participants
   for select
-  using (true);
-
-drop policy if exists live_quiz_participants_insert_open on public.live_quiz_participants;
-create policy live_quiz_participants_insert_open
-  on public.live_quiz_participants
-  for insert
-  with check (
-    exists (
-      select 1
-      from public.live_quiz_sessions s
-      where s.id = live_quiz_participants.session_id
-        and s.status <> 'ended'
-    )
-  );
-
-drop policy if exists live_quiz_participants_update_seen on public.live_quiz_participants;
-create policy live_quiz_participants_update_seen
-  on public.live_quiz_participants
-  for update
+  to authenticated
   using (
     exists (
       select 1
       from public.live_quiz_sessions s
       where s.id = live_quiz_participants.session_id
-        and (s.teacher_id = auth.uid() or s.status <> 'ended')
+        and s.teacher_id = auth.uid()
     )
   );
+
+drop policy if exists live_quiz_participants_insert_open on public.live_quiz_participants;
+
+drop policy if exists live_quiz_participants_update_seen on public.live_quiz_participants;
 
 drop policy if exists live_quiz_participants_delete_teacher on public.live_quiz_participants;
 create policy live_quiz_participants_delete_teacher
@@ -178,15 +170,17 @@ create policy live_quiz_participants_delete_teacher
   );
 
 drop policy if exists live_quiz_submissions_select_session on public.live_quiz_submissions;
-create policy live_quiz_submissions_select_session
+drop policy if exists live_quiz_submissions_select_teacher on public.live_quiz_submissions;
+create policy live_quiz_submissions_select_teacher
   on public.live_quiz_submissions
   for select
+  to authenticated
   using (
     exists (
       select 1
       from public.live_quiz_sessions s
       where s.id = live_quiz_submissions.session_id
-        and (s.teacher_id = auth.uid() or s.status in ('reveal', 'leaderboard', 'ended'))
+        and s.teacher_id = auth.uid()
     )
   );
 

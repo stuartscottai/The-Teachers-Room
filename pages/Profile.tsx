@@ -780,7 +780,9 @@ export const Profile: React.FC = () => {
                     </div>
                     <div className="p-8">
                         <p className="text-sm text-slate-600 mb-4">
-                            Cancelling your account is permanent and cannot be undone. All saved games and account data will be permanently deleted.
+                            Cancelling your account is permanent and cannot be undone. Your account, saved games,
+                            worksheets, usage records, and personal uploads will be permanently deleted. Content
+                            independently copied or remixed by another user is not part of your account.
                         </p>
                         <button
                             type="button"

@@ -334,15 +334,24 @@ export const getLiveQuizSession = async (sessionId: string): Promise<LiveQuizSes
   return mapSession(data);
 };
 
+export const getLiveQuizStudentSession = async (
+  sessionId: string,
+  participantId: string
+): Promise<LiveQuizSession | null> => {
+  const { data, error } = await supabase.rpc('get_live_quiz_student_session', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
+  if (error || !Array.isArray(data) || !data[0]) return null;
+  return mapSession(data[0]);
+};
+
 export const getLiveQuizSessionByCode = async (joinCode: string): Promise<LiveQuizSession | null> => {
-  const { data, error } = await supabase
-    .from('live_quiz_sessions')
-    .select('*')
-    .eq('join_code', joinCode.trim().toUpperCase())
-    .neq('status', 'ended')
-    .single();
-  if (error || !data) return null;
-  return mapSession(data);
+  const { data, error } = await supabase.rpc('get_live_quiz_session_by_code', {
+    p_join_code: joinCode.trim().toUpperCase(),
+  });
+  if (error || !Array.isArray(data) || !data[0]) return null;
+  return mapSession(data[0]);
 };
 
 export const getLiveQuizQuestionsForTeacher = async (sessionId: string): Promise<LiveQuizQuestion[]> => {
@@ -355,8 +364,14 @@ export const getLiveQuizQuestionsForTeacher = async (sessionId: string): Promise
   return withSignedLiveQuizImages(data.map(mapQuestion));
 };
 
-export const getCurrentStudentQuestion = async (sessionId: string): Promise<StudentSafeLiveQuizQuestion | null> => {
-  const { data, error } = await supabase.rpc('get_live_quiz_student_question', { p_session_id: sessionId });
+export const getCurrentStudentQuestion = async (
+  sessionId: string,
+  participantId: string
+): Promise<StudentSafeLiveQuizQuestion | null> => {
+  const { data, error } = await supabase.rpc('get_live_quiz_student_question', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
   if (error || !Array.isArray(data) || !data[0]) return null;
   return withSignedLiveQuizImage(mapStudentQuestion(data[0]));
 };
@@ -372,32 +387,35 @@ export const getLiveQuizParticipants = async (sessionId: string): Promise<LiveQu
   return data.map(mapParticipant);
 };
 
+export const getLiveQuizStudentParticipants = async (
+  sessionId: string,
+  participantId: string
+): Promise<LiveQuizParticipant[]> => {
+  const { data, error } = await supabase.rpc('list_live_quiz_student_participants', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
+  if (error || !Array.isArray(data)) return [];
+  return data.map(mapParticipant);
+};
+
 export const reconnectLiveQuizParticipant = async (
   sessionId: string,
   participantId: string
 ): Promise<{ success: boolean; participant?: LiveQuizParticipant; error?: string }> => {
   if (!sessionId || !participantId) return { success: false, error: 'No saved player was found for this quiz.' };
 
-  const session = await getLiveQuizSession(sessionId);
-  if (!session || session.status === 'ended') {
-    forgetLiveQuizParticipant(sessionId);
-    return { success: false, error: 'This live quiz has ended.' };
-  }
+  const { data, error } = await supabase.rpc('reconnect_live_quiz_participant', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
 
-  const { data, error } = await supabase
-    .from('live_quiz_participants')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('session_id', sessionId)
-    .eq('id', participantId)
-    .select('*')
-    .single();
-
-  if (error || !data) {
+  if (error || !Array.isArray(data) || !data[0]) {
     forgetLiveQuizParticipant(sessionId);
     return { success: false, error: 'Your previous player could not be found. Join again to continue as a new player.' };
   }
 
-  return { success: true, participant: mapParticipant(data) };
+  return { success: true, participant: mapParticipant(data[0]) };
 };
 
 export const getLiveQuizSubmissions = async (sessionId: string): Promise<LiveQuizSubmission[]> => {
@@ -410,26 +428,38 @@ export const getLiveQuizSubmissions = async (sessionId: string): Promise<LiveQui
   return data.map(mapSubmission);
 };
 
-export const joinLiveQuizSession = async (
+export const getLiveQuizOwnSubmissions = async (
   sessionId: string,
+  participantId: string
+): Promise<LiveQuizSubmission[]> => {
+  const { data, error } = await supabase.rpc('list_live_quiz_own_submissions', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+  });
+  if (error || !Array.isArray(data)) return [];
+  return data.map(mapSubmission);
+};
+
+export const joinLiveQuizSession = async (
+  joinCode: string,
   displayName: string
 ): Promise<{ success: boolean; participant?: LiveQuizParticipant; error?: string }> => {
   const cleanName = displayName.trim().slice(0, 40);
   if (!cleanName) return { success: false, error: 'Enter a name to join.' };
-  const { data, error } = await supabase
-    .from('live_quiz_participants')
-    .insert({ session_id: sessionId, display_name: cleanName })
-    .select('*')
-    .single();
-  if (error || !data) {
+  const { data, error } = await supabase.rpc('join_live_quiz_session', {
+    p_join_code: joinCode.trim().toUpperCase(),
+    p_display_name: cleanName,
+  });
+  const participant = Array.isArray(data) ? data[0] : null;
+  if (error || !participant) {
     const message = String(error?.message || '');
     if (message.toLowerCase().includes('row-level security')) {
       return { success: false, error: 'This live quiz is not accepting new players right now.' };
     }
     return { success: false, error: message || 'Unable to join this game.' };
   }
-  rememberLiveQuizParticipant(sessionId, data.id);
-  return { success: true, participant: mapParticipant(data) };
+  rememberLiveQuizParticipant(participant.session_id, participant.id);
+  return { success: true, participant: mapParticipant(participant) };
 };
 
 export const updateLiveQuizParticipantDisplayName = async (
@@ -440,18 +470,17 @@ export const updateLiveQuizParticipantDisplayName = async (
   const cleanName = displayName.trim().slice(0, 40);
   if (!cleanName) return { success: false, error: 'Enter a name to join.' };
 
-  const { data, error } = await supabase
-    .from('live_quiz_participants')
-    .update({ display_name: cleanName, last_seen_at: new Date().toISOString() })
-    .eq('session_id', sessionId)
-    .eq('id', participantId)
-    .select('*')
-    .single();
+  const { data, error } = await supabase.rpc('update_live_quiz_participant_name', {
+    p_session_id: sessionId,
+    p_participant_id: participantId,
+    p_display_name: cleanName,
+  });
+  const participant = Array.isArray(data) ? data[0] : null;
 
   return {
-    success: !error && Boolean(data),
-    participant: data ? mapParticipant(data) : undefined,
-    error: error?.message || (!data ? 'Could not update your avatar.' : undefined),
+    success: !error && Boolean(participant),
+    participant: participant ? mapParticipant(participant) : undefined,
+    error: error?.message || (!participant ? 'Could not update your avatar.' : undefined),
   };
 };
 

@@ -1048,11 +1048,10 @@ export const getSelectedStudentGameShare = async (id: string): Promise<{ game: G
     if (!id) return null;
 
     try {
-        const { data, error } = await supabase
-            .from('student_game_shares')
-            .select('id, game_id, title, selected_items, expires_at, revoked_at')
-            .eq('id', id)
-            .single();
+        const { data: rows, error } = await supabase.rpc('get_student_game_share', {
+            p_share_id: id,
+        });
+        const data = Array.isArray(rows) ? rows[0] : null;
 
         if (error || !data) return null;
         if (data.revoked_at) return null;

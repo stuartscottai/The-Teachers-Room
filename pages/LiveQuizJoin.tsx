@@ -57,7 +57,7 @@ export const LiveQuizJoin: React.FC = () => {
     if (!session) return;
     setError('');
     setJoining(true);
-    const result = await joinLiveQuizSession(session.id, makeLiveQuizDisplayName(selectedAvatar, name));
+    const result = await joinLiveQuizSession(joinCode, makeLiveQuizDisplayName(selectedAvatar, name));
     setJoining(false);
     if (!result.success || !result.participant) {
       setError(result.error || 'Unable to join this game.');
@@ -137,16 +137,22 @@ export const LiveQuizJoin: React.FC = () => {
           }}
         >
           <div>
-            <label className="mb-2 block text-sm font-black text-slate-700">Name or team</label>
+            <label className="mb-2 block text-sm font-black text-slate-700">Nickname or team name</label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-xl border border-slate-300 p-4 text-lg font-bold outline-none focus:ring-2 focus:ring-brand-yellow"
-              placeholder="Enter your name"
+              placeholder="Enter a nickname"
               maxLength={LIVE_QUIZ_NAME_MAX_LENGTH}
             />
             <div className="mt-1 text-right text-xs font-bold text-slate-400">
               {name.length}/{LIVE_QUIZ_NAME_MAX_LENGTH}
+            </div>
+            <div className="mt-2 text-xs leading-relaxed text-slate-500">
+              The Teachers&apos; Room uses your nickname and answers to run this quiz.{' '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-black text-brand-blue hover:underline">
+                Privacy information
+              </a>
             </div>
           </div>
           <div>

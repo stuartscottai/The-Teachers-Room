@@ -1,0 +1,35 @@
+# The Teachers' Room
+
+> The Teachers' Room is a web app for teachers to create, edit, play, and share classroom games and quizzes, including AI-assisted game creation and live quizzes.
+
+Teachers can turn a lesson topic, learning objective, or source material into classroom activities. Available formats include trivia, live quizzes, Jeopardy-style games, word games, board games, and review activities. Teachers remain able to review and edit generated questions, answers, images, and settings before classroom use.
+
+## Product
+
+- [The Teachers' Room](https://www.theteachersroom.app/): Product overview and entry point.
+- [Classroom Game Hub](https://www.theteachersroom.app/games): Browse game formats and create, edit, save, play, or share classroom games.
+- [Create Classroom Games with AI](https://www.theteachersroom.app/create-classroom-games): Overview of creating games from lesson topics, objectives, or source material.
+- [Classroom Quiz Maker](https://www.theteachersroom.app/classroom-quiz-maker): Create trivia, live quizzes, and team review games.
+- [Live Quizzes for Teachers](https://www.theteachersroom.app/live-quiz-for-teachers): Run real-time quizzes that students join using a code or QR link.
+- [ESL Classroom Games](https://www.theteachersroom.app/esl-classroom-games): Create vocabulary, grammar, speaking, and review games for English language learners.
+
+## Help and plans
+
+- [Help and FAQs](https://www.theteachersroom.app/info): How-to guidance and answers about games, sharing, live quizzes, AI generation, and school accounts.
+- [Plans and Pricing](https://www.theteachersroom.app/pricing): Current Starter, Teacher, and School plan information.
+- [Contact](https://www.theteachersroom.app/contact): Support, feedback, and school-plan enquiries.
+
+## Articles
+
+- [The Teachers' Blog](https://www.theteachersroom.app/blog): Articles about AI in education, classroom games, ESL teaching, and teacher workflows.
+- [Using AI to Write Student Reports With Custom Templates](https://www.theteachersroom.app/blog/6): A practical workflow for consistent AI-assisted student reports.
+- [AI in the Classroom: Friend or Foe?](https://www.theteachersroom.app/blog/1): Ethical considerations and practical uses of AI for educators.
+- [5 Ways to Gamify History Lessons](https://www.theteachersroom.app/blog/2): Classroom structures for turning history content into active games.
+- [The End of Grading Homework?](https://www.theteachersroom.app/blog/3): Automated feedback, self-assessment, and teacher workload.
+- [ESL Strategies for 2025](https://www.theteachersroom.app/blog/5): Communicative and task-based approaches to English-language teaching.
+
+## Policies
+
+- [Privacy Policy](https://www.theteachersroom.app/privacy): How account, content, and usage data are handled.
+- [Terms of Service](https://www.theteachersroom.app/terms): Terms governing use of the service.
+

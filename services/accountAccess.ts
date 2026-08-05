@@ -1313,12 +1313,29 @@ export const changeMyAccountPlan = async (
 };
 
 export const cancelMyAccount = async (): Promise<{ error: Error | null }> => {
-  const rpcResult = await supabase.rpc('cancel_my_account');
-  if (!rpcResult.error) return { error: null };
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionError || !accessToken) {
+    return { error: new Error(getErrorMessage(sessionError, 'Please sign in again before deleting your account.')) };
+  }
 
-  return {
-    error: new Error(getErrorMessage(rpcResult.error, 'Failed to cancel account.'))
-  };
+  try {
+    const response = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return { error: new Error(String(payload?.error || 'Failed to cancel account.')) };
+    }
+    return { error: null };
+  } catch (error) {
+    return { error: new Error(getErrorMessage(error, 'Failed to cancel account.')) };
+  }
 };
 
 export const upgradeMyAccountToTeacher = async (): Promise<{ error: Error | null }> => {

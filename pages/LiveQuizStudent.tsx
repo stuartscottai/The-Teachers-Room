@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, CheckCircle2, Clock, Crown, Home, Pencil, Trophy, WifiOff, XCircle } from 'lucide-react';
 import {
   getCurrentStudentQuestion,
-  getLiveQuizParticipants,
-  getLiveQuizSession,
-  getLiveQuizSubmissions,
+  getLiveQuizOwnSubmissions,
+  getLiveQuizStudentParticipants,
+  getLiveQuizStudentSession,
   rememberLiveQuizParticipant,
   submitLiveQuizAnswer,
   updateLiveQuizParticipantDisplayName,
@@ -199,10 +199,10 @@ export const LiveQuizStudent: React.FC = () => {
     let disposed = false;
     const load = async () => {
       const [nextSession, nextQuestion, nextParticipants, nextSubmissions] = await Promise.all([
-        getLiveQuizSession(sessionId),
-        getCurrentStudentQuestion(sessionId),
-        getLiveQuizParticipants(sessionId),
-        getLiveQuizSubmissions(sessionId),
+        getLiveQuizStudentSession(sessionId, participantId),
+        getCurrentStudentQuestion(sessionId, participantId),
+        getLiveQuizStudentParticipants(sessionId, participantId),
+        getLiveQuizOwnSubmissions(sessionId, participantId),
       ]);
       if (disposed) return;
       setSession(nextSession);

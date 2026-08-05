@@ -364,6 +364,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   'Create Account'
                 )}
               </button>
+              {!isLogin && !isForgotPassword && (
+                <p className="text-xs leading-relaxed text-slate-500">
+                  We use your name and email to create and protect your account. By creating an account,
+                  you confirm that you are at least 18 and accept our{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-brand-blue hover:underline">
+                    Terms
+                  </a>. See our{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-brand-blue hover:underline">
+                    Privacy Policy
+                  </a>{' '}
+                  for how your information is used and how to exercise your rights.
+                </p>
+              )}
             </form>
           )}
 

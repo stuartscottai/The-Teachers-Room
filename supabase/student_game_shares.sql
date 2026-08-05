@@ -23,19 +23,39 @@ create index if not exists student_game_shares_teacher_idx
 alter table public.student_game_shares enable row level security;
 
 drop policy if exists student_game_shares_select_valid on public.student_game_shares;
-create policy student_game_shares_select_valid
+drop policy if exists student_game_shares_select_teacher on public.student_game_shares;
+create policy student_game_shares_select_teacher
   on public.student_game_shares
   for select
-  using (
-    revoked_at is null
-    and (expires_at is null or expires_at > now())
-    and exists (
-      select 1
-      from public.saved_games sg
-      where sg.id = student_game_shares.game_id
-        and sg.is_public = true
-    )
-  );
+  using (auth.uid() = teacher_id);
+
+drop function if exists public.get_student_game_share(uuid);
+create function public.get_student_game_share(p_share_id uuid)
+returns table (
+  id uuid,
+  game_id uuid,
+  title text,
+  selected_items jsonb,
+  expires_at timestamptz,
+  revoked_at timestamptz
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select s.id, s.game_id, s.title, s.selected_items, s.expires_at, s.revoked_at
+  from public.student_game_shares s
+  join public.saved_games g on g.id = s.game_id
+  where s.id = p_share_id
+    and s.revoked_at is null
+    and (s.expires_at is null or s.expires_at > timezone('utc', now()))
+    and g.is_public = true
+  limit 1;
+$$;
+
+revoke all on function public.get_student_game_share(uuid) from public;
+grant execute on function public.get_student_game_share(uuid) to anon, authenticated;
 
 drop policy if exists student_game_shares_insert_teacher on public.student_game_shares;
 create policy student_game_shares_insert_teacher

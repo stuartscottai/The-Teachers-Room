@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
 const sitemapPath = path.join(dist, 'sitemap.xml');
+const llmsPath = path.join(dist, 'llms.txt');
 const failures = [];
 
 const fail = (message) => failures.push(message);
@@ -44,6 +45,33 @@ const privatePrefixes = [
   '/student',
   '/live'
 ];
+
+if (!fs.existsSync(llmsPath)) {
+  fail('dist/llms.txt is missing.');
+} else {
+  const llms = fs.readFileSync(llmsPath, 'utf8');
+  const llmsUrls = [...llms.matchAll(/https:\/\/www\.theteachersroom\.app([^\s)\]]*)/g)].map(
+    (match) => match[1] || '/'
+  );
+
+  if (!llms.startsWith("# The Teachers' Room")) {
+    fail("llms.txt must begin with the product name as its main heading.");
+  }
+  if (!llms.includes('> The Teachers\' Room is a web app for teachers')) {
+    fail('llms.txt is missing its short product summary.');
+  }
+  if (llmsUrls.length < 8) {
+    fail(`llms.txt contains only ${llmsUrls.length} public links.`);
+  }
+  for (const llmsUrl of llmsUrls) {
+    if (!urls.includes(llmsUrl)) {
+      fail(`llms.txt links to ${llmsUrl}, which is not in the public sitemap.`);
+    }
+    if (privatePrefixes.some((prefix) => llmsUrl === prefix || llmsUrl.startsWith(`${prefix}/`))) {
+      fail(`Private route ${llmsUrl} must not appear in llms.txt.`);
+    }
+  }
+}
 
 for (const url of urls) {
   if (privatePrefixes.some((prefix) => url === prefix || url.startsWith(`${prefix}/`))) {

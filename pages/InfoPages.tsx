@@ -631,7 +631,7 @@ export const Contact: React.FC = () => {
 };
 
 export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
-    const lastUpdated = 'February 27, 2026';
+    const lastUpdated = 'August 5, 2026';
 
     if (type === 'terms') {
         return (
@@ -643,6 +643,9 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                     Welcome to <BrandName />. We built this platform to make classroom prep faster, better, and less stressful.
                     These Terms are the ground rules for using the site.
                     By accessing or using <BrandName />, you agree to these Terms and our Privacy Policy.
+                </p>
+                <p>
+                    The service is currently operated as a non-charging beta side project by <strong>Stuart Scott</strong> in Spain.
                 </p>
 
                 <h3>1. Who Can Use the Service</h3>
@@ -721,7 +724,8 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
                 <h3>11. Paid Plans (Current or Future)</h3>
                 <p>
-                    If paid subscriptions, credits, or school plans are offered, additional pricing and billing terms may apply.
+                    Subscription and school-plan features are currently in beta and no subscription fees are being charged.
+                    If paid subscriptions, credits, or school plans are introduced, additional pricing and billing terms may apply.
                     Unless required by law, fees are non-refundable after service is delivered.
                 </p>
 
@@ -768,7 +772,8 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
                 <h3>18. Contact</h3>
                 <p>
-                    Questions about these Terms? Please contact us through the site Contact page.
+                    Questions about these Terms? Email Stuart Scott at{' '}
+                    <a href="mailto:stuartscottai@gmail.com">stuartscottai@gmail.com</a> or use the site Contact page.
                 </p>
 
                 <p className="text-sm text-slate-500">
@@ -787,6 +792,14 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                 We care about privacy and classroom trust.
                 This policy explains what data we collect, why we collect it, how we use it, and what choices you have.
                 If anything is unclear, contact us and we will explain it in plain English.
+            </p>
+
+            <h3>Data Controller</h3>
+            <p>
+                <strong>Stuart Scott</strong>, based in Spain, is responsible for deciding how personal data is used for The Teachers&apos; Room.
+                For privacy questions or requests, email{' '}
+                <a href="mailto:stuartscottai@gmail.com">stuartscottai@gmail.com</a>.
+                The service is currently a non-charging beta side project.
             </p>
 
             <h3>1. What We Collect</h3>
@@ -815,6 +828,15 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                 <li>
                     <strong>Voice input (optional):</strong> if you use dictation, microphone audio is processed by browser speech recognition and/or local Whisper Web transcription, depending on availability.
                 </li>
+                <li>
+                    <strong>Live quiz data:</strong> a nickname, first name, or team label, avatar choice, answers, scores, response times, and quiz participation timestamps.
+                </li>
+                <li>
+                    <strong>Take-home student practice:</strong> nicknames, answers, and scores remain on the student&apos;s device and are not saved to an account or sent to the teacher. We record only an anonymous increase to the game&apos;s total play count.
+                </li>
+                <li>
+                    <strong>School account data:</strong> school name, teacher invitations and memberships, account roles, shared-school files, and limited teacher activity totals shown to authorised school administrators.
+                </li>
             </ul>
 
             <h3>2. How We Use Data</h3>
@@ -822,17 +844,20 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
                 <li>To provide core features (account login, generation, editing, saving, sharing).</li>
                 <li>To generate AI-assisted content based on your prompts and uploaded source material.</li>
                 <li>To support community libraries and visibility settings.</li>
+                <li>To run live classroom quizzes, display the temporary leaderboard, and return feedback to participants.</li>
+                <li>To provide school administration, shared storage, account allocation, security, and limited usage reporting.</li>
                 <li>To operate, secure, troubleshoot, and improve reliability and safety of the service.</li>
                 <li>To respond to support/contact requests and enforce legal terms.</li>
             </ul>
 
             <h3>3. Legal Bases (Where Applicable)</h3>
-            <p>Depending on your location, we process data under one or more of these legal bases:</p>
+            <p>For people in the EU/EEA, the legal basis depends on the particular use:</p>
             <ul>
-                <li>Performance of a contract (providing the service you asked for).</li>
-                <li>Legitimate interests (security, quality, abuse prevention, product operation).</li>
-                <li>Consent (for optional actions like voice features where required).</li>
-                <li>Legal obligations (compliance, dispute handling, lawful requests).</li>
+                <li><strong>Contract:</strong> creating and managing adult teacher accounts and providing requested account features.</li>
+                <li><strong>Legitimate interests:</strong> service security, fraud and abuse prevention, reliability, support, and proportionate product-operation records. We balance these interests against the rights of affected people.</li>
+                <li><strong>School instructions or applicable educational legal basis:</strong> where a school asks us to process teacher or student data on its behalf, the school determines and documents the appropriate legal basis and we act under a data-processing agreement.</li>
+                <li><strong>Consent:</strong> optional device permissions such as microphone access, where consent is the appropriate basis. Permission can be withdrawn through browser controls.</li>
+                <li><strong>Legal obligation:</strong> records required for compliance, dispute handling, and lawful requests.</li>
             </ul>
 
             <h3>4. AI Providers and Data Handling</h3>
@@ -857,16 +882,21 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <ul>
                 <li>Supabase is used for authentication, database storage, and file storage.</li>
                 <li>AI generation requests are processed through the selected provider: Google Gemini API or OpenAI API.</li>
-                <li>Stock image search uses Pixabay via our API route/proxy.</li>
-                <li>Hosting/infrastructure providers may process request logs needed to run the site.</li>
+                <li>Stock image search uses Pexels and may use Pixabay as a fallback, through our server-side API route/proxy.</li>
+                <li>Vercel provides website hosting and server infrastructure and may process request and security logs.</li>
+                <li>Cloudflare Turnstile provides human-verification checks on account and login forms.</li>
+                <li>Google Fonts supplies the site fonts and receives the normal network information required to deliver those files.</li>
             </ul>
 
             <h3>6. How Long We Keep Data</h3>
             <ul>
                 <li>Account and saved content are kept while your account remains active, unless deleted earlier.</li>
+                <li>Live quiz sessions, participant labels, answers, scores, and response times are automatically removed after they reach 24 hours old.</li>
+                <li>AI generation usage records used for security, quota management, and cost control are kept for no more than 12 months.</li>
                 <li>Guest localStorage content remains on your device until you delete it or clear browser data.</li>
                 <li>Public community content may remain visible until removed by you or moderation action.</li>
-                <li>Contact messages are retained as reasonably necessary for support and legal recordkeeping.</li>
+                <li>Contact messages are kept for no more than 24 months, unless a longer period is required for an active dispute or legal obligation.</li>
+                <li>Expired school invitation records are removed after a short 30-day administration and security window.</li>
                 <li>Operational logs may be retained for security, abuse prevention, and diagnostics.</li>
             </ul>
 
@@ -875,6 +905,8 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <ul>
                 <li>With processors/service providers that run platform features (for example, Supabase, Google, OpenAI, Pixabay, hosting providers).</li>
                 <li>With other users only for content you intentionally mark as public/community.</li>
+                <li>During a live quiz, with the teacher hosting the quiz and with other participants to the limited extent needed for names/team labels and leaderboard scores.</li>
+                <li>With authorised school administrators for school membership, allocation, security, and the limited activity information described in the school interface.</li>
                 <li>When required by law, court order, or to protect rights, safety, and service integrity.</li>
                 <li>As part of a merger, acquisition, or business transfer (with notice where required).</li>
             </ul>
@@ -883,7 +915,9 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <ul>
                 <li>We use essential browser storage and auth/session mechanisms to keep the app working.</li>
                 <li>Guest-mode saved items use browser localStorage.</li>
-                <li>At the time of this policy update, we do not run third-party ad tracking networks in the app.</li>
+                <li>Cloudflare Turnstile may use strictly necessary security storage when a login or account form is opened.</li>
+                <li>At the time of this policy update, we do not use advertising cookies, behavioural advertising, or third-party analytics trackers.</li>
+                <li>Because the current storage is necessary for requested features or security rather than advertising or analytics, the site does not currently display a consent banner. We will add consent controls before introducing any optional tracking.</li>
             </ul>
 
             <h3>9. Your Rights and Choices</h3>
@@ -891,20 +925,23 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
             <ul>
                 <li>You can update profile information from the Profile page.</li>
                 <li>You can delete saved content from your library.</li>
+                <li>You can permanently delete your account and associated personal uploads from the Profile page.</li>
                 <li>You can contact us via the Contact page for privacy requests.</li>
                 <li>You may have the right to complain to your local data protection authority.</li>
             </ul>
 
             <h3>10. Student Data and School Use</h3>
             <p>
-                If you use the service in a school context, you are responsible for ensuring you have a valid legal basis for any personal data you submit,
-                including appropriate notices/consents where required by law or school policy.
+                A school is normally responsible for deciding why student and staff information is used. When we process that information on the school&apos;s instructions,
+                we act as its processor under a data-processing agreement. Schools must provide their own required notices and establish an appropriate legal basis.
+                Teachers should ask participants to use a first name, nickname, or team name and must not upload unnecessary or sensitive student information.
             </p>
 
             <h3>11. International Transfers</h3>
             <p>
-                Your data may be processed in countries outside your own.
-                Where required, we rely on lawful transfer mechanisms and contractual safeguards provided by our service providers.
+                Some service providers may process data outside the EU/EEA. Where an adequacy decision does not cover the destination,
+                we require an applicable transfer safeguard, such as the European Commission&apos;s Standard Contractual Clauses, and assess the provider&apos;s relevant protections.
+                Information about the applicable safeguard can be requested through the Contact page.
             </p>
 
             <h3>12. Security</h3>
@@ -916,8 +953,9 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
             <h3>13. Children</h3>
             <p>
-                The service is intended for adult educators and is not directed to users under 18.
-                If you believe someone under 18 has submitted personal information through direct account use, please contact us so we can review and remove it where appropriate.
+                Account creation and teacher tools are intended for adults aged 18 or over. Students, including children, may use a teacher-started live quiz without creating an account.
+                The join screen asks students to use a first name, nickname, or team name and explains what the class can see and that quiz participation records are removed after they reach 24 hours old.
+                Schools and teachers remain responsible for providing any additional notice required for their educational use. If a child has created an account or unnecessary personal information has been submitted, contact us so it can be reviewed and removed.
             </p>
 
             <h3>14. Changes to This Policy</h3>
@@ -928,7 +966,8 @@ export const Legal: React.FC<{type: 'terms' | 'privacy'}> = ({type}) => {
 
             <h3>15. Contact</h3>
             <p>
-                For privacy questions or data requests, please contact us through the Contact page on the site.
+                For privacy questions or data requests, email{' '}
+                <a href="mailto:stuartscottai@gmail.com">stuartscottai@gmail.com</a> or use the Contact page on the site.
             </p>
 
             <p className="text-sm text-slate-500">

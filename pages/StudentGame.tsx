@@ -194,13 +194,20 @@ export const StudentGame: React.FC = () => {
               className="space-y-4"
             >
               <div>
-                <label className="mb-2 block text-sm font-black text-slate-700">Name</label>
+                <label className="mb-2 block text-sm font-black text-slate-700">Nickname</label>
                 <input
                   value={studentName}
                   onChange={(event) => setStudentName(event.target.value)}
-                  placeholder="Enter your name"
+                  placeholder="Enter a nickname"
+                  maxLength={20}
                   className="w-full rounded-xl border border-slate-300 bg-white p-4 text-lg font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-yellow"
                 />
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  Your nickname, answers, and score stay on this device and are not sent to your teacher.{' '}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-black text-brand-blue hover:underline">
+                    Privacy information
+                  </a>
+                </p>
               </div>
               <button
                 type="submit"
