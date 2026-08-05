@@ -197,7 +197,6 @@ export const noindexPrefixes = [
   '/change-plan',
   '/school-admin',
   '/test',
-  '/worksheets',
   '/share/game',
   '/student/game',
   '/student/share',

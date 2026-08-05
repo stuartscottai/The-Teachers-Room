@@ -10,7 +10,7 @@ import { createSignedUrlsForGameAssets, uploadGameAsset } from '../../utils/game
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { buildLiveQuizQuestionsFromGame } from '../../utils/liveQuizUtils';
-import { StockImagePicker, StockImageSelection } from '../worksheet/StockImagePicker';
+import { StockImagePicker, StockImageSelection } from '../shared/StockImagePicker';
 import { Avatar } from '../Avatar';
 import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Calendar, Radio } from 'lucide-react';
 import { promptSignupForFree } from '../../services/accountAccess';

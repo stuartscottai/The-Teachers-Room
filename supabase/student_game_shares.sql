@@ -8,11 +8,19 @@ create table if not exists public.student_game_shares (
   selected_items jsonb not null default '[]'::jsonb,
   play_count integer not null default 0,
   created_at timestamptz not null default now(),
-  expires_at timestamptz,
+  expires_at timestamptz default (now() + interval '3 months'),
   revoked_at timestamptz,
   constraint student_game_shares_selected_items_array
     check (jsonb_typeof(selected_items) = 'array')
 );
+
+-- Apply the three-month lifetime to existing installations and older links.
+alter table public.student_game_shares
+  alter column expires_at set default (now() + interval '3 months');
+
+update public.student_game_shares
+set expires_at = created_at + interval '3 months'
+where expires_at is null;
 
 create index if not exists student_game_shares_game_idx
   on public.student_game_shares (game_id, created_at desc);
@@ -49,7 +57,7 @@ as $$
   join public.saved_games g on g.id = s.game_id
   where s.id = p_share_id
     and s.revoked_at is null
-    and (s.expires_at is null or s.expires_at > timezone('utc', now()))
+    and coalesce(s.expires_at, s.created_at + interval '3 months') > timezone('utc', now())
     and g.is_public = true
   limit 1;
 $$;

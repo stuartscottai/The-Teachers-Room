@@ -81,7 +81,7 @@ export const convertGeminiSchemaToOpenAI = (schema: any): any => {
 const getOpenAIReasoningEffort = (action = '') => {
   const configured = String(process.env.OPENAI_REASONING_EFFORT || '').trim().toLowerCase();
   if (['none', 'minimal', 'low', 'medium', 'high', 'xhigh'].includes(configured)) return configured;
-  return action === 'game' || action === 'worksheet' ? 'medium' : 'low';
+  return action === 'game' ? 'medium' : 'low';
 };
 
 const toOpenAIContentPart = (part: any): any => {

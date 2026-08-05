@@ -1,6 +1,6 @@
 import { supabase } from '../services/supabase';
 import { optimizeImageForUpload } from './imageOptimize';
-import { WORKSHEET_ASSETS_BUCKET } from './worksheetAssetStorage';
+import { APP_ASSETS_BUCKET } from './gameAssetStorage';
 
 type SchoolLogoUploadResult = {
   path: string;
@@ -37,7 +37,7 @@ export const createSignedUrlForSchoolLogo = async (
   if (!path) return null;
 
   const { data, error } = await supabase.storage
-    .from(WORKSHEET_ASSETS_BUCKET)
+    .from(APP_ASSETS_BUCKET)
     .createSignedUrl(path, expiresInSeconds);
 
   if (error) throw error;
@@ -66,7 +66,7 @@ export const resolveSchoolLogoForSchool = async (schoolId: string): Promise<{ pa
   // where signed URL caching/expiry can produce broken image responses.
   try {
     const { data, error } = await supabase.storage
-      .from(WORKSHEET_ASSETS_BUCKET)
+      .from(APP_ASSETS_BUCKET)
       .download(path);
     if (error) throw error;
     if (data) {
@@ -100,7 +100,7 @@ export const uploadSchoolLogoForSchool = async (params: {
   const nextPath = `schools/${schoolId}/logo-${randomId()}.${optimized.extension}`;
 
   const { error: uploadError } = await supabase.storage
-    .from(WORKSHEET_ASSETS_BUCKET)
+    .from(APP_ASSETS_BUCKET)
     .upload(nextPath, optimized.blob, {
       contentType: optimized.contentType,
       upsert: false,
@@ -115,12 +115,12 @@ export const uploadSchoolLogoForSchool = async (params: {
     .eq('id', schoolId);
 
   if (updateError) {
-    await supabase.storage.from(WORKSHEET_ASSETS_BUCKET).remove([nextPath]).catch(() => undefined);
+    await supabase.storage.from(APP_ASSETS_BUCKET).remove([nextPath]).catch(() => undefined);
     throw updateError;
   }
 
   if (previousPath && previousPath !== nextPath) {
-    await supabase.storage.from(WORKSHEET_ASSETS_BUCKET).remove([previousPath]).catch(() => undefined);
+    await supabase.storage.from(APP_ASSETS_BUCKET).remove([previousPath]).catch(() => undefined);
   }
 
   const signedUrl = await createSignedUrlForSchoolLogo(nextPath);
@@ -143,6 +143,6 @@ export const removeSchoolLogoForSchool = async (schoolId: string): Promise<void>
   if (updateError) throw updateError;
 
   if (previousPath) {
-    await supabase.storage.from(WORKSHEET_ASSETS_BUCKET).remove([previousPath]).catch(() => undefined);
+    await supabase.storage.from(APP_ASSETS_BUCKET).remove([previousPath]).catch(() => undefined);
   }
 };

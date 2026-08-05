@@ -40,7 +40,6 @@ const privatePrefixes = [
   '/change-plan',
   '/school-admin',
   '/test',
-  '/worksheets',
   '/share',
   '/student',
   '/live'

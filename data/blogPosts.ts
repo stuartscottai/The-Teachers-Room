@@ -107,25 +107,6 @@ export const blogPosts: BlogPost[] = [
         `
     },
     {
-        id: 4,
-        title: "Personalized Learning at Scale",
-        subtitle: "Using data to tailor worksheets for every student's unique proficiency level.",
-        date: "November 15, 2024",
-        image: "https://picsum.photos/seed/blog4/1200/600",
-        content: `
-            <p class="lead">The "average student" is a myth. In any given 4th-grade class, you might have reading levels ranging from 1st grade to 7th grade. Teaching to the middle leaves half the class bored and the other half lost. Historically, differentiation meant the teacher staying up until midnight creating three versions of every worksheet. Not anymore.</p>
-
-            <h2>Data-Driven Insights</h2>
-            <p>Modern EdTech tools collect data on every interaction. We can see that Johnny consistently struggles with fractions but excels at geometry. We can see that Sarah has a rich vocabulary but struggles with grammar syntax. This data allows for micro-grouping, where students are grouped by specific skill gaps rather than general ability.</p>
-
-            <h2>The Dynamic Worksheet</h2>
-            <p>Imagine clicking a button and generating a worksheet on "Photosynthesis." But for Group A, the text is simplified, and the questions are multiple-choice. For Group B, the text is standard, and questions are open-ended. For Group C, there is an extension activity asking them to compare photosynthesis to respiration. This is what we call "Personalized Learning at Scale."</p>
-
-            <h2>Student Agency</h2>
-            <p>When students work at their "Zone of Proximal Development" (not too hard, not too easy), engagement skyrockets. They stop acting out out of frustration or boredom. They take ownership of their learning path because they can see their own progress.</p>
-        `
-    },
-    {
         id: 5,
         title: "ESL Strategies for 2025",
         subtitle: "New methodologies that focus on immersion and conversation over rote memorization.",

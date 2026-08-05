@@ -16,7 +16,7 @@
       ]
     },
     {
-      "source": "/:privatePage(profile|reset-password|choose-plan|change-plan|school-admin|worksheets)",
+      "source": "/:privatePage(profile|reset-password|choose-plan|change-plan|school-admin)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
       ]

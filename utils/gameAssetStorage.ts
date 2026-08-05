@@ -10,8 +10,10 @@ const randomId = () =>
     ? (crypto as any).randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-// Reuse the existing bucket to avoid extra Supabase setup.
-export const GAME_ASSETS_BUCKET = 'worksheet-assets';
+// Keep the existing bucket ID so previously uploaded game images and school
+// logos continue to work after the retired worksheet feature is removed.
+export const APP_ASSETS_BUCKET = 'worksheet-assets';
+export const GAME_ASSETS_BUCKET = APP_ASSETS_BUCKET;
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 hour
 
 export const createSignedUrlForGameAsset = async (

@@ -119,7 +119,6 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<GuardedRoute><LazyRoute><Games /></LazyRoute></GuardedRoute>} />
-              <Route path="/worksheets" element={<Navigate to="/games" replace />} />
               <Route path="/pricing" element={<LazyRoute><Pricing /></LazyRoute>} />
               <Route path="/info" element={<LazyRoute><Info /></LazyRoute>} />
               <Route path="/blog" element={<LazyRoute><Blog /></LazyRoute>} />

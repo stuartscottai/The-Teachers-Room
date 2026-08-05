@@ -81,31 +81,6 @@ exception
     null;
 end $$;
 
--- Ensure saved worksheets are deleted automatically when auth user is deleted.
-do $$
-declare
-  v_constraint_name text;
-begin
-  for v_constraint_name in
-    select c.conname
-    from pg_constraint c
-    where c.conrelid = 'public.saved_worksheets'::regclass
-      and c.contype = 'f'
-      and c.confrelid = 'auth.users'::regclass
-  loop
-    execute format('alter table public.saved_worksheets drop constraint %I', v_constraint_name);
-  end loop;
-
-  alter table public.saved_worksheets
-    add constraint saved_worksheets_user_id_fkey
-    foreign key (user_id) references auth.users (id) on delete cascade;
-exception
-  when undefined_table then
-    null;
-  when duplicate_object then
-    null;
-end $$;
-
 -- Schools + centres + memberships + invites
 create table if not exists public.schools (
   id uuid primary key default gen_random_uuid(),
@@ -304,18 +279,12 @@ alter table if exists public.saved_games
   add column if not exists play_count integer not null default 0,
   add column if not exists school_id uuid references public.schools (id) on delete set null;
 
-alter table if exists public.saved_worksheets
-  add column if not exists school_id uuid references public.schools (id) on delete set null;
-
 create index if not exists saved_games_user_created_idx
   on public.saved_games (user_id, created_at desc);
 create index if not exists saved_games_play_count_idx
   on public.saved_games (play_count desc, created_at desc);
 create index if not exists saved_games_school_public_idx
   on public.saved_games (school_id, is_public, created_at desc);
-create index if not exists saved_worksheets_school_public_idx
-  on public.saved_worksheets (school_id, is_public, created_at desc);
-
 with active_school_membership as (
   select distinct on (sm.user_id)
     sm.user_id,
@@ -329,20 +298,6 @@ set school_id = asm.school_id
 from active_school_membership asm
 where sg.school_id is null
   and sg.user_id = asm.user_id;
-
-with active_school_membership as (
-  select distinct on (sm.user_id)
-    sm.user_id,
-    sm.school_id
-  from public.school_memberships sm
-  where sm.status = 'active'
-  order by sm.user_id, case when sm.role = 'admin' then 0 else 1 end, sm.created_at desc
-)
-update public.saved_worksheets sw
-set school_id = asm.school_id
-from active_school_membership asm
-where sw.school_id is null
-  and sw.user_id = asm.user_id;
 
 -- Per-user play event tracking for school analytics
 create table if not exists public.game_play_events (
@@ -2648,7 +2603,7 @@ create policy game_play_events_insert_own on public.game_play_events
 for insert
 with check (auth.uid() = user_id);
 
--- Ensure shared assets bucket exists (used for worksheets, game images, and school logos).
+-- Ensure shared assets bucket exists (used for game images and school logos).
 insert into storage.buckets (id, name, public)
 values ('worksheet-assets', 'worksheet-assets', false)
 on conflict (id) do nothing;

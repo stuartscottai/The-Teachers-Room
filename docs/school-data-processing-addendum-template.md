@@ -12,7 +12,7 @@ The School determines the purposes and legal basis for its educational processin
 
 - Duration: while the School account or relevant feature is active, subject to the deletion periods below.
 - People concerned: teachers, school administrators, invited staff, students, and support contacts.
-- Data: names or classroom labels, email addresses for adult accounts and invitations, account roles, game and worksheet content, uploaded materials, live-quiz answers/scores/timing, limited teacher activity records, support communications, and necessary technical/security records.
+- Data: names or classroom labels, email addresses for adult accounts and invitations, account roles, quiz-game content, uploaded materials, live-quiz answers/scores/timing, limited teacher activity records, support communications, and necessary technical/security records.
 - Purposes: authentication, classroom content creation and storage, live quizzes, sharing, school administration, support, security, quota management, and service operation.
 - Sensitive data: the Service is not intended for unnecessary special-category or highly sensitive student data. The School must not submit it unless separately agreed and lawfully authorised.
 
@@ -58,4 +58,3 @@ Service privacy contact: **[name and email]**
 
 For the School: **[name, role, date, signature]**  
 For the Service: **[name, role, date, signature]**
-
