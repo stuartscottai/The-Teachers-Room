@@ -79,6 +79,8 @@ for (const url of urls) {
 }
 
 const titles = new Map();
+const expectedFavicon =
+  '<link rel="icon" type="image/png" sizes="96x96" href="https://www.theteachersroom.app/favicon-96x96.png" />';
 for (const routePath of urls) {
   const htmlPath =
     routePath === '/'
@@ -102,6 +104,7 @@ for (const routePath of urls) {
   );
   const visibleWords = stripMarkup(rootHtml).split(/\s+/).filter(Boolean).length;
   const h1Count = (rootHtml.match(/<h1\b/gi) ?? []).length;
+  const faviconLinks = html.match(/<link\s+[^>]*rel=["']icon["'][^>]*>/gi) ?? [];
 
   if (!title) fail(`${routePath} has no title.`);
   if (!description) fail(`${routePath} has no description.`);
@@ -113,12 +116,19 @@ for (const routePath of urls) {
   if (!html.includes('id="jsonld-route"')) fail(`${routePath} has no structured data.`);
   if (visibleWords < 25) fail(`${routePath} contains only ${visibleWords} visible prerendered words.`);
   if (h1Count !== 1) fail(`${routePath} contains ${h1Count} main headings; exactly one is required.`);
+  if (faviconLinks.length !== 1 || faviconLinks[0] !== expectedFavicon) {
+    fail(`${routePath} must declare exactly one canonical 96x96 PNG favicon.`);
+  }
 
   if (titles.has(title)) {
     fail(`${routePath} duplicates the title used by ${titles.get(title)}.`);
   } else {
     titles.set(title, routePath);
   }
+}
+
+if (!fs.existsSync(path.join(dist, 'favicon-96x96.png'))) {
+  fail('The canonical 96x96 PNG favicon is missing from the build.');
 }
 
 const noindexPath = path.join(dist, 'noindex.html');
