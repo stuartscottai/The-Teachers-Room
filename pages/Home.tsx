@@ -5,12 +5,16 @@ import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, S
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
 import { GameType } from '../types';
 import { getGlobalStats, getTrendingGames } from '../utils/gameUtils';
+import { GameCover } from '../components/shared/GameCover';
+import type { GameCoverImage } from '../types';
 
 type HomeTrendingCard = {
     id: string;
     title: string;
     plays: string;
+    playsLabel?: string;
     image: string;
+    cover?: GameCoverImage;
     icon: React.ReactNode;
     color: string;
     to: To;
@@ -46,6 +50,8 @@ const getGameVisual = (type?: GameType) => {
             return { image: '/assets/games/wordwheel.png', icon: <RefreshCw size={40} />, color: 'bg-cyan-600' };
         case GameType.SNAKES_LADDERS:
             return { image: '/assets/games/snakes.png', icon: <Dice5 size={40} />, color: 'bg-teal-500' };
+        case GameType.BLOCK_BEATERS:
+            return { image: '/assets/games/blockbeaters.png', icon: <Hexagon size={40} />, color: 'bg-teal-700' };
         default:
             return { image: '/assets/games/trivia.png', icon: <Trophy size={40} />, color: 'bg-sky-600' };
     }
@@ -98,36 +104,24 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
 
 // Robust Card for Trending Games
 const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
-    const [hasError, setHasError] = useState(false);
-
     return (
         <Link to={game.to} state={game.state} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
-                <div className={`aspect-[3/2] w-full relative overflow-hidden shrink-0 ${hasError ? `${game.color}` : 'bg-transparent'}`}>
-                    <img 
-                        src={game.image} 
-                        alt={game.title} 
-                        crossOrigin="anonymous"
-                        className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${hasError ? 'hidden' : 'block'}`}
-                        onError={() => setHasError(true)}
+                <div className="aspect-[3/2] w-full relative overflow-hidden shrink-0">
+                    <GameCover
+                        cover={game.cover}
+                        title={game.title}
+                        publicGameId={isUUID(game.id) ? game.id : undefined}
+                        fallbackImage={game.image}
+                        className="h-full w-full transition-transform duration-500 group-hover:scale-105"
                     />
-                    
-                    {hasError && (
-                        <div className="w-full h-full flex items-center justify-center text-white/50 relative overflow-hidden">
-                             {/* Fallback Gradient Design */}
-                             <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                             <div className="transform scale-150 group-hover:scale-125 transition-transform duration-500 text-white">
-                                {game.icon}
-                             </div>
-                        </div>
-                    )}
-                    
-                    {/* Overlay on hover (only if image loaded) */}
-                    {!hasError && <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />}
+                    <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />
+                    {game.cover && <img src={game.image} alt="" aria-hidden="true" loading="lazy" decoding="async"
+                        className="absolute bottom-2 right-2 h-11 w-16 rounded-md border-2 border-white object-cover shadow-md" />}
                 </div>
                 <div className="p-4 flex-grow">
                     <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{game.plays} plays</p>
+                    <p className="text-xs text-slate-400 mt-1">{game.plays} {game.playsLabel || 'plays'}</p>
                 </div>
             </div>
         </Link>
@@ -178,10 +172,12 @@ export const Home: React.FC = () => {
           return {
             id: game.id || `trending-${index}`,
             title: game.title || game.config?.type || 'Untitled game',
-            plays: formatPlayCount(Number(game.playCount || 0)),
+            plays: formatPlayCount(Number(trendingResult.mode === 'recent' ? game.recentPlayCount : game.playCount) || 0),
+            playsLabel: trendingResult.mode === 'recent' ? 'plays this week' : 'plays',
             to: '/games',
             state: isUUID(game.id) ? { view: 'community', previewGameId: game.id } : undefined,
             image: visuals.image,
+            cover: game.config?.coverImage,
             icon: visuals.icon,
             color: visuals.color
           };

@@ -15,6 +15,8 @@ export type StockImageSelection = {
   sourcePageUrl?: string;
 };
 
+const EMPTY_SELECTION: StockImageSelection[] = [];
+
 export const StockImagePicker: React.FC<{
   isOpen: boolean;
   mode?: 'single' | 'multi';
@@ -27,7 +29,7 @@ export const StockImagePicker: React.FC<{
   isOpen,
   mode = 'single',
   initialQuery = '',
-  initialSelection = [],
+  initialSelection = EMPTY_SELECTION,
   onClose,
   onConfirm,
   onUpload,

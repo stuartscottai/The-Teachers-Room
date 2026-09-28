@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck, Radio } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck, Radio, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
@@ -458,42 +458,65 @@ const Navbar: React.FC = () => {
 };
 
 const Footer: React.FC = () => {
+  const [showMobileGames, setShowMobileGames] = useState(false);
+
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-12 pb-8 print:hidden">
+    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-6 pb-5 md:pt-10 md:pb-6 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
-          <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Site</h3>
-            <ul className="space-y-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-6 mb-6 md:grid-cols-3 md:gap-y-10 md:mb-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.6fr)] lg:gap-x-8">
+          <div className="col-span-2 md:col-span-1">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Site</h3>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2 md:block md:space-y-3">
               <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</SafeLink></li>
               <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</SafeLink></li>
               <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</SafeLink></li>
             </ul>
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Game Types</h3>
-            <ul className="space-y-3">
+          <div className="col-span-2">
+            <h3 className="hidden text-sm font-semibold text-white uppercase tracking-wider mb-4 md:block">Game Types</h3>
+            <button type="button" aria-controls="footer-game-links" aria-expanded={showMobileGames} onClick={() => setShowMobileGames(open => !open)} className="flex w-full items-center justify-between border-y border-slate-700 py-3 text-left text-sm font-semibold text-white md:hidden">
+              Explore games and guides
+              <ChevronDown size={18} aria-hidden="true" className={`transition-transform ${showMobileGames ? 'rotate-180' : ''}`} />
+            </button>
+            <div id="footer-game-links" className={`${showMobileGames ? 'block' : 'hidden'} pt-4 md:block md:pt-0`}>
+            <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5">
+              <li><SafeLink to="/game-types/trivia" className="hover:text-brand-yellow text-sm transition-colors">Trivia</SafeLink></li>
+              <li><SafeLink to="/game-types/jeopardy" className="hover:text-brand-yellow text-sm transition-colors">Jeopardy</SafeLink></li>
+              <li><SafeLink to="/game-types/time-bomb" className="hover:text-brand-yellow text-sm transition-colors">Time Bomb</SafeLink></li>
+              <li><SafeLink to="/game-types/wordwheel" className="hover:text-brand-yellow text-sm transition-colors">Word Wheel</SafeLink></li>
+              <li><SafeLink to="/game-types/survey-showdown" className="hover:text-brand-yellow text-sm transition-colors">Survey Showdown</SafeLink></li>
+              <li><SafeLink to="/game-types/stop-the-fire" className="hover:text-brand-yellow text-sm transition-colors">Stop the Fire</SafeLink></li>
+              <li><SafeLink to="/game-types/millionaire-maker" className="hover:text-brand-yellow text-sm transition-colors">Millionaire Maker</SafeLink></li>
+              <li><SafeLink to="/game-types/darts-challenge" className="hover:text-brand-yellow text-sm transition-colors">Darts Challenge</SafeLink></li>
+              <li><SafeLink to="/game-types/snakes-and-ladders" className="hover:text-brand-yellow text-sm transition-colors">Snakes and Ladders</SafeLink></li>
+              <li><SafeLink to="/game-types/pub-quiz" className="hover:text-brand-yellow text-sm transition-colors">Pub Quiz</SafeLink></li>
+              <li><SafeLink to="/game-types/live-quiz" className="hover:text-brand-yellow text-sm transition-colors">Live Quiz</SafeLink></li>
+              <li><SafeLink to="/game-types/blockbeaters" className="hover:text-brand-yellow text-sm transition-colors">Block Beaters</SafeLink></li>
+            </ul>
+            <h4 className="mt-5 border-t border-slate-700 pt-4 text-xs font-semibold text-white">More for teachers</h4>
+            <ul className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2.5">
               <li><SafeLink to="/create-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">Create classroom games</SafeLink></li>
               <li><SafeLink to="/classroom-quiz-maker" className="hover:text-brand-yellow text-sm transition-colors">Classroom quiz maker</SafeLink></li>
               <li><SafeLink to="/live-quiz-for-teachers" className="hover:text-brand-yellow text-sm transition-colors">Live quiz for teachers</SafeLink></li>
               <li><SafeLink to="/esl-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">ESL classroom games</SafeLink></li>
             </ul>
+            </div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Support</h3>
-            <ul className="space-y-3">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Support</h3>
+            <ul className="space-y-2 md:space-y-3">
               <li><SafeLink to="/info" className="hover:text-brand-yellow text-sm transition-colors">FAQs</SafeLink></li>
               <li><SafeLink to="/contact" className="hover:text-brand-yellow text-sm transition-colors">Contact</SafeLink></li>
             </ul>
           </div>
            <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">Legal</h3>
-            <ul className="space-y-3">
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Legal</h3>
+            <ul className="space-y-2 md:space-y-3">
               <li><SafeLink to="/terms" className="hover:text-brand-yellow text-sm transition-colors">Terms of Service</SafeLink></li>
               <li><SafeLink to="/privacy" className="hover:text-brand-yellow text-sm transition-colors">Privacy Policy</SafeLink></li>
             </ul>
           </div>
-           <div className="col-span-2 md:col-span-1">
+           <div className="hidden md:col-span-1 md:block">
              <div className="flex items-center mb-4">
                 <div className="bg-brand-yellow p-2 rounded-full mr-2">
                   <GraduationCap className="h-5 w-5 text-slate-900" />
@@ -503,8 +526,8 @@ const Footer: React.FC = () => {
              <p className="text-xs text-slate-400">Making teaching easier, one game at a time.</p>
           </div>
         </div>
-        <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-xs text-slate-500">&copy; 2025 <BrandName />.</p>
+        <div className="border-t border-slate-800 pt-4 md:pt-8 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} <BrandName />.</p>
           <p className="text-xs text-slate-500 mt-2 md:mt-0">Designed and managed by 3P Machine digital.</p>
         </div>
       </div>

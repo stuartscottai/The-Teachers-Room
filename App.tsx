@@ -8,7 +8,20 @@ import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { RouteSEO } from './components/RouteSEO';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+const SurveyShowdownPage = lazy(() => import('./pages/SurveyShowdownPage').then(m => ({ default: m.SurveyShowdownPage })));
+const StopTheFirePage = lazy(() => import('./pages/StopTheFirePage').then(m => ({ default: m.StopTheFirePage })));
+const MillionaireMakerPage = lazy(() => import('./pages/MillionaireMakerPage').then(m => ({ default: m.MillionaireMakerPage })));
+const DartsChallengePage = lazy(() => import('./pages/DartsChallengePage').then(m => ({ default: m.DartsChallengePage })));
+const SnakesAndLaddersPage = lazy(() => import('./pages/SnakesAndLaddersPage').then(m => ({ default: m.SnakesAndLaddersPage })));
+const PubQuizPage = lazy(() => import('./pages/PubQuizPage').then(m => ({ default: m.PubQuizPage })));
+const LiveQuizPage = lazy(() => import('./pages/LiveQuizPage').then(m => ({ default: m.LiveQuizPage })));
+const BlockBeatersPage = lazy(() => import('./pages/BlockBeatersPage').then(m => ({ default: m.BlockBeatersPage })));
+const WordWheelPage = lazy(() => import('./pages/WordWheelPage').then(m => ({ default: m.WordWheelPage })));
+const TimeBombPage = lazy(() => import('./pages/TimeBombPage').then(m => ({ default: m.TimeBombPage })));
+const JeopardyPage = lazy(() => import('./pages/JeopardyPage').then(m => ({ default: m.JeopardyPage })));
+const TriviaPage = lazy(() => import('./pages/TriviaPage').then(m => ({ default: m.TriviaPage })));
 const Games = lazy(() => import('./pages/Games').then(({ Games }) => ({ default: Games })));
+const GameCoverSmokeTest = lazy(() => import('./pages/GameCoverSmokeTest').then(({ GameCoverSmokeTest }) => ({ default: GameCoverSmokeTest })));
 const Pricing = lazy(() => import('./pages/InfoPages').then(({ Pricing }) => ({ default: Pricing })));
 const Info = lazy(() => import('./pages/InfoPages').then(({ Info }) => ({ default: Info })));
 const Contact = lazy(() => import('./pages/InfoPages').then(({ Contact }) => ({ default: Contact })));
@@ -119,6 +132,18 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<GuardedRoute><LazyRoute><Games /></LazyRoute></GuardedRoute>} />
+              <Route path="/game-types/survey-showdown" element={<LazyRoute><SurveyShowdownPage /></LazyRoute>} />
+              <Route path="/game-types/stop-the-fire" element={<LazyRoute><StopTheFirePage /></LazyRoute>} />
+              <Route path="/game-types/millionaire-maker" element={<LazyRoute><MillionaireMakerPage /></LazyRoute>} />
+              <Route path="/game-types/darts-challenge" element={<LazyRoute><DartsChallengePage /></LazyRoute>} />
+              <Route path="/game-types/snakes-and-ladders" element={<LazyRoute><SnakesAndLaddersPage /></LazyRoute>} />
+              <Route path="/game-types/pub-quiz" element={<LazyRoute><PubQuizPage /></LazyRoute>} />
+              <Route path="/game-types/live-quiz" element={<LazyRoute><LiveQuizPage /></LazyRoute>} />
+              <Route path="/game-types/blockbeaters" element={<LazyRoute><BlockBeatersPage /></LazyRoute>} />
+              <Route path="/game-types/wordwheel" element={<LazyRoute><WordWheelPage /></LazyRoute>} />
+              <Route path="/game-types/time-bomb" element={<LazyRoute><TimeBombPage /></LazyRoute>} />
+              <Route path="/game-types/jeopardy" element={<LazyRoute><JeopardyPage /></LazyRoute>} />
+              <Route path="/game-types/trivia" element={<LazyRoute><TriviaPage /></LazyRoute>} />
               <Route path="/pricing" element={<LazyRoute><Pricing /></LazyRoute>} />
               <Route path="/info" element={<LazyRoute><Info /></LazyRoute>} />
               <Route path="/blog" element={<LazyRoute><Blog /></LazyRoute>} />
@@ -136,6 +161,7 @@ const App: React.FC = () => {
               <Route path="/change-plan" element={<LazyRoute><ChangePlan /></LazyRoute>} />
               <Route path="/school-admin" element={<LazyRoute><SchoolAdmin /></LazyRoute>} />
               <Route path="/test" element={<GuardedRoute><LazyRoute><TestBench /></LazyRoute></GuardedRoute>} />
+              <Route path="/test/game-cover-smoke" element={import.meta.env.DEV ? <GuardedRoute><LazyRoute><GameCoverSmokeTest /></LazyRoute></GuardedRoute> : <Navigate to="/" replace />} />
               <Route path="/test/game-smoke" element={import.meta.env.DEV ? <GuardedRoute><LazyRoute><GameSmokeTest /></LazyRoute></GuardedRoute> : <Navigate to="/" replace />} />
               <Route path="/test/preview-smoke" element={import.meta.env.DEV ? <GuardedRoute><LazyRoute><PreviewSmokeTest /></LazyRoute></GuardedRoute> : <Navigate to="/" replace />} />
               <Route path="/test/student-practice-smoke" element={import.meta.env.DEV ? <GuardedRoute><LazyRoute><StudentPracticeSmokeTest /></LazyRoute></GuardedRoute> : <Navigate to="/" replace />} />

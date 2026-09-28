@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { GameCover } from '../components/shared/GameCover';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GameType, GeneratedGame, GeneratedQuestion, GameRunOptions, JeopardyCategory } from '../types';
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon, Shuffle, Hexagon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -90,67 +91,57 @@ const getGameStatTooltip = (stat: { label: string; value: string | number }) => 
     return `This game has ${value} ${label.toLowerCase()}.`;
 };
 
+const gamePageScreenshots = (slug: string, ...names: string[]) =>
+    names.map(name => `/assets/game-types/${slug}/${name}.jpg`);
+
 const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
     [GameType.SNAKES_LADDERS]: [
         "/assets/games/snakes.png",
-        "/assets/games/snakes1.png",
-        "/assets/games/snakes2.png"
+        ...gamePageScreenshots('snakes-and-ladders', 'board', 'question', 'answer')
     ],
     [GameType.TRIVIA]: [
         "/assets/games/trivia.png",
-        "/assets/games/trivia1..png",
-        "/assets/games/trivia2.png"
+        ...gamePageScreenshots('trivia', 'question', 'answer', 'results')
     ],
     [GameType.JEOPARDY]: [
         "/assets/games/jeopardy.png",
-        "/assets/games/jeopardy1.png",
-        "/assets/games/jeopardy2.png"
+        ...gamePageScreenshots('jeopardy', 'question', 'answer', 'results')
     ],
     [GameType.PUB_QUIZ]: [
         "/assets/games/pubquiz.png",
-        "/assets/games/pubquiz1.png",
-        "/assets/games/pubquiz2.png"
+        ...gamePageScreenshots('pub-quiz', 'question', 'rounds', 'results')
     ],
     [GameType.DARTS]: [
         "/assets/games/darts.png",
-        "/assets/games/darts1.png",
-        "/assets/games/darts2.png"
+        ...gamePageScreenshots('darts-challenge', 'board', 'question', 'results')
     ],
     [GameType.MILLIONAIRE]: [
         "/assets/games/millionaire.png",
-        "/assets/games/millionaire1.png",
-        "/assets/games/millionaire2.png"
+        ...gamePageScreenshots('millionaire-maker', 'question-2', 'audience', 'results')
     ],
     [GameType.TIME_BOMB]: [
         "/assets/games/timebomb.png",
-        "/assets/games/timebomb1.png",
-        "/assets/games/timebomb2.png"
+        ...gamePageScreenshots('time-bomb', 'question', 'explosion', 'results')
     ],
     [GameType.SURVEY_SHOWDOWN]: [
         "/assets/games/survey.png",
-        "/assets/games/survey1.png",
-        "/assets/games/survey2.png"
+        ...gamePageScreenshots('survey-showdown', 'countries-answers', 'wrong-answer', 'results')
     ],
     [GameType.STOP_THE_FIRE]: [
         "/assets/games/stopthefire.png",
-        "/assets/games/stopthefire1.png",
-        "/assets/games/stopthefire2.png"
+        ...gamePageScreenshots('stop-the-fire', 'setup', 'scoring', 'results')
     ],
     [GameType.WORD_WHEEL]: [
         "/assets/games/wordwheel.png",
-        "/assets/games/wordwheel1.png",
-        "/assets/games/wordwheel2.png"
+        ...gamePageScreenshots('wordwheel', 'question', 'answer', 'results')
     ],
     [GameType.BLOCK_BEATERS]: [
         "/assets/games/blockbeaters.png",
-        "/assets/games/block1.png",
-        "/assets/games/block2.png"
+        ...gamePageScreenshots('blockbeaters', 'question', 'answer', 'results')
     ],
     [GameType.LIVE_QUIZ_CHALLENGE]: [
         "/assets/games/livequiz.png",
-        "/assets/games/livequiz1.png",
-        "/assets/games/livequiz2.png",
-        "/assets/games/livequiz3.png"
+        ...gamePageScreenshots('live-quiz', 'lobby', 'question', 'results')
     ]
 };
 
@@ -544,6 +535,8 @@ const GameCard: React.FC<{
     game: { type: GameType, icon: React.ReactNode, desc: string, image: string, previewImages?: string[], color: string },
     onSelect: (type: GameType) => void 
 }> = ({ game, onSelect }) => {
+    const infoPath = game.type === GameType.TRIVIA ? '/game-types/trivia' : game.type === GameType.JEOPARDY ? '/game-types/jeopardy' : game.type === GameType.TIME_BOMB ? '/game-types/time-bomb' : game.type === GameType.WORD_WHEEL ? '/game-types/wordwheel' : game.type === GameType.BLOCK_BEATERS ? '/game-types/blockbeaters' : game.type === GameType.LIVE_QUIZ_CHALLENGE ? '/game-types/live-quiz' : game.type === GameType.PUB_QUIZ ? '/game-types/pub-quiz' : game.type === GameType.SURVEY_SHOWDOWN ? '/game-types/survey-showdown' : game.type === GameType.STOP_THE_FIRE ? '/game-types/stop-the-fire' : game.type === GameType.MILLIONAIRE ? '/game-types/millionaire-maker' : game.type === GameType.DARTS ? '/game-types/darts-challenge' : game.type === GameType.SNAKES_LADDERS ? '/game-types/snakes-and-ladders' : null;
+    const navigate = useNavigate();
     const [hasError, setHasError] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [visibleFrameIndex, setVisibleFrameIndex] = useState(0);
@@ -582,8 +575,7 @@ const GameCard: React.FC<{
     };
 
     return (
-        <button 
-            onClick={() => onSelect(game.type)}
+        <article
             onMouseEnter={() => setIsPreviewing(true)}
             onMouseLeave={() => setIsPreviewing(false)}
             onFocus={() => setIsPreviewing(true)}
@@ -591,7 +583,7 @@ const GameCard: React.FC<{
             className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
-            <div className={`aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
+            <button type="button" aria-label={infoPath ? `More info about ${game.type}` : `Create ${game.type}`} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
                 {!hasError && frames.map((frame, index) => (
                     <img
                         key={`${game.type}-${frame.src}`}
@@ -631,17 +623,18 @@ const GameCard: React.FC<{
                 <div className="absolute bottom-4 left-4 right-4">
                      <h3 className="font-display font-bold text-xl text-white mb-1 drop-shadow-md">{game.type}</h3>
                 </div>
-            </div>
+            </button>
             
             {/* Content Body */}
             <div className="p-6 flex-grow flex flex-col">
                 <p className="text-slate-600 text-sm leading-relaxed mb-6 flex-grow">{game.desc}</p>
                 
-                <div className="text-brand-blue font-bold text-sm flex items-center group-hover:translate-x-1 transition-transform mt-auto">
-                    Create Game <ArrowRight size={16} className="ml-1" />
+                <div className="mt-auto flex items-center justify-between gap-4 text-sm font-bold text-brand-blue">
+                    {infoPath && <Link to={infoPath} className="py-2 hover:underline">More info</Link>}
+                    <button type="button" onClick={() => onSelect(game.type)} className="ml-auto flex items-center py-2 hover:underline">Create game <ArrowRight size={16} className="ml-1" /></button>
                 </div>
             </div>
-        </button>
+        </article>
     );
 };
 
@@ -822,43 +815,6 @@ const getLibraryCardTheme = (type: string) => {
                 action: 'hover:border-slate-400 hover:text-slate-800'
             };
     }
-};
-
-const LibraryHeaderIconTexture: React.FC<{ type: string }> = ({ type }) => {
-    const shapes = [
-        { className: 'left-[8%] top-[18%] opacity-45', transform: 'rotate(-18deg) scale(1.7)' },
-        { className: 'left-[38%] top-[48%] opacity-30', transform: 'rotate(12deg) scale(2.3)' },
-        { className: 'right-[10%] top-[16%] opacity-45', transform: 'rotate(22deg) scale(1.9)' },
-        { className: 'right-[29%] -bottom-[26%] opacity-25', transform: 'rotate(-9deg) scale(3.1)' },
-        { className: 'left-[68%] -top-[22%] opacity-25', transform: 'rotate(34deg) scale(2.6)' }
-    ];
-
-    return (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            {shapes.map((shape, index) => (
-                <span
-                    key={index}
-                    className={`absolute text-white ${shape.className}`}
-                    style={{ transform: shape.transform }}
-                    aria-hidden="true"
-                >
-                    <span className="absolute translate-x-[3px] translate-y-[5px] text-slate-950/40 blur-[1px]">
-                        {getIcon(type)}
-                    </span>
-                    <span className="absolute translate-x-[1.5px] translate-y-[2.5px] text-slate-900/35">
-                        {getIcon(type)}
-                    </span>
-                    <span className="absolute -translate-x-[1px] -translate-y-[1px] text-white/70 blur-[0.2px]">
-                        {getIcon(type)}
-                    </span>
-                    <span className="relative text-white drop-shadow-[0_3px_0_rgba(15,23,42,0.34)] [filter:drop-shadow(0_10px_8px_rgba(15,23,42,0.22))]">
-                        {getIcon(type)}
-                    </span>
-                </span>
-            ))}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(255,255,255,0.22),transparent_28%),radial-gradient(circle_at_82%_78%,rgba(15,23,42,0.2),transparent_32%)]" />
-        </div>
-    );
 };
 
 const RaisedGameIcon: React.FC<{ type: string; className?: string }> = ({ type, className = '' }) => (
@@ -1154,13 +1110,21 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {pagedGames.map(game => {
                         const theme = getLibraryCardTheme(game.config.type);
+                        const fallbackImage = getGameThumbnails(game.config.type)[0];
 
                         return (
                         <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative cursor-pointer transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`} onClick={() => onLoadGame(game)}>
-                            <div className="relative overflow-hidden px-4 py-3 text-white" style={theme.headerStyle}>
-                                <LibraryHeaderIconTexture type={game.config.type} />
-                                <div className="relative z-10 flex items-start justify-between gap-3">
-                                    <div className={`inline-flex min-w-0 max-w-[75%] items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase shadow-sm backdrop-blur-sm ${theme.badge}`}>
+                            <div className="relative aspect-[16/7] overflow-hidden text-white">
+                                <GameCover
+                                    cover={game.config.coverImage}
+                                    title={game.title}
+                                    publicGameId={game.config.isPublic && game.id && isUUID(game.id) ? game.id : undefined}
+                                    fallbackImage={fallbackImage}
+                                    className="h-full w-full"
+                                />
+                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
+                                <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
+                                    <div style={theme.headerStyle} className="inline-flex min-w-0 max-w-[75%] items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[10px] font-bold uppercase shadow-sm">
                                         {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
@@ -1171,7 +1135,8 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                         )}
                                         <button 
                                             onClick={(e) => handleDelete(e, game.id!)}
-                                            className="rounded-full p-2 text-white/75 transition-colors hover:bg-white/20 hover:text-white"
+                                            aria-label={`Delete ${game.title}`}
+                                            className="rounded-full border border-white/25 bg-black/30 p-2 text-white transition-colors hover:bg-black/50"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -1676,11 +1641,12 @@ const CommunityLibrary: React.FC<{
                             const theme = getLibraryCardTheme(game.config.type);
 
                             return (
-                            <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`}>
-                                <div className="relative overflow-hidden px-4 py-3 text-white" style={theme.headerStyle}>
-                                    <LibraryHeaderIconTexture type={game.config.type} />
-                                    <div className="relative z-10 flex items-start justify-between gap-3">
-                                        <div className={`inline-flex min-w-0 max-w-[70%] items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase shadow-sm backdrop-blur-sm ${theme.badge}`}>
+                            <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} bg-white shadow-sm transition-shadow duration-200 flex flex-col group relative hover:shadow-lg`}>
+                                <div className="relative aspect-[16/7] overflow-hidden text-white">
+                                    <GameCover cover={game.config.coverImage} title={game.title} publicGameId={game.id} fallbackImage={getGameThumbnails(game.config.type)[0]} className="h-full w-full" />
+                                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent" />
+                                    <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
+                                        <div style={theme.headerStyle} className="inline-flex min-w-0 max-w-[78%] items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[10px] font-bold uppercase shadow-sm">
                                             {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">
@@ -1696,8 +1662,8 @@ const CommunityLibrary: React.FC<{
                                     </div>
                                 </div>
                                 
-                                <div className="flex flex-1 flex-col px-4 py-3">
-                                    <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
+                                <div className="flex flex-1 flex-col bg-white px-4 py-3">
+                                    <h3 className="font-display font-bold text-lg leading-snug text-slate-800 mb-1 line-clamp-2 min-h-[3rem]" title={game.title}>{game.title}</h3>
                                     <p className="text-sm font-semibold text-slate-600 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
                                     <div className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
                                         <span>By</span>
@@ -2062,7 +2028,8 @@ const GameHub: React.FC<{
 
 // MAIN COMPONENT
 export const Games: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isLoading: isAuthLoading } = useAuth();
+    const promptedCreation = useRef(false);
     const navigate = useNavigate();
     const [step, setStep] = useState<'hub' | 'mode' | 'config' | 'preview' | 'choose-format' | 'format-setup' | 'editor' | 'setup' | 'prepare-images' | 'play'>('hub');
     const [selectedType, setSelectedType] = useState<GameType | null>(null);
@@ -2213,6 +2180,27 @@ export const Games: React.FC = () => {
         // Enable mode selection for all games
         setStep('mode');
     };
+
+    useEffect(() => {
+        const requested = new URLSearchParams(location.search).get('create');
+        const creationType = requested === 'trivia' ? GameType.TRIVIA : requested === 'jeopardy' ? GameType.JEOPARDY : requested === 'time-bomb' ? GameType.TIME_BOMB : requested === 'wordwheel' ? GameType.WORD_WHEEL : requested === 'blockbeaters' ? GameType.BLOCK_BEATERS : requested === 'live-quiz' ? GameType.LIVE_QUIZ_CHALLENGE : requested === 'pub-quiz' ? GameType.PUB_QUIZ : requested === 'survey-showdown' ? GameType.SURVEY_SHOWDOWN : requested === 'stop-the-fire' ? GameType.STOP_THE_FIRE : requested === 'millionaire-maker' ? GameType.MILLIONAIRE : requested === 'darts-challenge' ? GameType.DARTS : requested === 'snakes-and-ladders' ? GameType.SNAKES_LADDERS : null;
+        if (!creationType || isAuthLoading) return;
+        if (!user) {
+            if (!promptedCreation.current) {
+                promptedCreation.current = true;
+                const creationLabel = ({ trivia: 'Trivia', jeopardy: 'Jeopardy', 'time-bomb': 'Time Bomb', wordwheel: 'Wordwheel', blockbeaters: 'Blockbeaters', 'live-quiz': 'Live Quiz', 'pub-quiz': 'Pub Quiz', 'survey-showdown': 'Survey Showdown', 'stop-the-fire': 'Stop the Fire', 'millionaire-maker': 'Millionaire Maker', 'darts-challenge': 'Darts Challenge', 'snakes-and-ladders': 'Snakes and Ladders' } as Record<string, string>)[requested];
+                promptSignupForFree(`Sign in or create an account to make your own ${creationLabel} game.`);
+            }
+            return;
+        }
+        setSelectedType(creationType);
+        setGeneratedGame(null);
+        setSessionGame(null);
+        setStep('mode');
+        const params = new URLSearchParams(location.search);
+        params.delete('create');
+        navigate({ pathname: '/games', search: params.toString() }, { replace: true });
+    }, [location.search, isAuthLoading, user, navigate]);
 
     const handleModeSelect = (mode: 'ai' | 'manual' | 'bank') => {
         if (mode === 'ai' && user?.accountType === 'free') {
@@ -2475,7 +2463,7 @@ export const Games: React.FC = () => {
             return null;
         }
 
-        const savedGame = { ...nextGame, id: result.id ?? nextGame.id };
+        const savedGame = { ...nextGame, id: result.id ?? nextGame.id, config: { ...nextGame.config, ...(result.coverImage ? { coverImage: result.coverImage } : {}) } };
         setGeneratedGame(savedGame);
         setSessionGame(null);
         return savedGame;

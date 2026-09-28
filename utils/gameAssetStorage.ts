@@ -55,7 +55,7 @@ export const uploadGameAsset = async (params: {
   blob: Blob;
   contentType: string;
   extension: string;
-  kind: 'question-image';
+  kind: 'question-image' | 'game-cover';
   gameId?: string;
 }): Promise<UploadedGameAsset> => {
   const { userId, blob, contentType, extension, kind, gameId } = params;

@@ -1,3 +1,4 @@
+import { GameWebSources } from './GameWebSources';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -16,6 +17,7 @@ import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, Layers,
 import { promptSignupForFree } from '../../services/accountAccess';
 import { StudentShareModal } from './StudentShareModal';
 import { getPublicAppUrl } from '../../utils/appUrl';
+import { GameCoverEditor } from './GameCoverEditor';
 
 interface GameEditorProps {
     game: GeneratedGame;
@@ -81,6 +83,7 @@ const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: str
 
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack, imageRepairKeys = [] }) => {
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
+    const [coverUploading, setCoverUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<number>(0);
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
     const [showAiPrompt, setShowAiPrompt] = useState(false);
@@ -248,6 +251,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     }, [editedGame.config.type]);
 
     const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
+        if (coverUploading) return null;
         if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
             alert('Word Bank games cannot be saved. Switch to Manual or AI to save this game.');
             return null;
@@ -304,7 +308,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         const result = await saveGameToLibrary(finalGame, user.id, user.name, user.schoolAccess?.schoolId);
         
         if (result.success) {
-            const savedGame = { ...finalGame, id: result.id ?? finalGame.id };
+            const savedGame = { ...finalGame, id: result.id ?? finalGame.id, config: { ...finalGame.config, ...(result.coverImage ? { coverImage: result.coverImage } : {}) } };
             setSaveStatus('saved');
             setIsPublic(nextPublic);
             setIsDirty(false);
@@ -942,7 +946,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button
                                         onClick={handleShare}
-                                        disabled={saveStatus === 'saving' || isStopTheFireBank}
+                                        disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank}
                                         className={`w-full min-w-0 h-10 lg:h-9 bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${isStopTheFireBank ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Teacher share"
                                         aria-label="Teacher share"
@@ -954,7 +958,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                     <button
                                         onClick={handleStudentShare}
-                                        disabled={saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
+                                        disabled={coverUploading || saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}
                                         className={`w-full min-w-0 h-10 lg:h-9 bg-white text-slate-700 font-bold leading-none shadow-sm border border-slate-300 hover:bg-slate-50 hover:border-brand-blue flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight ${[GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Student share"
                                         aria-label="Student share"
@@ -965,8 +969,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </button>
 
                                     <button 
-                                        onClick={handleSave} 
-                                        disabled={saveStatus === 'saving' || isStopTheFireBank}
+                                        onClick={() => void handleSave()}
+                                        disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank}
                                         className={`w-full min-w-0 h-10 lg:h-9 font-bold leading-none flex items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 transition-all shadow-sm border cursor-pointer rounded-xl text-[12px] sm:text-[11px] tracking-tight
                                             ${saveStatus === 'saved' 
                                                 ? 'bg-green-50 text-green-600 border-green-200' 
@@ -1014,6 +1018,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                             </div>
                         </div>
                         
+                        <GameWebSources config={editedGame.config} />
+                        <GameCoverEditor game={editedGame} userId={user?.id} disabled={coverUploading || saveStatus === 'saving'} onBusyChange={setCoverUploading}
+                            onChange={(coverImage, automatic) => {
+                                setEditedGame(prev => ({ ...prev, config: { ...prev.config, coverImage } }));
+                                if (!automatic) { setIsDirty(true); setSaveStatus('idle'); }
+                            }} />
+
                         {!user && (
                         <div className="mb-6 bg-sky-50 p-4 rounded-xl flex items-center text-sky-800 text-sm border border-sky-100">
                             <AlertCircle size={16} className="mr-2" />

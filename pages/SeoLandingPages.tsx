@@ -105,6 +105,7 @@ const LandingPage: React.FC<{ config: LandingPageConfig }> = ({ config }) => (
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-start">
         <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm">
           <h2 className="font-display text-3xl font-bold text-slate-800 mb-6">Built for real classroom use</h2>
+          {config === pages.classroomQuizMaker && <Link to="/game-types/trivia" className="mb-6 inline-flex items-center gap-2 font-bold text-sky-700 hover:underline">See Trivia in action <ArrowRight size={18} /></Link>}
           <div className="space-y-5">
             {config.bullets.map((bullet) => (
               <div key={bullet} className="flex gap-3">

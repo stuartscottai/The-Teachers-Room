@@ -1,0 +1,31 @@
+async page => {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await page.goto('http://localhost:5175/test/survey-showdown-capture?timer=30', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('timer').waitFor();
+  await page.getByRole('button', { name: 'Pause timer' }).click();
+  const input = page.getByPlaceholder('TYPE ANSWER...');
+  if (await input.isDisabled()) throw new Error('Input disabled during pause');
+  await input.fill('Paper');
+  await input.press('Enter');
+  await page.getByRole('button', { name: 'Owls 0', exact: true }).waitFor();
+  if (!(await page.getByRole('button', { name: 'Foxes 25', exact: true }).count())) throw new Error('Paused answer not awarded points');
+  await page.getByRole('button', { name: 'Pause timer' }).waitFor();
+  await page.clock.runFor(5000);
+  if (await page.getByRole('timer').textContent() !== '25s') throw new Error('Correct answer did not restart countdown');
+  await page.getByRole('button', { name: 'Pause timer' }).click();
+  await input.fill('Unmatched answer');
+  await input.press('Enter');
+  await page.clock.runFor(1600);
+  await page.getByRole('button', { name: 'Pause timer' }).waitFor();
+  await page.clock.runFor(2000);
+  if (Number((await page.getByRole('timer').textContent()).replace('s', '')) > 28) throw new Error('Wrong answer did not restart countdown');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: 'output/playwright/survey-timer-large-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'output/playwright/survey-timer-large-mobile.png' });
+  const bar = await page.getByTestId('survey-turn-timer').boundingBox();
+  if (!bar || bar.width > 390 || bar.height < 32) throw new Error('Timer sizing incorrect');
+  await page.clock.resume();
+  console.log('PASS: paused answers accepted and scored, correct and incorrect answers restart the next turn, desktop and mobile timer fit.');
+}

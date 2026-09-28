@@ -322,6 +322,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <option value={30}>30 Seconds</option>
                             <option value={60}>60 Seconds</option>
                         </select>
+                        {game.config.type === GameType.SURVEY_SHOWDOWN && <p className="mt-2 text-sm text-slate-500">Time for each team?s guess. Running out of time adds a strike and passes the turn. You can pause during play.</p>}
                     </div>
                 )}
 

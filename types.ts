@@ -25,6 +25,7 @@ export interface UploadedFile {
 }
 
 export interface GameConfig {
+  coverImage?: GameCoverImage;
   type: GameType;
   title?: string; // User defined title
   questionCount: number; // Used for list-based games
@@ -37,6 +38,10 @@ export interface GameConfig {
   isPublic?: boolean; // Visibility Flag
   authorAvatar?: string | null; // Optional avatar URL for community display
   customInstructions?: string;
+  surveyScoreMode?: 'survey' | 'statistics'; // Explicit scoring choice for Survey Showdown
+  webSearch?: boolean;
+  webSearchSources?: { title: string; url: string }[];
+  webSearchCheckedAt?: string;
   files?: UploadedFile[]; // Source material
   // Jeopardy specific
   jeopardyCategories?: number; // Columns
@@ -66,6 +71,15 @@ export interface GameConfig {
   lastEditorName?: string;
   lastEditorId?: string;
 }
+
+export type GameCoverImage = NonNullable<GeneratedQuestion['image']> & {
+  selection: 'automatic' | 'creator';
+  positionX?: number;
+  positionY?: number;
+  zoom?: number;
+  selectionVersion?: number;
+  visualTheme?: string;
+};
 
 export type StopTheFireDifficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -241,6 +255,7 @@ export interface GeneratedQuestion {
   answerAliases?: string[];
   // Survey Showdown specific
   surveyAnswers?: SurveyAnswer[];
+  surveyScoreMode?: 'survey' | 'statistics';
 }
 
 export interface JeopardyCategory {

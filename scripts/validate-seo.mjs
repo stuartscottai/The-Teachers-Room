@@ -33,6 +33,25 @@ if (urls.length < 10) fail(`Sitemap contains only ${urls.length} public routes.`
 if (!urls.includes('/terms')) fail('Terms page is missing from the sitemap.');
 if (!urls.includes('/privacy')) fail('Privacy page is missing from the sitemap.');
 
+const expectedGameTypeRoutes = [
+  'trivia',
+  'jeopardy',
+  'time-bomb',
+  'wordwheel',
+  'blockbeaters',
+  'live-quiz',
+  'pub-quiz',
+  'survey-showdown',
+  'stop-the-fire',
+  'millionaire-maker',
+  'darts-challenge',
+  'snakes-and-ladders'
+].map((slug) => `/game-types/${slug}`);
+
+for (const route of expectedGameTypeRoutes) {
+  if (!urls.includes(route)) fail(`${route} is missing from the sitemap.`);
+}
+
 const privatePrefixes = [
   '/profile',
   '/reset-password',
@@ -61,6 +80,9 @@ if (!fs.existsSync(llmsPath)) {
   }
   if (llmsUrls.length < 8) {
     fail(`llms.txt contains only ${llmsUrls.length} public links.`);
+  }
+  for (const route of expectedGameTypeRoutes) {
+    if (!llmsUrls.includes(route)) fail(`${route} is missing from llms.txt.`);
   }
   for (const llmsUrl of llmsUrls) {
     if (!urls.includes(llmsUrl)) {

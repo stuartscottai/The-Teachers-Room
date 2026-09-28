@@ -47,6 +47,17 @@ const GEMINI_MODEL_PRICING: Record<string, GeminiModelPricing> = {
 
 // Standard API prices per 1M tokens from OpenAI's current pricing table.
 const OPENAI_MODEL_PRICING: Record<string, OpenAIModelPricing> = {
+  'gpt-6-luna': {
+    largePromptThreshold: 272_000,
+    inputStandard: 0.1,
+    cachedInputStandard: 0.01,
+    cacheWriteStandard: 0.125,
+    outputStandard: 0.5,
+    inputLarge: 0.2,
+    cachedInputLarge: 0.02,
+    cacheWriteLarge: 0.25,
+    outputLarge: 0.75,
+  },
   'gpt-5.6-luna': {
     largePromptThreshold: 272_000,
     inputStandard: 0.2,

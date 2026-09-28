@@ -265,6 +265,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             isAI: mode === 'ai',
             isPublic: true, // Default to Public
             customInstructions: '',
+            webSearch: false,
+            surveyScoreMode: type === GameType.SURVEY_SHOWDOWN ? 'survey' : undefined,
             files: [],
             includeImages: false,
             imageMode: 'manual',
@@ -782,13 +784,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 setLoading(true);
                 try {
                     const finalConfig = { ...config, files: uploadedFiles };
-                    const categories = await generateStopTheFireCategories(finalConfig);
-                    const bank = categories.length > 0 ? categories : [];
+                    const result = await generateStopTheFireCategories(finalConfig);
+                    const bank = result.categories;
                     const aiGame: GeneratedGame = {
                         id: Date.now().toString(),
                         createdAt: new Date().toISOString(),
                         title: config.title,
-                        config: { ...finalConfig, stopTheFireMode: 'ai' },
+                        config: { ...finalConfig, stopTheFireMode: 'ai', webSearchSources: result.webSearch?.sources, webSearchCheckedAt: result.webSearch?.checkedAt },
                         questions: [],
                         stopTheFireCategories: bank
                     };
@@ -1159,6 +1161,26 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         />
                                     </div>
                                     
+                                    {mode === 'ai' && (
+                                        <fieldset className="space-y-3">
+                                            <legend className="mb-2 text-sm font-semibold text-slate-700">What should the numbers show?</legend>
+                                            <label className="flex items-start gap-3 text-sm text-slate-700">
+                                                <input type="radio" name="survey-scoring" value="survey"
+                                                    checked={(config.surveyScoreMode || 'survey') === 'survey'}
+                                                    onChange={() => setConfig({ ...config, surveyScoreMode: 'survey' })}
+                                                    className="mt-1 text-brand-blue focus:ring-brand-blue" />
+                                                <span><span className="font-semibold">Survey points</span><span className="mt-1 block text-xs text-slate-500">Share 100 points across the 10 answers, like a survey game. These are game points, not real survey results.</span></span>
+                                            </label>
+                                            <label className="flex items-start gap-3 text-sm text-slate-700">
+                                                <input type="radio" name="survey-scoring" value="statistics"
+                                                    checked={config.surveyScoreMode === 'statistics'}
+                                                    onChange={() => setConfig({ ...config, surveyScoreMode: 'statistics' })}
+                                                    className="mt-1 text-brand-blue focus:ring-brand-blue" />
+                                                <span><span className="font-semibold">Actual statistics</span><span className="mt-1 block text-xs text-slate-500">Use the actual figures, such as goals scored or population. They do not need to total 100. For current figures, tick Web search below or provide your own data.</span></span>
+                                            </label>
+                                        </fieldset>
+                                    )}
+
                                     {/* Specific Prompts for Survey */}
                                     <div className="border-t border-slate-200 pt-4">
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Round Prompts (Optional)</label>
@@ -1838,13 +1860,25 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             )}
                                         </div>
                                     </div>
+                                    <p className="mb-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. Maximum total attachment size: 3 MB.</p>
                                     <textarea 
                                         value={config.customInstructions}
                                         onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
                                         placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
-                                    <p className="mt-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. Maximum total attachment size: 3 MB.</p>
+                                    <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
+                                        <input
+                                            type="checkbox"
+                                            checked={config.webSearch === true}
+                                            onChange={(event) => setConfig({ ...config, webSearch: event.target.checked })}
+                                            className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                                        />
+                                        <span>
+                                            <span className="font-semibold">Web search</span>
+                                            <span className="mt-1 block text-xs text-slate-500">Look up information online when creating this game. Useful for recent events and statistics. This may take a little longer.</span>
+                                        </span>
+                                    </label>
                                     {dictation.statusMessage && (
                                         <p className={`mt-1 text-xs ${dictation.isListening || dictation.status === 'error' ? 'font-semibold text-red-600' : 'text-slate-500'}`}>
                                             {dictation.statusMessage}

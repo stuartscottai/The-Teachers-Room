@@ -1,3 +1,4 @@
+import { GameWebSources } from './GameWebSources';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
@@ -880,6 +881,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             </div>
 
             <h1 className="font-display text-3xl font-bold text-slate-800 sm:text-4xl">{game.title}</h1>
+            <GameWebSources config={game.config} />
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-500">
               <div className="inline-flex items-center gap-2">
                 <Avatar

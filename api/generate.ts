@@ -1,3 +1,4 @@
+import { getSurveyGenerationRules, getSurveyGenerationError } from '../utils/surveyGeneration.js';
 
 import { Type, Schema } from "@google/genai";
 import { randomUUID } from "node:crypto";
@@ -14,6 +15,7 @@ import {
   normalizeAiProvider,
 } from "../utils/aiModelConfig.js";
 import { createAiRuntime } from "./aiRuntime.js";
+import { coverSearchPlanParams, parseCoverSearchPlans, sanitizeCoverBrief } from '../utils/gameCoverBrief.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://xsefgwhywcuzfnawtyru.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -87,6 +89,10 @@ const buildUsageMeta = (body: any) => {
     fileCount: files.length,
     files: getFileMeta(files)
   };
+
+  if (action === 'game-cover') {
+    return { questionSampleCount: sanitizeCoverBrief(body?.coverBrief).samples.length };
+  }
 
   if (action === 'game') {
     return {
@@ -1091,7 +1097,11 @@ export default async function handler(req: any, res: any) {
     };
 
     const generateTrackedContent = async (params: any, usageConfig?: any) => {
-      const response = await ai.generateContent(params);
+      const useWebSearch = usageConfig?.webSearch === true && ['game', 'stop-the-fire-categories'].includes(requestAction);
+      const response = await ai.generateContent({
+        ...params,
+        config: { ...params.config, ...(useWebSearch ? { webSearch: true } : {}) },
+      });
       const nextSnapshot = await buildUsageSnapshot({
         ai,
         model: ai.model,
@@ -1107,6 +1117,15 @@ export default async function handler(req: any, res: any) {
     const { action, config, message, history, title, subtitle } = requestBody;
 
     console.log(`Processing action: ${action}`);
+
+    if (action === 'game-cover') {
+      const brief = sanitizeCoverBrief(requestBody.coverBrief);
+      if (!brief.title) return sendJson(400, { error: 'A game title is required.' });
+      const response = await generateTrackedContent(coverSearchPlanParams([brief]));
+      const plan = parseCoverSearchPlans(response.text || '', [brief])[0];
+      if (!plan) return sendJson(502, { error: 'No cover theme was returned.' });
+      return sendJson(200, { plan });
+    }
 
     if (action === 'stop-the-fire-categories') {
       const systemInstruction = `You are an expert classroom game designer.
@@ -1168,7 +1187,7 @@ Return JSON: { "categories": ["..."] }
             .filter(Boolean)
         : [];
 
-      return sendJson(200, { categories });
+      return sendJson(200, { categories, webSearch: response.webSearch });
     }
 
     // 3. Handle GAME Generation
@@ -1191,7 +1210,7 @@ Return JSON: { "categories": ["..."] }
       If the user provides source files (images/PDFs/Word docs), analyze them thoroughly and base ALL questions/content on that material.
       ${SOURCE_MATERIAL_STYLE_RULES}
 
-      IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
+      IMPORTANT: Except for Survey Showdown (which intentionally has 10 valid answers per prompt), questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). For games other than Survey Showdown, if a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
       CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse any single position. Use an equal balance across A/B/C/D (or however many options are used).
       CRITICAL: Only ONE option can be correct. Ensure the question is specific enough that only one option is unambiguously correct (e.g., add context or time reference for grammar questions).
       If a question includes options, the "answer" must EXACTLY match one of the option strings (including articles like "a/an/the", punctuation, and capitalization). Do not paraphrase or drop articles.
@@ -1264,6 +1283,14 @@ Return JSON: { "categories": ["..."] }
         },
         required: ["id", "question", "answer", "points"]
       };
+
+if (isSurvey) {
+        questionSchema.properties!.surveyScoreMode = { type: Type.STRING, enum: ['survey', 'statistics'] };
+        questionSchema.properties!.surveyAnswers.minItems = '10';
+        questionSchema.properties!.surveyAnswers.maxItems = '10';
+        questionSchema.properties!.surveyAnswers.items!.properties!.score = { type: Type.NUMBER };
+        questionSchema.required = [...(questionSchema.required || []), 'surveyAnswers', 'surveyScoreMode'];
+      }
 
       let responseSchema: Schema;
 
@@ -1396,12 +1423,7 @@ Return JSON: { "categories": ["..."] }
           Create a "Family Feud" style game titled "${gameTitle}" about "${config.topic}".
           Generate ${config.questionCount} rounds.
           
-          FOR EACH QUESTION:
-          1. Provide a "survey style" prompt.
-          2. Provide EXACTLY 8 "surveyAnswers".
-          3. Each answer must have a "text" and a "score".
-          4. Include an "alts" array for fuzzy matching.
-          
+          ${getSurveyGenerationRules(config.surveyScoreMode)}
           Custom Instructions: ${config.customInstructions || "None"}.
           `;
 
@@ -1609,7 +1631,9 @@ Return JSON: { "categories": ["..."] }
       const buildGenerationParams = (attempt: number, previousCount = 0, retryReason = '') => {
         const attemptParts = parts.map((part, index) => {
           if (attempt === 0 || index !== parts.length - 1 || typeof part?.text !== 'string') return part;
-          const retryInstruction = retryReason === 'invalid-json'
+          const retryInstruction = retryReason.startsWith('survey:')
+            ? `Correct the Survey Showdown output: ${retryReason.slice(7)} Return the complete game, with exactly 10 separate answers in every round. Preserve requested factual statistics; otherwise points must total 100.`
+            : retryReason === 'invalid-json'
             ? 'The previous response was cut off or was not valid JSON. Return the complete game again as compact, valid JSON with every string correctly escaped. Do not include markdown or commentary.'
             : `The previous response returned only ${previousCount} of ${expectedQuestionCount} required questions. Return the complete game again, with every required question. Do not shorten or summarize the result.`;
           return {
@@ -1654,13 +1678,20 @@ Return JSON: { "categories": ["..."] }
           });
           continue;
         }
+        const surveyError = isSurvey ? getSurveyGenerationError(candidate, config.surveyScoreMode) : null;
+        if (surveyError) { retryReason = `survey: ${surveyError}`; continue; }
         const candidateCount = countGeneratedQuestions(candidate);
         if (!data || candidateCount > generatedCount) {
           data = candidate;
+          data._webSearch = response.webSearch;
           generatedCount = candidateCount;
         }
         if (!expectedQuestionCount || candidateCount >= expectedQuestionCount) break;
         retryReason = 'incomplete-count';
+      }
+
+      if (!data && retryReason.startsWith('survey:')) {
+        return sendJson(502, { error: 'The AI could not produce 10 valid answers per round with the requested scores after retrying. Please clarify the question or provide the statistical source data. No incomplete game was saved.', code: 'INVALID_SURVEY_GENERATION' });
       }
 
       if (!data && invalidJsonAttempts > 0) {
@@ -1696,7 +1727,17 @@ Return JSON: { "categories": ["..."] }
       // Ensure ID exists for database
       data.id = randomUUID();
       data.createdAt = new Date().toISOString();
-      data.config = config; // Pass config back
+      // Only retain evidence from the accepted generation, never client-supplied or older sources.
+      const { webSearchSources: _oldSources, webSearchCheckedAt: _oldDate, ...cleanConfig } = config;
+      data.config = {
+        ...cleanConfig,
+        webSearch: config.webSearch === true,
+        ...(data._webSearch ? {
+          webSearchSources: data._webSearch.sources,
+          webSearchCheckedAt: data._webSearch.checkedAt,
+        } : {}),
+      };
+      delete data._webSearch;
 
       return sendJson(200, data);
     }

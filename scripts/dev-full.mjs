@@ -18,6 +18,7 @@ const apiModules = {
   '/api/generate': '/api/generate.ts',
   '/api/delete-account': '/api/delete-account.ts',
   '/api/stock-images': '/api/stock-images.ts',
+  '/api/game-cover': '/api/game-cover.ts',
   '/api/stock-image-proxy': '/api/stock-image-proxy.ts',
 };
 

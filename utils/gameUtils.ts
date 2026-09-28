@@ -5,6 +5,8 @@ import { createSignedUrlsForGameAssets } from "./gameAssetStorage";
 import { getPublicAppUrl } from "./appUrl";
 import { optimizeImageForUpload } from "./imageOptimize";
 import mammoth from "mammoth";
+import { ensureGameCover } from '../services/gameCoverService';
+import { selectTrendingGamesByMode } from './trendingGames';
 
 // --- ASSET HELPERS ---
 export const resolvePath = (path: string) => {
@@ -643,6 +645,7 @@ const prepareGameContentForStorage = (game: GeneratedGame): GeneratedGame => ({
 
 const refreshStoredGameImageUrls = async (game: GeneratedGame): Promise<GeneratedGame> => {
     const paths = new Set<string>();
+    if (game.config.coverImage?.storagePath) paths.add(game.config.coverImage.storagePath);
     const collect = (question?: GeneratedQuestion | null) => {
         const path = getQuestionStoragePath(question);
         if (path) paths.add(path);
@@ -676,6 +679,12 @@ const refreshStoredGameImageUrls = async (game: GeneratedGame): Promise<Generate
 
         return {
             ...game,
+            config: {
+                ...game.config,
+                ...(game.config.coverImage?.storagePath && signedUrls.has(game.config.coverImage.storagePath)
+                    ? { coverImage: { ...game.config.coverImage, url: signedUrls.get(game.config.coverImage.storagePath) } }
+                    : {}),
+            },
             questions: (game.questions || []).map(applySignedUrl),
             jeopardyBoard: game.jeopardyBoard
                 ? game.jeopardyBoard.map((category) => ({
@@ -716,8 +725,9 @@ export const saveGameToLibrary = async (
     userId?: string,
     authorName?: string,
     schoolId?: string | null
-): Promise<{ success: boolean; id?: string }> => {
-    const gameForStorage = prepareGameContentForStorage(game);
+): Promise<{ success: boolean; id?: string; coverImage?: GeneratedGame['config']['coverImage'] }> => {
+    const coverImage = await ensureGameCover(game);
+    const gameForStorage = prepareGameContentForStorage({ ...game, config: { ...game.config, ...(coverImage ? { coverImage } : {}) } });
     if (!userId) {
         // Local Storage for guests - PRIVATE ONLY
         try {
@@ -733,7 +743,7 @@ export const saveGameToLibrary = async (
                 library.push(safeGame);
             }
             localStorage.setItem('teachersRoomGames', JSON.stringify(library));
-            return { success: true };
+            return { success: true, coverImage };
         } catch (e) {
             console.error(e);
             return { success: false };
@@ -788,11 +798,11 @@ export const saveGameToLibrary = async (
         };
 
         try {
-            return await persistPayload(payload);
+            return { ...await persistPayload(payload), coverImage };
         } catch (e) {
             if (normalizedSchoolId && isMissingColumnError(e, 'school_id')) {
                 const { school_id: _ignored, ...fallbackPayload } = payload;
-                return await persistPayload(fallbackPayload);
+                return { ...await persistPayload(fallbackPayload), coverImage };
             }
             throw e;
         }
@@ -954,42 +964,66 @@ export const getCommunityGames = async (
 
 export const getTrendingGames = async (
     limit: number = 5
-): Promise<{ data: GeneratedGame[]; error: string | null; mode: 'plays' | 'fallback' }> => {
-    try {
-        const { data, error } = await supabase
-            .from('saved_games')
-            .select('*')
-            .eq('is_public', true)
-            .order('play_count', { ascending: false, nullsFirst: false })
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (error) throw error;
-        return { data: await refreshStoredGameImageUrlsList((data || []).map(mapStoredGame)), error: null, mode: 'plays' };
-    } catch (e: any) {
-        try {
+): Promise<{ data: (GeneratedGame & { recentPlayCount?: number })[]; error: string | null; mode: 'recent' | 'plays' | 'fallback' }> => {
+    const pageSize = 500;
+    const fetchCandidates = async (includePlayCount: boolean) => {
+        const rows: any[] = [];
+        for (let from = 0; ; from += pageSize) {
+            const columns = includePlayCount
+                ? 'id,title,config,play_count,created_at,is_public'
+                : 'id,title,config,created_at,is_public';
             const { data, error } = await supabase
                 .from('saved_games')
-                .select('*')
+                .select(columns)
                 .eq('is_public', true)
                 .order('created_at', { ascending: false })
-                .limit(200);
-
+                .order('id', { ascending: true })
+                .range(from, from + pageSize - 1);
             if (error) throw error;
-            const sorted = (data || [])
-                .sort((a: any, b: any) => {
-                    const aPlays = Number(a.play_count ?? a.config?.playCount ?? 0);
-                    const bPlays = Number(b.play_count ?? b.config?.playCount ?? 0);
-                    if (aPlays !== bPlays) return bPlays - aPlays;
-                    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-                })
-                .slice(0, limit);
-
-            return { data: await refreshStoredGameImageUrlsList(sorted.map(mapStoredGame)), error: null, mode: 'fallback' };
-        } catch (fallbackError: any) {
-            console.error("Trending Fetch Error:", fallbackError);
-            return { data: [], error: fallbackError.message || "Failed to fetch trending games", mode: 'fallback' };
+            rows.push(...(data || []));
+            if (!data || data.length < pageSize) break;
         }
+        return rows.map(row => ({ ...mapStoredGame(row), questions: [] }));
+    };
+
+    try {
+        let games: GeneratedGame[];
+        let hasPlayCount = true;
+        try {
+            games = await fetchCandidates(true);
+        } catch (error) {
+            hasPlayCount = false;
+            games = await fetchCandidates(false);
+        }
+
+        const ids = games.map(game => game.id).filter((id): id is string => Boolean(id && isUUID(id)));
+        let recentPlayCounts = new Map<string, number>();
+        if (ids.length) {
+            try {
+                const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+                const { data, error } = await supabase.rpc('get_public_game_play_counts_since', {
+                    p_game_ids: ids,
+                    p_since: since
+                });
+                if (error) throw error;
+                recentPlayCounts = new Map(
+                    (data || []).map((row: any) => [String(row.game_id), Number(row.play_count || 0)])
+                );
+            } catch (error) {
+                console.warn('Recent play counts unavailable for home trending games.', error);
+            }
+        }
+
+        const selected = selectTrendingGamesByMode(games, recentPlayCounts, limit);
+        const refreshed = await refreshStoredGameImageUrlsList(selected);
+        return {
+            data: refreshed.map(game => ({ ...game, recentPlayCount: game.id ? recentPlayCounts.get(game.id) || 0 : 0 })),
+            error: null,
+            mode: recentPlayCounts.size ? 'recent' : hasPlayCount ? 'plays' : 'fallback'
+        };
+    } catch (e: any) {
+        console.error('Trending Fetch Error:', e);
+        return { data: [], error: e.message || 'Failed to fetch trending games', mode: 'fallback' };
     }
 };
 

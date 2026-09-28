@@ -1,14 +1,8 @@
-This directory stores the thumbnail images that appear on the Home page “Trending Games” section and inside the Game Hub cards.
+This directory contains the illustrated game cover art used on the Home page,
+in the Games hub, and in game setup. These are marketing illustrations, not
+screenshots of gameplay.
 
-The app expects the following PNG filenames:
-
-- `jeopardy.png`
-- `millionaire.png`
-- `survey.png`
-- `trivia.png`
-- `snakes.png`
-- `pubquiz.png`
-- `darts.png`
-- `timebomb.png`
-
-Feel free to replace the included PNGs with updated artwork. Just keep the filenames the same so the existing `<img>` tags continue to resolve correctly.
+The Games hub's hover carousels use the current gameplay screenshots in
+`public/assets/game-types/<game-slug>/`. The same screenshots appear on each
+game type's information page. Keep them in that one location so the cards and
+pages stay in sync.

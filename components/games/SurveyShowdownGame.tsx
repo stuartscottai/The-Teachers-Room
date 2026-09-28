@@ -1,3 +1,4 @@
+import { SurveyTurnTimer } from './shared/SurveyTurnTimer';
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, SurveyAnswer } from '../../types';
@@ -133,6 +134,12 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     
     const [input, setInput] = useState("");
     const [showStrikeOverlay, setShowStrikeOverlay] = useState(false);
+    const [timedOut, setTimedOut] = useState(false);
+    const [turnNumber, setTurnNumber] = useState(0);
+    const [timerManuallyPaused, setTimerManuallyPaused] = useState(false);
+    const strikeInProgress = useRef(false);
+    const strikeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => { if (strikeTimeout.current) clearTimeout(strikeTimeout.current); }, []);
     const [shakeInput, setShakeInput] = useState(false);
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
@@ -221,6 +228,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         setTeamStrikes(new Array(teamCount).fill(0));
         setHostPreview(new Array(SURVEY_ANSWER_COUNT).fill(false));
         setInput("");
+        setTimerManuallyPaused(false);
+        setTimedOut(false);
         const startingIndex = teamCount > 0 ? currentRound % teamCount : 0;
         setActiveTeamIndex(startingIndex);
         if(inputRef.current) inputRef.current.focus();
@@ -311,7 +320,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
     const handleInputSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() || strikeInProgress.current || roundOver || (timerSeconds > 0 && timerAutoPaused) || phase !== 'play') return;
 
         // Check against all UNREVEALED answers
         let foundIndex = -1;
@@ -363,7 +372,11 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         setRevealedAnswers(newRevealed);
     };
 
-    const triggerStrike = () => {
+    const triggerStrike = (timeout = false) => {
+        if (strikeInProgress.current || roundOver || phase !== 'play') return;
+        strikeInProgress.current = true;
+        setTimedOut(timeout);
+        setInput('');
         playSound('incorrect', isMuted, 'Buzz');
         
         // Add strike to current team
@@ -376,20 +389,24 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         setShowStrikeOverlay(true);
         setShakeInput(true);
         
-        setTimeout(() => {
+        strikeTimeout.current = setTimeout(() => {
+            strikeInProgress.current = false;
             setShowStrikeOverlay(false);
             setShakeInput(false);
             
             // Turn logic happens after overlay
-            nextTurn();
+            nextTurn(true);
         }, 1500);
     };
 
-    const nextTurn = () => {
+    const nextTurn = (afterStrike = false) => {
+        setTimerManuallyPaused(false);
+        setTurnNumber(prev => prev + 1);
+        setTimedOut(false);
         if (teamCount <= 1) return;
         for (let step = 1; step <= teamCount; step++) {
             const candidate = (activeTeamIndex + step) % teamCount;
-            if ((teamStrikes[candidate] ?? 0) < 3) {
+            if ((teamStrikes[candidate] ?? 0) + (afterStrike && candidate === activeTeamIndex ? 1 : 0) < 3) {
                 setActiveTeamIndex(candidate);
                 return;
             }
@@ -464,6 +481,9 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const allStrikesOut = teamStrikes.every(s => s >= 3);
     const roundOver = allRevealed || allStrikesOut;
     const isLastRound = currentRound === questions.length - 1;
+    const timerSeconds = Number.isFinite(options.timerSeconds) ? Math.max(0, options.timerSeconds) : 0;
+    const timerAutoPaused = showStrikeOverlay || showQuitConfirm || showEndGameConfirm || editingTeamIndex !== null || isImageZoomOpen || zoomedAnswer !== null || hostMode;
+    const timerPaused = timerManuallyPaused || timerAutoPaused;
 
     // --- GAME OVER SCREEN ---
     if (phase === 'gameover') {
@@ -854,7 +874,13 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
 
             {/* 3. FOOTER CONTROLS */}
             <div className="bg-slate-900 p-2 sm:p-3 shrink-0 z-30 shadow-2xl relative min-h-[74px] sm:min-h-[84px] flex items-center">
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-3 items-center w-full">
+                <div className="max-w-5xl mx-auto flex flex-col gap-3 items-center w-full">
+                    {!roundOver && timerSeconds > 0 && (
+                        <SurveyTurnTimer key={`${currentRound}-${turnNumber}-${timerSeconds}`} seconds={timerSeconds}
+                            paused={timerPaused} manuallyPaused={timerManuallyPaused}
+                            onTogglePause={() => setTimerManuallyPaused(prev => !prev)}
+                            onExpire={() => triggerStrike(true)} />
+                    )}
                     
                     {/* INPUT AREA */}
                     {!roundOver ? (
@@ -866,6 +892,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     </span>
                                 </div>
                                 <input 
+                                    disabled={showStrikeOverlay}
                                     ref={inputRef}
                                     type="text" 
                                     value={input}
@@ -875,6 +902,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     autoFocus
                                 />
                                 <button 
+                                    disabled={showStrikeOverlay}
                                     type="submit" 
                                     className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-blue hover:bg-sky-500 text-white p-2 sm:p-2.5 rounded-full transition-colors shadow-md active:scale-95"
                                 >
@@ -884,7 +912,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             
                             {/* MANUAL STRIKE */}
                             <button 
-                                onClick={triggerStrike}
+                                disabled={showStrikeOverlay}
+                                onClick={() => triggerStrike()}
                                 className="w-11 h-11 sm:w-auto sm:h-auto sm:px-6 sm:py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center shrink-0"
                             >
                                 <X size={20} />
@@ -920,6 +949,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             {/* FULL SCREEN STRIKE OVERLAY */}
             {showStrikeOverlay && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-900/60 backdrop-blur-sm animate-pulse pointer-events-none">
+                    {timedOut && <div role="alert" className="absolute top-8 left-0 right-0 text-center text-3xl sm:text-5xl font-black text-white">Time?s up!</div>}
                     <div className="text-[15rem] md:text-[25rem] font-black text-red-500 drop-shadow-[0_0_100px_rgba(255,0,0,1)] animate-bounce-slow transform scale-150 border-8 border-red-500 w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-full flex items-center justify-center leading-none">
                         X
                     </div>

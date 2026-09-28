@@ -1,3 +1,4 @@
+import { getSurveyGenerationRules, getSurveyGenerationError } from '../utils/surveyGeneration.js';
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { GameConfig, GeneratedGame, GameType, GeneratedQuestion } from "../types";
@@ -803,9 +804,10 @@ const normalizeBlockBeatersQuestions = (
   }).filter(Boolean).map((question: any, index: number) => ({ ...question, id: index }));
 };
 
-export const generateStopTheFireCategories = async (config: GameConfig): Promise<string[]> => {
-  const external = await tryExternalApi<{ categories: string[] }>({ action: 'stop-the-fire-categories', config });
-  if (external?.categories) return external.categories;
+export const generateStopTheFireCategories = async (config: GameConfig): Promise<{ categories: string[]; webSearch?: { sources: { title: string; url: string }[]; checkedAt: string } }> => {
+  const external = await tryExternalApi<{ categories: string[]; webSearch?: { sources: { title: string; url: string }[]; checkedAt: string } }>({ action: 'stop-the-fire-categories', config });
+  if (external?.categories) return external;
+  if (config.webSearch === true) throw new Error('Web search requires the server generation service. Please try again.');
 
   const ai = getClient();
 
@@ -868,11 +870,11 @@ Return JSON: { "categories": ["..."] }
     if (!text) throw new Error("No response from AI");
 
     const data = JSON.parse(cleanJson(text));
-    if (!data?.categories || !Array.isArray(data.categories)) return [];
+    if (!data?.categories || !Array.isArray(data.categories)) return { categories: [] };
 
-    return data.categories
+    return { categories: data.categories
       .map((c: any) => (typeof c === 'string' ? c.trim() : ''))
-      .filter(Boolean);
+      .filter(Boolean) };
   } catch (error) {
     console.error("Error generating Stop the Fire categories:", error);
     throw error;
@@ -1172,6 +1174,10 @@ const hydrateGameAutoImages = async (
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {
   const external = await tryExternalApi<GeneratedGame>({ action: 'game', config });
   if (external) {
+    if (config.type === GameType.SURVEY_SHOWDOWN) {
+      const error = getSurveyGenerationError(external, config.surveyScoreMode);
+      if (error) throw new Error(`The generated Survey Showdown needs correction. ${error}`);
+    }
     enforceGameOptionCounts(external, config);
     enforceGameAnswerMatchesOptions(external);
     rebalanceGameAnswerPositions(external, config);
@@ -1201,6 +1207,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     };
   }
 
+  // Never silently fall back to generation without search.
+  if (config.webSearch === true) throw new Error('Web search requires the server generation service. Please try again.');
   // --- INTERNAL GOOGLE SDK PATH ---
   const ai = getClient();
   
@@ -1220,7 +1228,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   
   If the user provides source files (images/PDFs), analyze them thoroughly and base ALL questions/content on that material.
 
-  IMPORTANT: Questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). If a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
+  IMPORTANT: Except for Survey Showdown (which intentionally has 10 valid answers per prompt), questions must have a single, unambiguous correct answer. Avoid prompts where multiple answers could be valid (e.g. vague pronouns, subjective opinions, or fill-in-the-blank with multiple correct options). For games other than Survey Showdown, if a question could plausibly have more than one correct answer, rephrase it to be specific and uniquely answerable.
   CRITICAL: For multiple-choice questions, distribute the correct answer position evenly across the options. Do NOT overuse any single position. Use an equal balance across A/B/C/D (or however many options are used).
   CRITICAL: Only ONE option can be correct. Ensure the question is specific enough that only one option is unambiguously correct (e.g., add context or time reference for grammar questions).
   If a question includes options, the "answer" must EXACTLY match one of the option strings (including articles like "a/an/the", punctuation, and capitalization). Do not paraphrase or drop articles.
@@ -1297,6 +1305,14 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     },
     required: ["id", "question", "answer", "points"]
   };
+
+if (isSurvey) {
+        questionSchema.properties!.surveyScoreMode = { type: Type.STRING, enum: ['survey', 'statistics'] };
+        questionSchema.properties!.surveyAnswers.minItems = '10';
+        questionSchema.properties!.surveyAnswers.maxItems = '10';
+        questionSchema.properties!.surveyAnswers.items!.properties!.score = { type: Type.NUMBER };
+        questionSchema.required = [...(questionSchema.required || []), 'surveyAnswers', 'surveyScoreMode'];
+      }
 
   let responseSchema: Schema;
 
@@ -1430,15 +1446,8 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       Create a "Family Feud" / "Family Fortunes" style game titled "${gameTitle}" about "${config.topic}".
       Generate ${config.questionCount} rounds (questions).
       
-      FOR EACH QUESTION:
-      1. Provide a "survey style" prompt (e.g. "Name something you find in a kitchen", "Name a reason people are late").
-      2. Provide EXACTLY 10 "surveyAnswers".
-      3. Each answer must have a "text" and a "score".
-      4. CRITICAL: Include an "alts" array for each answer containing 3-5 synonyms or acceptable variations (e.g. for "Money", alts=["Cash", "Coins", "Dosh"]).
-      5. Rank the answers by score (highest to lowest).
-      6. Scores should roughly sum to 100.
-      
-      Custom Instructions: ${config.customInstructions || "None"}.
+          ${getSurveyGenerationRules(config.surveyScoreMode)}
+          Custom Instructions: ${config.customInstructions || "None"}.
       `;
 
       responseSchema = {
@@ -1624,9 +1633,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     
     parts.push({ text: prompt });
 
+    let data: any;
+    let surveyError: string | null = null;
+    for (let attempt = 0; attempt < (isSurvey ? 2 : 1); attempt++) {
     const response = await ai.models.generateContent({
       model: DEFAULT_MODEL,
-      contents: { parts },
+      contents: { parts: surveyError ? [...parts, { text: `Correct the previous output: ${surveyError}. Return the complete game following all survey rules.` }] : parts },
       config: {
         systemInstruction: systemInstruction,
         ...(getGameGenerationThinkingConfig(DEFAULT_MODEL)
@@ -1640,7 +1652,12 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
     const text = response.text;
     if (!text) throw new Error("No response from AI");
     
-    const data = JSON.parse(cleanJson(text));
+    data = JSON.parse(cleanJson(text));
+
+      surveyError = isSurvey ? getSurveyGenerationError(data, config.surveyScoreMode) : null;
+      if (!surveyError) break;
+    }
+    if (surveyError) throw new Error(`The AI could not produce 10 valid answers with the requested scores. Please clarify the question or provide source data. ${surveyError}`);
 
     enforceGameOptionCounts(data, config);
     enforceGameAnswerMatchesOptions(data);

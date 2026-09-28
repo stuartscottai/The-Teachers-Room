@@ -1,3 +1,4 @@
+import { getSurveyGenerationRules } from './surveyGeneration';
 import { jsonrepair } from 'jsonrepair';
 import { GameConfig, GameType, GeneratedGame, GeneratedQuestion, JeopardyCategory, SurveyAnswer } from '../types';
 
@@ -92,7 +93,7 @@ const normalizeSurveyAnswers = (value: unknown): SurveyAnswer[] => {
   const answers: SurveyAnswer[] = [];
 
   for (const raw of value) {
-    if (answers.length >= 8) break;
+    if (answers.length >= 10) break;
 
     const text =
       typeof raw === 'string'
@@ -987,7 +988,7 @@ export const buildExternalLlmGamePrompt = (
     }
   } else if (config.type === GameType.SURVEY_SHOWDOWN) {
     lines.push(`Create exactly ${config.questionCount || 5} survey prompts.`);
-    lines.push('Each question must include exactly 10 surveyAnswers.');
+    lines.push(getSurveyGenerationRules(config.surveyScoreMode));
     lines.push('Each survey answer needs text, score, and 2-5 short alts.');
     lines.push('Order surveyAnswers from highest score to lowest score.');
   } else if (config.type === GameType.WORD_WHEEL) {

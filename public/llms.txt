@@ -13,6 +13,21 @@ Teachers can turn a lesson topic, learning objective, or source material into cl
 - [Live Quizzes for Teachers](https://www.theteachersroom.app/live-quiz-for-teachers): Run real-time quizzes that students join using a code or QR link.
 - [ESL Classroom Games](https://www.theteachersroom.app/esl-classroom-games): Create vocabulary, grammar, speaking, and review games for English language learners.
 
+## Game types
+
+- [Trivia](https://www.theteachersroom.app/game-types/trivia): Turn questions into a colourful team game.
+- [Jeopardy](https://www.theteachersroom.app/game-types/jeopardy): Choose categories and point values for team review.
+- [Time Bomb](https://www.theteachersroom.app/game-types/time-bomb): Answer questions against a countdown.
+- [Wordwheel](https://www.theteachersroom.app/game-types/wordwheel): Build words from a wheel of letters.
+- [Block Beaters](https://www.theteachersroom.app/game-types/blockbeaters): Answer questions to claim spaces on a hexagonal board.
+- [Live Quiz](https://www.theteachersroom.app/game-types/live-quiz): Let students join and answer on their own devices.
+- [Pub Quiz](https://www.theteachersroom.app/game-types/pub-quiz): Play a classroom quiz in themed rounds.
+- [Survey Showdown](https://www.theteachersroom.app/game-types/survey-showdown): Guess the answers hidden on a team game board.
+- [Stop the Fire](https://www.theteachersroom.app/game-types/stop-the-fire): Answer questions to keep the classroom challenge going.
+- [Millionaire Maker](https://www.theteachersroom.app/game-types/millionaire-maker): Climb a question ladder with help options.
+- [Darts Challenge](https://www.theteachersroom.app/game-types/darts-challenge): Pair correct answers with a darts game.
+- [Snakes and Ladders](https://www.theteachersroom.app/game-types/snakes-and-ladders): Move around a board by answering questions.
+
 ## Help and plans
 
 - [Help and FAQs](https://www.theteachersroom.app/info): How-to guidance and answers about games, sharing, live quizzes, AI generation, and school accounts.

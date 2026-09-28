@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
+import { getWebSearchEvidence, webSearchInstructions } from './gameWebSearch.js';
 import {
   ACTIVE_GEMINI_MODEL,
   ACTIVE_OPENAI_MODEL,
@@ -53,8 +54,8 @@ export const convertGeminiSchemaToOpenAI = (schema: any): any => {
   if (type) converted.type = type;
   if (schema.description) converted.description = schema.description;
   if (Array.isArray(schema.enum)) converted.enum = schema.enum;
-  if (Number.isFinite(schema.minItems)) converted.minItems = schema.minItems;
-  if (Number.isFinite(schema.maxItems)) converted.maxItems = schema.maxItems;
+  if (schema.minItems != null && Number.isFinite(Number(schema.minItems))) converted.minItems = Number(schema.minItems);
+  if (schema.maxItems != null && Number.isFinite(Number(schema.maxItems))) converted.maxItems = Number(schema.maxItems);
 
   if (type === 'array' && schema.items) {
     converted.items = convertGeminiSchemaToOpenAI(schema.items);
@@ -167,6 +168,13 @@ const createOpenAIRuntime = ({ action, userId }: RuntimeOptions): AiRuntime => {
         safety_identifier: safetyIdentifier,
       };
 
+      if (config.webSearch === true) {
+        request.tools = [{ type: 'web_search', external_web_access: true }];
+        request.tool_choice = 'required';
+        request.include = ['web_search_call.action.sources'];
+        request.instructions = `${request.instructions || ''}\n${webSearchInstructions()}`;
+      }
+
       if (config.responseSchema) {
         request.text = {
           format: {
@@ -184,12 +192,14 @@ const createOpenAIRuntime = ({ action, userId }: RuntimeOptions): AiRuntime => {
       const refusal = findRefusal(response);
       if (refusal) throw new Error(`OpenAI could not complete this request: ${refusal}`);
 
+      const webSearch = config.webSearch === true ? getWebSearchEvidence(response) : undefined;
       const reasoningTokens = Number(response.usage?.output_tokens_details?.reasoning_tokens || 0);
       const cachedTokens = Number(response.usage?.input_tokens_details?.cached_tokens || 0);
       const cacheWriteTokens = Number(response.usage?.input_tokens_details?.cache_write_tokens || 0);
 
       return {
         text: response.output_text || '',
+        webSearch,
         usageMetadata: {
           promptTokenCount: Number(response.usage?.input_tokens || 0),
           candidatesTokenCount: Math.max(0, Number(response.usage?.output_tokens || 0) - reasoningTokens),
@@ -219,10 +229,12 @@ const createGeminiRuntime = (): AiRuntime => {
   return {
     provider: 'gemini',
     model,
-    generateContent: (params: any) => client.models.generateContent({
-      ...stripInternalMetadata(params),
-      model,
-    }),
+    generateContent: (params: any) => {
+      if (params?.config?.webSearch === true) {
+        throw new Error('Web search requires the OpenAI provider. Please switch off Web search or ask the site administrator to enable OpenAI.');
+      }
+      return client.models.generateContent({ ...stripInternalMetadata(params), model });
+    },
     countTokens: async (contents: any) => {
       try {
         const response = await client.models.countTokens({ model, contents: stripInternalMetadata(contents) });
