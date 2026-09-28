@@ -102,7 +102,7 @@ for (const url of urls) {
 
 const titles = new Map();
 const expectedFavicon =
-  '<link rel="icon" type="image/png" sizes="96x96" href="https://www.theteachersroom.app/favicon-96x96.png" />';
+  '<link rel="icon" type="image/png" sizes="96x96" href="/teachers-room-favicon-96.png" />';
 for (const routePath of urls) {
   const htmlPath =
     routePath === '/'
@@ -149,7 +149,7 @@ for (const routePath of urls) {
   }
 }
 
-if (!fs.existsSync(path.join(dist, 'favicon-96x96.png'))) {
+if (!fs.existsSync(path.join(dist, 'teachers-room-favicon-96.png'))) {
   fail('The canonical 96x96 PNG favicon is missing from the build.');
 }
 

@@ -16,7 +16,7 @@ test('Blockbeaters page has real images, metadata, usable enlargement and no hor
   await page.getByRole('button', { name: 'Close screenshot' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('main details')).toHaveCount(0);
-  await expect(page.getByAltText('Blockbeaters game grid', { exact: false })).toBeVisible();
+  await expect(page.getByAltText('Blockbeaters hexagon game board', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
