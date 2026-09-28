@@ -1108,7 +1108,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             ) : (
                 <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {pagedGames.map(game => {
+                    {pagedGames.map((game, index) => {
                         const theme = getLibraryCardTheme(game.config.type);
                         const fallbackImage = getGameThumbnails(game.config.type)[0];
 
@@ -1120,6 +1120,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                     title={game.title}
                                     publicGameId={game.config.isPublic && game.id && isUUID(game.id) ? game.id : undefined}
                                     fallbackImage={fallbackImage}
+                                    priority={index < 3}
                                     className="h-full w-full"
                                 />
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
@@ -1637,13 +1638,13 @@ const CommunityLibrary: React.FC<{
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-                        {games.map(game => {
+                        {games.map((game, index) => {
                             const theme = getLibraryCardTheme(game.config.type);
 
                             return (
                             <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} bg-white shadow-sm transition-shadow duration-200 flex flex-col group relative hover:shadow-lg`}>
                                 <div className="relative aspect-[16/7] overflow-hidden text-white">
-                                    <GameCover cover={game.config.coverImage} title={game.title} publicGameId={game.id} fallbackImage={getGameThumbnails(game.config.type)[0]} className="h-full w-full" />
+                                    <GameCover cover={game.config.coverImage} title={game.title} publicGameId={game.id} fallbackImage={getGameThumbnails(game.config.type)[0]} priority={index < 3} className="h-full w-full" />
                                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent" />
                                     <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
                                         <div style={theme.headerStyle} className="inline-flex min-w-0 max-w-[78%] items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[10px] font-bold uppercase shadow-sm">

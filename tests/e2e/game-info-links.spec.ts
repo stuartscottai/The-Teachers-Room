@@ -8,7 +8,7 @@ for (const [name, slug] of [['Trivia Quiz', 'trivia'], ['Jeopardy', 'jeopardy'],
     await expect(card.getByRole('link', { name: 'More info' })).toHaveAttribute('href', `/game-types/${slug}`);
     await card.getByRole('button', { name: 'Create game', exact: true }).click();
     await expect(page.getByText('Create a free account on the Teacher Plan to start creating games.', { exact: true })).toBeVisible();
-    await page.goto('/games');
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
     await image.click();
     await expect(page).toHaveURL(new RegExp(`/game-types/${slug}$`));
   });

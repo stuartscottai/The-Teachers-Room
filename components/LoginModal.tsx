@@ -194,6 +194,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="relative flex h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-fade-in sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
         <button
           onClick={onClose}
+          aria-label="Close"
           className="absolute right-3 top-3 z-20 rounded-full bg-slate-100/95 p-1 text-slate-400 backdrop-blur-sm hover:text-slate-600 sm:right-4 sm:top-4"
         >
           <X size={20} />

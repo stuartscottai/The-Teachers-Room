@@ -103,7 +103,7 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
 };
 
 // Robust Card for Trending Games
-const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
+const TrendingGameCard: React.FC<{ game: HomeTrendingCard; priority?: boolean }> = ({ game, priority = false }) => {
     return (
         <Link to={game.to} state={game.state} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
@@ -113,6 +113,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard }> = ({ game }) => {
                         title={game.title}
                         publicGameId={isUUID(game.id) ? game.id : undefined}
                         fallbackImage={game.image}
+                        priority={priority}
                         className="h-full w-full transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-sky-900/10 group-hover:bg-transparent transition-colors" />
@@ -132,7 +133,8 @@ export const Home: React.FC = () => {
   const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
   const [stats, setStats] = useState({ games: 0, gamesPlayed: 0 });
-  const [trendingGames, setTrendingGames] = useState<HomeTrendingCard[]>(FALLBACK_TRENDING_GAMES);
+  const [trendingGames, setTrendingGames] = useState<HomeTrendingCard[]>([]);
+  const [trendingReady, setTrendingReady] = useState(false);
   const [showTourInvite, setShowTourInvite] = useState(false);
   const [dontShowTourAgain, setDontShowTourAgain] = useState(false);
 
@@ -157,15 +159,13 @@ export const Home: React.FC = () => {
     let isUnmounted = false;
 
     const refreshHomeFeed = async () => {
+      void getGlobalStats().then(data => {
+        if (!isUnmounted) setStats(data);
+      }).catch(error => console.warn('Home stats refresh failed:', error));
+
       try {
-        const [statsData, trendingResult] = await Promise.all([
-          getGlobalStats(),
-          getTrendingGames(5)
-        ]);
-
+        const trendingResult = await getTrendingGames(5);
         if (isUnmounted) return;
-
-        setStats(statsData);
 
         const mappedTrending = trendingResult.data.map((game, index) => {
           const visuals = getGameVisual(game.config?.type);
@@ -189,6 +189,8 @@ export const Home: React.FC = () => {
         if (isUnmounted) return;
         console.warn('Home feed refresh failed:', error);
         setTrendingGames(FALLBACK_TRENDING_GAMES);
+      } finally {
+        if (!isUnmounted) setTrendingReady(true);
       }
     };
 
@@ -419,8 +421,16 @@ export const Home: React.FC = () => {
                 <span className="border-b-4 border-brand-yellow pb-2">Trending Games</span>
             </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                {trendingGames.map((game) => (
-                    <TrendingGameCard key={game.id} game={game} />
+                {trendingReady ? trendingGames.map((game, index) => (
+                    <TrendingGameCard key={game.id} game={game} priority={index < 3} />
+                )) : Array.from({ length: 5 }, (_, index) => (
+                    <div key={index} aria-hidden="true" className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+                        <div className="aspect-[3/2] bg-slate-100" />
+                        <div className="space-y-2 p-4">
+                            <div className="h-4 w-3/4 rounded bg-slate-100" />
+                            <div className="h-3 w-1/3 rounded bg-slate-100" />
+                        </div>
+                    </div>
                 ))}
             </div>
         </div>
