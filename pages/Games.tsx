@@ -20,6 +20,7 @@ import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameImagePreparation } from '../components/games/GameImagePreparation';
 import { Avatar } from '../components/Avatar';
 import { StudentShareModal } from '../components/games/StudentShareModal';
+import { getSiteTheme } from '../utils/theme';
 import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 
 type GameHubTab = 'create' | 'community' | 'library';
@@ -1113,7 +1114,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         const fallbackImage = getGameThumbnails(game.config.type)[0];
 
                         return (
-                        <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative cursor-pointer transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`} onClick={() => onLoadGame(game)}>
+                        <div key={game.id} className={`personal-library-card overflow-hidden rounded-xl border ${theme.card} shadow-sm transition-all duration-200 ease-out flex flex-col group relative cursor-pointer transform-gpu hover:-translate-y-1 hover:rotate-[0.6deg] hover:shadow-xl`} onClick={() => onLoadGame(game)}>
                             <div className="relative aspect-[16/7] overflow-hidden text-white">
                                 <GameCover
                                     cover={game.config.coverImage}
@@ -1642,7 +1643,7 @@ const CommunityLibrary: React.FC<{
                             const theme = getLibraryCardTheme(game.config.type);
 
                             return (
-                            <div key={game.id} className={`overflow-hidden rounded-xl border ${theme.card} bg-white shadow-sm transition-shadow duration-200 flex flex-col group relative hover:shadow-lg`}>
+                            <div key={game.id} className={`community-library-card overflow-hidden rounded-xl border ${theme.card} bg-white shadow-sm transition-shadow duration-200 flex flex-col group relative hover:shadow-lg`}>
                                 <div className="relative aspect-[16/7] overflow-hidden text-white">
                                     <GameCover cover={game.config.coverImage} title={game.title} publicGameId={game.id} fallbackImage={getGameThumbnails(game.config.type)[0]} priority={index < 3} className="h-full w-full" />
                                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent" />
@@ -1923,9 +1924,9 @@ const GameHub: React.FC<{
                 <div
                     role="tablist"
                     aria-label="Games hub sections"
+                    className="game-hub-tabs relative flex h-[56px] w-full items-end justify-center gap-1 px-1 md:mt-14 md:w-auto md:flex-shrink-0 md:justify-end"
                     onTouchStart={handleSwipeStart}
                     onTouchEnd={handleSwipeEnd}
-                    className="relative flex h-[56px] w-full items-end justify-center gap-1 px-1 md:mt-14 md:w-auto md:flex-shrink-0 md:justify-end"
                 >
                     {hubTabs.map((tab) => {
                         const isActive = activeTab === tab.id;
@@ -1971,40 +1972,28 @@ const GameHub: React.FC<{
                                 </div>
 
                                 {/* AI Chatbot Teaser */}
-                                <div className="mt-12 bg-brand-blue rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between shadow-xl shadow-sky-100 overflow-hidden relative animate-slide-up">
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-                                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-yellow/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
-
-                                    <div className="md:w-2/3 mb-8 md:mb-0 relative z-10">
-                                        <h3 className="font-display text-3xl font-bold text-white mb-4">
-                                            Can't decide? Let AI help you.
+                                <div className="game-ai-teaser mt-12 bg-brand-blue rounded-2xl p-7 md:p-9 flex flex-col-reverse md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative animate-slide-up">
+                                    <div className="max-w-2xl">
+                                        <h3 className="font-display text-2xl font-bold text-white mb-3">
+                                            Not sure which game fits?
                                         </h3>
-                                        <p className="text-sky-100 mb-8 text-lg max-w-xl leading-relaxed">
-                                            Describe your lesson topic, student level, or learning goals, and our AI will recommend the perfect game format and generate content for you instantly.
+                                        <p className="text-sky-100 mb-5 text-base max-w-xl leading-relaxed">
+                                            Tell the assistant what you're teaching. It can suggest a format and draft questions for you to review before playing.
                                         </p>
                                         <button
                                             onClick={onOpenAiAssistant}
-                                            className="bg-white text-brand-blue px-8 py-4 rounded-xl font-bold hover:bg-sky-50 transition-colors shadow-lg flex items-center"
+                                            className="bg-white text-brand-blue px-5 py-3 rounded-lg font-bold hover:bg-sky-50 transition-colors inline-flex items-center gap-3"
                                         >
-                                            <img
-                                                src="/assets/game_elements/aiassistanthead.png"
-                                                alt=""
-                                                aria-hidden="true"
-                                                className="mr-3 h-12 w-12 rounded-xl object-cover"
-                                            />
                                             Open AI Assistant
+                                            <ArrowRight size={18} aria-hidden="true" />
                                         </button>
                                     </div>
-                                    <div className="md:w-1/3 flex justify-center relative z-10">
-                                         <div className="relative">
-                                            <div className="absolute inset-0 bg-brand-yellow blur-[60px] opacity-40 rounded-full animate-pulse"></div>
-                                            <img
-                                                src="/assets/game_elements/aiassistant.png"
-                                                alt="AI Assistant"
-                                                className="rounded-2xl border-4 border-white/20 shadow-2xl relative z-10 w-72 h-72 md:w-80 md:h-80 object-cover"
-                                            />
-                                         </div>
-                                    </div>
+                                    <img
+                                        src="/assets/game_elements/aiassistanthead.png"
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="h-20 w-20 md:h-28 md:w-28 shrink-0 rounded-xl object-cover"
+                                    />
                                 </div>
                             </>
                         )}
@@ -2055,11 +2044,18 @@ export const Games: React.FC = () => {
     const [liveQuizSelectedItems, setLiveQuizSelectedItems] = useState<string[] | null>(null);
 
     const location = useLocation();
-    const { setIsDirty, confirmAction } = useUnsavedChanges();
+    const { setIsDirty, setIsPlaying, setGameAppearance, confirmAction } = useUnsavedChanges();
 
     useEffect(() => {
         const navState: any = location.state || {};
         if (navState?.tour) return;
+
+        if (navState?.view === 'create') {
+            setIsDirty(false);
+            setHubTab('create');
+            setStep('hub');
+            return;
+        }
 
         if (navState?.view === 'library') {
             setIsDirty(false); 
@@ -2736,15 +2732,33 @@ export const Games: React.FC = () => {
     };
 
     useEffect(() => {
+        setIsPlaying(step === 'play');
         if (step === 'play') {
+            setGameAppearance(getSiteTheme());
             document.body.classList.add('gameplay-active');
         } else {
             document.body.classList.remove('gameplay-active');
         }
         return () => {
             document.body.classList.remove('gameplay-active');
+            setIsPlaying(false);
         };
-    }, [step]);
+    }, [step, setIsPlaying, setGameAppearance]);
+
+    useEffect(() => {
+        if (step !== 'play') return;
+        const guardState = { ...window.history.state, gameplayGuard: true };
+        window.history.pushState(guardState, '', window.location.href);
+        const warnOnBack = (event: PopStateEvent) => {
+            event.stopImmediatePropagation();
+            window.history.pushState(guardState, '', window.location.href);
+            confirmAction('Your current round and scores will be lost if you leave this game.', () => setStep(playReturnStep), 'Leave game?');
+        };
+        window.addEventListener('popstate', warnOnBack, true);
+        return () => {
+            window.removeEventListener('popstate', warnOnBack, true);
+        };
+    }, [step, playReturnStep, confirmAction]);
 
     useEffect(() => {
         if (step === 'setup' || step === 'prepare-images' || step === 'play') {

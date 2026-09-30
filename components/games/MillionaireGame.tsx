@@ -1,3 +1,4 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
@@ -5,6 +6,7 @@ import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { ArrowLeft, Phone, Users, Trophy, Volume2, VolumeX, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 
 interface MillionaireGameProps {
     game: GeneratedGame;
@@ -331,7 +333,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     const toggleFullscreen = () => {
         if (isMobileViewport) return;
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -630,7 +632,9 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     {/* CENTER STAGE */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
 
-                        <div className="w-full max-w-6xl flex flex-col gap-3 md:gap-6">
+                        <div className="millionaire-question-zoom w-full max-w-6xl flex flex-col gap-3 md:gap-6">
+                        <QuestionCardZoomButton />
+                        <div className="w-full flex flex-col gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
                         <div
                             className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
@@ -703,6 +707,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             ))}
                         </div>
                         </div>
+                        </div>
 
                         {/* WALK AWAY BUTTON - Preserved layout space to prevent shifting */}
                         {currentLevel > 0 && (
@@ -730,7 +735,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     <div 
                                         key={levelIndex} 
                                         className={`flex justify-between items-center px-4 py-1.5 rounded-lg font-mono transition-all duration-500
-                                            ${isCurrent ? 'bg-orange-500 text-white font-black scale-110 shadow-[0_0_20px_rgba(249,115,22,0.8)] z-10 border-2 border-white' : ''}
+                                            ${isCurrent ? 'bg-orange-500 text-white font-black border-2 border-white' : ''}
                                             ${isCompleted ? 'text-green-500 opacity-60' : ''}
                                             ${!isCurrent && !isCompleted ? (isSafe ? 'text-white font-bold' : 'text-orange-400/70') : ''}
                                         `}
@@ -758,7 +763,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                             key={`${amount}-${globalIndex}`}
                                             className={`h-[40px] flex flex-col items-center justify-center rounded-lg font-mono text-[10px] leading-tight transition-all duration-300 ease-out ${
                                                 isCurrent
-                                                    ? 'bg-orange-500 text-white font-black shadow-[0_0_12px_rgba(249,115,22,0.7)] scale-[1.02]'
+                                                    ? 'bg-orange-500 text-white font-black'
                                                     : isSafe
                                                         ? 'bg-slate-900/70 text-white font-bold'
                                                         : 'bg-slate-900/60 text-slate-200'

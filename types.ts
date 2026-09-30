@@ -133,6 +133,7 @@ export interface GameRunOptions {
   blockBeatersBoardSize?: 'small' | 'medium' | 'large';
   blockBeatersPoints?: number;
   blockBeatersSteals?: boolean;
+  blockBeatersStealLimit?: number;
   studentPractice?: boolean;
 }
 

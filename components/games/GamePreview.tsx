@@ -1,8 +1,9 @@
+import { WorkspaceMenu, useWorkspaceDialog } from './GameWorkspace';
+import { GameCover, CoverCredit } from '../shared/GameCover';
 import { GameWebSources } from './GameWebSources';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Calendar, CheckSquare, Edit3, Globe, ImageIcon, Layers, Library, List, Play, QrCode, Radio, RotateCcw, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckSquare, Edit3, Layers, List, Play, QrCode, Radio, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
-import { Avatar } from '../Avatar';
 import { resolveGameImageUrl, resolveGameImageUrls, resolveGameQuestionImageUrl, resolveGameQuestionImageUrls } from '../../utils/gameImage';
 import { refreshStockImage } from '../../services/stockImageService';
 import { getCompatibleGameTypes } from '../../utils/gameCompatibility';
@@ -95,13 +96,7 @@ const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
   [GameType.LIVE_QUIZ_CHALLENGE]: '/assets/games/livequiz.png',
 };
 
-const PREVIEW_PAGE_THEME = {
-  pageBackground: '#f8fafc',
-  panelBackground: '#ffffff',
-  panelBorder: 'rgba(241, 245, 249, 1)',
-  panelShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
-  imageShellBackground: 'transparent',
-};
+
 
 const formatCreatedDate = (value?: string) => {
   if (!value) return 'Date unavailable';
@@ -392,158 +387,24 @@ interface PreviewCardProps {
 }
 
 const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, onToggleSelect, onToggleFlip }) => (
-  <div
-    className="relative rounded-[1.75rem] bg-white/80 backdrop-blur-sm transition-all"
-    style={{
-      border: `1px solid ${isSelected ? 'rgba(51, 65, 85, 0.24)' : 'rgba(203, 213, 225, 0.88)'}`,
-      boxShadow: isSelected
-        ? '0 0 0 1px rgba(30, 41, 59, 0.08), 0 18px 42px rgba(30, 58, 138, 0.18)'
-        : '0 14px 34px rgba(30, 58, 138, 0.12)',
-    }}
-  >
-    <button
-      type="button"
-      onClick={onToggleSelect}
-      className={`absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-        isSelected
-          ? 'border-slate-700 bg-slate-100 text-slate-700'
-          : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
-      }`}
-      aria-label={isSelected ? 'Deselect item' : 'Select item'}
-      title={isSelected ? 'Selected for play' : 'Select for play'}
-    >
-      {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-    </button>
-
-    <div
-      className="cursor-pointer p-4 pr-14"
-      role="button"
-      tabIndex={0}
-      onClick={onToggleFlip}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onToggleFlip();
-        }
-      }}
-      aria-label={isFlipped ? 'Flip card back to question' : 'Flip card to answer'}
-    >
-      <div className="grid">
-        <div
-          className={`col-start-1 row-start-1 rounded-2xl p-4 transition-opacity duration-200 ${
-            isFlipped ? 'invisible opacity-0 pointer-events-none' : 'visible opacity-100'
-          }`}
-          style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,250,252,0.92) 100%)',
-            border: '1px solid rgba(203, 213, 225, 0.88)',
-          }}
-        >
-          <div className="mb-3">
-            {item.group && (
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                {item.group}
-              </div>
-            )}
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-display text-lg font-bold leading-snug break-words text-slate-800">
-                {item.title}
-              </h3>
-              <div className="flex shrink-0 items-center gap-2">
-                {item.points ? (
-                  <span
-                    className="inline-flex min-w-[72px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(241,245,249,0.96) 100%)',
-                      color: '#334155',
-                      boxShadow: 'inset 0 0 0 1px rgba(203, 213, 225, 0.95)',
-                    }}
-                  >
-                    {item.points} pts
-                  </span>
-                ) : null}
-                {item.imageUrl && <ImageIcon size={14} className="text-slate-400" />}
-              </div>
-            </div>
-          </div>
-
-          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">{item.prompt}</p>
-
-          {item.options && item.options.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs leading-5 text-slate-500">
-              {item.options.slice(0, 4).map((option, index) => (
-                <p key={`${item.id}-option-${index}`} className="break-words">
-                  <span className="font-bold text-slate-700">{String.fromCharCode(65 + index)}.</span> {option}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {item.imageUrl && (
-            <PreviewQuestionImage
-              sources={item.imageUrls?.length ? item.imageUrls : [item.imageUrl]}
-              label={item.title}
-              image={item.image}
-              refreshQuery={item.refreshQuery || item.prompt}
-            />
-          )}
-        </div>
-
-        <div
-          className={`col-start-1 row-start-1 rounded-2xl p-4 text-white transition-opacity duration-200 ${
-            isFlipped ? 'visible opacity-100' : 'invisible opacity-0 pointer-events-none'
-          }`}
-          style={{
-            background: 'linear-gradient(180deg, rgba(71,85,105,0.96) 0%, rgba(51,65,85,0.94) 100%)',
-            border: '1px solid rgba(100, 116, 139, 0.62)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-          }}
-        >
-          <div className="mb-3">
-            {item.group && (
-              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">
-                {item.group}
-              </div>
-            )}
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-display text-lg font-bold leading-snug break-words text-white">
-                {item.title}
-              </h3>
-              <div className="flex shrink-0 items-center gap-2">
-                {item.points ? (
-                  <span
-                    className="inline-flex min-w-[72px] items-center justify-center rounded-full px-3 py-1 text-xs font-bold border"
-                    style={{
-                      background: 'rgba(255,255,255,0.10)',
-                      color: '#f8fafc',
-                      borderColor: 'rgba(255,255,255,0.14)',
-                    }}
-                  >
-                    {item.points} pts
-                  </span>
-                ) : null}
-                {item.imageUrl && <ImageIcon size={14} className="text-slate-200" />}
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300">Answer</div>
-          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-white/95">{item.answer}</p>
-        </div>
-      </div>
-
-      <div
-        className="mt-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.14em]"
-        style={
-          isFlipped
-            ? { background: 'rgba(51,65,85,0.96)', color: '#f8fafc' }
-            : { border: '1px solid rgba(203, 213, 225, 0.9)', background: '#fff', color: '#475569' }
-        }
-      >
-        <RotateCcw size={13} />
-        {isFlipped ? 'Click card to flip back' : 'Click card to show answer'}
-      </div>
+  <article className="flex flex-col rounded-xl border border-slate-200 bg-white p-5">
+    <div className="mb-3 flex items-start justify-between gap-3">
+      <div><h3 className="text-sm font-bold text-slate-700">{item.title}</h3>{item.group && <p className="mt-1 text-xs text-slate-500">{item.group}</p>}</div>
+      <label className="flex min-h-8 items-start gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
+        <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="h-5 w-5 rounded border-slate-300 text-sky-700" aria-label={`Select ${item.title.toLowerCase()}`} /> Include
+      </label>
     </div>
-  </div>
+    <p className="whitespace-pre-wrap break-words text-[15px] font-medium leading-6 text-slate-800">{item.prompt}</p>
+    {!!item.options?.length && <div className="mt-3 space-y-2 text-sm text-slate-600">
+      {item.options.map((option, index) => <p key={index} className="break-words"><strong className="mr-2">{String.fromCharCode(65 + index)}</strong>{option}</p>)}
+    </div>}
+    {item.imageUrl && <PreviewQuestionImage sources={item.imageUrls?.length ? item.imageUrls : [item.imageUrl]} label={item.title} image={item.image} refreshQuery={item.refreshQuery || item.prompt} />}
+    {isFlipped && <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-3" role="status"><p className="text-xs font-bold text-green-800 mb-1">ANSWER</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-green-900">{item.answer}</p></div>}
+    <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+      <button type="button" onClick={onToggleFlip} aria-expanded={isFlipped} className="workspace-button">{isFlipped ? 'Hide answer' : 'Reveal answer'}</button>
+      {item.points != null && <span className="text-xs text-slate-500">{item.points} pts</span>}
+    </div>
+  </article>
 );
 
 interface QuickViewTableProps {
@@ -553,96 +414,32 @@ interface QuickViewTableProps {
 }
 
 const QuickViewTable: React.FC<QuickViewTableProps> = ({ items, selectedIds, onToggleSelect }) => (
-  <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
-    <div className="hidden md:grid md:grid-cols-[48px_minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1fr)] md:items-center md:gap-x-3 md:bg-slate-50 md:px-4 md:py-3">
-      <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pick</div>
-      <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Question</div>
-      <div className="border-l border-slate-200 pl-4 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Options</div>
-      <div className="border-l border-slate-200 pl-4 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Answer</div>
-    </div>
-
-    {items.map((item, index) => {
-      const isSelected = selectedIds.has(item.id);
-      const optionsText = buildCompactOptionsText(item.options);
-
-      return (
-        <div
-          key={item.id}
-          onClick={() => onToggleSelect(item.id)}
-          className={`cursor-pointer transition-colors ${
-            index > 0 ? 'border-t border-slate-200' : ''
-          } ${isSelected ? 'bg-slate-50/90' : 'bg-white hover:bg-slate-50/60'}`}
-        >
-          <div className="grid grid-cols-[42px_minmax(0,1fr)] gap-x-3 gap-y-2 px-3 py-3 sm:px-4 md:grid-cols-[48px_minmax(0,2fr)_minmax(0,1.15fr)_minmax(0,1fr)] md:items-start md:gap-y-0">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleSelect(item.id);
-              }}
-              className={`row-span-3 mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors md:row-span-1 ${
-                isSelected
-                  ? 'border-slate-700 bg-slate-100 text-slate-700'
-                  : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
-              }`}
-              aria-label={isSelected ? 'Deselect item' : 'Select item'}
-            >
-              {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
-            </button>
-
-            <div className="min-w-0">
-              <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <h3
-                    className="font-display font-bold leading-tight text-slate-800"
-                    style={{ fontSize: 'clamp(13px, 0.85vw, 16px)' }}
-                  >
-                    {item.title}
-                  </h3>
-                {item.group && (
-                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                    {item.group}
-                  </span>
-                )}
-                {item.points ? (
-                  <span className="inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200">
-                    {item.points} pts
-                  </span>
-                ) : null}
-                {item.imageUrl && <ImageIcon size={12} className="text-slate-400" />}
-              </div>
-              <p
-                className="break-words text-slate-600"
-                style={{ fontSize: 'clamp(11px, 0.78vw, 14px)', lineHeight: 1.4 }}
-                title={item.prompt}
-              >
-                {item.prompt}
-              </p>
-            </div>
-
-            <div className="min-w-0 md:border-l md:border-slate-200 md:pl-4 md:pt-0.5">
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 md:hidden">Options</div>
-              <p
-                className="break-words text-slate-600"
-                style={{ fontSize: 'clamp(11px, 0.74vw, 13px)', lineHeight: 1.4 }}
-                title={optionsText || 'Open response'}
-              >
-                {optionsText || 'Open response'}
-              </p>
-            </div>
-
-            <div className="min-w-0 md:border-l md:border-slate-200 md:pl-4 md:pt-0.5">
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 md:hidden">Answer</div>
-              <p
-                className="break-words text-slate-700"
-                style={{ fontSize: 'clamp(11px, 0.74vw, 13px)', lineHeight: 1.4 }}
-                title={item.answer}
-              >
-                {item.answer}
-              </p>
-            </div>
+  <div className="workspace-preview-list">
+    <div className="workspace-preview-columns"><span aria-hidden="true" /><span>QUESTION</span><span>ANSWERS</span></div>
+    {items.map(item => {
+      const hasMatchingOption = item.options?.some(option => option.trim() === item.answer.trim());
+      return <div key={item.id} className="workspace-preview-row">
+        <label className="workspace-preview-pick">
+          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleSelect(item.id)} aria-label={`Select ${item.title.toLowerCase()}`} />
+        </label>
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+            <span>{item.title}</span>{item.group && <span>· {item.group}</span>}{item.points != null && <span>· {item.points} pts</span>}
           </div>
+          <p className="text-[15px] leading-6 font-medium text-slate-800 whitespace-pre-wrap break-words">{item.prompt}</p>
+          {item.imageUrl && <PreviewQuestionImage sources={item.imageUrls || [item.imageUrl]} label={item.prompt} image={item.image} refreshQuery={item.refreshQuery} />}
         </div>
-      );
+        <div className="workspace-preview-answers min-w-0">
+          {item.options?.length ? item.options.map((option, index) => {
+            const correct = option.trim() === item.answer.trim();
+            return <div key={index} className={`workspace-preview-option ${correct ? 'is-correct' : ''}`}>
+              <span className="font-bold shrink-0">{String.fromCharCode(65 + index)}</span><span className="flex-1">{option}</span>
+              {correct && <span className="inline-flex items-center gap-1 text-xs font-bold shrink-0"><Check size={14} /><span className="hidden lg:inline">Correct</span><span className="sr-only lg:hidden">Correct</span></span>}
+            </div>;
+          }) : <p className="text-[15px] leading-6 text-slate-700 whitespace-pre-wrap break-words">{item.answer || 'No answer provided'}</p>}
+          {!!item.options?.length && !hasMatchingOption && <p className="mt-2 px-2 text-sm text-slate-700 whitespace-pre-wrap break-words"><strong>Answer:</strong> {item.answer || 'Not set'}</p>}
+        </div>
+      </div>;
     })}
   </div>
 );
@@ -732,9 +529,11 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
   const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const promptDialogRef = useWorkspaceDialog(isPromptOpen, () => setIsPromptOpen(false));
   const [playChoiceGame, setPlayChoiceGame] = useState<GeneratedGame | null>(null);
   const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
   const [randomSelectionCount, setRandomSelectionCount] = useState(20);
+  const [showRandomSelection, setShowRandomSelection] = useState(false);
 
   useEffect(() => {
     setSelectedIds(new Set(items.map((item) => item.id)));
@@ -796,320 +595,77 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   };
 
   const sourceLabel = source === 'community' ? 'Community' : 'My Library';
-  const sourceIcon = source === 'community' ? <Globe size={14} /> : <Library size={14} />;
   const createdByName = game.config.originalCreatorName || game.authorName || 'Teacher';
-  const createdByAvatar = game.config.originalCreatorAvatar || game.authorAvatar || game.config.authorAvatar;
   const createdDate = formatCreatedDate(game.createdAt);
   const aiPrompt = game.config.customInstructions?.trim();
   const creationLabel = game.config.isAI ? 'Created using AI' : 'Created manually';
   const isStopTheFireOverview = game.config.type === GameType.STOP_THE_FIRE;
-  const instructionText =
-    isStopTheFireOverview
-      ? 'Category Overview: tick categories to include, then play or edit.'
-      : viewMode === 'study'
-      ? 'Study Mode: click cards to flip. Tick cards to include.'
-      : 'Quick View: scan rows and tick questions to include.';
   const backgroundImage = PREVIEW_BACKGROUND_IMAGES[game.config.type];
-  const pageTheme = PREVIEW_PAGE_THEME;
-  const previewSaveLabel = saveLabel || (source === 'community' ? 'Save copy' : 'Save game');
-  const secondaryActionButtonClass =
-    'inline-flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white/86 px-2 text-[11px] font-bold text-slate-700 transition-colors hover:border-slate-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:gap-2 sm:px-3 sm:text-sm';
-  const selectActionButtonClass =
-    'inline-flex h-10 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:gap-2 sm:px-3 sm:text-sm';
-  const liveQuizActionButtonClass =
-    'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-sky-500 bg-sky-600 px-2.5 text-[11px] font-bold text-white shadow-md transition-colors hover:border-sky-600 hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:gap-2 sm:px-4 sm:text-sm';
-  const playActionButtonClass =
-    'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-brand-yellow px-2.5 text-[11px] font-bold text-slate-900 shadow-md transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:gap-2 sm:px-3 sm:text-sm';
-  const topActionCount = [onSave, onShare, onStudentShare].filter(Boolean).length + 1;
-  const topActionGridClass =
-    topActionCount === 4
-      ? 'grid grid-cols-4 gap-2 sm:gap-3'
-      : 'grid grid-cols-3 gap-2 sm:gap-3';
-  const selectionActionGridClass = onLiveQuiz
-    ? 'grid grid-cols-[1fr_0.82fr_1fr] gap-2 sm:grid-cols-[1.05fr_0.85fr_1.05fr_1.08fr_1.18fr] sm:gap-3'
-    : 'grid grid-cols-[1fr_0.82fr_1fr] gap-2 sm:grid-cols-[1.05fr_0.85fr_1.05fr_1.18fr] sm:gap-3';
-  const playActionGridClass = onLiveQuiz ? 'grid grid-cols-2 gap-2 sm:hidden' : 'grid grid-cols-1 gap-2 sm:hidden';
+  const previewSaveLabel = saveLabel || (source === 'community' ? 'Save a copy' : 'Save game');
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50" style={{ background: pageTheme.pageBackground }}>
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <button onClick={onBack} className="mb-6 flex items-center text-slate-500 hover:text-sky-600">
-          <ArrowLeft size={18} className="mr-2" /> Back to {sourceLabel}
-        </button>
-
-        <div
-          className="relative overflow-hidden rounded-[2rem] border p-6 shadow-sm sm:p-8"
-          style={{
-            background: pageTheme.panelBackground,
-            borderColor: pageTheme.panelBorder,
-            boxShadow: pageTheme.panelShadow,
-          }}
-        >
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_400px]">
-            <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-600">
-                {sourceIcon}
-                {sourceLabel}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold uppercase text-slate-600">
-                {game.config.type}
-              </span>
-              {game.config.isAI ? (
-                <button
-                  type="button"
-                  onClick={() => aiPrompt && setIsPromptOpen(true)}
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold uppercase border transition-colors ${
-                    aiPrompt ? 'cursor-pointer' : ''
-                  }`}
-                  style={{
-                    background: aiPrompt ? 'rgba(255,255,255,0.82)' : 'rgba(248,250,252,0.84)',
-                    color: '#475569',
-                    borderColor: aiPrompt ? 'rgba(148, 163, 184, 0.36)' : 'rgba(203, 213, 225, 0.9)',
-                  }}
-                  title={aiPrompt ? 'Click to view AI prompt' : undefined}
-                >
-                  <Sparkles size={13} />
-                  {creationLabel}
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-bold uppercase text-slate-600">
-                  <Edit3 size={13} />
-                  {creationLabel}
-                </span>
-              )}
+    <div className="game-workspace relative min-h-screen">
+      <div className="workspace-shell">
+        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> Back to {sourceLabel}</button>
+        <header className="workspace-preview-header">
+          <div className="shrink-0">
+            <GameCover cover={game.config.coverImage} title={game.title} publicGameId={source === 'community' ? game.id : undefined} fallbackImage={backgroundImage} className="workspace-preview-cover" />
+            <CoverCredit cover={game.config.coverImage} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="workspace-eyebrow mb-2">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
+            <h1 className="workspace-heading">{game.title}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+              <span>By <strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? 'categories' : 'questions'}</span>
             </div>
-
-            <h1 className="font-display text-3xl font-bold text-slate-800 sm:text-4xl">{game.title}</h1>
-            <GameWebSources config={game.config} />
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <div className="inline-flex items-center gap-2">
-                <Avatar
-                  name={createdByName}
-                  src={createdByAvatar}
-                  className="h-7 w-7"
-                  textClassName="text-[10px]"
-                />
-                <span>
-                  Created by <span className="font-bold text-slate-700">{createdByName}</span>
-                </span>
-              </div>
-              <span className="hidden text-slate-300 sm:inline">|</span>
-              <span className="inline-flex items-center gap-1.5 font-semibold text-slate-600">
-                <Calendar size={14} />
-                Created {createdDate}
-              </span>
-              <span className="hidden text-slate-300 sm:inline">|</span>
-              <span className="font-semibold text-slate-600">{items.length} question{items.length === 1 ? '' : 's'}</span>
-              <span className="hidden text-slate-300 sm:inline">|</span>
-              <span className="font-semibold text-slate-600">{selectedCount} selected</span>
-            </div>
-
-            <div className="mt-5 space-y-2 sm:space-y-3">
-              <div className={topActionGridClass}>
-                <button
-                  type="button"
-                  onClick={onEdit}
-                  className={secondaryActionButtonClass}
-                  aria-label="Edit game"
-                  title="Edit game"
-                >
-                  <Edit3 size={16} />
-                  <span className="hidden sm:inline">Edit game</span>
-                </button>
-                {onSave && (
-                  <button
-                    type="button"
-                    onClick={() => void onSave()}
-                    className={secondaryActionButtonClass}
-                    aria-label={previewSaveLabel}
-                    title={previewSaveLabel}
-                  >
-                    <Save size={16} />
-                    <span className="hidden sm:inline">{previewSaveLabel}</span>
-                  </button>
-                )}
-                {onShare && (
-                  <button
-                    type="button"
-                    onClick={() => void onShare()}
-                    className={secondaryActionButtonClass}
-                    aria-label="Teacher share"
-                    title="Teacher share"
-                  >
-                    <Share2 size={16} />
-                    <span className="hidden sm:inline">Teacher share</span>
-                  </button>
-                )}
-                {onStudentShare && (
-                  <button
-                    type="button"
-                    onClick={() => void onStudentShare(Array.from(selectedIds))}
-                    disabled={selectedCount === 0}
-                    className={secondaryActionButtonClass}
-                    aria-label="Student share"
-                    title="Student share"
-                  >
-                    <QrCode size={16} />
-                    <span className="hidden sm:inline">Student share</span>
-                  </button>
-                )}
-              </div>
-              <div className={selectionActionGridClass}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}
-                  disabled={items.length === 0 || allSelected}
-                  className={secondaryActionButtonClass}
-                >
-                  <CheckSquare size={17} className="shrink-0" />
-                  <span>Select all</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds(new Set())}
-                  disabled={selectedCount === 0}
-                  className={selectActionButtonClass}
-                >
-                  <Square size={17} className="shrink-0" />
-                  <span>Clear</span>
-                </button>
-                <div className="flex h-10 min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white sm:h-12">
-                  <input
-                    type="number"
-                    min={1}
-                    max={Math.max(1, items.length)}
-                    value={randomSelectionCount}
-                    onChange={(event) => setRandomSelectionCount(Math.max(1, Math.min(items.length || 1, Number(event.target.value) || 1)))}
-                    className="min-w-0 flex-1 border-0 px-2 text-center text-sm font-black text-slate-700 outline-none"
-                    aria-label="Random question count"
-                    title="How many questions to choose"
-                  />
-                  <button
-                    type="button"
-                    onClick={selectRandomItems}
-                    disabled={items.length === 0}
-                    className="inline-flex w-12 items-center justify-center border-l border-slate-200 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    aria-label="Choose random questions"
-                    title="Choose random questions"
-                  >
-                    <Shuffle size={15} />
-                  </button>
-                </div>
-                {onLiveQuiz && (
-                  <button
-                    type="button"
-                    onClick={() => void onLiveQuiz(Array.from(selectedIds))}
-                    disabled={selectedCount === 0}
-                    className={`${liveQuizActionButtonClass} hidden sm:inline-flex`}
-                    aria-label="Live quiz"
-                    title="Live quiz"
-                  >
-                    <Radio size={16} className="shrink-0" />
-                    <span className="hidden sm:inline">Live quiz</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handlePlay}
-                  disabled={selectedCount === 0}
-                  className={`${playActionButtonClass} hidden sm:inline-flex`}
-                  style={{ boxShadow: '0 16px 30px rgba(250, 204, 21, 0.24)' }}
-                  aria-label="Play selected"
-                  title="Play selected"
-                >
-                  <Play size={17} className="shrink-0" fill="currentColor" />
-                  <span className="hidden sm:inline">Play selected</span>
-                </button>
-              </div>
-              <div className={playActionGridClass}>
-                {onLiveQuiz && (
-                  <button
-                    type="button"
-                    onClick={() => void onLiveQuiz(Array.from(selectedIds))}
-                    disabled={selectedCount === 0}
-                    className={liveQuizActionButtonClass}
-                    aria-label="Live quiz"
-                    title="Live quiz"
-                  >
-                    <Radio size={16} className="shrink-0" />
-                    <span>Live quiz</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handlePlay}
-                  disabled={selectedCount === 0}
-                  className={playActionButtonClass}
-                  style={{ boxShadow: '0 16px 30px rgba(250, 204, 21, 0.24)' }}
-                  aria-label="Play selected"
-                  title="Play selected"
-                  >
-                    <Play size={17} className="shrink-0" fill="currentColor" />
-                    <span>Play selected</span>
-                  </button>
-              </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={onEdit} className="workspace-button"><Edit3 size={16} /> Edit game</button>
+              {onSave && <button type="button" onClick={() => void onSave()} className="workspace-button"><Save size={16} /> {previewSaveLabel}</button>}
+              {(onShare || onStudentShare) && <WorkspaceMenu label="Share">
+                {onShare && <button type="button" onClick={() => void onShare()}><Share2 size={16} /> Teacher share</button>}
+                {onStudentShare && <button type="button" disabled={!selectedCount} onClick={() => void onStudentShare(Array.from(selectedIds))}><QrCode size={16} /> Student share</button>}
+              </WorkspaceMenu>}
+              {aiPrompt && <WorkspaceMenu label="Details">
+                <p className="px-3 py-2 text-sm text-slate-600">{creationLabel}</p>
+                <button type="button" onClick={() => setIsPromptOpen(true)}><Sparkles size={16} /> View instructions</button>
+              </WorkspaceMenu>}
             </div>
           </div>
-
-            {backgroundImage ? (
-              <div className="relative hidden min-h-[240px] items-center justify-center overflow-hidden rounded-[1.75rem] lg:flex">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: pageTheme.imageShellBackground,
-                  }}
-                />
-                <img
-                  src={backgroundImage}
-                  alt=""
-                  className="relative z-10 h-full w-full scale-[1.01] object-contain"
-                  style={{
-                    WebkitMaskImage:
-                      'radial-gradient(ellipse 72% 72% at center, rgba(0,0,0,1) 34%, rgba(0,0,0,0.96) 50%, rgba(0,0,0,0.72) 66%, rgba(0,0,0,0.28) 82%, transparent 96%)',
-                    maskImage:
-                      'radial-gradient(ellipse 72% 72% at center, rgba(0,0,0,1) 34%, rgba(0,0,0,0.96) 50%, rgba(0,0,0,0.72) 66%, rgba(0,0,0,0.28) 82%, transparent 96%)',
-                  }}
-                />
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0)_36%,rgba(255,255,255,0.08)_56%,rgba(255,255,255,0.36)_74%,rgba(255,255,255,0.84)_92%,rgba(255,255,255,1)_100%)]" />
-              </div>
-            ) : null}
+        </header>
+        <GameWebSources config={game.config} />
+        <section className="workspace-toolbar" aria-label="Question selection">
+          <div className="workspace-toolbar-row justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-lg font-bold">{isStopTheFireOverview ? 'Categories' : 'Questions'}</h2>
+              <span className="text-sm text-slate-600" role="status">{selectedCount} of {items.length} selected</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {onLiveQuiz && <button type="button" onClick={() => void onLiveQuiz(Array.from(selectedIds))} disabled={!selectedCount}
+                className={`workspace-button ${game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 'workspace-button-primary' : ''}`}><Radio size={16} /> Live quiz</button>}
+              <button type="button" onClick={handlePlay} disabled={!selectedCount} className="workspace-button workspace-button-play" aria-label="Play selected">
+                <Play size={16} fill="currentColor" /> Play {selectedCount} {isStopTheFireOverview ? 'categories' : 'questions'}
+              </button>
+            </div>
           </div>
-        </div>
-
-        {!isStopTheFireOverview && (
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setViewMode('quick')}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
-                viewMode === 'quick'
-                  ? 'border-brand-blue bg-sky-50 text-brand-blue'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800'
-              }`}
-              aria-pressed={viewMode === 'quick'}
-            >
-              <List size={15} />
-              Quick View
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('study')}
-              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
-                viewMode === 'study'
-                  ? 'border-brand-blue bg-sky-50 text-brand-blue'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800'
-              }`}
-              aria-pressed={viewMode === 'study'}
-            >
-              <Layers size={15} />
-              Study Mode
-            </button>
-            <span className="max-w-full text-sm font-semibold text-slate-500">
-              {instructionText}
-            </span>
+          <div className="workspace-toolbar-row mt-3 border-t border-slate-100 pt-3">
+            {!isStopTheFireOverview && <div className="workspace-view-switch" aria-label="Question view">
+              <button type="button" onClick={() => setViewMode('quick')} aria-pressed={viewMode === 'quick'}><List size={16} /> List</button>
+              <button type="button" onClick={() => setViewMode('study')} aria-pressed={viewMode === 'study'}><Layers size={16} /> Study cards</button>
+            </div>}
+            <button type="button" onClick={() => setSelectedIds(new Set(items.map(item => item.id)))} disabled={!items.length || allSelected} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Select all</button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} disabled={!selectedCount} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Clear selection</button>
+            <button type="button" onClick={() => setShowRandomSelection(!showRandomSelection)} aria-expanded={showRandomSelection} className="workspace-button ml-auto"><Shuffle size={16} /> Random selection</button>
           </div>
-        )}
+          {showRandomSelection && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3">
+            <label htmlFor="random-question-count" className="text-sm font-semibold text-slate-700">Choose at random</label>
+            <input id="random-question-count" type="number" min={1} max={Math.max(1, items.length)} value={randomSelectionCount}
+              onChange={event => setRandomSelectionCount(Math.max(1, Math.min(items.length || 1, Number(event.target.value) || 1)))}
+              className="w-20 rounded-lg border-slate-300 text-sm" aria-label="Random question count" />
+            <span className="text-sm text-slate-600">{isStopTheFireOverview ? 'categories' : 'questions'}</span>
+            <button type="button" disabled={!items.length} className="workspace-button" onClick={() => { selectRandomItems(); setShowRandomSelection(false); }}>Apply selection</button>
+          </div>}
+          {!selectedCount && <p className="mt-3 text-sm text-slate-600">Select at least one {isStopTheFireOverview ? 'category' : 'question'} to play.</p>}
+        </section>
 
         {items.length === 0 ? (
           <div className="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
@@ -1122,7 +678,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             </p>
           </div>
         ) : (
-          <div className="mt-8">
+          <div className="mt-4">
             {isStopTheFireOverview ? (
               <StopTheFireOverview items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
             ) : viewMode === 'study' ? (
@@ -1146,7 +702,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
 
         {isPromptOpen && aiPrompt && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div
+            <div ref={promptDialogRef} role="dialog" aria-modal="true" aria-label="Generation instructions" tabIndex={-1}
               className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/75 bg-white/90 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
               style={{ maxHeight: AI_PROMPT_MODAL_MAX_HEIGHT }}
             >
@@ -1176,7 +732,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
 
         {playChoiceGame && (
           <div className="fixed inset-0 z-[170] flex items-center justify-center bg-sky-950/35 p-4 backdrop-blur-sm">
-            <div className="relative w-full max-w-lg rounded-3xl border border-white bg-gradient-to-b from-white via-sky-50/80 to-yellow-50/60 p-6 shadow-[0_24px_48px_rgba(14,116,144,0.18)]">
+            <div className="game-play-choice-dialog relative w-full max-w-lg rounded-3xl border border-white bg-gradient-to-b from-white via-sky-50/80 to-yellow-50/60 p-6 shadow-[0_24px_48px_rgba(14,116,144,0.18)]">
               <button
                 type="button"
                 onClick={() => setPlayChoiceGame(null)}

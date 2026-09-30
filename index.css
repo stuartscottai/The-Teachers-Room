@@ -431,9 +431,14 @@
 .snl-score-row.is-active {
   color: #fff2c9;
   background: rgba(139, 105, 39, .42);
-  outline: 1px solid #d2ad58;
-  box-shadow: 0 0 16px rgba(197,148,48,.22), inset 0 1px rgba(255,241,187,.12);
 }
+
+.sound-lab-play {
+  background: #079bd8;
+  color: #fff;
+  border: 1px solid #0278ac;
+}
+.sound-lab-play:hover { background: #027eb6; }
 
 .snl-score-token {
   width: 24px;

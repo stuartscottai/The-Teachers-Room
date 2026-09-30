@@ -278,7 +278,7 @@ export const Home: React.FC = () => {
       )}
 
       {/* Hero Section - Parallax Effect */}
-      <section className="relative min-h-[85vh] flex items-center justify-center bg-brand-blue overflow-hidden">
+      <section className="site-home-hero relative min-h-[85vh] flex items-center justify-center bg-brand-blue overflow-hidden">
         
         {/* Background Image Layer with Parallax */}
         <div 
@@ -296,11 +296,11 @@ export const Home: React.FC = () => {
                 className="w-full h-full object-cover opacity-20 mix-blend-overlay filter blur-[1px]"
             />
              {/* Tint Overlay to maintain theme consistency */}
-             <div className="absolute inset-0 bg-brand-blue/60" />
+             <div className="site-home-hero-tint absolute inset-0 bg-brand-blue/60" />
         </div>
 
         {/* Gradient Fade to Solid Blue at Bottom for Seamless Divider */}
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-b from-transparent to-brand-blue z-10" />
+        <div className="site-home-hero-fade absolute bottom-0 left-0 w-full h-32 bg-gradient-to-b from-transparent to-brand-blue z-10" />
 
         {/* Parallax Shapes */}
         {/* Top Left Cluster */}
@@ -411,7 +411,7 @@ export const Home: React.FC = () => {
       <section className="relative py-20 bg-white z-20">
         {/* Wave Divider (Blue hanging down) */}
         <div className="absolute top-0 left-0 w-full overflow-hidden leading-none z-20 transform -translate-y-[1px]">
-             <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-[calc(100%+1.3px)] h-[60px] text-brand-blue fill-current">
+             <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="site-home-wave relative block w-[calc(100%+1.3px)] h-[60px] text-brand-blue fill-current">
                 <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"></path>
             </svg>
         </div>
@@ -459,7 +459,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* Testimonials - Parallax Effects */}
-      <section className="py-24 bg-brand-blue text-white relative overflow-hidden">
+      <section className="site-home-testimonials py-24 bg-brand-blue text-white relative overflow-hidden">
           {/* Animated Decoration */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
                <div className="absolute -top-20 -right-20 opacity-10 text-white"

@@ -15,6 +15,199 @@ test('trivia answer flow shows feedback and keeps image loaded', async ({ page }
   expectNoBrowserErrors(errors);
 });
 
+test('enlarged trivia card keeps its answers interactive', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/test/game-smoke?mode=trivia');
+  await page.getByRole('button', { name: /^1$/ }).click();
+  const question = page.getByText('Which option is correct?', { exact: true });
+  const zoomButton = page.getByRole('button', { name: 'Enlarge question card' });
+  const restingButton = await zoomButton.boundingBox();
+  const restingCard = await zoomButton.locator('..').locator(':scope > div').first().boundingBox();
+  expect(restingButton!.x).toBeGreaterThanOrEqual(restingCard!.x);
+  expect(restingButton!.x + restingButton!.width).toBeLessThanOrEqual(restingCard!.x + restingCard!.width);
+  expect(restingButton!.y + restingButton!.height).toBeLessThanOrEqual(restingCard!.y + restingCard!.height);
+  const restingFrame = await zoomButton.locator('..').boundingBox();
+  expect(Math.abs(restingFrame!.height - restingCard!.height)).toBeLessThan(2);
+  const firstLetterHeight = () => question.evaluate(element => {
+    const text = element.firstChild;
+    if (!text) return 0;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 1);
+    return range.getBoundingClientRect().height;
+  });
+  const originalLetterHeight = await firstLetterHeight();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  const close = page.getByRole('button', { name: 'Close enlarged question card' });
+  await expect(close).toBeVisible();
+  const card = close.locator('..');
+  await expect.poll(async () => (await card.boundingBox())?.width ?? 0).toBeGreaterThan(restingFrame!.width * 1.2);
+  const box = await card.boundingBox();
+  expect(box!.width).toBeLessThan((page.viewportSize()?.width || 0) - 30);
+  const navBottom = await page.locator('nav').first().evaluate(element => element.getBoundingClientRect().bottom);
+  expect(box!.y).toBeGreaterThan(navBottom);
+  expect(box!.y + box!.height).toBeLessThan((page.viewportSize()?.height || 0) - 10);
+  await expect(page.locator('.gameplay-appearance')).toHaveClass(/game-view-zoomed/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(await page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
+  await expect.poll(firstLetterHeight).toBeGreaterThan(originalLetterHeight * 1.2);
+  await close.click();
+  await expect(page.getByRole('button', { name: 'Enlarge question card' })).toBeVisible();
+  await expect(page.locator('.gameplay-appearance')).not.toHaveClass(/game-view-camera/);
+  expect(Math.abs((await zoomButton.locator('..').boundingBox())!.height - restingFrame!.height)).toBeLessThan(2);
+  expect(await page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await page.getByRole('button', { name: /Correct/i }).first().click();
+  await expect(page.getByText(/Correct!/i).first()).toBeVisible();
+});
+
+test('phone question card has no zoom control', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'Phone layout check');
+  await page.goto('/test/game-smoke?mode=trivia');
+  await page.getByRole('button', { name: /^1$/ }).click();
+  await expect(page.getByRole('button', { name: 'Enlarge question card' })).toBeHidden();
+  await expect(page.getByRole('button', { name: /Correct/i }).first()).toBeVisible();
+});
+
+test('pub quiz question can be enlarged and its answer revealed', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.goto('/test/game-smoke?mode=pubquiz');
+  await page.getByRole('button', { name: /Round 1/i }).first().click();
+  await page.getByRole('button', { name: /^Start$/i }).click();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.getByRole('button', { name: /Reveal Answer/i }).click();
+  await expect(page.getByText('Correct', { exact: true }).first()).toBeVisible();
+});
+
+test('enlarged word wheel card still accepts a typed answer', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.goto('/test/game-smoke?mode=wordwheel');
+  await page.getByRole('button', { name: /^Start$/i }).click();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.getByPlaceholder(/Type your answer/i).fill('Apple');
+  await page.getByRole('button', { name: /^Submit$/i }).click();
+  await expect(page.getByText(/^Correct$/i).first()).toBeVisible();
+});
+
+test('enlarged millionaire question keeps answer choices usable', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.goto('/test/game-smoke?mode=millionaire');
+  await page.getByRole('button', { name: /Let's Play/i }).click();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.getByRole('button', { name: /Correct/i }).first().click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+});
+
+for (const mode of ['trivia', 'jeopardy', 'blockbeaters'] as const) {
+  test(`${mode} question card can be enlarged and closed`, async ({ page, isMobile }, testInfo) => {
+    test.skip(isMobile, 'Question zoom is only offered on larger screens');
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto(`/test/game-smoke?mode=${mode}`);
+    if (mode === 'jeopardy') await page.getByRole('button', { name: '100', exact: true }).first().click();
+    else if (mode === 'blockbeaters') await page.getByRole('button', { name: /^Tile / }).first().click();
+    else await page.getByRole('button', { name: /^1$/ }).click();
+    await page.getByRole('button', { name: 'Enlarge question card' }).click();
+    const close = page.getByRole('button', { name: 'Close enlarged question card' });
+    await expect(close).toBeVisible();
+    const zoomedCard = await close.locator('..').boundingBox();
+    const navBottom = await page.locator('nav').first().evaluate(element => element.getBoundingClientRect().bottom);
+    expect(zoomedCard!.y).toBeGreaterThanOrEqual(navBottom);
+    expect(zoomedCard!.y + zoomedCard!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+    await close.click();
+    await expect(page.getByRole('button', { name: 'Enlarge question card' })).toBeVisible();
+    {
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.getByRole('button', { name: 'Enter fullscreen', exact: true }).click();
+      await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+      const scoreboard = page.locator('.team-scoreboard-header');
+      const originalHeader = await scoreboard.boundingBox();
+      await page.getByRole('button', { name: 'Enlarge question card' }).click();
+      await expect(page.locator('.gameplay-appearance')).toHaveClass(/game-view-zoomed/);
+      await expect.poll(() => page.locator('.gameplay-appearance').evaluate(el => Math.abs(new DOMMatrix(getComputedStyle(el).transform).a - Number((el as HTMLElement).style.getPropertyValue('--game-view-scale'))))).toBeLessThan(0.001);
+      await expect.poll(async () => {
+        const header = await scoreboard.boundingBox();
+        return Math.abs(header!.y - originalHeader!.y) + Math.abs(header!.height - originalHeader!.height);
+      }).toBeGreaterThan(10);
+      const fullscreenCard = await close.locator('..').boundingBox();
+      expect(fullscreenCard!.y).toBeGreaterThanOrEqual(0);
+      expect(fullscreenCard!.y + fullscreenCard!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+      expect(await close.locator('..').evaluate(card => {
+        const rect = card.getBoundingClientRect();
+        return card.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + 5));
+      })).toBeTruthy();
+      const iconStyle = await close.evaluate(el => ({ background: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderWidth }));
+      expect(iconStyle.background).toBe('rgba(0, 0, 0, 0)');
+      expect(iconStyle.border).toBe('0px');
+      await page.screenshot({ path: testInfo.outputPath(`${mode}-fullscreen-zoom.png`) });
+      await close.click();
+      await expect(page.locator('.gameplay-appearance')).not.toHaveClass(/game-view-camera/);
+      await page.evaluate(() => document.exitFullscreen());
+    }
+  });
+}
+
+test('snakes and ladders question card enlarges without losing the answer buttons', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  test.setTimeout(120_000);
+  await page.goto('/test/game-smoke?mode=snakes&lightweight=1');
+  await startSnakesLaddersGame(page);
+  await rollSnakesLaddersDice(page);
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.getByRole('button', { name: /Correct/i }).first().click();
+  await expect(page.getByText(/^Correct$/i).first()).toBeVisible();
+});
+
+test('landing on a snake immediately slides down without asking a question', async ({ page }) => {
+  test.setTimeout(45_000);
+  await page.addInitScript(() => { Math.random = () => 0.2; });
+  await page.goto('/test/game-smoke?mode=snakes&lightweight=1&testStartPosition=49');
+  await startSnakesLaddersGame(page);
+  const board = page.locator('.snl-board-webgl');
+  await expect(board).toHaveAttribute('data-team-positions', '50,1');
+  await page.locator('.snl-dice[aria-label="Roll Dice"]').dispatchEvent('click');
+  await expect(board).toHaveAttribute('data-team-positions', '14,1', { timeout: 15_000 });
+  await expect(board).toHaveAttribute('data-game-phase', 'turn-complete', { timeout: 10_000 });
+  await expect(page.getByText(/Question for/i)).toHaveCount(0);
+});
+
+test('time bomb question card can be enlarged while playing', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.goto('/test/game-smoke?mode=timebomb');
+  await page.getByRole('button', { name: /ARM BOMB/i }).click();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await expect(page.getByText(/Which option is correct\?|Choose the matching answer\.|What is shown in the image\?|Final smoke question\?/).first()).toBeVisible();
+});
+
+test('stop the fire play card can be enlarged and closed', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  await page.goto('/test/game-smoke?mode=stopfire');
+  await page.getByRole('button', { name: 'Start Round' }).click();
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close enlarged question card' }).click();
+  await expect(page.getByRole('button', { name: 'Enlarge question card' })).toBeVisible();
+});
+
+test('darts question card can be enlarged after choosing a target', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Question zoom is only offered on larger screens');
+  test.setTimeout(60_000);
+  await page.goto('/test/game-smoke?mode=darts&lightweight=1');
+  await expect(page.locator('.cursor-crosshair')).toBeVisible({ timeout: 20_000 });
+  const board = page.locator('canvas').first();
+  const box = await board.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.getByRole('button', { name: 'Enlarge question card' }).click();
+  await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+});
+
 test('word wheel opens a clue, renders its image, and accepts a correct answer', async ({ page }) => {
   const errors = installErrorGuards(page);
 

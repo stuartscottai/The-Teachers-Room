@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Ban, Building2, CheckCircle2, ChevronDown, Clock3, Copy, Gamepad2, KeyRound, Mail, Minus, Plus, RefreshCw, Shield, Trash2, Users, XCircle } from 'lucide-react';
+import { Ban, Building2, CheckCircle2, ChevronDown, Clock3, Copy, Gamepad2, HardDrive, KeyRound, Mail, Minus, Plus, RefreshCw, Search, Shield, Trash2, Users, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -27,6 +27,9 @@ import {
 } from '../services/accountAccess';
 import { SchoolStorageManager } from '../components/school/SchoolStorageManager';
 import { resolveSchoolLogoForSchool } from '../utils/schoolLogoStorage';
+import { copyText } from '../utils/clipboard';
+import '../components/games/game-workspace.css';
+import './school-admin.css';
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
@@ -44,6 +47,8 @@ export const SchoolAdmin: React.FC = () => {
   const [changingSpots, setChangingSpots] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState('');
+  const [messageEmail, setMessageEmail] = useState<string | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
   const [sendingInvite, setSendingInvite] = useState(false);
   const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
   const [schoolCode, setSchoolCode] = useState<string | null>(null);
@@ -56,12 +61,22 @@ export const SchoolAdmin: React.FC = () => {
   const [isLoadingSchoolLogo, setIsLoadingSchoolLogo] = useState(false);
   const schoolLogoUrlRef = useRef<string | null>(null);
   const [openActionsForUserId, setOpenActionsForUserId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'teachers' | 'access' | 'files'>('teachers');
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [teacherStatus, setTeacherStatus] = useState('all');
 
   const schoolId = user?.schoolAccess?.schoolId || '';
   const schoolName = user?.schoolAccess?.schoolName || 'School';
   const canManageSchool = isSchoolAdmin(user);
 
   const pendingInvites = useMemo(() => invites.filter((invite) => invite.status === 'pending'), [invites]);
+  const visibleTeachers = useMemo(() => {
+    const query = teacherSearch.trim().toLocaleLowerCase();
+    return teachers.filter(teacher =>
+      (teacherStatus === 'all' || teacher.status === teacherStatus) &&
+      (!query || `${teacher.fullName} ${teacher.email || ''}`.toLocaleLowerCase().includes(query))
+    );
+  }, [teachers, teacherSearch, teacherStatus]);
   const maxRemovableSpots = useMemo(() => {
     if (!teacherSpots) return 0;
     return Math.max(0, teacherSpots.teacherSpotLimit - teacherSpots.teacherCount);
@@ -158,11 +173,10 @@ export const SchoolAdmin: React.FC = () => {
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(schoolCode);
+    if (await copyText(schoolCode)) {
       showSuccess('School code copied.');
-    } catch {
-      showError('Could not copy school code.');
+    } else {
+      showError('Select the school code and copy it manually. Your browser has blocked automatic copying.');
     }
   };
 
@@ -220,7 +234,7 @@ export const SchoolAdmin: React.FC = () => {
       return;
     }
     if (teacherSpots && teacherSpots.spotsRemaining <= 0) {
-      showError('No available teacher spots. Add spots before sending more invites.');
+      showError('No available teacher spots. Add spots before saving more invites.');
       return;
     }
 
@@ -233,13 +247,14 @@ export const SchoolAdmin: React.FC = () => {
     setSendingInvite(false);
 
     if (error) {
-      showError(error.message || 'Could not send invite.');
+      showError(error.message || 'Could not save invite.');
       return;
     }
 
     setInviteEmail('');
+    setMessageEmail(email);
     if (emailError) showError(emailError.message || 'Invite saved, but a warning occurred.');
-    else showSuccess('Invite saved. Copy invite message and send it manually.');
+    else showSuccess('Invite saved. Your message is ready to copy and send. No email has been sent automatically.');
     await loadAdminData({ keepFeedback: true });
   };
 
@@ -250,6 +265,7 @@ export const SchoolAdmin: React.FC = () => {
       return;
     }
     showSuccess('Invite revoked.');
+    if (invites.find(invite => invite.id === inviteId)?.email === messageEmail) setMessageEmail(null);
     await loadAdminData({ keepFeedback: true });
   };
 
@@ -410,32 +426,16 @@ export const SchoolAdmin: React.FC = () => {
   };
 
   const renderUsageBadges = (teacher: SchoolTeacherSummary) => (
-    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-      <span
-        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-        title="This is the total number of games created by the user."
-      >
-        games created: <span className="font-bold text-slate-800">{teacher.totalGamesCreated}</span>
-      </span>
-      <span
-        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-        title="This is the total number of times the user's created games have been played."
-      >
-        Created Playcount: <span className="font-bold text-slate-800">{teacher.totalGamePlays}</span>
-      </span>
-      <span
-        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-        title="This is the total number of game sessions started by this user."
-      >
-        Games played: <span className="font-bold text-slate-800">{teacher.totalPlayEvents}</span>
-      </span>
-      <span
-        className="rounded-full bg-slate-100 px-2 py-0.5 cursor-help"
-        title="This is the total number of successful AI generations by this user."
-      >
-        AI Gens: <span className="font-bold text-slate-800">{teacher.totalAiGenerations}</span>
-      </span>
-    </div>
+    <dl className="school-usage">
+      {[
+        ['Games created', teacher.totalGamesCreated, 'Total games created by this teacher.'],
+        ['Plays received', teacher.totalGamePlays, 'Times other people have played this teacher’s games.'],
+        ['Games played', teacher.totalPlayEvents, 'Game sessions started by this teacher.'],
+        ['AI generations', teacher.totalAiGenerations, 'Successful AI generations by this teacher.']
+      ].map(([label, value, description]) => (
+        <div key={label} title={String(description)}><dt>{label}</dt><dd>{value}</dd></div>
+      ))}
+    </dl>
   );
 
   const renderTeacherActions = (teacher: SchoolTeacherSummary) => (
@@ -446,7 +446,7 @@ export const SchoolAdmin: React.FC = () => {
           closeActionsMenu();
           handleViewTeacherGames(teacher);
         }}
-        className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
+        className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50"
       >
         <Gamepad2 size={13} className="mr-1.5" />
         View Games
@@ -534,24 +534,37 @@ export const SchoolAdmin: React.FC = () => {
       setOpenActionsForUserId(null);
     };
 
+    const handleEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') closeActionsMenu(); };
     document.addEventListener('click', handleDocumentClick);
+    document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('click', handleDocumentClick);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [openActionsForUserId]);
 
-  const copyInviteMessage = async (invite: SchoolInviteSummary) => {
-    const message = [
-      `You have been invited to join ${schoolName}'s affiliate school account at theteachersroom.app`,
-      `Sign up with this email (recommended): ${invite.email}`,
-      schoolCode ? `School code: ${schoolCode}` : 'Ask your school admin for the school code.',
-      'After sign up, your account will be pending until approved by a school admin.'
-    ].join('\n');
-    try {
-      await navigator.clipboard.writeText(message);
-      showSuccess('Invite message copied.');
-    } catch {
-      showError('Could not copy invite text.');
+  const inviteMessage = messageEmail ? [
+    `Hello,`,
+    '',
+    `You’re invited to join ${schoolName} on The Teachers’ Room, where we can create classroom games and share teaching resources.`,
+    '',
+    '1. Visit https://theteachersroom.app and create an account. If you already have one, sign in.',
+    `2. Use this email address: ${messageEmail}`,
+    schoolCode ? `3. Enter our school code during sign up, or in My Profile: ${schoolCode}` : '3. Ask your school admin for the school code, then enter it in My Profile.',
+    '4. Your school access will be pending until a school admin approves your request.',
+    '',
+    'Once approved, you can use our school’s shared resources and start creating games.',
+    '',
+    `See you there!`,
+    schoolName
+  ].join('\n') : '';
+
+  const copyInviteMessage = async () => {
+    if (await copyText(inviteMessage)) showSuccess('Message copied. Paste it into your email or messaging app to send it.');
+    else {
+      messageRef.current?.focus();
+      messageRef.current?.select();
+      showError('Your browser blocked automatic copying. The message is selected below; copy it manually.');
     }
   };
 
@@ -596,84 +609,66 @@ export const SchoolAdmin: React.FC = () => {
     );
   }
 
+  const tabs = [
+    { id: 'teachers' as const, label: 'Teachers', icon: Users },
+    { id: 'access' as const, label: 'Access & invites', icon: KeyRound },
+    { id: 'files' as const, label: 'Shared files', icon: HardDrive }
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wide font-bold text-brand-blue bg-sky-50 px-3 py-1 rounded-full mb-3">
-                <Building2 size={14} /> School Admin
-              </div>
-              <h1 className="font-display text-3xl font-bold text-slate-800">{schoolName}</h1>
-              <p className="text-slate-500 text-sm mt-1">Manage teacher spots, school code, approvals, invites, and your teacher list.</p>
+    <div className="school-admin game-workspace min-h-screen">
+      <div className="workspace-shell school-admin-shell">
+        <header className="school-admin-header">
+          <div className="school-identity">
+            <div className="school-logo" aria-busy={isLoadingSchoolLogo}>
+              {schoolLogoUrl ? <img src={schoolLogoUrl} alt={`${schoolName} logo`} /> : <Building2 size={28} aria-hidden="true" />}
             </div>
-            <div className="flex items-center gap-4">
-              {schoolLogoUrl ? (
-                <img
-                  src={schoolLogoUrl}
-                  alt={`${schoolName} logo`}
-                  className="h-16 w-auto max-w-[180px] object-contain"
-                />
-              ) : (
-                <div className="text-slate-400" aria-hidden={isLoadingSchoolLogo}>
-                  <Building2 size={30} />
-                </div>
-              )}
+            <div className="min-w-0">
+              <p className="workspace-eyebrow">School administration</p>
+              <h1 className="workspace-heading">{schoolName}</h1>
+              <p className="school-muted">Manage your teachers, access and shared resources.</p>
             </div>
           </div>
+          <button type="button" className="workspace-button" disabled={loadingData} onClick={() => void loadAdminData()}>
+            <RefreshCw size={16} className={loadingData ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </header>
+
+        <dl className="school-overview" aria-label="School overview" aria-busy={loadingData}>
+          <div><dt>Active teachers</dt><dd>{teacherSpots?.teacherCount ?? '—'}</dd></div>
+          <div><dt>Available spots</dt><dd>{teacherSpots?.spotsRemaining ?? '—'} <span>of {teacherSpots?.teacherSpotLimit ?? '—'}</span></dd></div>
+          <div><dt>Join requests</dt><dd>{loadingData && !teachers.length ? '—' : joinRequests.length}</dd></div>
+          <div><dt>Pending invites</dt><dd>{loadingData && !invites.length ? '—' : pendingInvites.length}</dd></div>
+        </dl>
+
+        {feedback && <div role={feedback.type === 'error' ? 'alert' : 'status'} className={`school-feedback is-${feedback.type}`}>{feedback.text}</div>}
+
+        <div className="school-tabs" role="tablist" aria-label="School administration sections">
+          {tabs.map(({ id, label, icon: Icon }, index) => (
+            <button key={id} id={`school-tab-${id}`} role="tab" aria-selected={activeTab === id} aria-controls={`school-panel-${id}`} tabIndex={activeTab === id ? 0 : -1}
+              onClick={() => { setActiveTab(id); closeActionsMenu(); }}
+              onKeyDown={event => {
+                const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
+                if (next < 0) return;
+                event.preventDefault();
+                setActiveTab(tabs[next].id);
+                closeActionsMenu();
+                document.getElementById(`school-tab-${tabs[next].id}`)?.focus();
+              }}>
+              <Icon size={17} aria-hidden="true" />{label}
+              {id === 'teachers' && joinRequests.length > 0 && <span className="school-tab-count">{joinRequests.length}</span>}
+            </button>
+          ))}
         </div>
 
-        {feedback && (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm ${
-              feedback.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-red-50 border-red-200 text-red-700'
-            }`}
-          >
-            {feedback.text}
-          </div>
-        )}
-
-        <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <KeyRound size={18} /> School Join Code
+        <div id="school-panel-teachers" role="tabpanel" aria-labelledby="school-tab-teachers" hidden={activeTab !== 'teachers'} className="school-tab-panel">
+        <section className="school-panel">
+          <h2 className="school-section-heading">
+            <Clock3 size={18} /> Join requests
           </h2>
-          <p className="text-sm text-slate-500 mb-3">
-            Teachers can enter this code during sign up. Their access stays pending until you approve it.
-          </p>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 mb-3">
-            <p className="text-xs uppercase tracking-wide font-bold text-slate-500 mb-1">Current Code</p>
-            <p className="font-mono text-xl font-bold text-slate-800 tracking-wide">{schoolCode || 'Not set'}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void handleCopySchoolCode()}
-              className="inline-flex items-center px-3 py-2 rounded-lg bg-brand-blue/10 text-brand-blue text-sm font-bold hover:bg-brand-blue/20"
-            >
-              <Copy size={14} className="mr-2" /> Copy Code
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleRegenerateSchoolCode()}
-              disabled={regeneratingCode}
-              className="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60"
-            >
-              <RefreshCw size={14} className={`mr-2 ${regeneratingCode ? 'animate-spin' : ''}`} />
-              {regeneratingCode ? 'Regenerating...' : 'Regenerate Code'}
-            </button>
-          </div>
-        </section>
-
-        <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Clock3 size={18} /> Pending Teacher Approvals
-          </h2>
-          <div className="space-y-3">
+          <div className="school-requests">
             {joinRequests.map((request) => (
-              <div key={request.userId} className="rounded-xl border border-slate-200 px-4 py-3">
+              <div key={request.userId} className="school-request">
                 <div className="font-semibold text-slate-800">{request.fullName}</div>
                 <div className="text-xs text-slate-500" title={request.userId}>
                   {request.email || 'Email unavailable'}
@@ -681,7 +676,7 @@ export const SchoolAdmin: React.FC = () => {
                 <div className="text-xs text-slate-500 mb-3">
                   Requested: {new Date(request.requestedAt).toLocaleDateString()}
                 </div>
-                <div className="flex gap-2">
+                <div className="school-request-actions">
                   <button
                     type="button"
                     onClick={() => void handleApproveJoinRequest(request)}
@@ -706,126 +701,25 @@ export const SchoolAdmin: React.FC = () => {
             {!joinRequests.length && <p className="text-sm text-slate-500">No pending join requests.</p>}
           </div>
         </section>
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Users size={18} /> Teacher Spots
-            </h2>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Active</p>
-                <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherCount ?? 0}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Total Spots</p>
-                <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherSpotLimit ?? 0}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Available</p>
-                <p className="text-lg font-bold text-slate-800">{teacherSpots?.spotsRemaining ?? 0}</p>
-              </div>
+        <section className="school-panel">
+          <div className="school-directory-heading">
+            <div>
+              <h2 className="school-section-heading"><Users size={18} /> Teacher directory</h2>
+              <p className="school-muted">Activity and access for your school’s teachers.</p>
             </div>
-
-            <div className="grid sm:grid-cols-[140px_1fr_1fr] gap-3 items-center">
-              <input
-                type="number"
-                min={1}
-                value={spotChangeCount}
-                onChange={(event) => setSpotChangeCount(Math.max(1, Number(event.target.value) || 1))}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-blue"
-              />
-              <button
-                type="button"
-                disabled={changingSpots || !teacherSpots}
-                onClick={() => void handleAdjustTeacherSpots('add')}
-                className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
-              >
-                <Plus size={14} className="inline mr-1" /> Add Spots
-              </button>
-              <button
-                type="button"
-                disabled={changingSpots || !teacherSpots || maxRemovableSpots < 1}
-                onClick={() => void handleAdjustTeacherSpots('remove')}
-                className="rounded-lg border border-slate-300 text-slate-700 font-bold px-4 py-2 hover:bg-slate-50 disabled:opacity-60"
-              >
-                <Minus size={14} className="inline mr-1" /> Remove Spots
-              </button>
+            <div className="school-directory-filters">
+              <label className="school-search">
+                <Search size={16} aria-hidden="true" />
+                <input aria-label="Search teachers" placeholder="Search name or email" value={teacherSearch} onChange={event => setTeacherSearch(event.target.value)} />
+              </label>
+              <select aria-label="Filter teachers by status" value={teacherStatus} onChange={event => setTeacherStatus(event.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="pending">Pending</option>
+              </select>
             </div>
-            <p className="text-xs text-slate-500 mt-3">
-              You can remove up to {maxRemovableSpots} spot{maxRemovableSpots === 1 ? '' : 's'} without affecting active teachers.
-            </p>
-          </section>
-
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Mail size={18} /> Teacher Invites (Manual Send)
-            </h2>
-            <p className="text-sm text-slate-500 mb-3">
-              Save invite records, then copy the message and send it via your own email.
-            </p>
-
-            <form onSubmit={handleInviteTeacher} className="grid gap-3 mb-5">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="teacher@school.edu"
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-blue"
-              />
-              <button
-                type="submit"
-                disabled={sendingInvite}
-                className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
-              >
-                Save Invite
-              </button>
-            </form>
-
-            <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-              {pendingInvites.map((invite) => (
-                <div key={invite.id} className="rounded-xl border border-slate-200 px-4 py-3">
-                  <div className="text-sm font-semibold text-slate-800">{invite.email}</div>
-                  <div className="text-xs text-slate-500 mb-3">
-                    Expires: {new Date(invite.expiresAt).toLocaleDateString()}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleResendInvite(invite)}
-                      disabled={resendingInviteId === invite.id}
-                      className="text-xs font-bold px-3 py-1.5 rounded bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20 disabled:opacity-60"
-                    >
-                      {resendingInviteId === invite.id ? 'Updating...' : 'Extend 7 Days'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void copyInviteMessage(invite)}
-                      className="text-xs font-bold px-3 py-1.5 rounded bg-sky-50 text-sky-700 hover:bg-sky-100"
-                    >
-                      Copy Invite Message
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleRevokeInvite(invite.id)}
-                      className="text-xs font-bold px-3 py-1.5 rounded bg-red-50 text-red-700 hover:bg-red-100"
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {!pendingInvites.length && <p className="text-sm text-slate-500">No pending invites.</p>}
-            </div>
-          </section>
-        </div>
-
-        <SchoolStorageManager schoolId={schoolId} />
-
-        <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-          <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <Users size={18} /> Teachers
-          </h2>
+          </div>
 
           {loadingData ? (
             <div className="flex items-center text-slate-500 text-sm">
@@ -833,9 +727,9 @@ export const SchoolAdmin: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="space-y-3 md:hidden">
-                {teachers.map((teacher) => (
-                  <article key={teacher.userId} className="rounded-xl border border-slate-200 p-4">
+              <div className="school-teacher-mobile md:hidden">
+                {visibleTeachers.map((teacher) => (
+                  <article key={teacher.userId} className="school-teacher-card">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-semibold text-slate-800">{teacher.fullName}</div>
@@ -867,6 +761,8 @@ export const SchoolAdmin: React.FC = () => {
                             event.stopPropagation();
                             toggleActionsMenu(teacher.userId);
                           }}
+                          aria-expanded={openActionsForUserId === teacher.userId}
+                          aria-label={`Actions for ${teacher.fullName}`}
                           className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                         >
                           Actions
@@ -879,7 +775,7 @@ export const SchoolAdmin: React.FC = () => {
                         </button>
                         {openActionsForUserId === teacher.userId && (
                           <div
-                            className="absolute right-0 top-full mt-1 z-20 w-52 max-w-[calc(100vw-6rem)] rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 space-y-1"
+                            className="school-actions-menu"
                             onClick={(event) => event.stopPropagation()}
                           >
                             {renderTeacherActions(teacher)}
@@ -890,24 +786,24 @@ export const SchoolAdmin: React.FC = () => {
 
                     <div className="mt-3">{renderUsageBadges(teacher)}</div>
                     <div className="text-[11px] text-slate-500 mt-1">
-                      Last Seen: {formatDateTime(teacher.lastActivityAt)}
+                      Last active: {formatDateTime(teacher.lastActivityAt)}
                     </div>
                   </article>
                 ))}
-                {!teachers.length && <p className="text-sm text-slate-500 py-1">No teachers assigned yet.</p>}
+                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-1">{teachers.length ? 'No teachers match your search.' : 'No teachers assigned yet.'}</p>}
               </div>
 
               <div className="hidden md:block overflow-visible">
-                <table className="w-full text-sm">
+                <table className="school-teacher-table">
                   <thead>
                     <tr className="text-left text-slate-500">
                       <th className="py-2 pr-4">Teacher</th>
-                      <th className="py-2 pr-4">Usage Activity</th>
+                      <th className="py-2 pr-4">Activity</th>
                       <th className="py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((teacher) => (
+                    {visibleTeachers.map((teacher) => (
                       <tr key={teacher.userId} className="border-t border-slate-100">
                         <td className="py-3 pr-4">
                           <div className="font-semibold text-slate-800">{teacher.fullName}</div>
@@ -935,7 +831,7 @@ export const SchoolAdmin: React.FC = () => {
                         <td className="py-3 pr-4">
                           {renderUsageBadges(teacher)}
                           <div className="text-[11px] text-slate-500 mt-1">
-                            Last Seen: {formatDateTime(teacher.lastActivityAt)}
+                            Last active: {formatDateTime(teacher.lastActivityAt)}
                           </div>
                         </td>
                         <td className="py-3">
@@ -946,6 +842,8 @@ export const SchoolAdmin: React.FC = () => {
                                 event.stopPropagation();
                                 toggleActionsMenu(teacher.userId);
                               }}
+                              aria-expanded={openActionsForUserId === teacher.userId}
+                              aria-label={`Actions for ${teacher.fullName}`}
                               className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                             >
                               Actions
@@ -953,7 +851,7 @@ export const SchoolAdmin: React.FC = () => {
                             </button>
                             {openActionsForUserId === teacher.userId && (
                               <div
-                                className="absolute right-0 top-full mt-1 z-20 w-52 rounded-xl border border-slate-200 bg-white shadow-lg p-1.5 space-y-1"
+                                className="school-actions-menu"
                                 onClick={(event) => event.stopPropagation()}
                               >
                                 {renderTeacherActions(teacher)}
@@ -965,11 +863,173 @@ export const SchoolAdmin: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-                {!teachers.length && <p className="text-sm text-slate-500 py-3">No teachers assigned yet.</p>}
+                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-3">{teachers.length ? 'No teachers match your search.' : 'No teachers assigned yet.'}</p>}
               </div>
             </>
           )}
         </section>
+        </div>
+        <div id="school-panel-access" role="tabpanel" aria-labelledby="school-tab-access" hidden={activeTab !== 'access'} className="school-tab-panel school-access-grid">
+        <section className="school-panel">
+            <h2 className="school-section-heading">
+              <Users size={18} /> Teacher spots
+            </h2>
+            <div className="school-spot-stats">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Active</p>
+                <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherCount ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Total Spots</p>
+                <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherSpotLimit ?? 0}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Available</p>
+                <p className="text-lg font-bold text-slate-800">{teacherSpots?.spotsRemaining ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="school-spot-controls">
+              <input
+                id="school-spot-count"
+                aria-label="Number of teacher spots to add or remove"
+                type="number"
+                min={1}
+                value={spotChangeCount}
+                onChange={(event) => setSpotChangeCount(Math.max(1, Number(event.target.value) || 1))}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+              <button
+                type="button"
+                disabled={changingSpots || !teacherSpots}
+                onClick={() => void handleAdjustTeacherSpots('add')}
+                className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
+              >
+                <Plus size={14} className="inline mr-1" /> Add Spots
+              </button>
+              <button
+                type="button"
+                disabled={changingSpots || !teacherSpots || maxRemovableSpots < 1}
+                onClick={() => void handleAdjustTeacherSpots('remove')}
+                className="rounded-lg border border-slate-300 text-slate-700 font-bold px-4 py-2 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <Minus size={14} className="inline mr-1" /> Remove Spots
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-3">
+              You can remove up to {maxRemovableSpots} spot{maxRemovableSpots === 1 ? '' : 's'} without affecting active teachers.
+            </p>
+          </section>
+        <section className="school-panel">
+          <h2 className="school-section-heading">
+            <KeyRound size={18} /> School join code
+          </h2>
+          <p className="text-sm text-slate-500 mb-3">
+            Teachers can enter this code during sign up. Their access stays pending until you approve it.
+          </p>
+          <div className="school-join-code">
+            <p className="text-xs uppercase tracking-wide font-bold text-slate-500 mb-1">Current code</p>
+            <p className="font-mono text-xl font-bold text-slate-800 tracking-wide">{schoolCode || 'Not set'}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void handleCopySchoolCode()}
+              className="inline-flex items-center px-3 py-2 rounded-lg bg-brand-blue/10 text-brand-blue text-sm font-bold hover:bg-brand-blue/20"
+            >
+              <Copy size={14} className="mr-2" /> Copy Code
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleRegenerateSchoolCode()}
+              disabled={regeneratingCode}
+              className="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={`mr-2 ${regeneratingCode ? 'animate-spin' : ''}`} />
+              {regeneratingCode ? 'Regenerating...' : 'Regenerate Code'}
+            </button>
+          </div>
+        </section>
+        <section className="school-panel">
+            <h2 className="school-section-heading">
+              <Mail size={18} /> Teacher invites
+            </h2>
+            <p className="text-sm text-slate-500 mb-3">
+              Save a teacher’s invite, then copy the message into your email or messaging app. No email is sent automatically.
+            </p>
+
+            <form onSubmit={handleInviteTeacher} className="school-invite-form">
+              <label htmlFor="school-invite-email" className="sr-only">Teacher email address</label>
+              <input
+                id="school-invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="teacher@school.edu"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+              <button
+                type="submit"
+                disabled={sendingInvite}
+                className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
+              >
+                Save Invite
+              </button>
+            </form>
+
+            {messageEmail && (
+              <section className="school-invite-message" aria-label="Teacher invitation message">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <h3 className="text-sm font-semibold">Message for {messageEmail}</h3>
+                  <button type="button" onClick={() => setMessageEmail(null)} className="text-sm text-slate-500">Close message</button>
+                </div>
+                <textarea ref={messageRef} aria-label="Invitation message" value={inviteMessage} readOnly rows={10} />
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button type="button" onClick={() => void copyInviteMessage()} className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white"><Copy size={15} /> Copy message</button>
+                </div>
+              </section>
+            )}
+
+            <div className="school-invite-list">
+              {pendingInvites.map((invite) => (
+                <div key={invite.id} className="rounded-xl border border-slate-200 px-4 py-3">
+                  <div className="text-sm font-semibold text-slate-800">{invite.email}</div>
+                  <div className="text-xs text-slate-500 mb-3">
+                    Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleResendInvite(invite)}
+                      disabled={resendingInviteId === invite.id}
+                      className="text-xs font-bold px-3 py-1.5 rounded bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20 disabled:opacity-60"
+                    >
+                      {resendingInviteId === invite.id ? 'Updating...' : 'Extend 7 Days'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMessageEmail(invite.email)}
+                      className="text-xs font-bold px-3 py-1.5 rounded bg-sky-50 text-sky-700 hover:bg-sky-100"
+                    >
+                      View invite message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleRevokeInvite(invite.id)}
+                      className="text-xs font-bold px-3 py-1.5 rounded bg-red-50 text-red-700 hover:bg-red-100"
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!pendingInvites.length && <p className="text-sm text-slate-500">No pending invites.</p>}
+            </div>
+          </section>
+        </div>
+        <div id="school-panel-files" role="tabpanel" aria-labelledby="school-tab-files" hidden={activeTab !== 'files'} className="school-tab-panel">
+          <SchoolStorageManager schoolId={schoolId} />
+        </div>
       </div>
     </div>
   );

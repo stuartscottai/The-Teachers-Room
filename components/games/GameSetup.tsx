@@ -1,7 +1,8 @@
+import { useWorkspaceDialog } from './GameWorkspace';
 
 import React, { useState, useEffect } from 'react';
 import { BonusCardType, GeneratedGame, GameRunOptions, GameType, SnakesLaddersBonusType } from '../../types';
-import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, List, Hexagon } from 'lucide-react';
+import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, Hexagon } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
 interface GameSetupProps {
@@ -58,9 +59,11 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     blockBeatersBoardSize: game.config.blockBeatersBoardSize || 'small',
     blockBeatersPoints: 10,
     blockBeatersSteals: true,
+    blockBeatersStealLimit: 3,
   });
 
   const [showSoundLab, setShowSoundLab] = useState(false);
+  const soundDialogRef = useWorkspaceDialog(showSoundLab, () => setShowSoundLab(false));
   const blockBeatersQuestionCount = game.questions?.length || 0;
   const blockBeatersSinglePlayer = game.config.type === GameType.BLOCK_BEATERS && (options.players || 1) <= 1;
   const getBlockBeatersRequiredQuestions = (boardSize: 'small' | 'medium' | 'large') => {
@@ -114,17 +117,17 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     if (game.config.type === GameType.TRIVIA && game.questions) {
         const totalAvailable = game.questions.length;
         const validOptions: number[] = [];
-        
+
         const maxValid = Math.floor(totalAvailable / options.players) * options.players;
-        
+
         for (let i = maxValid; i >= options.players; i -= options.players) {
             if (i >= 4) {
                  validOptions.unshift(i);
             }
         }
-        
+
         setValidQuestionCounts(validOptions);
-        
+
         if (validOptions.length > 0) {
             setOptions(prev => ({ ...prev, questionLimit: validOptions[validOptions.length - 1] }));
         }
@@ -178,51 +181,46 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
       return { ...prev, snakesLaddersBonusOptions: next.length ? next : current };
     });
   };
-  const setupCardClass = 'rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
-  const setupLabelClass = 'mb-3 flex items-center text-sm font-black uppercase tracking-wide text-slate-600';
+  const setupCardClass = 'workspace-setup-card';
+  const hasExtraRules = [GameType.DARTS, GameType.TRIVIA, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type);
+  const hasBonusOptions = ![GameType.PUB_QUIZ, GameType.DARTS, GameType.TIME_BOMB, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL].includes(game.config.type);
+  const setupLabelClass = 'mb-2 flex items-center text-sm font-semibold text-slate-700';
+
+  // Derive the recap from the same values passed to Start Game, including
+  // questions already selected in Preview and this screen's Trivia limit.
+  const groupedQuestions = game.config.type === GameType.JEOPARDY
+    ? game.jeopardyBoard : game.config.type === GameType.PUB_QUIZ ? game.pubQuizRounds : undefined;
+  const availableQuestionCount = groupedQuestions?.length
+    ? groupedQuestions.reduce((total, group) => total + group.questions.length, 0)
+    : game.questions?.length || 0;
+  const selectedQuestionCount = game.config.type === GameType.TRIVIA
+    ? validQuestionCounts.includes(options.questionLimit || 0) ? options.questionLimit! : 0
+    : availableQuestionCount;
+  const categoryCount = (game.stopTheFireCategories || []).filter(category => category.trim()).length
+    || (game.stopTheFireRounds || []).reduce((total, round) => total + round.categories.filter(category => category.trim()).length, 0);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-5 flex items-center justify-between gap-3">
-            <button 
-              onClick={onBack} 
-            className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
-            >
-            <ArrowLeft size={16} className="mr-2" /> {backLabel}
-            </button>
-              <button 
-                onClick={() => setOptions({ ...options, muted: !options.muted })}
-            className={`inline-flex items-center rounded-xl px-4 py-2 text-sm font-black shadow-sm transition-colors ${options.muted ? 'bg-white text-slate-400 border border-slate-200' : 'bg-sky-50 text-brand-blue border border-sky-100'}`}
-                title="Toggle Sound"
-              >
-            {options.muted ? <VolumeX size={18} className="mr-2" /> : <Volume2 size={18} className="mr-2" />}
-            {options.muted ? 'Sound Off' : 'Sound On'}
-              </button>
+    <div className="game-workspace workspace-setup min-h-screen">
+      <div className="workspace-shell">
+        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {backLabel}</button>
+        <header className="workspace-setup-header">
+          <div className="min-w-0">
+            <p className="workspace-eyebrow mb-2">Ready to play <span className="px-1 text-slate-300">/</span> {game.config.type}</p>
+            <h1 className="workspace-heading">{game.title}</h1>
+            <p className="mt-2 text-sm text-slate-600">{game.config.topic || 'Choose your teams and game settings.'}</p>
           </div>
-
-        <div className="mb-6 rounded-3xl bg-brand-blue p-6 text-white shadow-xl shadow-sky-100">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
-            <div className="min-w-0">
-              <p className="mb-2 text-sm font-black uppercase tracking-wide text-sky-100">{game.config.type}</p>
-              <h1 className="font-display text-4xl font-black leading-tight sm:text-5xl">{game.title}</h1>
-              <p className="mt-4 max-w-3xl text-base font-semibold text-sky-50">
-                Topic: {game.config.topic || 'General Knowledge'}
-              </p>
-            </div>
-            <button 
-              onClick={() => setShowSoundLab(true)}
-              className="inline-flex h-14 items-center justify-center rounded-2xl bg-white/16 px-5 font-black text-white ring-1 ring-white/20 transition-colors hover:bg-white/24"
-            >
-              <Settings2 size={18} className="mr-2" /> Configure Sounds
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button type="button" onClick={() => setOptions({ ...options, muted: !options.muted })} className="workspace-button" aria-pressed={!options.muted} title="Toggle Sound">
+              {options.muted ? <VolumeX size={18} /> : <Volume2 size={18} />}{options.muted ? 'Sound off' : 'Sound on'}
             </button>
+            <button type="button" onClick={() => setShowSoundLab(true)} className="workspace-button"><Settings2 size={18} /> Configure Sounds</button>
           </div>
-        </div>
+        </header>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="workspace-setup-grid">
           <section className={setupCardClass}>
-            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Teams</h2>
-            <div className="space-y-6">
+            <h2 className="workspace-section-title">Teams</h2>
+            <div className="space-y-4">
               <div>
                 <label className={setupLabelClass}>
                     <Users size={16} className="mr-2 text-brand-blue" /> Players / Teams
@@ -232,10 +230,11 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                       <button
                         key={num}
                         onClick={() => setOptions({ ...options, players: num })}
-                      className={`h-12 rounded-xl font-black transition-all
-                          ${options.players === num 
-                          ? 'bg-brand-blue text-white shadow-md shadow-sky-100' 
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      aria-pressed={options.players === num}
+                      className={`h-11 rounded-lg border font-bold transition-colors
+                          ${options.players === num
+                          ? 'bg-sky-50 text-sky-800 border-sky-600'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                       >
                         {num}
                       </button>
@@ -246,15 +245,15 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 <label className={setupLabelClass}>
                         <Edit3 size={16} className="mr-2 text-brand-blue" /> Names
                     </label>
-                <div className="grid max-h-[245px] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {options.teamNames?.map((name, idx) => (
-                    <div key={idx} className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div key={idx} className="workspace-team-name">
                       <span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-400">{idx + 1}</span>
-                                <input 
-                                    type="text" 
-                                    value={name}
+                                <input
+                                    type="text"
+                                    value={name} aria-label={`Team ${idx + 1} name`}
                                     onChange={(e) => handleTeamNameChange(idx, e.target.value)}
-                        className="min-w-0 flex-1 bg-transparent text-sm font-bold text-slate-800 outline-none"
+                        className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-semibold text-slate-800 outline-none focus:ring-0"
                                 />
                             </div>
                         ))}
@@ -264,21 +263,21 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
           </section>
 
           <section className={setupCardClass}>
-            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Game Rules</h2>
-            <div className="grid gap-5">
-                
+            <h2 className="workspace-section-title">Game rules</h2>
+            <div className="grid gap-4">
+
                 {/* CONFIGURATION OPTIONS BASED ON GAME TYPE */}
-                
+
                 {game.config.type === GameType.TIME_BOMB ? (
                     <>
                         <div>
                             <label className={setupLabelClass}>
                                 <Zap size={16} className="mr-2 text-brand-blue" /> Initial Bomb Time
                             </label>
-                            <select 
-                                value={options.bombDuration}
+                            <select
+                                aria-label="Initial bomb time" value={options.bombDuration}
                                 onChange={(e) => setOptions({ ...options, bombDuration: Number(e.target.value) })}
-                                className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold outline-none focus:ring-2 focus:ring-brand-blue"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-blue"
                             >
                                 <option value={30}>30 Seconds (Blitz)</option>
                                 <option value={45}>45 Seconds (Fast)</option>
@@ -295,10 +294,10 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                 {[1, 2, 3, 5].map(num => (
                                     <button
                                         key={num}
-                                        onClick={() => setOptions({ ...options, teamLives: num })}
+                                        aria-pressed={options.teamLives === num} onClick={() => setOptions({ ...options, teamLives: num })}
                                         className={`rounded-xl border py-3 font-bold transition-all
-                                        ${options.teamLives === num 
-                                            ? 'bg-red-100 text-red-600 border-red-300' 
+                                        ${options.teamLives === num
+                                            ? 'bg-red-100 text-red-600 border-red-300'
                                             : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                                     >
                                         {num}
@@ -312,41 +311,41 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         <label className={setupLabelClass}>
                             <Clock size={16} className="mr-2 text-brand-blue" /> Answer Timer
                         </label>
-                        <select 
-                            value={options.timerSeconds}
+                        <select
+                            aria-label="Answer timer" value={options.timerSeconds}
                             onChange={(e) => setOptions({ ...options, timerSeconds: Number(e.target.value) })}
-                            className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold outline-none focus:ring-2 focus:ring-brand-blue"
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-blue"
                         >
                             <option value={0}>No Timer</option>
                             <option value={15}>15 Seconds</option>
                             <option value={30}>30 Seconds</option>
                             <option value={60}>60 Seconds</option>
                         </select>
-                        {game.config.type === GameType.SURVEY_SHOWDOWN && <p className="mt-2 text-sm text-slate-500">Time for each team?s guess. Running out of time adds a strike and passes the turn. You can pause during play.</p>}
+                        {game.config.type === GameType.SURVEY_SHOWDOWN && <p className="mt-2 text-sm text-slate-500">Time for each team’s guess. Running out of time adds a strike and passes the turn. You can pause during play.</p>}
                     </div>
                 )}
 
                 {/* Question Randomization Toggle (Where applicable) */}
                 {showRandomizeOption && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="workspace-setup-field-group">
                         <label className={setupLabelClass}>
                             <Shuffle size={16} className="mr-2 text-brand-blue" /> Question Order
                         </label>
                         <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                             <button
-                                onClick={() => setOptions({...options, randomizeQuestions: true})}
-                                className={`py-3 text-sm font-black transition-colors ${options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                aria-pressed={options.randomizeQuestions} onClick={() => setOptions({...options, randomizeQuestions: true})}
+                                className={`py-3 text-sm font-black transition-colors ${options.randomizeQuestions ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Random
                             </button>
                             <button
-                                onClick={() => setOptions({...options, randomizeQuestions: false})}
-                                className={`py-3 text-sm font-black transition-colors ${!options.randomizeQuestions ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                aria-pressed={!options.randomizeQuestions} onClick={() => setOptions({...options, randomizeQuestions: false})}
+                                className={`py-3 text-sm font-black transition-colors ${!options.randomizeQuestions ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Sequential
                             </button>
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                             {options.randomizeQuestions ? "Shuffle questions each time." : "Play in created order."}
                         </p>
                     </div>
@@ -355,36 +354,36 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
             </div>
           </section>
 
-          <section className={`${setupCardClass} lg:col-span-2`}>
-            <h2 className="mb-5 font-display text-2xl font-black text-slate-900">Game Options</h2>
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div className={game.config.type === GameType.SNAKES_LADDERS ? 'hidden' : 'space-y-5'}>
+          {(hasExtraRules || hasBonusOptions) && <section className={`${setupCardClass} lg:col-span-2 workspace-setup-options`}>
+            <h2 className="workspace-section-title">Game options</h2>
+            <div className={`grid gap-5 ${hasExtraRules && hasBonusOptions ? 'lg:grid-cols-2' : ''}`}>
+              <div className={hasExtraRules ? `workspace-setup-extra ${game.config.type === GameType.DARTS ? 'workspace-setup-extra-wide' : ''}` : 'hidden'}>
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="workspace-setup-field-group">
                         <div>
                             <label className={setupLabelClass}>
                                 <Target size={16} className="mr-2 text-brand-blue" /> Game Mode
                             </label>
-                            <select 
-                                value={options.dartsMode}
+                            <select
+                                aria-label="Game mode" value={options.dartsMode}
                                 onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
-                                className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                             >
                                 <option value="high-score">High Score (Standard)</option>
                                 <option value="301">301 (Double Out)</option>
                             </select>
                         </div>
-                        
+
                         {options.dartsMode === 'high-score' && (
                             <div className="mt-4 animate-fade-in">
                                 <label className={setupLabelClass}>
                                     <Hash size={16} className="mr-2 text-brand-blue" /> Turns per Player
                                 </label>
-                                <select 
-                                    value={options.dartsLegs}
+                                <select
+                                    aria-label="Turns per player" value={options.dartsLegs}
                                     onChange={(e) => setOptions({ ...options, dartsLegs: Number(e.target.value) })}
-                                    className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                 >
                                     <option value={3}>3 Turns (Short)</option>
                                     <option value={5}>5 Turns (Standard)</option>
@@ -394,7 +393,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             </div>
                         )}
                         <p className="mt-3 text-xs font-semibold text-slate-500">
-                            {options.dartsMode === '301' 
+                            {options.dartsMode === '301'
                                 ? "Start at 301, finish exactly on 0. Must end with a Double."
                                 : `Players take turns scoring. Highest score after ${options.dartsLegs} turns wins.`}
                         </p>
@@ -404,15 +403,15 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 {/* Trivia Specific: Grid Size Selection */}
                 {game.config.type === GameType.TRIVIA && (
                     <>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="workspace-setup-field-group">
                             <label className={setupLabelClass}>
                                 <Grid size={16} className="mr-2 text-brand-blue" /> Grid Size (Questions)
                             </label>
                             {validQuestionCounts.length > 0 ? (
-                                <select 
-                                    value={options.questionLimit}
+                                <select
+                                    aria-label="Grid size" value={options.questionLimit}
                                     onChange={(e) => setOptions({ ...options, questionLimit: Number(e.target.value) })}
-                                    className="w-full rounded-xl border border-slate-200 bg-white p-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                 >
                                     {validQuestionCounts.map(count => (
                                         <option key={count} value={count}>
@@ -426,28 +425,28 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                     Can't split {game.questions?.length} Qs evenly among {options.players} teams.
                                 </div>
                             )}
-                            <p className="mt-2 text-xs font-semibold text-slate-400">
+                            <p className="mt-2 text-xs text-slate-600">
                                Total questions must divide evenly by the number of teams.
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="workspace-setup-field-group">
                             <label className={setupLabelClass}>Question Points</label>
                             <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                                 <button
-                                    onClick={() => setOptions({ ...options, triviaRandomPoints: false })}
-                                    className={`py-3 text-sm font-black transition-colors ${!options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                    aria-pressed={!options.triviaRandomPoints} onClick={() => setOptions({ ...options, triviaRandomPoints: false })}
+                                    className={`py-3 text-sm font-black transition-colors ${!options.triviaRandomPoints ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                                 >
                                     Saved Points
                                 </button>
                                 <button
-                                    onClick={() => setOptions({ ...options, triviaRandomPoints: true })}
-                                    className={`py-3 text-sm font-black transition-colors ${options.triviaRandomPoints ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                    aria-pressed={options.triviaRandomPoints} onClick={() => setOptions({ ...options, triviaRandomPoints: true })}
+                                    className={`py-3 text-sm font-black transition-colors ${options.triviaRandomPoints ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                                 >
                                     Random
                                 </button>
                             </div>
-                            <p className="mt-2 text-xs font-semibold text-slate-400">
+                            <p className="mt-2 text-xs text-slate-600">
                                 {options.triviaRandomPoints
                                     ? 'Each card gets a random value at game start.'
                                     : 'Keep the points currently saved in this game.'}
@@ -457,25 +456,25 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 )}
 
                 {game.config.type === GameType.WORD_WHEEL && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="workspace-setup-field-group">
                         <label className={setupLabelClass}>
                             <Zap size={16} className="mr-2 text-brand-blue" /> Scoring Mode
                         </label>
                         <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-300 bg-white">
                             <button
-                                onClick={() => setOptions({ ...options, wordWheelScoringMode: 'classic' })}
-                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode !== 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                aria-pressed={options.wordWheelScoringMode !== 'speed-bonus'} onClick={() => setOptions({ ...options, wordWheelScoringMode: 'classic' })}
+                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode !== 'speed-bonus' ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Classic
                             </button>
                             <button
-                                onClick={() => setOptions({ ...options, wordWheelScoringMode: 'speed-bonus' })}
-                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode === 'speed-bonus' ? 'bg-brand-blue text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                aria-pressed={options.wordWheelScoringMode === 'speed-bonus'} onClick={() => setOptions({ ...options, wordWheelScoringMode: 'speed-bonus' })}
+                                className={`py-3 text-sm font-black transition-colors ${options.wordWheelScoringMode === 'speed-bonus' ? 'bg-sky-50 text-sky-800' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                                 Speed Bonus
                             </button>
                         </div>
-                        <p className="mt-2 text-xs font-semibold text-slate-400">
+                        <p className="mt-2 text-xs text-slate-600">
                             {options.wordWheelScoringMode === 'speed-bonus'
                                 ? 'Correct answers can earn up to 10 extra points based on remaining time.'
                                 : 'Each correct answer gives fixed points.'}
@@ -489,7 +488,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                 )}
 
                 {game.config.type === GameType.BLOCK_BEATERS && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="workspace-setup-field-group">
                         <label className={setupLabelClass}>
                             <Hexagon size={16} className="mr-2 text-brand-blue" /> Block Beaters Rules
                         </label>
@@ -507,7 +506,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <div>
                                 <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Board Size</label>
                                 <select
-                                    value={options.blockBeatersBoardSize}
+                                    aria-label="Board size" value={options.blockBeatersBoardSize}
                                     onChange={(event) => setOptions({ ...options, blockBeatersBoardSize: event.target.value as any })}
                                     className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                 >
@@ -524,7 +523,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                     Questions are drawn when tiles are selected. This game has {blockBeatersQuestionCount} questions.
                                 </p>
                                 {blockBeatersWillRepeatQuestions && (
-                                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                                    <div className="setup-warning mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
                                         <AlertCircle size={18} className="mt-0.5 shrink-0" />
                                         <p className="text-xs font-bold leading-5">
                                             This set has fewer questions than recommended for this board size, so some questions may be repeated during the game.
@@ -558,25 +557,30 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                     </span>
                                 </label>
                             </div>
+                            {options.blockBeatersSteals !== false && !blockBeatersSinglePlayer && (
+                                <div>
+                                    <label htmlFor="block-beaters-steal-limit" className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Steals per team</label>
+                                    <select
+                                        id="block-beaters-steal-limit"
+                                        value={options.blockBeatersStealLimit ?? 3}
+                                        onChange={(event) => setOptions({ ...options, blockBeatersStealLimit: Number(event.target.value) })}
+                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
+                                    >
+                                        {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? 'steal' : 'steals'}</option>)}
+                                    </select>
+                                    <p className="mt-2 text-xs font-semibold text-slate-500">Each team can retake this many tiles from opponents.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
-                {![ 
-                  GameType.DARTS,
-                  GameType.TRIVIA,
-                  GameType.WORD_WHEEL,
-                  GameType.BLOCK_BEATERS,
-                ].includes(game.config.type) && (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                    <p className="font-bold text-slate-500">No extra setup needed for this game type.</p>
-                  </div>
-                )}
+
               </div>
 
-              <div className={game.config.type === GameType.SNAKES_LADDERS ? 'lg:col-span-2' : ''}>
+              <div className={hasBonusOptions ? "workspace-setup-bonuses" : "hidden"}>
                 {game.config.type === GameType.BLOCK_BEATERS ? (
-                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'} ${blockBeatersSinglePlayer ? 'opacity-75' : ''}`}>
+                  <div className={`setup-bonus-panel rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50'} ${blockBeatersSinglePlayer ? 'opacity-75' : ''}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
@@ -587,7 +591,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         }}
                         disabled={blockBeatersSinglePlayer}
                       >
-                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'}`}>
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-brand-blue text-white' : 'bg-white text-slate-400'}`}>
                           <Gift size={22} />
                         </div>
                         <div>
@@ -606,7 +610,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                           setOptions({ ...options, enableBonuses: !options.enableBonuses });
                         }}
                         disabled={blockBeatersSinglePlayer}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-teal-700 bg-teal-700' : 'border-slate-300 bg-white'} ${blockBeatersSinglePlayer ? 'cursor-not-allowed' : ''}`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'} ${blockBeatersSinglePlayer ? 'cursor-not-allowed' : ''}`}
+                        aria-label={options.enableBonuses ? 'Disable board bonuses' : 'Enable board bonuses'}
+                        aria-pressed={options.enableBonuses}
                       >
                         {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
                       </button>
@@ -621,7 +627,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                           ['Extra turn', 'Take one more turn immediately.'],
                           ['Swap tile', 'Swap one of your tiles with an opponent tile.'],
                         ].map(([label, description]) => (
-                          <div key={label} className="rounded-xl border border-amber-200 bg-white p-3">
+                          <div key={label} className="rounded-xl border border-sky-200 bg-white p-3">
                             <span className="block text-sm font-black text-slate-800">{label}</span>
                             <span className="block text-xs leading-4 text-slate-500">{description}</span>
                           </div>
@@ -630,14 +636,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     )}
                   </div>
                 ) : game.config.type === GameType.SNAKES_LADDERS ? (
-                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className={`setup-bonus-panel rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
                         className="flex min-w-0 items-center text-left"
                         onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
                       >
-                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-400'}`}>
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-brand-blue text-white' : 'bg-white text-slate-400'}`}>
                           <Gift size={22} />
                         </div>
                         <div>
@@ -648,8 +654,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                       <button
                         type="button"
                         onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-amber-600 bg-amber-500' : 'border-slate-300 bg-white'}`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'}`}
                         aria-label={options.enableBonuses ? 'Disable bonus orbs' : 'Enable bonus orbs'}
+                        aria-pressed={options.enableBonuses}
                       >
                         {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
                       </button>
@@ -665,9 +672,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                               type="button"
                               disabled={unavailable}
                               onClick={() => toggleSnakesLaddersBonusChoice(choice.id)}
-                              className={`flex min-h-[78px] items-start gap-2 rounded-xl border p-3 text-left transition-colors ${checked ? 'border-amber-500 bg-white text-slate-800' : 'border-slate-200 bg-white/70 text-slate-500'} ${unavailable ? 'cursor-not-allowed opacity-55' : ''}`}
+                              className={`flex min-h-[78px] items-start gap-2 rounded-xl border p-3 text-left transition-colors ${checked ? 'border-brand-blue bg-white text-slate-800' : 'border-slate-200 bg-white/70 text-slate-500'} ${unavailable ? 'cursor-not-allowed opacity-55' : ''}`}
                             >
-                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? 'border-amber-600 bg-amber-500' : 'border-slate-300 bg-white'}`}>
+                              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'}`}>
                                 {checked && <span className="h-2 w-2 rounded-sm bg-white" />}
                               </span>
                               <span>
@@ -683,14 +690,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     )}
                   </div>
                 ) : game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
-                  <div className={`rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-brand-yellow bg-yellow-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className={`setup-bonus-panel chaos-options rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
                         className="flex min-w-0 items-center text-left"
                         onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
                       >
-                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-brand-yellow text-slate-900' : 'bg-white text-slate-400'}`}>
+                        <div className={`mr-3 rounded-full p-3 ${options.enableBonuses ? 'bg-brand-blue text-white' : 'bg-white text-slate-400'}`}>
                           <Gift size={22} />
                         </div>
                         <div>
@@ -702,6 +709,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         type="button"
                         onClick={() => setOptions({ ...options, enableBonuses: !options.enableBonuses })}
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${options.enableBonuses ? 'border-brand-blue bg-brand-blue' : 'border-slate-300 bg-white'}`}
+                        aria-label={options.enableBonuses ? 'Disable chaos mode' : 'Enable chaos mode'}
+                        aria-pressed={options.enableBonuses}
                       >
                         {options.enableBonuses && <div className="h-3 w-3 rounded-full bg-white" />}
                       </button>
@@ -730,53 +739,53 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                    <Gift className="mx-auto mb-2 text-slate-300" size={28} />
-                    <p className="font-bold text-slate-500">Bonus cards are not used in this game type.</p>
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
-          </section>
+          </section>}
         </div>
 
-          <div className="mt-6">
-            <button 
+          <section className="workspace-start-bar" aria-label="Game setup summary">
+            <div className="workspace-setup-summary">
+              <h2 className="font-semibold text-slate-800">{options.players} {options.players === 1 ? 'player' : 'teams'} ready</h2>
+              <p className="mt-1 text-sm text-slate-600">{game.config.type === GameType.STOP_THE_FIRE
+                ? categoryCount ? `${categoryCount} categories selected` : 'Built-in category bank'
+                : `${selectedQuestionCount} ${selectedQuestionCount === 1 ? 'question' : 'questions'} selected of ${availableQuestionCount} available`}</p>
+            </div>
+            <button
               onClick={() => onStart(options)}
               disabled={game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0}
-            className={`flex w-full items-center justify-center rounded-2xl bg-brand-blue py-5 text-xl font-black text-white shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl
-                ${game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className="workspace-button workspace-button-play"
             >
               <Play size={20} className="mr-2" /> Start Game
             </button>
-          </div>
+          </section>
       </div>
 
       {/* SOUND LAB MODAL */}
       {showSoundLab && (
         <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[100] flex items-center justify-center overflow-y-auto bg-black/50 p-3 backdrop-blur-sm sm:p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-full p-4 sm:p-6 animate-fade-in relative overflow-y-auto">
-                <button 
-                    onClick={() => setShowSoundLab(false)}
+            <div ref={soundDialogRef} role="dialog" aria-modal="true" aria-label="Sound Lab" tabIndex={-1} className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-full p-4 sm:p-6 animate-fade-in relative overflow-y-auto">
+                <button
+                    onClick={() => setShowSoundLab(false)} aria-label="Close sound settings"
                     className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full p-1"
                 >
                     <X size={20} />
                 </button>
-                
+
                 <h2 className="font-display text-2xl font-bold text-slate-800 mb-1 flex items-center">
                     <Music className="mr-2 text-brand-blue" /> Sound Lab
                 </h2>
                 <p className="text-slate-500 text-sm mb-6 border-b border-slate-100 pb-4">Customize the sound effects for your game.</p>
-                
+
                 <div className="space-y-4">
                     {[
-                        { id: 'correct', label: 'Correct Answer', color: 'green' },
-                        { id: 'incorrect', label: 'Incorrect Answer', color: 'red' },
-                        { id: 'select', label: 'Tile Select', color: 'sky' },
-                        { id: 'win', label: 'Game Win', color: 'yellow' },
-                        { id: 'bonus', label: 'Bonus Reveal', color: 'purple' },
-                        { id: 'timesUp', label: 'Time\'s Up', color: 'slate', soundId: 'times-up' }
+                        { id: 'correct', label: 'Correct Answer' },
+                        { id: 'incorrect', label: 'Incorrect Answer' },
+                        { id: 'select', label: 'Tile Select' },
+                        { id: 'win', label: 'Game Win' },
+                        { id: 'bonus', label: 'Bonus Reveal' },
+                        { id: 'timesUp', label: 'Time\'s Up', soundId: 'times-up' }
                     ].map((item) => {
                         const configKey = item.id;
                         const soundType = item.soundId || item.id;
@@ -784,7 +793,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                                 <div className="flex-1">
                                     <label className="text-xs font-bold text-slate-500 uppercase block mb-1">{item.label}</label>
-                                    <select 
+                                    <select
                                         value={options.soundConfig?.[configKey as keyof typeof options.soundConfig]}
                                         onChange={(e) => updateSoundConfig(configKey, e.target.value)}
                                         className="w-full text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded p-1.5 focus:border-brand-blue outline-none cursor-pointer"
@@ -794,9 +803,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                         ))}
                                     </select>
                                 </div>
-                                <button 
+                                <button
                                     onClick={() => playSound(soundType as any, false, options.soundConfig?.[configKey as keyof typeof options.soundConfig])}
-                                    className={`ml-4 p-3 rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 bg-${item.color}-100 text-${item.color}-700 hover:bg-${item.color}-200`}
+                                    className="sound-lab-play ml-4 rounded-full p-3 shadow-sm transition-colors"
                                     title="Test Sound"
                                 >
                                     <Play size={16} fill="currentColor" />
@@ -805,9 +814,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         );
                     })}
                 </div>
-                
+
                 <div className="mt-8">
-                     <button 
+                     <button
                         onClick={() => setShowSoundLab(false)}
                         className="w-full py-3 bg-brand-blue text-white font-bold rounded-xl hover:bg-sky-600 transition-colors"
                      >

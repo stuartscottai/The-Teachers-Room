@@ -1,5 +1,7 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox, Environment, ContactShadows, Float, Html, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
@@ -1295,10 +1297,15 @@ interface SnakesLaddersGameProps {
     onFinish: () => void;
     onReplay: () => void;
     testMode?: boolean;
+    testStartPosition?: number;
 }
 
-export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false }) => {
-    const [positions, setPositions] = useState<number[]>(Array(options.players).fill(0));
+export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false, testStartPosition }) => {
+    const [positions, setPositions] = useState<number[]>(() => {
+        const positions = Array(options.players).fill(0);
+        if (testMode && testStartPosition !== undefined) positions[0] = Math.max(0, Math.min(98, testStartPosition));
+        return positions;
+    });
     const [turnOrder, setTurnOrder] = useState<number[]>(Array.from({length: options.players}, (_, i) => i));
     const [currentTurnIndex, setCurrentTurnIndex] = useState(0); 
     const [phase, setPhase] = useState<'setup' | 'roll' | 'question' | 'moving' | 'ladder-snake' | 'bonus-card' | 'bonus-choice' | 'turn-complete' | 'gameover'>('setup');
@@ -1324,6 +1331,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [isProcessing, setIsProcessing] = useState(false);
 
     const [snakes, setSnakes] = useState<{start: number, end: number, path: string, tongue: string, color: string}[]>([]);
+    const snakeRollPendingRef = useRef(false);
     const [ladders, setLadders] = useState<{start: number, end: number, visuals: any}[]>([]);
     const [bonusTiles, setBonusTiles] = useState<number[]>([]);
     const [consumedBonusTiles, setConsumedBonusTiles] = useState<number[]>([]);
@@ -1665,7 +1673,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -1831,13 +1839,22 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const rollDice = () => {
         if (phase !== 'roll' || isDiceRolling) return;
+        snakeRollPendingRef.current = false;
         setIsDiceRolling(true);
         playSound('select', isMuted, 'Glitch'); 
         
         setTimeout(() => {
             const finalValue = Math.ceil(Math.random() * 6);
+            const landing = Math.min(99, positions[currentTeamId] + finalValue);
+            const landsOnSnake = snakes.some(snake => snake.start === landing);
+            snakeRollPendingRef.current = landsOnSnake;
             setDiceValue(finalValue);
             setIsDiceRolling(false);
+            if (landsOnSnake) {
+                setPhase('moving');
+                movePlayer(finalValue);
+                return;
+            }
             // Progress should not depend on WebGL delivering a final animation
             // frame when a classroom device is under load.
             setTimeout(() => {
@@ -1850,7 +1867,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (phase === 'roll') {
             // Delay showing the question so player can see the dice result
             setTimeout(() => {
-                setPhase('question');
+                if (!snakeRollPendingRef.current) setPhase('question');
             }, 1000);
         }
     };
@@ -2054,7 +2071,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             setPhase('ladder-snake');
             setTimeout(() => {
                 playSound('incorrect', isMuted, 'WompWomp'); 
-                movePieceTo(teamId, pos, snake.end, true);
+                movePieceTo(teamId, pos, snake.end, false);
             }, 500);
         } else if (ladder) {
             setStatusMessage(`${teamNames[teamId]}: Climbing!`);
@@ -2641,6 +2658,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         ? 'w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative'
                         : 'w-[75vw] aspect-[16/9] max-h-[70vh] [perspective:1000px] relative'
                     }`}>
+                        <QuestionCardZoomButton />
                         <button 
                             onClick={() => setIsQuestionVisible(false)}
                             className="snl-question-peek absolute -top-12 right-0 px-4 py-2 rounded-lg font-bold flex items-center z-[210] transition-colors"

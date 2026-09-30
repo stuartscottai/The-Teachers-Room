@@ -6,8 +6,8 @@ export const blogPosts: BlogPost[] = [
         title: "Using AI to Write Student Reports With Custom Templates",
         subtitle: "How structured templates make AI-generated student reports faster, more consistent, and more personal.",
         date: "April 6, 2026",
-        image: "/assets/blog-aireportwriter-og.png",
-        heroImage: "/assets/blog-aireportwriter-mascot-up.png",
+        image: "/assets/blog-ai-report-writer.webp",
+        heroImage: "/assets/blog-ai-report-writer-hero.webp",
         heroImageFit: "contain",
         content: `
             <p class="lead">Writing student reports is high-value work, but it is also repetitive, time-sensitive, and easy to drag into evenings and weekends. AI can help, but the real improvement does not come from typing a clever one-off prompt. It comes from building a customized template that reflects your school's tone, reporting categories, and the kind of next-step feedback you actually want parents to read.</p>
@@ -42,7 +42,7 @@ export const blogPosts: BlogPost[] = [
         title: "AI in the Classroom: Friend or Foe?",
         subtitle: "Exploring the ethical implications and practical benefits of artificial intelligence for modern educators.",
         date: "October 12, 2024",
-        image: "https://picsum.photos/seed/blog1/1200/600",
+        image: "/assets/blog-ai-classroom.webp",
         content: `
             <p class="lead">Artificial Intelligence has arrived in education with the subtlety of a meteor strike. For many of us, the initial reaction was one of defense: <em>How do we stop students from using this to cheat?</em> But as the dust settles, a new perspective is emerging—one where AI is not the enemy of learning, but perhaps the most powerful assistant a teacher has ever had.</p>
             
@@ -64,7 +64,7 @@ export const blogPosts: BlogPost[] = [
         title: "5 Ways to Gamify History Lessons",
         subtitle: "Turn dates and facts into exciting adventures with these simple game structures.",
         date: "October 28, 2024",
-        image: "https://picsum.photos/seed/blog2/1200/600",
+        image: "/assets/blog-history-games.webp",
         content: `
             <p class="lead">History often gets a bad rap as "boring memorization." But history is literally the collection of the most dramatic, tragic, and triumphant stories of humanity. If your students are dozing off during the Industrial Revolution, it might be time to bring out the games.</p>
 
@@ -89,7 +89,7 @@ export const blogPosts: BlogPost[] = [
         title: "The End of Grading Homework?",
         subtitle: "How automated feedback tools are giving teachers their weekends back.",
         date: "November 5, 2024",
-        image: "https://picsum.photos/seed/blog3/1200/600",
+        image: "/assets/blog-homework-feedback.webp",
         content: `
             <p class="lead">The Sunday Scaries. Every teacher knows the feeling of looking at a tote bag full of ungraded papers on a Sunday evening. But a quiet revolution is happening in assessment strategies, driven by technology and a shift in pedagogical philosophy.</p>
 
@@ -111,7 +111,7 @@ export const blogPosts: BlogPost[] = [
         title: "ESL Strategies for 2025",
         subtitle: "New methodologies that focus on immersion and conversation over rote memorization.",
         date: "December 1, 2024",
-        image: "https://picsum.photos/seed/blog5/1200/600",
+        image: "/assets/blog-esl-conversation.webp",
         content: `
             <p class="lead">English as a Second Language (ESL) teaching has evolved drastically from the "grammar-translation" methods of the past. As we look towards 2025, the focus is shifting entirely towards communicative competence and immersive experiences.</p>
 

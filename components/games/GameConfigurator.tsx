@@ -1,9 +1,10 @@
+import './game-workspace.css';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent, generateStopTheFireCategories } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
-import { ArrowLeft, Settings, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff, Copy, Upload, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff, Copy, Upload, ChevronDown } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
 import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
@@ -134,18 +135,18 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
             </div>
             {showDialog && (
             <div
-                className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-5 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto relative animate-slide-up border border-white/60"
+                className="game-config-mode-dialog bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-5 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto relative animate-slide-up border border-white/60"
             >
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
                 <h2 className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">Create {type}</h2>
                 <p className="text-center text-slate-500 mb-5 sm:mb-8">How would you like to build your game?</p>
-                
+
                 <div className="space-y-4">
                     {isStopTheFire ? (
                         <>
-                            <button 
+                            <button
                                 onClick={() => onModeSelect('manual')}
                                 className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
@@ -157,7 +158,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <p className="text-slate-500 text-sm">Create and use your own custom category list.</p>
                                 </div>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => onModeSelect('bank')}
                                 className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
@@ -169,7 +170,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <p className="text-slate-500 text-sm">Choose from the built-in 1000-category bank.</p>
                                 </div>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => onModeSelect('ai')}
                                 className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group flex items-center"
                             >
@@ -184,7 +185,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                         </>
                     ) : (
                         <>
-                            <button 
+                            <button
                                 onClick={() => onModeSelect('manual')}
                                 className="w-full p-4 sm:p-6 border-2 border-slate-200 rounded-xl hover:border-sky-500 hover:bg-sky-50 transition-all group flex items-center"
                             >
@@ -196,7 +197,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <p className="text-slate-500 text-sm">Build from scratch using the editor table.</p>
                                 </div>
                             </button>
-                            <button 
+                            <button
                                 onClick={() => onModeSelect('ai')}
                                 className="w-full p-4 sm:p-6 border-2 border-brand-yellow/50 rounded-xl hover:border-brand-yellow hover:bg-yellow-50 transition-all group flex items-center"
                             >
@@ -238,14 +239,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     // Set default question count based on game type
     let defaultCount = type === GameType.LIVE_QUIZ_CHALLENGE ? 10 :
-                         type === GameType.TRIVIA ? 12 : 
-                         type === GameType.SNAKES_LADDERS ? 20 : 
-                         type === GameType.TIME_BOMB ? 25 : 
-                         type === GameType.SURVEY_SHOWDOWN ? 5 : 
+                         type === GameType.TRIVIA ? 12 :
+                         type === GameType.SNAKES_LADDERS ? 20 :
+                         type === GameType.TIME_BOMB ? 25 :
+                         type === GameType.SURVEY_SHOWDOWN ? 5 :
                          type === GameType.STOP_THE_FIRE ? 10 :
                          type === GameType.WORD_WHEEL ? WORD_WHEEL_LETTERS.length :
                          type === GameType.BLOCK_BEATERS ? getBlockBeatersQuestionCount('small') : 10;
-    
+
     // Millionaire requires exactly 15
     if (type === GameType.MILLIONAIRE) defaultCount = 15;
 
@@ -365,9 +366,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     const supportsQuestionImages = mode === 'ai' && ![GameType.STOP_THE_FIRE].includes(type);
-    
+
     // Files state separate from config until generation for cleaner updates
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(initialConfig?.files || []);
     const schoolId = user?.schoolAccess?.schoolId || '';
     const canUseSchoolStorage = Boolean(user?.accountType === 'school' && schoolId);
     const [schoolStorageFolders, setSchoolStorageFolders] = useState<SchoolStorageFolder[]>([]);
@@ -438,7 +439,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             wordWheelLetterRule: prev.wordWheelLetterRule || 'contains-hard'
         }));
     }, [type]);
-    
+
     // Check if mode changed from saved config
     useEffect(() => {
         setConfig(prev => ({
@@ -459,6 +460,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     const [manualImportFeedback, setManualImportFeedback] = useState<{ tone: 'neutral' | 'success' | 'error'; text: string } | null>(null);
 
     const [loading, setLoading] = useState(false);
+    const [generationError, setGenerationError] = useState('');
+    const [invalidField, setInvalidField] = useState('');
+    const reportGenerationError = (message: string, field = '') => {
+        setGenerationError(message);
+        setInvalidField(field);
+        if (field) document.getElementById(field)?.focus();
+    };
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
     const sourceInputRef = useRef<HTMLInputElement>(null);
     const manualImportInputRef = useRef<HTMLInputElement>(null);
@@ -470,7 +478,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 const current = prev.jeopardyCategoryNames || [];
                 const targetLen = prev.jeopardyCategories || 5;
                 if (current.length === targetLen) return prev;
-                
+
                 const newNames = [...current];
                 if (newNames.length < targetLen) {
                     return { ...prev, jeopardyCategoryNames: [...newNames, ...Array(targetLen - newNames.length).fill('')] };
@@ -488,7 +496,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 const current = prev.pubQuizRoundNames || [];
                 const targetLen = prev.pubQuizRoundsCount || 3;
                 if (current.length === targetLen) return prev;
-                
+
                 const newNames = [...current];
                 if (newNames.length < targetLen) {
                     return { ...prev, pubQuizRoundNames: [...newNames, ...Array(targetLen - newNames.length).fill('')] };
@@ -504,7 +512,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             const newFiles: UploadedFile[] = [];
             const rawFiles = Array.from(e.target.files);
             const filesToSaveToSchool: Array<{ rawFile: File; uploadedFile: UploadedFile }> = [];
-            
+
             for (let i = 0; i < rawFiles.length; i++) {
                 const file = rawFiles[i];
                 if (uploadedFiles.length + newFiles.length >= 3) {
@@ -759,8 +767,11 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     const handleGenerate = async () => {
-        if (!config.title) {
-            alert("Please enter a Game Title!");
+        if (loading) return;
+        setGenerationError('');
+        setInvalidField('');
+        if (!config.title?.trim()) {
+            reportGenerationError('Enter a game title to continue.', 'config-game-title');
             return;
         }
 
@@ -768,7 +779,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             promptSignupForFree('Create a free account on the Teacher Plan to create games and save your work.');
             return;
         }
-        
+
         // AI MODE
         if (mode === 'ai') {
             if (user.accountType === 'free') {
@@ -778,7 +789,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             if (type === GameType.STOP_THE_FIRE) {
                 const hasSource = (config.topic && config.topic.trim()) || uploadedFiles.length > 0 || (config.customInstructions && config.customInstructions.trim());
                 if (!hasSource) {
-                    alert("Please enter a topic, add instructions, or upload a file to build a word bank.");
+                    reportGenerationError("Enter a topic, add instructions or attach a file to build your word bank.", "config-game-topic");
                     return;
                 }
                 setLoading(true);
@@ -797,7 +808,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     onProceed(aiGame);
                 } catch (err) {
                     console.error(err);
-                    alert(err instanceof Error ? err.message : "Failed to generate word bank. Please check API configuration.");
+                    reportGenerationError(err instanceof Error ? err.message : "Your word bank could not be created. Your settings are still here; please try again.");
                 } finally {
                     setLoading(false);
                 }
@@ -806,19 +817,19 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             // Require topic OR files
             const hasSource = config.topic || uploadedFiles.length > 0;
             if (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && !hasSource) {
-                alert("Please enter a Topic or Upload a File!");
+                reportGenerationError("Enter a topic or attach a source file to continue.", "config-game-topic");
                 return;
             }
-            
+
             if (type === GameType.JEOPARDY) {
                  if (config.jeopardyCategoryNames?.some(n => !n.trim())) {
-                    alert("Please name all your Jeopardy Categories!");
+                    reportGenerationError("Give each category a name before generating questions.");
                     return;
                 }
             }
             if (type === GameType.PUB_QUIZ) {
                 if (config.pubQuizRoundNames?.some(n => !n.trim())) {
-                   alert("Please name all your Pub Quiz Rounds!");
+                   reportGenerationError("Give each round a name before generating questions.");
                    return;
                }
            }
@@ -852,17 +863,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 onProceed(gameData);
             } catch (err) {
                 console.error(err);
-                alert(err instanceof Error ? err.message : "Failed to generate game. Please check API configuration.");
+                reportGenerationError(err instanceof Error ? err.message : "Your questions could not be created. Your settings are still here; please try again.");
             } finally {
                 setLoading(false);
             }
-        } 
+        }
         // MANUAL MODE
         else {
             if (type === GameType.STOP_THE_FIRE && mode === 'manual') {
                 const cleaned = manualCategories.map(c => c.trim()).filter(Boolean);
                 if (cleaned.length === 0) {
-                    alert("Please enter at least one category.");
+                    reportGenerationError("Add at least one category to continue.");
                     return;
                 }
             }
@@ -872,7 +883,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 createdAt: new Date().toISOString(),
                 title: config.title,
                 config: config,
-                questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && type !== GameType.STOP_THE_FIRE) 
+                questions: (type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && type !== GameType.STOP_THE_FIRE)
                     ? (
                         type === GameType.WORD_WHEEL
                             ? WORD_WHEEL_LETTERS.map((letter, i) => ({
@@ -900,7 +911,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             }))
                     )
                     : [],
-                jeopardyBoard: type === GameType.JEOPARDY 
+                jeopardyBoard: type === GameType.JEOPARDY
                     ? (config.jeopardyCategoryNames || []).map(name => ({
                         name: name || 'Category',
                         questions: Array.from({ length: config.jeopardyRows || 5 }).map((_, i) => ({
@@ -936,53 +947,55 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
     return (
         <div
-            className="fixed inset-x-0 bottom-0 top-16 bg-slate-50 z-40 overflow-y-auto transition-[top] duration-200"
+            className="game-workspace fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto"
             style={mobileTopInset > 0 ? { top: `calc(4rem + ${mobileTopInset}px)` } : undefined}
         >
             <div>
-                <div className="max-w-3xl mx-auto px-4 py-12">
-                    <button onClick={onBack} className="flex items-center text-slate-500 hover:text-sky-600 mb-8">
-                        <ArrowLeft size={18} className="mr-2" /> Back
+                <div className="workspace-shell" style={{ maxWidth: 1160 }}>
+                    <button onClick={onBack} className="workspace-back">
+                        <ArrowLeft size={18} /> Back to creation options
                     </button>
-                    
-                    <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100">
-                        <div className="flex items-center mb-8 pb-6 border-b border-slate-100">
-                            <div className="bg-brand-yellow p-3 rounded-lg mr-4 shadow-sm">
-                                <Settings className="text-slate-800" size={24} />
-                            </div>
-                            <div>
-                                <h2 className="font-display text-2xl font-bold text-slate-800">Configure {type}</h2>
-                                <p className="text-slate-500 text-sm">{mode === 'ai' ? 'Define content parameters for AI generation' : 'Setup game structure'}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-6">
+                    <header>
+                        <p className="workspace-eyebrow mb-2">Game setup</p>
+                        <h1 className="workspace-heading">Create {type}</h1>
+                        <p className="mt-2 text-sm text-slate-600">{mode === 'ai' ? 'Choose your topic and settings, then review the questions.' : 'Set up your game, then add your content in the editor.'}</p>
+                    </header>
+                    <div className="workspace-config-grid">
+                      <div className="workspace-config-form">
+                        <h2 className="workspace-section-title"><span>1</span> Game details</h2>
+                        <div className="space-y-4">
                             {/* Global Title Field */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Game Title <span className="text-red-500">*</span></label>
-                                <input 
-                                    type="text" 
+                                <label htmlFor="config-game-title" className="block text-sm font-semibold text-slate-700 mb-2">Game title <span className="text-red-500">*</span></label>
+                                <input
+                                    id="config-game-title" aria-invalid={invalidField === 'config-game-title'} aria-describedby={invalidField === 'config-game-title' ? 'game-title-error' : undefined}
+                                    type="text"
                                     value={config.title}
-                                    onChange={(e) => setConfig({...config, title: e.target.value})}
-                                    placeholder="e.g., Class 5B Friday Fun" 
-                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none" 
+                                    onChange={(e) => { setConfig({...config, title: e.target.value}); if (invalidField === 'config-game-title') { setInvalidField(''); setGenerationError(''); } }}
+                                    placeholder="e.g. Friday revision quiz"
+                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                                 />
+                                {invalidField === 'config-game-title' && <p id="game-title-error" className="mt-2 text-sm text-red-700">{generationError}</p>}
                             </div>
 
                             {/* AI Specific Fields */}
                             {mode === 'ai' && type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && (
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">Topic / Subject <span className="text-red-500">*</span></label>
-                                    <input 
-                                        type="text" 
+                                    <label htmlFor="config-game-topic" className="block text-sm font-semibold text-slate-700 mb-2">Topic <span className="font-normal text-slate-500">or attach source material below</span></label>
+                                    <input
+                                        id="config-game-topic" aria-invalid={invalidField === 'config-game-topic'} aria-describedby={invalidField === 'config-game-topic' ? 'game-topic-error' : undefined}
+                                        type="text"
                                         value={config.topic}
                                         onChange={(e) => setConfig({...config, topic: e.target.value})}
-                                        placeholder="e.g., Ancient Rome, Multiplication Tables" 
-                                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none" 
+                                        placeholder="e.g. Ancient Rome"
+                                        className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                                     />
+                                    {invalidField === 'config-game-topic' && <p id="game-topic-error" className="mt-2 text-sm text-red-700">{generationError}</p>}
                                 </div>
                             )}
 
+                            <section className="workspace-config-settings">
+                            <h2 className="workspace-section-title"><span>2</span> Question settings</h2>
                             {/* CONFIG RENDER SWITCH */}
                             {type === GameType.MILLIONAIRE ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
@@ -1151,16 +1164,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
-                                        <input 
-                                            type="number" 
-                                            min={1} 
+                                        <input
+                                            type="number"
+                                            min={1}
                                             max={20}
                                             value={config.questionCount}
                                             onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         />
                                     </div>
-                                    
+
                                     {mode === 'ai' && (
                                         <fieldset className="space-y-3">
                                             <legend className="mb-2 text-sm font-semibold text-slate-700">What should the numbers show?</legend>
@@ -1189,8 +1202,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             {roundPrompts.map((p, i) => (
                                                 <div key={i} className="flex items-center gap-2">
                                                     <span className="text-xs font-bold text-slate-400 w-6">#{i+1}</span>
-                                                    <input 
-                                                        type="text" 
+                                                    <input
+                                                        type="text"
                                                         value={p}
                                                         onChange={(e) => {
                                                             const newP = [...roundPrompts];
@@ -1321,7 +1334,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         })}
                                                         className={`rounded-xl border-2 p-4 text-left transition-all
                                                             ${active
-                                                                ? 'bg-brand-blue text-white border-brand-blue shadow-md'
+                                                                ? 'bg-sky-50 text-sky-800 border-sky-600'
                                                                 : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
                                                     >
                                                         <span className="block text-base font-black">
@@ -1363,9 +1376,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <button
                                                     key={num}
                                                     onClick={() => setConfig({...config, questionCount: num})}
-                                                    className={`py-3 rounded-lg font-bold text-sm transition-all border-2
+                                                    className={`py-2 rounded-lg font-bold text-sm transition-colors border
                                                         ${config.questionCount === num
-                                                            ? 'bg-brand-blue text-white border-brand-blue shadow-md'
+                                                            ? 'bg-sky-50 text-sky-800 border-sky-600'
                                                             : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
                                                 >
                                                     {num}
@@ -1375,12 +1388,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     </div>
 
                                     {type === GameType.LIVE_QUIZ_CHALLENGE ? (
-                                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                            <div className="text-sm font-bold text-slate-800">Live quiz format</div>
-                                            <p className="mt-1 text-xs font-semibold text-slate-500">
-                                                Every question uses 4 multiple-choice options and 1000 max points for speed-based live scoring.
-                                            </p>
-                                        </div>
+                                        <p className="text-sm text-slate-600">Four answer options per question. Up to 1,000 points for speed and accuracy.</p>
                                     ) : mode === 'ai' && (
                                         <>
                                             <div>
@@ -1407,7 +1415,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">Number of Categories</label>
-                                            <select 
+                                            <select
                                                 value={config.jeopardyCategories}
                                                 onChange={(e) => setConfig({...config, jeopardyCategories: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
@@ -1417,7 +1425,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">Questions per Category</label>
-                                            <select 
+                                            <select
                                                 value={config.jeopardyRows}
                                                 onChange={(e) => setConfig({...config, jeopardyRows: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
@@ -1426,7 +1434,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             </select>
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-3">Category Names <span className="text-red-500">*</span></label>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1472,7 +1480,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <div className="grid grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
-                                        <select 
+                                        <select
                                             value={config.pubQuizRoundsCount}
                                             onChange={(e) => setConfig({...config, pubQuizRoundsCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
@@ -1482,7 +1490,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">Questions per Round</label>
-                                        <select 
+                                        <select
                                             value={config.pubQuizQuestionsPerRound}
                                             onChange={(e) => setConfig({...config, pubQuizQuestionsPerRound: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
@@ -1491,7 +1499,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         </select>
                                     </div>
                                 </div>
-                                
+
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-3">Round Titles <span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-1 gap-3">
@@ -1748,12 +1756,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             )}
 
                             {supportsQuestionImages && (
-                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                <div className="mt-5 rounded-lg border border-slate-200 p-3">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
                                             <label className="block text-sm font-semibold text-slate-800">Include images</label>
                                             <p className="text-xs text-slate-500 mt-1">
-                                                Add a visual to each question card. You can still edit or replace images later in the editor.
+                                                You can change or replace images in the editor.
                                             </p>
                                         </div>
                                         <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
@@ -1816,11 +1824,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 </div>
                             )}
 
+                            </section>
                             {mode === 'ai' && (
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="block text-sm font-medium text-slate-700">AI Instructions</label>
-                                        <div className="flex items-center gap-2">
+                                <section className="workspace-config-sources">
+                                    <h2 className="workspace-section-title"><span>3</span> Instructions &amp; sources</h2>
+                                    <label htmlFor="game-instructions" className="block text-sm font-semibold text-slate-700">What should the questions cover?</label>
+                                    <p className="mt-1 text-sm text-slate-600">Optional. Add the class level, focus areas or anything to avoid.</p>
+                                    <div className="workspace-source-tools">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <input
                                                 ref={sourceInputRef}
                                                 type="file"
@@ -1833,38 +1844,38 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 type="button"
                                                 onClick={openSourcePicker}
                                                 title="Add source material"
-                                                className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                                className="workspace-button"
                                             >
-                                                <Paperclip size={16} />
+                                                <Paperclip size={16} /> Attach files
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={toggleDictation}
                                                 disabled={dictation.isBusy}
                                                 title={dictation.isListening ? 'Stop dictation' : 'Start dictation'}
-                                                className={`p-2 rounded-lg border transition-colors
+                                                className={`workspace-button transition-colors
                                                     ${dictation.isListening ? 'bg-red-50 border-red-200 text-red-600' : 'border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue'}
                                                     ${dictation.isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             >
-                                                {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                                                {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />} {dictation.isListening ? 'Stop dictation' : 'Dictate'}
                                             </button>
                                             {canUseSchoolStorage && (
                                                 <button
                                                     type="button"
                                                     onClick={() => setSchoolStorageBrowserOpen(true)}
                                                     title="Browse School Storage"
-                                                    className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue transition-colors"
+                                                    className="workspace-button"
                                                 >
-                                                    <HardDrive size={16} />
+                                                    <HardDrive size={16} /> School storage
                                                 </button>
                                             )}
                                         </div>
                                     </div>
-                                    <p className="mb-2 text-xs text-slate-500">Add class level, age range, focus areas, or attach source material to guide the game. Maximum total attachment size: 3 MB.</p>
-                                    <textarea 
+                                    <p className="mb-2 text-xs text-slate-500">PDF, Word or images. Maximum total attachment size: 3 MB.</p>
+                                    <textarea id="game-instructions"
                                         value={config.customInstructions}
                                         onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
-                                        placeholder="e.g., Make questions suitable for 5th graders. Focus on vocabulary."
+                                        placeholder="e.g. For Year 7. Focus on everyday life in Ancient Rome. Use straightforward language."
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
                                     <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
@@ -1950,15 +1961,28 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             ))}
                                         </div>
                                     )}
-                                </div>
+                                </section>
                             )}
 
+                        </div>
+                      </div>
+                      <aside className="workspace-config-summary" aria-label="Game summary">
+                        <img src={GAME_BACKDROP_IMAGES[type]} alt="" />
+                        <p className="workspace-eyebrow">Your game</p>
+                        <h2 className="mt-1 text-lg font-bold text-slate-800">{type}</h2>
+                        <dl>
+                          <div><dt>{type === GameType.STOP_THE_FIRE ? 'Categories' : 'Questions'}</dt><dd>{type === GameType.JEOPARDY ? (config.jeopardyCategories || 5) * (config.jeopardyRows || 5) : type === GameType.PUB_QUIZ ? (config.pubQuizRoundsCount || 3) * (config.pubQuizQuestionsPerRound || 5) : type === GameType.STOP_THE_FIRE && mode === 'manual' ? manualCategories.filter(c => c.trim()).length : type === GameType.STOP_THE_FIRE && mode === 'bank' ? '1,000' : config.questionCount}</dd></div>
+                          {type === GameType.JEOPARDY && <div><dt>Categories</dt><dd>{config.jeopardyCategories}</dd></div>}
+                          {type === GameType.PUB_QUIZ && <div><dt>Rounds</dt><dd>{config.pubQuizRoundsCount}</dd></div>}
+                          <div><dt>Creation</dt><dd>{mode === 'ai' ? 'AI assisted' : mode === 'bank' ? 'Word bank' : 'Manual'}</dd></div>
+                          {supportsQuestionImages && <div><dt>Question images</dt><dd>{config.includeImages ? 'Included' : 'Off'}</dd></div>}
+                        </dl>
+                            {generationError && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{generationError}</p>}
                             <button
                                 onClick={handleGenerate}
                                 disabled={loading}
                                 aria-busy={loading}
-                                className={`relative w-full overflow-hidden py-4 rounded-xl font-bold text-lg shadow-md transition-all flex items-center justify-center
-                                ${loading ? 'bg-brand-blue text-white cursor-wait shadow-lg' : 'bg-brand-blue text-white hover:bg-sky-600 hover:shadow-lg'}`}
+                                className="workspace-button workspace-button-primary w-full relative overflow-hidden"
                             >
                                 {loading && (
                                     <span
@@ -1968,14 +1992,15 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 )}
                                 <span className="relative z-10 flex items-center justify-center">
                                 {loading ? (
-                                    <>Creating Game, please wait...</>
+                                    <>Generating questions...</>
                                 ) : (
-                                    <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />} 
-                                    {mode === 'ai' ? 'Create Game' : 'Open Blank Editor'}</>
+                                    <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />}
+                                    {mode === 'ai' ? generationError && !invalidField ? 'Try again' : 'Generate questions' : 'Open editor'}</>
                                 )}
                                 </span>
                             </button>
-                        </div>
+                        <p className="mt-3 text-sm leading-5 text-slate-600">{mode === 'ai' ? 'Review and edit your questions before playing.' : 'Add and edit your content before playing.'}</p>
+                      </aside>
                     </div>
                 </div>
             </div>

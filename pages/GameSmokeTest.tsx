@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import { GameEditor } from '../components/games/GameEditor';
+import { GamePreview } from '../components/games/GamePreview';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LazyGameRunner } from '../components/games/LazyGameRunner';
 import { GameImagePreparation } from '../components/games/GameImagePreparation';
 import { GameSetup } from '../components/games/GameSetup';
-import { ModeSelector } from '../components/games/GameConfigurator';
+import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion, SnakesLaddersBonusType } from '../types';
+import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 
 const smokeImage =
   'data:image/svg+xml;utf8,' +
@@ -107,12 +110,18 @@ const modes: Record<string, GameType> = {
   survey: GameType.SURVEY_SHOWDOWN,
   timebomb: GameType.TIME_BOMB,
   trivia: GameType.TRIVIA,
+  livequiz: GameType.LIVE_QUIZ_CHALLENGE,
+  blockbeaters: GameType.BLOCK_BEATERS,
   wordwheel: GameType.WORD_WHEEL,
 };
 
 export const GameSmokeTest: React.FC = () => {
+  const { setIsPlaying } = useUnsavedChanges();
   const [params] = useSearchParams();
   const mode = params.get('mode') || 'trivia';
+  const [workspace, setWorkspace] = useState(params.get('workspace') || '');
+  const [workspaceGame, setWorkspaceGame] = useState<GeneratedGame | null>(null);
+  const [workspaceAction, setWorkspaceAction] = useState('');
   const preparationMode = params.get('prepare') || '';
   const bonusesEnabled = params.get('bonuses') === '1';
   const useFullWordWheel = params.get('fullWheel') === '1';
@@ -125,6 +134,11 @@ export const GameSmokeTest: React.FC = () => {
     : options.players;
   const showSetup = params.get('setup') === '1';
   const showModeSelector = params.get('modeSelector') === '1';
+  const isPlayingFixture = !workspace && !showSetup && !showModeSelector && !preparationMode;
+  useEffect(() => {
+    setIsPlaying(isPlayingFixture);
+    return () => setIsPlaying(false);
+  }, [isPlayingFixture, setIsPlaying]);
   const type = modes[mode] || GameType.TRIVIA;
   const baseGame = makeGame(type);
   if (useFullWordWheel && type === GameType.WORD_WHEEL) {
@@ -172,13 +186,27 @@ export const GameSmokeTest: React.FC = () => {
       players: playerCount,
       teamNames: Array.from({ length: playerCount }, (_, index) => `Team ${index + 1}`),
       enableBonuses: bonusesEnabled,
+      blockBeatersStealLimit: Number(params.get('stealLimit')) || 3,
+      blockBeatersMode: params.get('blockMode') === 'numbers' ? 'numbers' : undefined,
       snakesLaddersBonusOptions: snakesBonusType ? [snakesBonusType] : undefined,
     },
     onBack: () => undefined,
     onFinish: () => undefined,
     onReplay: () => undefined,
     testMode: lightweightTestMode,
+    testStartPosition: params.has('testStartPosition') ? Number(params.get('testStartPosition')) : undefined,
   };
+
+  // Development-only fixtures for inspecting the creation workspace without live generation.
+  if (workspace) {
+    const fixture = workspaceGame || { ...game, config: { ...game.config, coverImage: {
+      url: '/assets/games/trivia.png', source: 'upload' as const, selection: 'creator' as const,
+    } } };
+    if (workspaceAction) return <div role="status" className="p-8">{workspaceAction}<button onClick={() => setWorkspaceAction('')}>Return to workspace</button></div>;
+    if (workspace === 'config') return <GameConfigurator type={type} mode={params.get('creation') === 'ai' ? 'ai' : 'manual'} onBack={() => setWorkspace('preview')} onProceed={next => { setWorkspaceGame(next); setWorkspace('editor'); }} />;
+    if (workspace === 'editor') return <GameEditor game={fixture} onBack={() => setWorkspace('preview')} onSave={setWorkspaceGame} onPlay={next => { setWorkspaceGame(next); setWorkspaceAction(`Play: ${next.title}`); }} />;
+    return <GamePreview game={fixture} source="library" onBack={() => setWorkspace('config')} onEdit={() => setWorkspace('editor')} onPlay={next => { setWorkspaceGame(next); setWorkspaceAction(`Play: ${next.questions.length} questions`); }} onShare={() => setWorkspaceAction('Teacher share')} onStudentShare={ids => setWorkspaceAction(`Student share: ${ids.length} questions`)} />;
+  }
 
   if (replacementRequested) {
     return <div data-testid="image-replacement-requested">Image replacement requested</div>;
@@ -189,7 +217,8 @@ export const GameSmokeTest: React.FC = () => {
   }
 
   if (showSetup) {
-    return <GameSetup game={game} onBack={() => undefined} onStart={() => undefined} />;
+    if (workspaceAction) return <pre role="status">{workspaceAction}</pre>;
+    return <GameSetup game={game} onBack={() => undefined} onStart={options => setWorkspaceAction(JSON.stringify(options))} />;
   }
 
   if (preparationMode && !preparedGame) {

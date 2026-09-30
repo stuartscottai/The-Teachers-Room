@@ -1,5 +1,7 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -756,7 +758,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -1058,7 +1060,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
-            <div className={`${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative sm:min-h-[140px]`} style={chalkboardStyle}>
+            <div data-scoreboard-header="true" className={`${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative sm:min-h-[148px]`} style={chalkboardStyle}>
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center text-slate-100 hover:text-red-200 items-center text-sm bg-black/40 hover:bg-red-900/40 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-700">
@@ -1115,11 +1117,11 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     <div
                         className={isMobileViewport
                             ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-end sm:justify-center gap-3 sm:gap-6 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
+                            : 'flex-1 flex justify-end sm:justify-center gap-3 sm:gap-6 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {scores.map((score, idx) => (
-                            <button
+                            <button data-scoreboard-card="true"
                                 key={idx}
                                 onClick={() => openEditTeam(idx)}
                                 className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'px-1 sm:px-2 py-1 sm:py-2 min-w-[70px] sm:min-w-[120px]'} text-center transition-transform relative group flex flex-col justify-center items-center`}
@@ -1272,6 +1274,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             {phase === 'question' && currentQuestion && (
                 <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-[#120a07]/75 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                        <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${isFlipped ? 'pointer-events-none' : ''}`}>

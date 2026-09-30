@@ -1,5 +1,7 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, CheckCircle, Clock, Crown, Edit2, Flag, Maximize2, Minimize2, RotateCcw, Shield, Volume2, VolumeX, X, XCircle } from 'lucide-react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
+import { ArrowLeft, ArrowRightLeft, Check, CheckCircle, Clock, Crown, Edit2, Flag, Maximize2, Minimize2, RotateCcw, Shield, Volume2, VolumeX, X, XCircle } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -70,7 +72,6 @@ interface HeldBonusCard {
     team: number;
 }
 
-const MAX_STEALS_PER_TEAM = 3;
 
 const PLAYER_COLORS = [
     { name: 'Teal', base: '#0f766e', strong: '#0d9488', soft: '#ccfbf1', text: '#f0fdfa' },
@@ -212,6 +213,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const boardSizeKey = options.blockBeatersBoardSize || 'small';
     const size = BOARD_SIZES[boardSizeKey] || BOARD_SIZES.small;
     const fixedPoints = Math.max(1, Number(options.blockBeatersPoints || 10));
+    const maxStealsPerTeam = Number.isFinite(options.blockBeatersStealLimit)
+        ? Math.max(1, Math.min(4, Math.round(options.blockBeatersStealLimit!)))
+        : 3;
     const bonusesEnabled = teamCount > 1 && Boolean(options.enableBonuses);
     const questions = useMemo(() => {
         const pool = [...(game.questions || [])].filter((question) => question.question && question.answer);
@@ -402,7 +406,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         }
         if (tile.owner !== null && (tile.owner === currentTeam || options.blockBeatersSteals === false)) return;
         const isStealAttempt = tile.owner !== null && tile.owner !== currentTeam;
-        if (isStealAttempt && (stealCounts[currentTeam] || 0) >= MAX_STEALS_PER_TEAM) return;
+        if (isStealAttempt && (stealCounts[currentTeam] || 0) >= maxStealsPerTeam) return;
         const nextQuestionIndex = chooseQuestionIndex(tile.questionIndex);
         playSound(tile.bonus && !tile.bonusUsed ? 'bonus' : 'select', isMuted, tile.bonus && !tile.bonusUsed ? options.soundConfig?.bonus : options.soundConfig?.select);
         setActiveTileId(tile.id);
@@ -686,7 +690,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     };
 
     const toggleFullscreen = () => {
-        if (!document.fullscreenElement) containerRef.current?.requestFullscreen();
+        if (!document.fullscreenElement) requestGameFullscreen(containerRef.current);
         else document.exitFullscreen().catch(() => undefined);
     };
 
@@ -710,7 +714,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         : 0;
     const currentTeamBonusCard = currentTeamBonusCards[currentTeamBonusPage] || null;
     const compactBonusSlots = isMobileViewport;
-    const currentTeamStealsRemaining = Math.max(0, MAX_STEALS_PER_TEAM - (stealCounts[currentTeam] || 0));
+    const currentTeamStealsRemaining = Math.max(0, maxStealsPerTeam - (stealCounts[currentTeam] || 0));
     const swapSourceTile = swapSource !== null ? tiles.find((tile) => tile.id === swapSource) : null;
     const bonusCardStatus = activeBonusCardId === currentTeamBonusCard?.id
         ? bonusAction === 'swap'
@@ -874,7 +878,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
 
     return (
         <div ref={containerRef} className={`${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} min-h-0 bg-[#151614] text-[#fffaf0] overflow-hidden flex flex-col`}>
-            <div className={`bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
+            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[148px]`}>
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button
@@ -915,17 +919,17 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     <div
                         className={isMobileViewport
                             ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
+                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {localTeamNames.map((name, index) => {
                             const active = currentTeam === index;
                             return (
-                                <button
+                                <button data-scoreboard-card="true"
                                     key={index}
                                     onClick={() => { setEditingTeamIndex(index); setEditName(name); setEditScore(scores[index] || 0); }}
-                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1 overflow-hidden` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm ${active ? 'text-white shadow-lg ring-0 sm:ring-4 z-10' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
-                                    style={active ? { backgroundColor: PLAYER_COLORS[index].base, borderColor: PLAYER_COLORS[index].strong, boxShadow: `0 0 0 ${isMobileViewport ? 2 : 4}px ${PLAYER_COLORS[index].soft}` } : undefined}
+                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1 overflow-hidden` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-colors border-b-4 relative group flex flex-col justify-center items-center ${active ? 'text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
+                                    style={active ? { backgroundColor: PLAYER_COLORS[index].base, borderColor: PLAYER_COLORS[index].strong, color: PLAYER_COLORS[index].text } : undefined}
                                 >
                                     {isMobileViewport ? (
                                         <>
@@ -965,7 +969,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         >
                             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </button>
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200">
+                        <button aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={toggleFullscreen} className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200">
                             {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                         </button>
                     </div>
@@ -1036,14 +1040,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                 )}
 
                 <div
-                    className="absolute bottom-3 right-3 z-30 hidden aspect-[2/3] flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:right-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.35rem,0.7vw,0.75rem)]"
-                    style={{ width: 'clamp(8rem, min(15vw, 34vh), 17rem)' }}
+                    className="absolute bottom-3 right-3 z-30 hidden flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:right-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.35rem,0.7vw,0.75rem)]"
+                    style={{ width: 'clamp(13rem, min(19vw, 34vh), 19rem)' }}
                 >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,193,78,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(13,148,136,0.24),transparent_40%)]" />
                     <div className="relative z-10 mb-[clamp(0.18rem,0.55vw,0.5rem)] flex items-center justify-between gap-[clamp(0.18rem,0.5vw,0.5rem)]">
                         <div className="flex min-w-0 items-center gap-[clamp(0.25rem,0.6vw,0.5rem)]">
-                            <div className="flex h-[clamp(1.25rem,2vw,1.75rem)] w-[clamp(1.25rem,2vw,1.75rem)] shrink-0 items-center justify-center rounded-lg bg-[#f2c14e] text-slate-950 shadow-lg shadow-yellow-950/30">
-                                <Shield className="h-[clamp(0.68rem,1.1vw,0.95rem)] w-[clamp(0.68rem,1.1vw,0.95rem)]" />
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f2c14e]/15">
+                                <img src="/assets/games/block-beaters-steal-hand.webp" alt="" className="h-10 w-10 object-contain" />
                             </div>
                             <div className="min-w-0">
                                 <div className="text-[clamp(0.38rem,0.62vw,0.56rem)] font-black uppercase tracking-[0.14em] text-white/55">Steals</div>
@@ -1051,25 +1055,25 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             </div>
                         </div>
                         <div className="shrink-0 rounded-full border border-white/10 bg-white/10 px-[clamp(0.25rem,0.45vw,0.375rem)] py-0.5 text-[clamp(0.38rem,0.62vw,0.56rem)] font-black text-white/75">
-                            max {MAX_STEALS_PER_TEAM}
+                            max {maxStealsPerTeam}
                         </div>
                     </div>
-                    <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-[clamp(0.16rem,0.45vw,0.42rem)]">
+                    <div className="relative z-10 flex flex-col gap-[clamp(0.16rem,0.45vw,0.42rem)]">
                         {localTeamNames.map((name, index) => {
-                            const remaining = Math.max(0, MAX_STEALS_PER_TEAM - (stealCounts[index] || 0));
+                            const remaining = Math.max(0, maxStealsPerTeam - (stealCounts[index] || 0));
                             return (
-                                <div key={index} className="flex min-h-0 flex-1 flex-col justify-center rounded-lg border border-white/10 bg-black/24 p-[clamp(0.14rem,0.55vw,0.5rem)]">
+                                <div key={index} className="flex flex-col justify-center rounded-lg border border-white/10 bg-black/24 p-[clamp(0.35rem,0.55vw,0.5rem)]">
                                     <div className="mb-[clamp(0.12rem,0.3vw,0.25rem)] flex items-center justify-between gap-1.5">
                                         <span className="truncate text-[clamp(0.45rem,0.9vw,0.78rem)] font-black leading-tight" style={{ color: PLAYER_COLORS[index].text }}>{name}</span>
                                         <span className="font-mono text-[clamp(0.62rem,1.35vw,1.125rem)] font-black leading-none text-white">{remaining}</span>
                                     </div>
-                                    <div className="flex gap-[clamp(0.15rem,0.35vw,0.25rem)]">
-                                        {Array.from({ length: MAX_STEALS_PER_TEAM }, (_, stealIndex) => (
+                                    <div className="flex gap-1.5" aria-label={`${remaining} of ${maxStealsPerTeam} steals left`}>
+                                        {Array.from({ length: maxStealsPerTeam }, (_, stealIndex) => (
                                             <div
                                                 key={stealIndex}
-                                                className="h-[clamp(0.2rem,0.48vw,0.5rem)] flex-1 rounded-full"
-                                                style={{ backgroundColor: stealIndex < remaining ? PLAYER_COLORS[index].strong : 'rgba(255,255,255,0.14)' }}
-                                            />
+                                                className={`flex flex-1 items-center justify-center rounded-lg border p-1 ${stealIndex < remaining ? 'border-sky-300/45 bg-sky-300/10' : 'border-white/10 bg-black/15 opacity-35'}`}
+                                                title={stealIndex < remaining ? 'Steal available' : 'Steal used'}
+                                            ><img src="/assets/games/block-beaters-steal-hand.webp" alt="" className="h-8 w-8 object-contain" /></div>
                                         ))}
                                     </div>
                                 </div>
@@ -1090,8 +1094,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             <span className="truncate text-xs font-black uppercase tracking-[0.14em]" style={{ color: PLAYER_COLORS[currentTeam].text }}>
                                 {localTeamNames[currentTeam]}'s turn
                             </span>
-                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-white/75">
-                                {currentTeamStealsRemaining} steals
+                            <span className="flex items-center gap-0.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-white/75" aria-label={`${currentTeamStealsRemaining} steals remaining`}>
+                                {Array.from({ length: maxStealsPerTeam }, (_, stealIndex) => <img key={stealIndex} src="/assets/games/block-beaters-steal-hand.webp" alt="" className={`h-5 w-5 object-contain ${stealIndex < currentTeamStealsRemaining ? '' : 'opacity-30'}`} />)}
                             </span>
                         </div>
                         <div className="mt-1 truncate text-[11px] font-bold text-white/70">
@@ -1333,6 +1337,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.32)_0%,rgba(250,204,21,0.14)_28%,rgba(2,6,23,0.92)_68%)]" />
                     )}
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                        <QuestionCardZoomButton />
                         {showBonusIntro ? (
                             <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-4 border-yellow-300/80 bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-800 p-6 text-center shadow-2xl">
                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.45),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.24),transparent_36%)]" />
@@ -1468,13 +1473,13 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                             const displayOption = stripOptionPrefix(option);
                                                             const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(displayOption);
                                                             return (
-                                                                <button
+                                                                <button data-game-answer-option="true" data-selected={selectedMcAnswer === option}
                                                                     key={option}
                                                                     onClick={(event) => { event.stopPropagation(); chooseMc(option); }}
                                                                     style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
                                                                     className={`relative p-4 sm:p-6 border rounded-none font-bold transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none ${selectedMcAnswer === option ? 'bg-[#ccfbf1] border-[#0f766e] text-[#0f766e]' : 'bg-slate-50 border-slate-200 text-slate-800 sm:hover:bg-[#f2c14e] sm:hover:border-yellow-400 sm:hover:text-slate-900'}`}
                                                                 >
-                                                                    <span aria-hidden="true" className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60">
+                                                                    <span data-option-label="true" aria-hidden="true" className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60">
                                                                         {optionLabel}
                                                                     </span>
                                                                     <span data-option-text="true" className="w-full text-center sm:pl-12 md:pl-16">{displayOption}</span>
@@ -1546,13 +1551,13 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                         const displayOption = stripOptionPrefix(option);
                                                         const uniformSize = optionFontSize ? '' : getOptionFontSizeClass(displayOption);
                                                         return (
-                                                            <button
+                                                            <button data-game-answer-option="true" data-selected={selectedMcAnswer === option}
                                                                 key={option}
                                                                 onClick={(event) => { event.stopPropagation(); chooseMc(option); }}
                                                                 style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
                                                                 className={`relative p-4 sm:p-6 border rounded-none font-bold transition-all text-center flex items-center justify-center w-full h-full ${uniformSize} cursor-pointer z-50 whitespace-normal break-normal hyphens-none ${selectedMcAnswer === option ? 'bg-[#ccfbf1] border-[#0f766e] text-[#0f766e]' : 'bg-slate-50 border-slate-200 text-slate-800 sm:hover:bg-[#f2c14e] sm:hover:border-yellow-400 sm:hover:text-slate-900'}`}
                                                             >
-                                                                <span aria-hidden="true" className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60">
+                                                                <span data-option-label="true" aria-hidden="true" className="hidden sm:inline-flex absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 text-slate-900 text-base sm:text-lg md:text-xl font-black border-2 border-amber-100/80 shadow-[0_8px_16px_rgba(245,158,11,0.35)] ring-2 ring-amber-200/60">
                                                                     {optionLabel}
                                                                 </span>
                                                                 <span data-option-text="true" className="w-full text-center sm:pl-12 md:pl-16">{displayOption}</span>

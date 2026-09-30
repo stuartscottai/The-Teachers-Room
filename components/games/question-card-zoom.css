@@ -1,0 +1,39 @@
+.gameplay-appearance :has(> .question-card-zoom-button) { position: relative; }
+
+.question-card-zoom-button {
+  position: absolute;
+  z-index: 900;
+  right: .5rem;
+  bottom: .5rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #334155;
+  opacity: .8;
+  transition: opacity 150ms;
+}
+.question-card-zoom-button:hover { opacity: 1; }
+html[data-theme='dark'] .question-card-zoom-button,
+.gameplay-appearance[data-game-appearance='dark'] .question-card-zoom-button { color: #dce5f0; }
+.gameplay-appearance[data-game-appearance='light'] .question-card-zoom-button { color: #334155; }
+.question-card-zoom-button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; opacity: 1; }
+
+.game-view-camera {
+  position: relative;
+  transform-origin: top left;
+  transform: translate(0, 0) scale(1);
+  transition: transform 320ms cubic-bezier(.2,.8,.2,1);
+}
+.gameplay-viewport:has(.game-view-camera) { overflow: clip; }
+.game-view-camera.game-view-zoomed {
+  transform: translate(var(--game-view-x), var(--game-view-y)) scale(var(--game-view-scale));
+}
+
+@media (max-width: 639px) { .question-card-zoom-button { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .game-view-camera { transition-duration: 0ms; } }

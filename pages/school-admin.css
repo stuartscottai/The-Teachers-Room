@@ -1,0 +1,159 @@
+.school-admin {
+  --school-bg: #f8fafc;
+  --school-surface: #fff;
+  --school-raised: #f1f5f9;
+  --school-border: #e2e8f0;
+  --school-text: #0f172a;
+  --school-muted: #475569;
+  --school-blue: #0369a1;
+  --school-blue-surface: #eaf5fc;
+  background: var(--school-bg);
+  color: var(--school-text);
+}
+html[data-theme='dark'] .school-admin {
+  --school-bg: #171a1f;
+  --school-surface: #22272e;
+  --school-raised: #2a313a;
+  --school-border: #3a4552;
+  --school-text: #eff3f8;
+  --school-muted: #b5c1cf;
+  --school-blue: #82d4f8;
+  --school-blue-surface: #1b3545;
+}
+.school-admin-shell { padding-top: 28px; }
+.school-admin-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.school-identity { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.school-logo { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 64px; height: 64px; padding: 8px; background: var(--school-surface); border: 1px solid var(--school-border); border-radius: 12px; color: var(--school-blue); }
+.school-logo img { width: 100%; height: 100%; object-fit: contain; }
+.school-admin .workspace-heading { color: var(--school-text); margin: 3px 0 5px; }
+.school-admin .workspace-eyebrow, .school-muted { color: var(--school-muted); }
+.school-muted { font-size: 14px; line-height: 1.5; }
+.school-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 20px; margin-bottom: 24px; border: 1px solid var(--school-border); border-radius: 14px; background: var(--school-surface); }
+.school-overview > div { display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--school-border); padding-left: 24px; }
+.school-overview > div:first-child { padding-left: 0; border: 0; }
+.school-overview dt { font-size: 14px; color: var(--school-muted); }
+.school-overview dd { order: -1; font-size: 26px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; }
+.school-overview dd span { font-size: 13px; font-weight: 500; color: var(--school-muted); }
+.school-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--school-border); margin-bottom: 20px; }
+.school-tabs button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; min-height: 44px; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--school-muted); font-size: 14px; font-weight: 600; }
+.school-tabs button:hover { color: var(--school-blue); background: var(--school-blue-surface); border-radius: 7px 7px 0 0; }
+.school-tabs button[aria-selected=true] { color: var(--school-blue); border-bottom-color: var(--school-blue); }
+.school-tab-count { background: var(--school-blue-surface); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+.school-admin [hidden] { display: none !important; }
+.school-tab-panel { display: grid; gap: 20px; min-width: 0; }
+.school-panel { padding: 20px; background: var(--school-surface); border: 1px solid var(--school-border); border-radius: 14px; min-width: 0; }
+.school-section-heading { display: flex; align-items: center; gap: 8px; color: var(--school-text); font-weight: 700; font-size: 18px; margin-bottom: 14px; }
+.school-section-heading svg { color: var(--school-muted); flex-shrink: 0; }
+.school-admin :is(button, input, select) { min-height: 40px; }
+.school-admin :is(input, select) { min-width: 0; color: var(--school-text); }
+.school-admin button:disabled { cursor: not-allowed; }
+.school-admin .bg-brand-blue { background-color: #0369a1; }
+.school-admin .bg-brand-blue:hover:not(:disabled) { background-color: #075985; }
+.school-admin :is(.text-brand-blue, .text-sky-700) { color: var(--school-blue); }
+.school-admin [class~='bg-brand-blue/10'] { background-color: var(--school-blue-surface); }
+.school-admin [class~='bg-brand-blue/10']:hover { background-color: var(--school-blue-surface); }
+.school-feedback { padding: 12px 16px; margin-bottom: 20px; font-size: 14px; line-height: 1.5; border: 1px solid; border-radius: 9px; }
+.school-feedback.is-success { color: #166534; background: #f0fdf4; border-color: #bbf7d0; }
+.school-feedback.is-error { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+.school-requests { display: grid; gap: 0; }
+.school-request { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(120px, 1.4fr) 140px auto; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--school-border); }
+.school-request > div { overflow-wrap: anywhere; }
+.school-request > .mb-3 { margin-bottom: 0; }
+.school-request:first-child { padding-top: 0; border: 0; }
+.school-request-actions { display: flex; gap: 8px; }
+.school-directory-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+.school-directory-heading h2 { margin-bottom: 4px; }
+.school-directory-filters { display: flex; gap: 8px; }
+.school-search { display: flex; align-items: center; gap: 8px; color: var(--school-muted); background: var(--school-surface); border: 1px solid var(--school-border); border-radius: 8px; padding-left: 10px; }
+.school-search input { width: 190px; font-size: 14px; padding: 8px 10px 8px 0; border: 0; border-radius: 8px; background: transparent; outline: none; }
+.school-search:focus-within { outline: 2px solid var(--school-blue); outline-offset: 2px; }
+.school-admin .school-search input:focus-visible { outline: none; box-shadow: none; }
+.school-directory-filters select { font-size: 14px; border: 1px solid var(--school-border); background: var(--school-surface); border-radius: 8px; padding: 8px; }
+.school-teacher-table { width: 100%; font-size: 14px; table-layout: fixed; }
+.school-teacher-table th { font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--school-border); }
+.school-teacher-table th:first-child { width: 33%; }
+.school-teacher-table th:last-child { width: 100px; }
+.school-teacher-table td { vertical-align: middle; border-bottom: 1px solid var(--school-border); overflow-wrap: anywhere; }
+.school-teacher-table tr:last-child td { border-bottom: 0; }
+.school-usage { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+.school-usage > div { display: flex; flex-direction: column; gap: 3px; }
+.school-usage dt { color: var(--school-muted); font-size: 11px; line-height: 1.3; }
+.school-usage dd { order: -1; color: var(--school-text); font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.school-actions-menu { position: absolute; right: 0; top: calc(100% + 5px); z-index: 30; width: 210px; max-width: calc(100vw - 48px); padding: 6px; background: var(--school-surface); border: 1px solid var(--school-border); border-radius: 10px; box-shadow: 0 8px 24px #0003; }
+.school-actions-menu button { font-size: 13px; font-weight: 600; }
+.school-teacher-card { padding: 16px 0; border-bottom: 1px solid var(--school-border); }
+.school-teacher-card:last-child { border-bottom: 0; padding-bottom: 0; }
+.school-access-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
+.school-access-grid > section:last-child { grid-column: 1 / -1; }
+.school-join-code { padding: 12px 16px; background: var(--school-raised); border: 1px solid var(--school-border); border-radius: 8px; margin-bottom: 12px; }
+.school-spot-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.school-spot-stats > div { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.school-spot-stats > div + div { border-left: 1px solid var(--school-border); padding-left: 16px; }
+.school-spot-stats p:first-child { font-size: 12px; text-transform: none; letter-spacing: 0; }
+.school-spot-stats p:last-child { font-size: 24px; }
+.school-spot-controls { display: grid; grid-template-columns: 68px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.school-spot-controls button { font-size: 13px; padding: 8px; }
+.school-invite-form { display: flex; gap: 8px; max-width: 600px; margin-bottom: 16px; }
+.school-invite-form input { flex: 1; }
+.school-invite-message { padding: 16px; margin-bottom: 16px; border: 1px solid var(--school-border); border-radius: 9px; background: var(--school-raised); }
+.school-invite-message h3 { overflow-wrap: anywhere; }
+.school-invite-message textarea { display: block; width: 100%; resize: vertical; min-height: 200px; padding: 12px; border: 1px solid var(--school-border); border-radius: 7px; background: var(--school-surface); color: var(--school-text); font-size: 14px; line-height: 1.6; }
+.school-invite-list { display: grid; gap: 0; max-height: 320px; overflow-y: auto; }
+.school-invite-list > div { display: flex; align-items: center; gap: 16px; padding: 12px 0; border: 0; border-top: 1px solid var(--school-border); border-radius: 0; }
+.school-invite-list > div > div:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.school-invite-list .mb-3 { margin-bottom: 0; }
+.school-invite-list .flex { flex-wrap: wrap; }
+
+/* The shared file manager uses the same compact surfaces and control sizes. */
+.school-admin .school-storage { box-shadow: none; padding: 20px; border-radius: 14px; background: var(--school-surface); }
+.school-admin .school-storage-meter { min-width: 0; width: min(320px, 100%); border-radius: 9px; }
+.school-admin .school-storage :is(aside, .rounded-2xl) { border-radius: 10px; }
+.school-admin .school-storage aside { background: var(--school-raised); }
+.school-admin .school-storage :is(input, select) { min-width: 0; }
+.school-admin .school-storage .space-y-5 { min-width: 0; }
+.school-admin .school-storage .grid > * { min-width: 0; }
+.school-admin .school-storage .text-xs { line-height: 1.5; }
+.school-admin .school-storage label:has(input[type=file]) { min-height: 44px; }
+
+html[data-theme='dark'] .school-admin .school-feedback.is-success { color: #9be3b9; background: #20382f; border-color: #395b48; }
+html[data-theme='dark'] .school-admin .school-feedback.is-error { color: #ffb4b0; background: #40292d; border-color: #70444b; }
+html[data-theme='dark'] .school-admin .text-emerald-700 { color: #9be3b9; }
+html[data-theme='dark'] .school-admin :is(.hover\:bg-green-100:hover, .hover\:bg-emerald-50:hover) { background: #2b493b; color: #a8edc5; }
+html[data-theme='dark'] .school-admin :is(.hover\:bg-red-100:hover, .hover\:bg-red-50:hover) { background: #513139; color: #ffc3bf; }
+html[data-theme='dark'] .school-admin .hover\:text-red-600:hover { color: #ffb4b0; }
+html[data-theme='dark'] .school-admin :is(.border-green-200, .border-red-200) { border-color: var(--school-border); }
+
+@media (max-width: 1023px) {
+  .school-directory-heading { flex-direction: column; align-items: stretch; gap: 12px; }
+  .school-request { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .school-request-actions { justify-content: flex-end; }
+}
+@media (max-width: 767px) {
+  .school-admin-shell { padding-top: 20px; }
+  .school-admin-header { align-items: start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  .school-logo { width: 52px; height: 52px; }
+  .school-identity { gap: 12px; }
+  .school-admin-header .workspace-heading { font-size: 26px; }
+  .school-overview { padding: 16px; grid-template-columns: 1fr 1fr; gap: 20px 16px; margin-bottom: 20px; }
+  .school-overview > div { padding-left: 0; border: 0; }
+  .school-overview dd { font-size: 24px; }
+  .school-tabs { gap: 0; }
+  .school-tabs button { flex: 1; padding: 10px 6px; font-size: 12px; gap: 5px; }
+  .school-tabs button svg { width: 14px; height: 14px; }
+  .school-tabs .school-tab-count { display: none; }
+  .school-panel { padding: 16px; }
+  .school-access-grid { grid-template-columns: minmax(0, 1fr); }
+  .school-directory-filters { flex-wrap: wrap; }
+  .school-search { flex: 1; }
+  .school-search input { width: 100%; }
+  .school-directory-filters select { width: 100%; }
+  .school-request { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .school-request-actions { justify-content: flex-start; margin-top: 8px; }
+  .school-usage { margin-top: 16px; gap: 10px; }
+  .school-invite-form { flex-direction: column; }
+  .school-invite-list > div { flex-wrap: wrap; gap: 6px 12px; }
+  .school-invite-list > div > div:first-child { flex-basis: 100%; }
+  .school-admin .school-storage { padding: 16px; }
+  .school-admin :is(button, input, select) { min-height: 44px; }
+  .school-admin .school-storage :is(input[type=file], .hidden) { min-height: 0; }
+}

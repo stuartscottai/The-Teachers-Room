@@ -4,15 +4,15 @@ import { ensureGameCover } from '../../services/gameCoverService';
 import { getGameCoverQuery, stockImageToCover } from '../../utils/gameCover';
 import { optimizeImageForUpload } from '../../utils/imageOptimize';
 import { uploadGameAsset } from '../../utils/gameAssetStorage';
-import { CoverCredit } from '../shared/GameCover';
+import { GameCover, CoverCredit } from '../shared/GameCover';
 import { InteractiveGameCover } from './InteractiveGameCover';
 import { StockImagePicker } from '../shared/StockImagePicker';
 
 export const GameCoverEditor: React.FC<{
-  game: GeneratedGame; userId?: string; disabled?: boolean;
+  game: GeneratedGame; userId?: string; disabled?: boolean; compact?: boolean;
   onChange: (cover: GameCoverImage, automatic?: boolean) => void;
   onBusyChange: (busy: boolean) => void;
-}> = ({ game, userId, disabled, onChange, onBusyChange }) => {
+}> = ({ game, userId, disabled, compact = false, onChange, onBusyChange }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -62,7 +62,7 @@ export const GameCoverEditor: React.FC<{
     finally { setBusy(false); onBusyChange(false); if (input.current) input.current.value = ''; }
   };
 
-  return <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="Game cover">
+  const controls = <div className="p-4">
     <div className="flex flex-col gap-5 sm:flex-row">
       <div className="w-full shrink-0 sm:w-64">
         <InteractiveGameCover cover={cover} title={game.title} disabled={busy || disabled} onChange={onChange} />
@@ -79,6 +79,16 @@ export const GameCoverEditor: React.FC<{
 
       </div>
     </div>
+  </div>;
+  return <section className={compact ? 'mb-4' : 'mb-6 rounded-2xl border border-slate-200 bg-white'} aria-label="Game cover">
+    {compact ? <details className="workspace-cover-compact rounded-xl border border-slate-200 bg-white">
+      <summary>
+        <GameCover cover={cover} title={game.title} className="h-10 w-16 rounded-md" />
+        <span>Game cover</span><span className="font-normal text-slate-500 hidden sm:inline">The image teachers see in the library</span>
+        <span className="ml-auto text-sky-700">Change cover</span>
+      </summary>
+      {controls}
+    </details> : controls}
     <input ref={input} type="file" aria-label="Upload game cover" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={event => void upload(event.target.files?.[0])} />
     <StockImagePicker isOpen={pickerOpen} initialQuery={getGameCoverQuery(game)} mode="single" onClose={() => setPickerOpen(false)}
       onUpload={() => input.current?.click()} onConfirm={items => {

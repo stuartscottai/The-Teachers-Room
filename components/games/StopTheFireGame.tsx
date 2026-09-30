@@ -1,5 +1,7 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { GameRunOptions, GeneratedGame, StopTheFireDifficulty } from '../../types';
 import { STOP_THE_FIRE_CATEGORIES } from '../../data/stopTheFireCategories';
 import { playSound } from '../../utils/gameUtils';
@@ -653,7 +655,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
     const toggleFullscreen = async () => {
         if (!document.fullscreenElement) {
-            await containerRef.current?.requestFullscreen();
+            await requestGameFullscreen(containerRef.current);
             return;
         }
         await document.exitFullscreen();
@@ -866,7 +868,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     return (
         <div ref={containerRef} className="min-h-screen bg-slate-100 flex flex-col relative overflow-hidden">
             <div
-                className="relative z-[650] w-full overflow-hidden border-b border-[#3f3129]/75 backdrop-blur-md px-3 py-2 sm:px-6 sm:py-3"
+                data-scoreboard-header="true"
+                className="relative z-[650] w-full overflow-visible border-b border-[#3f3129]/75 backdrop-blur-md px-3 py-2 sm:px-6 sm:py-3"
                 style={CHARCOAL_HEADER_BACKGROUND_STYLE}
             >
                 <div className="pointer-events-none absolute inset-0">
@@ -891,20 +894,20 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 const isLeader = leaderboardTopScore > 0 && score === leaderboardTopScore;
                                 const isTieBreakerTeam = isTieBreaker && tieBreakerTeams.includes(idx);
                                 return (
-                                    <div
+                                    <div data-scoreboard-card="true"
                                         key={`score-${idx}`}
                                         className={`min-w-0 rounded-xl border-2 px-2 py-1 sm:px-3 sm:py-2 text-center transition-all ${
                                             isTieBreakerTeam
-                                                ? 'border-rose-300/85 bg-rose-500/20 shadow-[0_0_14px_rgba(244,63,94,0.4)]'
+                                                ? 'border-rose-300/85 bg-rose-500/20'
                                                 : isLeader
-                                                    ? 'border-[#b98666]/76 bg-gradient-to-b from-[#3a2d27]/90 to-[#181312]/92 shadow-[0_0_16px_rgba(122,47,18,0.34)]'
+                                                    ? 'border-[#b98666]/76 bg-gradient-to-b from-[#3a2d27]/90 to-[#181312]/92'
                                                     : 'border-[#5a453a]/72 bg-gradient-to-b from-[#251d1a]/90 to-[#13100f]/92'
                                         }`}
                                     >
                                         <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.13em] text-[#f2ddd1] truncate">
                                             {teamNames[idx]}
                                         </div>
-                                        <div className="font-mono text-lg sm:text-3xl leading-none font-black text-white [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
+                                        <div className="font-mono text-lg sm:text-3xl leading-none font-black text-white tabular-nums truncate [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
                                             {score}
                                         </div>
                                     </div>
@@ -964,6 +967,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                     : undefined
                             }
                         >
+                            {isFlipped && <QuestionCardZoomButton />}
                             <div
                                 className={`relative w-full ${isMobileViewport && !isFlipped ? 'h-auto' : 'h-full'} transition-all duration-700 [transform-style:preserve-3d] ${
                                     isFlipped ? '[transform:rotateY(180deg)]' : ''

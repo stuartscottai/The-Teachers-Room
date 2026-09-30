@@ -1,4 +1,6 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -749,7 +751,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
     const toggleFullscreen = async () => {
         if (!document.fullscreenElement) {
-            await containerRef.current?.requestFullscreen();
+            await requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
             return;
         }
@@ -1260,7 +1262,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     100% { transform: translate(-50%, -50%) scale(1); }
                 }
             `}</style>
-            <div ref={headerRef} className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[140px]`}>
+            <div ref={headerRef} data-scoreboard-header="true" className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[148px]`}>
                 <div className={`flex ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button
@@ -1291,17 +1293,17 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     <div
                         className={isMobileViewport
                             ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar px-1 sm:px-4 h-full'}
+                            : 'flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar px-1 sm:px-4'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {scores.map((score, index) => {
                             const active = currentTeam === index;
                             return (
-                                <button
+                                <button data-scoreboard-card="true"
                                     key={index}
                                     onClick={() => openEditTeam(index)}
                                     className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[48px] py-0.5' : 'min-h-[52px] py-1'} w-full min-w-0 px-2 flex flex-col items-center justify-center overflow-hidden` : 'min-w-[110px] sm:min-w-[160px] px-2 py-2 sm:px-4 sm:py-3'} rounded-xl border text-center transition-all ${
-                                        active ? 'bg-cyan-600/20 border-cyan-300 shadow-lg' : 'bg-slate-700/60 border-slate-600'
+                                        active ? 'bg-cyan-600/20 border-cyan-300' : 'bg-slate-700/60 border-slate-600'
                                     } relative group`}
                                 >
                                     <div className={`${mobileUsesTwoRowHeader ? 'text-[9px] leading-none mb-0.5' : 'text-[10px] leading-tight'} sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full`}>
@@ -1459,6 +1461,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     style={{ top: `${cardOverlayTop}px` }}
                 >
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                        <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-brand-blue text-white p-3 md:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">

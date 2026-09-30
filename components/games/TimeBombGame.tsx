@@ -1,5 +1,7 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -421,7 +423,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     // Fullscreen Handling
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -1732,7 +1734,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             `}</style>
             
             {/* 1. HEADER */}
-            <div className={`time-bomb-hazard-header px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-yellow-500/70 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[110px]' : 'min-h-[70px]'} sm:min-h-[140px] relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+            <div data-scoreboard-header="true" className={`time-bomb-hazard-header px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-yellow-500/70 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'min-h-[110px]' : 'min-h-[70px]'} sm:min-h-[148px] relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                 <div className={`min-w-fit shrink-0 sm:hidden gap-1.5 ${mobileUsesButtonGrid ? 'grid grid-cols-2' : mobileUsesTwoRowHeader ? 'flex flex-col items-start' : 'flex flex-row items-center'}`}>
                     <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-yellow-100 hover:text-white bg-black/70 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-yellow-400/60 hover:border-white/70">
                         <ArrowLeft size={17} />
@@ -1766,19 +1768,19 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 <div
                     className={isMobileViewport
                         ? 'flex-1 grid gap-1.5 items-stretch px-1'
-                        : 'flex-1 sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:no-scrollbar sm:px-3 sm:items-center sm:h-full'}
+                        : 'flex-1 sm:flex sm:justify-center sm:gap-4 sm:overflow-x-auto sm:no-scrollbar sm:px-3 sm:items-center'}
                     style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                 >
                     {teamNames.map((name, idx) => {
                         const isAlive = options.studentPractice || teamLives[idx] > 0;
                         const isActive = idx === activeTeamIndex;
                         return (
-                            <div 
+                            <div data-scoreboard-card="true"
                                 key={idx} 
                                 className={`
                                     relative w-full min-w-0 px-1.5 py-1 sm:px-4 sm:py-3 rounded-xl border-2 transition-all ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'min-h-[52px]'} sm:h-28 sm:w-auto sm:min-w-[150px] flex flex-col items-center justify-center text-center
                                     ${!isAlive ? 'border-slate-800 bg-slate-900/50 opacity-40 grayscale' : 
-                                      isActive ? 'border-black bg-yellow-400 text-black shadow-[0_0_28px_rgba(250,204,21,0.55)] z-10 ring-2 ring-black/40' : 
+                                      isActive ? 'border-black bg-yellow-400 text-black' :
                                       'border-yellow-400/60 bg-black/70 text-yellow-100'}
                                 `}
                             >
@@ -1879,6 +1881,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         ref={cardFrameRef}
                                         className="relative w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] overflow-visible"
                                     >
+                                        <QuestionCardZoomButton />
                                         <div className="relative w-full h-full">
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}

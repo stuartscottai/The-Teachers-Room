@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck, Radio, ChevronDown } from 'lucide-react';
+import { Menu, X, User, BookOpen, GraduationCap, HelpCircle, MessageSquare, Home, LogIn, Grid, LogOut, Building2, MailCheck, Radio, ChevronDown, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
@@ -18,25 +18,28 @@ import { AuthTurnstile } from './AuthTurnstile';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
-    const { isDirty, setIsDirty, confirmAction } = useUnsavedChanges();
+    const { isDirty, setIsDirty, isPlaying, setIsPlaying, confirmAction } = useUnsavedChanges();
     const navigate = useNavigate();
     const location = useLocation();
     const isActive = location.pathname === to;
 
     const handleClick = (e: React.MouseEvent) => {
         e.preventDefault();
-        if (isActive && !state) {
+        if (isActive && !state && !isPlaying) {
             if (onClick) onClick();
             return; // Don't navigate if already there unless checking for state changes
         }
 
         const performNavigation = () => {
             setIsDirty(false); // Clear dirty state on confirmed navigation
+            setIsPlaying(false);
             if (onClick) onClick();
-            navigate(to, { state });
+            navigate(to, { state: isPlaying && isActive && !state && to === '/games' ? { view: 'create' } : state });
         };
 
-        if (isDirty) {
+        if (isPlaying) {
+            confirmAction('Your current round and scores will be lost if you leave this game.', performNavigation, 'Leave game?');
+        } else if (isDirty) {
             confirmAction(
                 "You have unsaved changes. Are you sure you want to leave? Your progress will be lost.",
                 performNavigation
@@ -70,6 +73,7 @@ const Navbar: React.FC = () => {
   const [resendCaptchaResetKey, setResendCaptchaResetKey] = useState(0);
   const location = useLocation();
   const { user, logout, resendSignupConfirmation } = useAuth();
+  const { isPlaying, gameAppearance, setGameAppearance, confirmAction, setIsPlaying } = useUnsavedChanges();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const canAccessSchoolAdmin = user?.accountType === 'school' && user.schoolAccess?.role === 'admin';
 
@@ -198,6 +202,7 @@ const Navbar: React.FC = () => {
           
           {/* Desktop Menu */}
           <div className="hidden xl:flex items-center space-x-1">
+            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle" aria-label={`Switch game to ${gameAppearance === 'light' ? 'dark' : 'bright'} appearance`} title="Change game appearance without changing your site preference">{gameAppearance === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{gameAppearance === 'light' ? 'Dark game' : 'Bright game'}</span></button>}
             {navItems.map((item) => (
               <SafeLink
                 key={item.name}
@@ -268,7 +273,11 @@ const Navbar: React.FC = () => {
                           </SafeLink>
                         )}
                         <button 
-                          onClick={() => { logout(); setShowUserMenu(false); }}
+                          onClick={() => {
+                            const signOut = () => { setIsPlaying(false); void logout(); setShowUserMenu(false); };
+                            if (isPlaying) confirmAction('Your current round and scores will be lost if you sign out.', signOut, 'Leave game?');
+                            else signOut();
+                          }}
                           className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center"
                         >
                           <LogOut size={16} className="mr-2" /> Sign Out
@@ -293,8 +302,10 @@ const Navbar: React.FC = () => {
 
           {/* Mobile menu button */}
           <div className="flex items-center xl:hidden">
+            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle game-appearance-toggle-mobile" aria-label={`Switch game to ${gameAppearance === 'light' ? 'dark' : 'bright'} appearance`} title="Change game appearance">{gameAppearance === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>}
             <button
               onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
               className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -349,8 +360,9 @@ const Navbar: React.FC = () => {
                     )}
                     <button
                       onClick={() => {
-                        setIsOpen(false);
-                        void logout();
+                        const signOut = () => { setIsPlaying(false); setIsOpen(false); void logout(); };
+                        if (isPlaying) confirmAction('Your current round and scores will be lost if you sign out.', signOut, 'Leave game?');
+                        else signOut();
                       }}
                       className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50"
                     >

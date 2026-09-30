@@ -34,7 +34,7 @@ export const Info: React.FC = () => {
     },
     {
       question: 'Can I use my own AI tool to make a game?',
-      answer: 'Yes. In manual game creation, use "Import from Another AI Tool" to copy our custom prompt template, paste it into your preferred LLM, then import the returned JSON here.'
+      answer: 'Yes. In manual game creation, use "Import from Another AI Tool" to copy a ready-made request. Paste it into your preferred AI tool, then bring its response back into the game editor.'
     },
     {
       question: 'Can I upload a photo/PDF from my book and generate from that?',
@@ -96,6 +96,11 @@ export const Info: React.FC = () => {
 
   const toggleSection = (section: SectionKey) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const openSection = (section: SectionKey) => {
+    setOpenSections((prev) => ({ ...prev, [section]: true }));
+    window.setTimeout(() => document.getElementById(`info-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const searchableSections: Array<{ type: 'section'; section: SectionKey; title: string; body: string }> = [
@@ -165,22 +170,32 @@ export const Info: React.FC = () => {
     }
 
     window.setTimeout(() => {
-      document.getElementById(`info-${result.section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const targetId = result.type === 'faq' ? `info-faq-${result.faqIndex}` : `info-${result.section}`;
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-20">
-      <div className="text-center mb-10">
-        <h1 className="font-display text-4xl font-bold text-slate-800 mb-3">Info Hub</h1>
-        <p className="text-slate-600 max-w-3xl mx-auto">
-          Explore how to get the best from <BrandName />, from quick setup tips to detailed prompt strategy and practical FAQs.
+    <div className="info-page max-w-5xl mx-auto px-4 py-12 sm:py-16">
+      <div className="mb-8">
+        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-blue">Guides & answers</p>
+        <h1 className="font-display text-4xl font-bold text-slate-800 mb-3">Help with <BrandName /></h1>
+        <p className="text-slate-600 max-w-2xl">
+          Find your way around the games, get better results from AI, and answer common questions.
         </p>
       </div>
 
+      <nav aria-label="Information topics" className="info-topic-nav mb-8 flex flex-wrap gap-2">
+        {([['story', 'Our story'], ['how-to', 'Using the site'], ['prompt-guide', 'Writing a good brief'], ['faqs', 'Questions & answers']] as const).map(([section, label]) => (
+          <button key={section} type="button" onClick={() => openSection(section)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-brand-blue hover:text-brand-blue">
+            {label}
+          </button>
+        ))}
+      </nav>
+
       <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
         <label htmlFor="info-search" className="block text-sm font-bold text-slate-700 mb-2">
-          Search the Info Hub
+          Search help topics
         </label>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -265,7 +280,7 @@ export const Info: React.FC = () => {
                 I wanted something flexible enough to follow real classroom life, not the other way around.
               </p>
               <p>
-                Dream scenario: you discover you have a surprise 15 minutes at the end of class, snap a quick photo of the coursebook page, upload it, and boom, instant game.
+                Imagine finding a spare 15 minutes at the end of class: photograph the coursebook page, upload it, and make a game that fits the lesson.
                 So that is what I built.
                 <BrandName /> grew from that exact moment: a slightly sleep-deprived teacher dream, a lot of trial and error, and a stubborn belief that teachers deserve tools as fast and adaptable as their classrooms.
               </p>
@@ -286,19 +301,19 @@ export const Info: React.FC = () => {
           >
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-800">How to Use the Site</h2>
-              <p className="text-sm text-slate-500 mt-1">The real workflow, with fewer headaches and more "nice, that actually worked".</p>
+              <p className="text-sm text-slate-500 mt-1">From an idea or source file to a game ready for class.</p>
             </div>
             <ChevronDown className={`text-slate-500 transition-transform ${openSections['how-to'] ? 'rotate-180' : ''}`} />
           </button>
           {openSections['how-to'] && (
             <div id="info-how-to" className="px-6 pb-6 pt-1 border-t border-slate-100 text-slate-600">
-              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 mt-4">
+              <div className="info-guide-block border-l-2 border-brand-blue pl-4 mt-5">
                 <h3 className="font-bold text-slate-800 mb-3">Games: from idea to classroom in minutes</h3>
                 <ol className="list-decimal pl-5 space-y-2 text-sm">
                   <li>Open <strong>Games</strong> and pick a mode: Snakes & Ladders, Trivia, Jeopardy, Pub Quiz, Darts, Millionaire, Time Bomb, Survey Showdown, Stop the Fire, Word Wheel, or Live Quiz Challenge.</li>
                   <li>If you are not sure where to start, open the <strong>AI Assistant</strong>, explain your idea in plain English, and it will recommend suitable game types based on your class and goals.</li>
                   <li>Choose <strong>Manual</strong> (build from scratch) or <strong>AI</strong> (instant first draft).</li>
-                  <li>In Manual mode, open <strong>Import from Another AI Tool</strong> if you want to use your own LLM. Copy the custom prompt template, paste it into your AI tool, then import the returned JSON.</li>
+                  <li>In Manual mode, open <strong>Import from Another AI Tool</strong> if you want to use your own AI tool. Copy the ready-made request, paste it into that tool, then bring its response back into the editor.</li>
                   <li>In AI mode, add a topic and optional instructions. You can type or use the mic dictation button.</li>
                   <li>Optional but powerful: upload source files (PDF/images, max 3 files, 4MB each) so AI uses your actual material.</li>
                   <li>If you enable images, <strong>Auto-pick</strong> grabs stock visuals from question/answer keywords, or choose <strong>Pick later</strong> and add them manually in the editor.</li>
@@ -308,7 +323,7 @@ export const Info: React.FC = () => {
                 </ol>
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mt-4">
+              <div className="info-guide-block border-l-2 border-slate-300 pl-4 mt-6">
                 <h3 className="font-bold text-slate-800 mb-3">School accounts: manage teachers and shared resources</h3>
                 <ol className="list-decimal pl-5 space-y-2 text-sm">
                   <li>Create a <strong>School</strong> plan, add your school name, and open the School Admin dashboard.</li>
@@ -331,15 +346,15 @@ export const Info: React.FC = () => {
           >
             <div>
               <h2 className="font-display text-2xl font-bold text-slate-800">Prompt Guide</h2>
-              <p className="text-sm text-slate-500 mt-1">Friendly prompt coaching: less robot confusion, more classroom-ready wins.</p>
+              <p className="text-sm text-slate-500 mt-1">What to include when you ask AI to make a game.</p>
             </div>
             <ChevronDown className={`text-slate-500 transition-transform ${openSections['prompt-guide'] ? 'rotate-180' : ''}`} />
           </button>
           {openSections['prompt-guide'] && (
             <div id="info-prompt-guide" className="px-6 pb-6 pt-1 border-t border-slate-100 text-slate-600">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-4">
-                <h3 className="font-bold text-slate-800 mb-3">The Magic Prompt Recipe</h3>
-                <p className="text-sm mb-3">AI is clever, but not psychic. Give it these ingredients:</p>
+              <div className="info-guide-block border-l-2 border-brand-blue pl-4 mt-5">
+                <h3 className="font-bold text-slate-800 mb-3">Start with the essentials</h3>
+                <p className="text-sm mb-3">A useful brief tells the tool who the game is for and what it should cover:</p>
                 <ul className="list-disc pl-5 space-y-2 text-sm">
                   <li><strong>Who:</strong> age + level (for example, "A2 teens").</li>
                   <li><strong>What:</strong> precise objective (for example, "past simple negatives").</li>
@@ -350,17 +365,17 @@ export const Info: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4">
-                <h3 className="font-bold text-slate-800 mb-2">Important Image Truth (so nobody gets surprised)</h3>
+              <div className="info-guide-block border-l-2 border-slate-300 pl-4 mt-6">
+                <h3 className="font-bold text-slate-800 mb-2">How game images are chosen</h3>
                 <p className="text-sm">
                   In Games, image auto-pick uses question/answer keywords generated by AI. It does <strong>not</strong> currently take a separate art-direction prompt like
-                  "make it watercolor in Pixar style." If you need a very specific visual, generate first, then replace images manually in the editor.
+                  "make it look like a watercolor painting." If you need a specific visual style, generate the game first, then replace images in the editor.
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4 mt-4">
-                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
-                  <h4 className="font-bold text-emerald-700 mb-2">Good Game Prompt</h4>
+              <div className="grid md:grid-cols-2 gap-4 mt-6">
+                <div className="info-example border border-slate-200 rounded-xl p-4">
+                  <h4 className="font-bold text-slate-800 mb-2">A useful brief</h4>
                   <p className="text-sm leading-relaxed">
                     "A2 ESL students (age 12-13). Use the attached book-page photo as the main source.
                     Create a 15-question Trivia game for a 15-minute end-of-class review.
@@ -368,8 +383,8 @@ export const Info: React.FC = () => {
                     Keep questions short, classroom-safe, and include 4 multiple-choice options."
                   </p>
                 </div>
-                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
-                  <h4 className="font-bold text-rose-700 mb-2">Weak Game Prompt</h4>
+                <div className="info-example border border-slate-200 rounded-xl p-4">
+                  <h4 className="font-bold text-slate-800 mb-2">Too broad to be useful</h4>
                   <p className="text-sm leading-relaxed">
                     "Make me a game from this."
                   </p>
@@ -399,7 +414,7 @@ export const Info: React.FC = () => {
               <p className="text-sm text-slate-500 mt-4">Click each question to reveal its answer.</p>
               <div className="mt-4 space-y-3">
                 {faqs.map((faq, index) => (
-                  <div key={faq.question} className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div id={`info-faq-${index}`} key={faq.question} className="border border-slate-200 rounded-xl overflow-hidden">
                     <button
                       type="button"
                       onClick={() => setOpenFaq((prev) => (prev === index ? null : index))}
@@ -586,7 +601,7 @@ export const Contact: React.FC = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" 
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                     placeholder="Your name"
                   />
                 </div>
@@ -597,7 +612,7 @@ export const Contact: React.FC = () => {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none" 
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                     placeholder="you@school.edu"
                   />
                 </div>
@@ -607,14 +622,14 @@ export const Contact: React.FC = () => {
                     required
                     value={formData.message}
                     onChange={(e) => setFormData({...formData, message: e.target.value})}
-                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-teal-400 outline-none h-32 resize-none"
+                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none h-32 resize-none"
                     placeholder="How can we help?"
                   ></textarea>
                 </div>
                 <button 
                     type="submit"
                     disabled={status === 'sending'}
-                    className={`w-full py-3 bg-teal-500 text-white rounded-xl font-bold hover:bg-teal-600 transition-colors flex items-center justify-center ${status === 'sending' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    className={`w-full py-3 bg-brand-blue text-white rounded-xl font-bold hover:bg-sky-600 transition-colors flex items-center justify-center ${status === 'sending' ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                     {status === 'sending' ? (
                         <><Loader size={20} className="mr-2 animate-spin" /> Sending...</>

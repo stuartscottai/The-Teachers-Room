@@ -58,6 +58,18 @@ const AccountTierOnboardingRedirect: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const syncTheme = (event: StorageEvent) => {
+      if (event.key !== 'teachers-room-theme') return;
+      const theme = event.newValue === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#171a1f' : '#facc15');
+    };
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
+  }, []);
+
+  useEffect(() => {
     if (isLoading || !user || !needsPlanSelection || isPasswordRecovery) return;
     if (location.pathname === '/reset-password') return;
     if (location.pathname === '/choose-plan') return;

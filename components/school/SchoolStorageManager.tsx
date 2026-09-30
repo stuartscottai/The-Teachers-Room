@@ -436,18 +436,15 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
   };
 
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+    <section className="school-storage bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-blue mb-3">
-            <HardDrive size={13} /> School Storage
-          </div>
-          <h2 className="text-xl font-bold text-slate-800">Shared File Library</h2>
+          <h2 className="school-section-heading flex items-center gap-2 text-xl font-bold text-slate-800"><HardDrive size={18} /> Shared files</h2>
           <p className="text-sm text-slate-500 mt-1">
             Teachers can save files here. Admins organise folders and file placement.
           </p>
         </div>
-        <div className="min-w-[260px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="school-storage-meter min-w-[260px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="flex items-center justify-between gap-3 text-sm">
             <span className="font-semibold text-slate-700">Storage Used</span>
             <span className="text-slate-500">
@@ -482,6 +479,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
 
       {feedback && (
         <div
+          role={feedback.type === 'error' ? 'alert' : 'status'}
           className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
             feedback.type === 'success'
               ? 'border-green-200 bg-green-50 text-green-700'
@@ -536,11 +534,12 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
 
             <div className="grid gap-4 lg:grid-cols-[1.1fr,1fr]">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                <label htmlFor="school-folder-name" className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
                   Create Folder Here
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="school-folder-name"
                     type="text"
                     value={newFolderName}
                     onChange={(event) => setNewFolderName(event.target.value)}
@@ -603,7 +602,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                             <span className="block truncate text-sm font-medium text-slate-700">{folder.name}</span>
                             <span className="block text-xs text-slate-500">
                               {fileCount} file{fileCount === 1 ? '' : 's'}
-                              {childCount ? ` Â· ${childCount} folder${childCount === 1 ? '' : 's'}` : ''}
+                              {childCount ? ` · ${childCount} folder${childCount === 1 ? '' : 's'}` : ''}
                             </span>
                           </span>
                         </button>
@@ -669,6 +668,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                           Move to
                         </label>
                         <select
+                          aria-label={`Move ${file.name} to folder`}
                           value={file.folderId || ''}
                           onChange={(event) => void handleMoveFile(file.id, event.target.value)}
                           className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue"

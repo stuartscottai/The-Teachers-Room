@@ -16,6 +16,7 @@ const vite = await createViteServer({
 
 const apiModules = {
   '/api/generate': '/api/generate.ts',
+  '/api/my-ai-generation-stats': '/api/my-ai-generation-stats.ts',
   '/api/delete-account': '/api/delete-account.ts',
   '/api/stock-images': '/api/stock-images.ts',
   '/api/game-cover': '/api/game-cover.ts',

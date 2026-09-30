@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { GameRunOptions, GameType, GeneratedGame } from '../../types';
+import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 
 type GameRunnerProps = {
   game: GeneratedGame;
@@ -8,6 +9,7 @@ type GameRunnerProps = {
   onFinish: () => void;
   onReplay: () => void;
   testMode?: boolean;
+  testStartPosition?: number;
 };
 
 const DartsGame = lazy(() => import('./DartsGame').then(({ DartsGame }) => ({ default: DartsGame })));
@@ -65,8 +67,11 @@ const LazyGameRunnerInner: React.FC<GameRunnerProps> = (props) => {
   }
 };
 
-export const LazyGameRunner: React.FC<GameRunnerProps> = (props) => (
-  <Suspense fallback={<GameLoading />}>
-    <LazyGameRunnerInner {...props} />
-  </Suspense>
-);
+export const LazyGameRunner: React.FC<GameRunnerProps> = (props) => {
+  const { gameAppearance } = useUnsavedChanges();
+  return <div className="gameplay-viewport"><div className="gameplay-appearance" data-game-appearance={gameAppearance}>
+    <Suspense fallback={<GameLoading />}>
+      <LazyGameRunnerInner {...props} />
+    </Suspense>
+  </div></div>;
+};

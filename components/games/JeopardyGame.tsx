@@ -1,4 +1,6 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { BonusCardType, GeneratedGame, GameRunOptions, PracticeReviewItem } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -235,7 +237,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const toggleFullscreen = () => {
         if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -728,7 +730,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 `}
             </style>
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className={`bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
+            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[148px]`}>
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 
@@ -771,16 +773,16 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                     <div
                         className={isMobileViewport
                             ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-start sm:justify-center gap-1 sm:gap-4 flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 h-full items-center'}
+                            : 'flex-1 flex justify-start sm:justify-center gap-1 sm:gap-4 flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {scores.map((score, idx) => (
-                            <button 
+                            <button data-scoreboard-card="true"
                                 key={idx} 
                                 onClick={() => openEditTeam(idx)}
                                 className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'shrink-0 px-1.5 py-1 sm:px-6 sm:py-3 sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm
                                     ${currentTeam === idx 
-                                        ? 'bg-brand-blue border-sky-600 text-white shadow-lg ring-2 sm:ring-4 ring-sky-100 sm:scale-110 z-10' 
+                                        ? 'bg-brand-blue border-sky-600 text-white'
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                             >
                                 <div className={`${mobileTeamNameClass} sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1`}>
@@ -804,7 +806,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         >
                             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </button>
-                        <button onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
+                        <button aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
                             {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                         </button>
                     </div>
@@ -839,6 +841,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 return (
                                     <button 
                                         key={`q-${cIdx}-${qIdx}`}
+                                        data-game-grid-tile="true"
                                         disabled={isAnswered}
                                         onClick={() => handleQuestionSelect(cIdx, qIdx)}
                                         className={`
@@ -846,7 +849,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                             ${isFullscreen ? 'text-5xl md:text-7xl' : 'text-lg sm:text-3xl md:text-5xl'}
                                             ${isAnswered 
                                                 ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-none' 
-                                                : 'bg-brand-yellow text-slate-900 border-b-4 border-yellow-600 shadow-sm hover:scale-110 hover:bg-white hover:text-brand-blue z-10 hover:z-50 hover:shadow-2xl'}
+                                                : 'bg-brand-yellow text-slate-900 border-b-4 border-yellow-600 shadow-sm hover:bg-white hover:text-brand-blue z-10 hover:z-50 hover:shadow-2xl'}
                                         `}
                                     >
                                         {isAnswered ? '' : q.points}
@@ -907,6 +910,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             {activeQ && (
                 <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                        <QuestionCardZoomButton />
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}

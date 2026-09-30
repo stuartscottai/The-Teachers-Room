@@ -30,7 +30,7 @@ export const BlogPostPage: React.FC = () => {
         <div className="min-h-screen bg-white animate-fade-in">
             {/* Hero Section */}
             {heroUsesContain ? (
-                <div className="relative h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-teal-50 via-white to-sky-50">
+                <div className="theme-article-hero relative h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-teal-50 via-white to-sky-50">
                     <div className="absolute inset-y-0 right-0 w-full md:w-[56%] lg:w-[48%]">
                         <img
                             src={heroImage}
@@ -97,7 +97,7 @@ export const BlogPostPage: React.FC = () => {
 
             {/* Content Section */}
             <article className="max-w-3xl mx-auto px-4 py-16">
-                <div className="prose prose-lg prose-slate prose-headings:font-display prose-headings:font-bold prose-headings:text-slate-800 prose-p:text-slate-600 prose-a:text-brand-blue prose-strong:text-slate-900 max-w-none">
+                <div className="blog-article-content prose prose-lg prose-slate prose-headings:font-display prose-headings:font-bold prose-headings:text-slate-800 prose-p:text-slate-600 prose-a:text-brand-blue prose-strong:text-slate-900 max-w-none">
                     <div dangerouslySetInnerHTML={{ __html: post.content }} />
                 </div>
 
@@ -130,8 +130,8 @@ export const BlogPostPage: React.FC = () => {
                                     <img src={related.image} alt={related.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 </div>
                                 <div className="p-6">
-                                    <p className="text-xs font-bold text-teal-600 mb-2">{related.date}</p>
-                                    <h4 className="font-bold text-slate-800 mb-2 group-hover:text-teal-600 transition-colors line-clamp-2">{related.title}</h4>
+                                    <p className="text-xs font-bold text-brand-blue mb-2">{related.date}</p>
+                                    <h4 className="font-bold text-slate-800 mb-2 group-hover:text-brand-blue transition-colors line-clamp-2">{related.title}</h4>
                                     <p className="text-sm text-slate-500 line-clamp-2">{related.subtitle}</p>
                                 </div>
                             </Link>

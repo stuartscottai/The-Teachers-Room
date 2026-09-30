@@ -20,13 +20,13 @@ export const Blog: React.FC = () => {
                                 <img src={post.image} alt={post.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                             </div>
                             <div className="p-6 flex-grow">
-                                <p className="text-xs font-bold text-teal-600 mb-2">{post.date}</p>
-                                <h3 className="font-display text-xl font-bold text-slate-800 mb-3 leading-tight group-hover:text-teal-600 transition-colors">{post.title}</h3>
+                                <p className="text-xs font-bold text-brand-blue mb-2">{post.date}</p>
+                                <h3 className="font-display text-xl font-bold text-slate-800 mb-3 leading-tight group-hover:text-brand-blue transition-colors">{post.title}</h3>
                                 <p className="text-slate-600 text-sm mb-4 line-clamp-3">{post.subtitle}</p>
                             </div>
                             <div className="p-6 pt-0 border-t border-slate-50 mt-auto">
                                 <span 
-                                    className="text-slate-800 font-bold group-hover:text-teal-600 text-sm transition-colors flex items-center"
+                                    className="text-slate-800 font-bold group-hover:text-brand-blue text-sm transition-colors flex items-center"
                                 >
                                     Read Article &rarr;
                                 </span>

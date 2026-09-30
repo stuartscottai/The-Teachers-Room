@@ -1,4 +1,6 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { GeneratedGame, GameRunOptions } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
@@ -451,7 +453,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const toggleFullscreen = () => {
         if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -565,7 +567,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         <div ref={containerRef} className={`bg-[#102b2d] flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`} style={pubQuizBackgroundStyle}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div ref={scorebarRef} className={`bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[140px]`}>
+            <div ref={scorebarRef} className={`pub-quiz-scoreboard bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[148px]`}>
                 <div className="hidden sm:flex justify-between items-center gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[140px]">
                         <button 
@@ -583,12 +585,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                         </button>
                     </div>
 
-                    <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 h-full items-center">
+                    <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 items-center">
                         {scores.map((score, idx) => (
                             <button 
                                 key={idx} 
                                 onClick={() => openEditTeam(idx)}
-                                className="px-6 py-3 rounded-xl text-center transition-all border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-[0_5px_12px_rgba(5,50,52,0.3)] bg-[#126c68] border-[#0b4745] text-white hover:bg-[#16807b] hover:border-[#105957] hover:scale-105 hover:-rotate-1"
+                                className="px-6 py-3 rounded-xl text-center transition-colors border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-[0_5px_12px_rgba(5,50,52,0.3)] bg-[#126c68] border-[#0b4745] text-white hover:bg-[#16807b] hover:border-[#105957]"
                             >
                                 <div className="text-lg uppercase font-bold tracking-wider truncate max-w-[130px] mb-1 flex items-center gap-1">
                                     {teamNames[idx]}
@@ -875,6 +877,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             {phase === 'play' && currentQuestion && (
                 <div data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                        <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}

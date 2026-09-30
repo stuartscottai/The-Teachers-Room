@@ -21,6 +21,14 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#facc15" />
+    <script>
+      try {
+        const theme = localStorage.getItem('teachers-room-theme') === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        if (theme === 'dark') document.querySelector('meta[name="theme-color"]').content = '#171a1f';
+      } catch { document.documentElement.dataset.theme = 'light'; }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" crossorigin="anonymous">
     <style>
       @font-face {

@@ -1,3 +1,4 @@
+import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import { SurveyTurnTimer } from './shared/SurveyTurnTimer';
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -425,7 +426,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
     const toggleFullscreen = () => {
         if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
         } else {
             document.exitFullscreen();
@@ -526,7 +527,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         <div ref={containerRef} className={`bg-slate-900 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative text-white font-sans`}>
             
             {/* 1. HEADER / SCOREBOARD (Increased Height to match Trivia) */}
-            <div className={`bg-slate-800/90 backdrop-blur-md ${mobileUsesTwoRowHeader ? 'px-2 py-1.5' : 'p-2'} sm:p-3 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[70px] sm:min-h-[112px]`}>
+            <div data-scoreboard-header="true" className={`bg-slate-800/90 backdrop-blur-md ${mobileUsesTwoRowHeader ? 'px-2 py-1.5' : 'p-2'} sm:p-3 shrink-0 border-b border-slate-700 shadow-lg z-20 min-h-[70px] sm:min-h-[112px]`}>
                 <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                     <div className={`${mobileUsesButtonGrid ? 'grid grid-cols-2' : 'flex'} min-w-fit shrink-0 gap-1.5 sm:flex sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesButtonGrid ? '' : mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
@@ -569,7 +570,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                     <div
                         className={isMobileViewport
                             ? 'flex-1 self-start grid gap-1 items-start content-start'
-                            : `flex-1 flex justify-end sm:justify-center gap-2 ${isCrowdedDesktopHeader ? 'sm:gap-2' : 'sm:gap-4'} flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 h-full items-center`}
+                            : `flex-1 flex justify-end sm:justify-center gap-2 ${isCrowdedDesktopHeader ? 'sm:gap-2' : 'sm:gap-4'} flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-2 items-center`}
                         style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
                     >
                         {teamNames.map((name, idx) => {
@@ -577,12 +578,12 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             const strikeCount = teamStrikes[idx] ?? 0;
                             const teamScore = scores[idx] ?? 0;
                             return (
-                                <button 
+                                <button data-scoreboard-card="true"
                                     key={`${name}-${idx}`}
                                     onClick={() => openEditTeam(idx)}
                                     className={`flex flex-col items-center justify-center transition-all ${isMobileViewport ? 'w-full min-w-0' : isCrowdedDesktopHeader ? 'w-[108px] min-w-[108px]' : 'w-[150px] min-w-[150px]'} px-2 py-1 ${isCrowdedDesktopHeader ? 'sm:px-3 sm:py-2' : 'sm:px-4 sm:py-3'} rounded-xl ${isMobileViewport ? 'border-2' : 'border-4'} relative min-h-[52px] cursor-pointer group
                                     ${isActive 
-                                        ? `border-brand-yellow bg-slate-700 ring-2 ${isCrowdedDesktopHeader ? 'sm:ring-2' : 'sm:ring-4'} ring-yellow-300/40 shadow-[0_0_18px_rgba(250,204,21,0.35)] z-10` 
+                                        ? 'border-brand-yellow bg-slate-700'
                                         : 'border-slate-600 bg-slate-800 opacity-70 hover:opacity-100 hover:border-slate-500'}`}
                                 >
                                     <div className="absolute top-1 right-1 bg-slate-100 text-slate-900 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity z-20">

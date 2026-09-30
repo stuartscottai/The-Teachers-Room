@@ -78,7 +78,7 @@ test.describe('image health smoke tests', () => {
     const errors = installErrorGuards(page);
 
     await page.goto('/test/preview-smoke');
-    await page.getByRole('button', { name: /Study Mode/i }).click();
+    await page.getByRole('button', { name: /Study cards/i }).click();
     await expectLoadedImageByAlt(page, 'Preview image for Question 1');
     await expectNoBrokenImages(page);
 

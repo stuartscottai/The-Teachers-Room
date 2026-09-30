@@ -94,7 +94,7 @@ export interface MyProfileGameStats {
   gamesCreated: number;
   createdPlaycount: number;
   gamesPlayed: number;
-  aiGens: number;
+  aiGens: number | null;
   lastGameCreatedAt: string | null;
   lastPlayedAt: string | null;
   lastGeneratedAt: string | null;
@@ -732,7 +732,7 @@ export const getMyProfileGameStats = async (userId: string): Promise<MyProfileGa
     gamesCreated: 0,
     createdPlaycount: 0,
     gamesPlayed: 0,
-    aiGens: 0,
+    aiGens: null,
     lastGameCreatedAt: null,
     lastPlayedAt: null,
     lastGeneratedAt: null,
@@ -794,21 +794,23 @@ export const getMyProfileGameStats = async (userId: string): Promise<MyProfileGa
     // Keep default values if play-events table/functionality is not present.
   }
 
-  let aiGens = 0;
+  let aiGens: number | null = null;
   let lastGeneratedAt: string | null = null;
   try {
-    const rpcResult = await supabase.rpc('get_my_ai_generation_stats');
-    if (!rpcResult.error) {
-      const first = Array.isArray(rpcResult.data) ? rpcResult.data[0] : rpcResult.data;
-      aiGens = Math.max(0, Number((first as any)?.total_ai_generations || 0));
-      lastGeneratedAt = optionalText((first as any)?.last_generated_at);
-    } else if (isMissingRpcError(rpcResult.error, 'get_my_ai_generation_stats')) {
-      aiGens = 0;
-      lastGeneratedAt = null;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (token) {
+      const response = await fetch('/api/my-ai-generation-stats', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const result = await response.json();
+        aiGens = Math.max(0, Number(result.totalAiGenerations || 0));
+        lastGeneratedAt = optionalText(result.lastGeneratedAt);
+      }
     }
   } catch {
-    aiGens = 0;
-    lastGeneratedAt = null;
+    // An unavailable activity service must not be mistaken for zero generations.
   }
 
   const candidateDates = [lastGameCreatedAt, lastPlayedAt, lastGeneratedAt].filter(
