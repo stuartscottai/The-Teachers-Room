@@ -79,3 +79,49 @@ html[data-theme='dark'] .class-workbook .class-exercise :is(input, textarea)::pl
 .class-workbook .class-gap-sentence input[type='text'] { display: inline-block; width: 14ch; max-width: 100%; min-height: 40px; padding: .3rem .5rem; margin: .2rem .35rem; vertical-align: baseline; line-height: 1.5; }
 .class-word-count { margin-top: .6rem; }
 @media (max-width: 600px) { .class-content-cards { grid-template-columns: minmax(0, 1fr); } .class-emoji-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .class-task { flex-direction: column; } .class-reference-nav button { width: 100%; } }
+.class-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.class-save-help { margin-top: 1rem; max-width: 75ch; }
+.class-saved-copy { display: none; }
+.class-saved-question { font-weight: 700; white-space: pre-wrap; }
+.class-saved-answer, .class-saved-sentence { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; margin-top: .35rem; }
+.class-saved-options { list-style: none; margin: .5rem 0; line-height: 1.7; }
+.class-saved-options li span { font-family: monospace; }
+.class-saved-gap { font-weight: 700; text-decoration: underline; padding: 0 .3rem; }
+@media (max-width: 600px) { .class-heading-row { flex-direction: column; align-items: flex-start; } }
+@page class-booklet { size: A4; margin: 14mm; }
+@media print {
+  html:has(.class-workbook), body:has(.class-workbook), #root:has(.class-workbook) { background: white !important; color: #17202b !important; min-height: 0 !important; height: auto !important; }
+  .class-workbook { min-height: 0; background: white; color: #17202b; font-family: Arial, sans-serif; font-size: 10pt; }
+  html[data-theme] .class-workbook main.class-shell { background: white; color: #17202b; max-width: none; padding: 0; margin: 0; }
+  .class-workbook .class-brand, .class-shell > :not(.class-saved-copy) { display: none !important; }
+  .class-saved-copy { display: block; }
+  .class-saved-page { page: class-booklet; break-before: page; }
+  .class-saved-page:first-child { break-before: auto; }
+  .class-saved-page header { border-bottom: 1px solid #b8c9db; padding-bottom: 3mm; }
+  .class-saved-page :is(h2, h3) { font-family: Arial, sans-serif; font-weight: 700; break-after: avoid; }
+  .class-saved-page h2 { font-size: 18pt; margin: 2mm 0; }
+  .class-saved-page h3 { font-size: 12pt; margin: 0 0 2mm; }
+  .class-saved-page :is(.class-help, .class-source-page, .class-eyebrow) { font-size: 9pt; }
+  .class-saved-page .class-unit-section { margin-top: 5mm; padding-top: 4mm; }
+  .class-saved-page .class-section-title { display: block; margin-bottom: 2mm; }
+  .class-saved-page .class-task { display: block; padding: 2mm; margin-bottom: 3mm; background: #f1f5f9; break-inside: avoid; line-height: 1.5; }
+  .class-saved-page .class-task-number { display: inline-block; margin-bottom: 1mm; color: #075985; background: transparent; padding: 0; }
+  .class-saved-page .class-answers { display: block; }
+  .class-saved-exercise { margin: 3mm 0; break-inside: avoid; }
+  .class-saved-long-answer { break-inside: auto; }
+  .class-saved-page .class-passage { font-size: 11pt; line-height: 1.6; padding: 2mm; border-radius: 0; background: white; }
+  .class-saved-page .class-reading { margin-bottom: 4mm; }
+  .class-saved-page .class-section-copy, .class-saved-page .class-bullets { line-height: 1.6; margin: 2mm 0; }
+  .class-saved-page .class-table-scroll { overflow: visible; margin: 3mm 0; }
+  .class-saved-page table { font-size: 9pt; line-height: 1.5; }
+  .class-saved-page :is(th, td) { min-width: 0; padding: 2mm; overflow-wrap: anywhere; }
+  .class-saved-page tr { break-inside: avoid; }
+  .class-saved-page thead { display: table-header-group; }
+  .class-saved-page .class-content-cards { display: block; margin: 3mm 0; }
+  .class-saved-page .class-content-card { margin: 2mm 0; padding: 2mm; break-inside: avoid; }
+  .class-saved-page .class-emoji-cards p { font-size: 20pt; text-align: left; }
+  .class-saved-page .class-content-card p { margin-top: 1mm; line-height: 1.5; }
+  .class-saved-page .class-highlight { background: #fde68a !important; color: #17202b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .class-saved-page .class-underline { text-decoration-color: #0369a1; }
+  .class-saved-page p { orphans: 3; widows: 3; }
+}

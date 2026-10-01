@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { BookOpen, GraduationCap } from 'lucide-react';
 import { BrandName } from '../components/BrandName';
 import { ReadingPassage, type TextMark } from '../components/class/ReadingPassage';
 import { WorkbookExercise } from '../components/class/WorkbookExercise';
 import { WorkbookSection } from '../components/class/WorkbookSection';
+import { PrintableBooklet } from '../components/class/PrintableBooklet';
 import type { ClassBookletData } from '../data/classBooklets';
 import './ClassBooklet.css';
 
@@ -36,6 +38,7 @@ function readState(booklet: ClassBookletData): BookletState {
 export default function ClassBooklet({ booklet }: { booklet: ClassBookletData }) {
   const [state, setState] = useState(() => readState(booklet));
   const [storageUnavailable, setStorageUnavailable] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const page = booklet.pages[state.page];
   const lessonPages = booklet.pages.filter(item => !item.reference);
@@ -46,6 +49,17 @@ export default function ClassBooklet({ booklet }: { booklet: ClassBookletData })
     try { sessionStorage.setItem(storageKey(booklet.slug), JSON.stringify(state)); }
     catch { setStorageUnavailable(true); }
   }, [booklet.slug, state]);
+  useEffect(() => {
+    // Include Ctrl/Cmd+P as well as the button, and mount every page before capture.
+    const beforePrint = () => flushSync(() => setPrinting(true));
+    const afterPrint = () => setPrinting(false);
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
+  }, []);
 
   function goToPage(index: number) {
     setState(current => ({ ...current, page: index, lessonPage: !booklet.pages[current.page].reference ? current.page : current.lessonPage }));
@@ -64,8 +78,10 @@ export default function ClassBooklet({ booklet }: { booklet: ClassBookletData })
       <div className="class-heading-row">
         <div><p className="class-eyebrow"><BookOpen size={16} aria-hidden="true" /> Temporary online class</p>
           <h1>{booklet.level} Workbook</h1><p className="class-subtitle">{booklet.title || 'Your lesson, one page at a time.'}</p></div>
-        <button type="button" className="class-reset" onClick={reset}>Reset booklet</button>
+        <div className="class-actions"><button type="button" onClick={() => window.print()} aria-describedby="class-save-help">Save a copy</button>
+          <button type="button" className="class-reset" onClick={reset}>Reset booklet</button></div>
       </div>
+      <p id="class-save-help" className="class-help class-save-help">Save a copy opens your device’s print options. Choose Save as PDF (or your device’s PDF/share option) to keep all pages, answers and reading marks.</p>
       {!booklet.ready && <div className="class-notice"><strong>Placeholder booklet</strong> · These are interface samples. Textbook content will be added after your teacher supplies the pages.</div>}
       <nav className="class-page-nav" aria-label="Booklet pages">
         {lessonPages.map((item, index) => <button key={item.id} type="button" aria-label={`Page ${index + 1}: ${item.title}`} title={item.title} aria-current={item === page ? 'page' : undefined} onClick={() => goToPage(booklet.pages.indexOf(item))}>{index + 1}</button>)}
@@ -96,6 +112,7 @@ export default function ClassBooklet({ booklet }: { booklet: ClassBookletData })
         <button type="button" disabled={visibleIndex === visiblePages.length - 1} onClick={() => goToPage(booklet.pages.indexOf(visiblePages[visibleIndex + 1]))}>Next →</button>
       </div>
       <p className="class-local-note" role="status">{storageUnavailable ? 'Browser storage is unavailable. Your work lasts until you reload or leave this page.' : 'Answers and marks stay in this browser tab, including after a refresh. Closing the tab ends this session.'}</p>
+      {printing && <PrintableBooklet booklet={booklet} answers={state.answers} marks={state.marks} />}
     </main>
   </div>;
 }

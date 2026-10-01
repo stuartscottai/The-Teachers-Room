@@ -1,11 +1,29 @@
 import React from 'react';
 import type { WorkbookExercise as Exercise } from '../../data/classBooklets';
 
-export function WorkbookExercise({ exercise, value, onChange }: {
-  exercise: Exercise; value: string | string[]; onChange: (value: string | string[]) => void;
+export function WorkbookExercise({ exercise, value, onChange, readOnly = false }: {
+  exercise: Exercise; value: string | string[]; onChange: (value: string | string[]) => void; readOnly?: boolean;
 }) {
   const id = `answer-${exercise.id}`;
   const label = `${exercise.number}. ${exercise.prompt}`;
+  if (readOnly) {
+    if (exercise.kind === 'gaps') {
+      const parts = exercise.prompt.split('{{}}');
+      const values = Array.isArray(value) ? value : [];
+      return <div className="class-saved-exercise"><p className="class-saved-question">Question {exercise.number}</p>
+        <p className="class-saved-sentence">{parts.map((part, index) => <React.Fragment key={index}>{part}{index < parts.length - 1 && <span className="class-saved-gap">{values[index] || '________'}</span>}</React.Fragment>)}</p>
+      </div>;
+    }
+    const selected = Array.isArray(value) ? value : value ? [value] : [];
+    return <div className={`class-saved-exercise ${exercise.kind === 'long-text' ? 'class-saved-long-answer' : ''}`}>
+      <p className="class-saved-question">{label}</p>
+      {exercise.example && <p>{exercise.example}</p>}
+      {exercise.options && exercise.kind !== 'dropdown' && <ul className="class-saved-options">{exercise.options.map(option => <li key={option}>
+        <span>{selected.includes(option) ? '[x]' : '[ ]'}</span> {option}
+      </li>)}</ul>}
+      <p className="class-saved-answer"><strong>Answer: </strong>{selected.length ? selected.join('; ') : 'Not answered'}</p>
+    </div>;
+  }
   if (exercise.kind === 'gaps') {
     const values = Array.isArray(value) ? value : [];
     const parts = exercise.prompt.split('{{}}');
