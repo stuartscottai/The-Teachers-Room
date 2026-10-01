@@ -189,11 +189,13 @@ if (!fs.existsSync(studentShellPath)) {
   }
   if (!/<script[^>]*src=/.test(html)) fail('The student game shell must load the interactive app.');
 }
-const studentRewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
-  rule.source === '/student/game/:path*' && rule.destination === '/student-game.html'
-);
-if (!(studentRewriteIndex >= 0 && studentRewriteIndex < vercelConfig.rewrites.length - 1)) {
-  fail('Student game links must use their sharing shell before the private-route fallback.');
+for (const source of ['/student/game/:path*', '/student/share/:path*']) {
+  const studentRewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
+    rule.source === source && rule.destination === '/student-game.html'
+  );
+  if (!(studentRewriteIndex >= 0 && studentRewriteIndex < vercelConfig.rewrites.length - 1)) {
+    fail(`${source} must use the student sharing shell before the private-route fallback.`);
+  }
 }
 const fallback = vercelConfig.rewrites?.at(-1);
 if (fallback?.destination !== '/noindex.html') {
