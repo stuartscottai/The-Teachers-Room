@@ -127,7 +127,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
     }, [gameState, currentLevel, questionImageUrl]);
 
     useLayoutEffect(() => {
-        if (gameState !== 'question' || !currentQuestion) {
+        if (!currentQuestion) {
             setQuestionFontSize(null);
             return;
         }
@@ -136,12 +136,16 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         const textEl = questionTextRef.current;
         if (!wrap || !textEl) return;
 
-        const availableHeight = wrap.clientHeight;
-        const availableWidth = textEl.clientWidth || wrap.clientWidth;
+        // Use a stable viewport budget: measuring the text's own height makes
+        // fitting shrink itself and can repeatedly resize the panel.
+        const availableHeight = isMobileViewport
+            ? Math.max(80, Math.min(160, window.innerHeight * 0.18))
+            : Math.min(260, window.innerHeight * 0.26);
+        const availableWidth = wrap.clientWidth;
         if (availableHeight <= 0 || availableWidth <= 0) return;
 
-        const maxSize = Math.min(isMobileViewport ? 36 : 52, Math.max(isMobileViewport ? 22 : 28, Math.floor(availableWidth / (questionImageUrl ? 9 : 7))));
-        const minSize = isMobileViewport ? 16 : 18;
+        const maxSize = Math.min(isMobileViewport ? 36 : 72, Math.max(isMobileViewport ? 24 : 40, Math.floor(availableWidth / (questionImageUrl ? 9 : 15))));
+        const minSize = isMobileViewport ? 16 : 24;
         let size = maxSize;
         textEl.style.fontSize = `${size}px`;
         textEl.style.lineHeight = '1.14';
@@ -633,13 +637,13 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
 
                         <div className="millionaire-question-zoom w-full max-w-6xl flex flex-col gap-3 md:gap-6">
-                        <QuestionCardZoomButton />
                         <div className="w-full flex flex-col gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
                         <div
-                            className={`w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
+                            className={`millionaire-question-panel w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
                             style={isMobileViewport && questionImageUrl ? { flex: '2 1 0%' } : undefined}
                         >
+                            <QuestionCardZoomButton targetSelector=".millionaire-question-zoom" resetKey={currentLevel} />
                             {/* Decorative side bars */}
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-r-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-l-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
@@ -673,7 +677,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     <h2
                                         ref={questionTextRef}
                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.14' } : undefined}
-                                        className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md whitespace-pre-wrap break-normal hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
+                                        className={`font-bold text-white leading-tight font-display tracking-wide drop-shadow-md w-full whitespace-pre-wrap break-normal hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(currentQuestion?.question || "Loading...")}`}
                                     >
                                         {currentQuestion?.question || "Loading..."}
                                     </h2>

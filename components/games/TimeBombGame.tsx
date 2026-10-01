@@ -1734,7 +1734,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             `}</style>
             
             {/* 1. HEADER */}
-            <div data-scoreboard-header="true" className={`time-bomb-hazard-header px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-yellow-500/70 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'min-h-[110px]' : 'min-h-[70px]'} sm:min-h-[148px] relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
+            <div data-scoreboard-header="true" className={`time-bomb-hazard-header px-2 py-2 sm:p-4 shrink-0 z-50 border-b border-yellow-500/70 flex justify-between gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'h-[110px]' : 'min-h-[70px]'} sm:min-h-[140px] relative overflow-visible ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                 <div className={`min-w-fit shrink-0 sm:hidden gap-1.5 ${mobileUsesButtonGrid ? 'grid grid-cols-2' : mobileUsesTwoRowHeader ? 'flex flex-col items-start' : 'flex flex-row items-center'}`}>
                     <button onClick={() => setShowQuitConfirm(true)} className="w-9 h-9 text-yellow-100 hover:text-white bg-black/70 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-yellow-400/60 hover:border-white/70">
                         <ArrowLeft size={17} />

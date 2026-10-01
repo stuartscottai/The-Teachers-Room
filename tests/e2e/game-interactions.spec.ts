@@ -93,14 +93,20 @@ test('enlarged word wheel card still accepts a typed answer', async ({ page, isM
   await expect(page.getByText(/^Correct$/i).first()).toBeVisible();
 });
 
-test('enlarged millionaire question keeps answer choices usable', async ({ page, isMobile }) => {
+test('enlarged millionaire question keeps answer choices usable', async ({ page, isMobile }, testInfo) => {
   test.skip(isMobile, 'Question zoom is only offered on larger screens');
   await page.goto('/test/game-smoke?mode=millionaire');
   await page.getByRole('button', { name: /Let's Play/i }).click();
+  const viewport = page.locator('.gameplay-viewport');
+  const originalStyle = await viewport.getAttribute('style');
   await page.getByRole('button', { name: 'Enlarge question card' }).click();
   await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath('millionaire-zoom.png') });
+  await page.getByRole('button', { name: 'Close enlarged question card' }).click();
+  await expect.poll(() => viewport.getAttribute('style')).toBe(originalStyle);
+  expect(await page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false);
 });
 
 for (const mode of ['trivia', 'jeopardy', 'blockbeaters'] as const) {
@@ -199,11 +205,7 @@ test('darts question card can be enlarged after choosing a target', async ({ pag
   test.skip(isMobile, 'Question zoom is only offered on larger screens');
   test.setTimeout(60_000);
   await page.goto('/test/game-smoke?mode=darts&lightweight=1');
-  await expect(page.locator('.cursor-crosshair')).toBeVisible({ timeout: 20_000 });
-  const board = page.locator('canvas').first();
-  const box = await board.boundingBox();
-  expect(box).not.toBeNull();
-  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.getByRole('button', { name: 'Aim at bullseye' }).click();
   await page.getByRole('button', { name: 'Enlarge question card' }).click();
   await expect(page.getByRole('button', { name: 'Close enlarged question card' })).toBeVisible();
 });

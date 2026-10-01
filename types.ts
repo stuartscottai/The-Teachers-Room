@@ -26,6 +26,7 @@ export interface UploadedFile {
 
 export interface GameConfig {
   coverImage?: GameCoverImage;
+  playCount?: number; // Legacy saved-game metric when the separate database column is unavailable
   type: GameType;
   title?: string; // User defined title
   questionCount: number; // Used for list-based games

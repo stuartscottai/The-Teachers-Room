@@ -908,12 +908,6 @@ export const LiveQuizHost: React.FC = () => {
                     {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Show Leaderboard'}
                   </button>
                 )}
-                {session.status === 'leaderboard' && (
-                  <button onClick={nextQuestion} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900">
-                    <SkipForward size={18} />
-                    {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Next Question'}
-                  </button>
-                )}
                 <button onClick={() => void endGame()} disabled={busy} className="rounded-xl border border-slate-200 px-5 py-3 font-black text-slate-600 sm:ml-auto">
                   End Game
                 </button>

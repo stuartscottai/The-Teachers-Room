@@ -2,6 +2,36 @@
 
 ## Fast Local Checks
 
+Run the code-consistency checks (TypeScript checks compatible data usage; Deno
+checks Supabase functions in their server environment):
+
+```powershell
+npm run typecheck
+```
+
+This runs `typecheck:app` and `typecheck:server`. Supabase functions are excluded
+from the browser checker and checked separately with the pinned local Deno tool.
+The server check automatically finds each function's `index.ts` and follows its
+imports. It checks code without starting functions, sending emails, or requiring
+account secrets. The first server check downloads its public dependencies.
+
+`npm run build` runs both checks before building the website, including in the
+existing GitHub Actions workflow. A failed check stops the build.
+
+The React checking definitions are pinned to version 18 to match the installed
+React runtime. Keep their major versions aligned when changing React.
+
+Supabase dependency integrity is recorded in `supabase/functions/deno.lock`.
+When intentionally changing a function's imports, refresh that lock with:
+
+```powershell
+npx deno check --config supabase/functions/deno.json supabase/functions/send-school-invite/index.ts
+```
+
+Then run `npm run typecheck` again; the normal server check refuses unrecorded
+dependency changes. [Deno's code-check documentation](https://docs.deno.com/runtime/reference/cli/check/)
+describes the separate server checker.
+
 Run the browser smoke suite against the local Vite app:
 
 ```powershell

@@ -20,7 +20,7 @@ export default defineConfig({
     baseURL,
     // Smoke tests verify game state rather than animation smoothness. This
     // also exercises the accessibility path intended for reduced motion.
-    reducedMotion: 'reduce',
+    contextOptions: { reducedMotion: 'reduce' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

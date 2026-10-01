@@ -469,7 +469,7 @@ const StopTheFireOverview: React.FC<StopTheFireOverviewProps> = ({ items, select
             onClick={() => onToggleSelect(item.id)}
             className={`cursor-pointer transition-colors ${
               index > 0 ? 'border-t border-slate-200' : ''
-            } ${isSelected ? 'bg-slate-50/90' : 'bg-white hover:bg-slate-50/60'}`}
+            } ${isSelected ? 'bg-slate-50' : 'bg-white hover:bg-slate-50/60'}`}
           >
             <div className="grid grid-cols-[38px_minmax(0,1fr)] gap-x-3 px-3 py-2.5 sm:px-4 lg:grid-cols-[44px_minmax(0,1fr)] lg:items-center">
               <button

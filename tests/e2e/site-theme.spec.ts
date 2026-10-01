@@ -133,9 +133,9 @@ test('quiz score cards remain inside their headers', async ({ page }) => {
   }
 });
 
-test('other team score headers keep every card visible', async ({ page }) => {
-  for (const mode of ['darts', 'wordwheel', 'survey', 'timebomb', 'stopfire']) {
-    await page.goto(`/test/game-smoke?mode=${mode}&players=4`);
+for (const mode of ['darts', 'wordwheel', 'survey', 'timebomb', 'stopfire']) {
+  test(`${mode} team score header keeps every card visible`, async ({ page }) => {
+    await page.goto(`/test/game-smoke?mode=${mode}&players=4&lightweight=1`);
     const header = page.locator('[data-scoreboard-header="true"]');
     await expect(header).toBeVisible();
     const boxes = await header.evaluate((element) => {
@@ -152,5 +152,5 @@ test('other team score headers keep every card visible', async ({ page }) => {
       expect(box.height).toBeCloseTo(boxes[0].height, 0);
       expect(box.width).toBeCloseTo(boxes[0].width, 0);
     }
-  }
-});
+  });
+}

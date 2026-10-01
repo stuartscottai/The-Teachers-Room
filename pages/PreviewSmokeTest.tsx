@@ -11,27 +11,28 @@ const smokeImage =
 const game: GeneratedGame = {
   id: 'preview-smoke',
   title: 'Preview Smoke Game',
-  description: 'Preview smoke fixture',
   questions: [
     {
+      id: 0,
+      isBonus: false,
       question: 'Which image should load?',
       answer: 'The preview image',
       options: ['The preview image', 'A missing image', 'No image', 'A video'],
       points: 1,
       image: {
-        id: 'preview-smoke-image',
         url: smokeImage,
         thumbUrl: smokeImage,
         alt: 'Preview smoke image',
       },
     },
     {
+      id: 1,
+      isBonus: false,
       question: 'This card has a deliberately broken image URL.',
       answer: 'It should not show a broken image icon',
       options: ['Broken icon', 'Hidden cleanly', 'Crash', 'Reload'],
       points: 1,
       image: {
-        id: 'preview-broken-image',
         url: '/assets/does-not-exist-preview-smoke.png',
         thumbUrl: '/assets/does-not-exist-preview-smoke.png',
         alt: 'Broken preview smoke image',
@@ -41,9 +42,8 @@ const game: GeneratedGame = {
   config: {
     type: GameType.TRIVIA,
     questionCount: 2,
-    classLevel: 'Smoke',
-    timeLimit: 30,
-    teamMode: false,
+    topic: 'Smoke',
+    questionType: 'multiple-choice',
     isAI: false,
   },
   createdAt: '2026-01-01T00:00:00.000Z',

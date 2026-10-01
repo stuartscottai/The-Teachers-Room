@@ -20,6 +20,7 @@ interface DartsGameProps {
     onBack: () => void;
     onFinish: () => void;
     onReplay: () => void;
+    testMode?: boolean;
 }
 
 type GamePhase = 'aim' | 'question' | 'throwing' | 'result' | 'gameover';
@@ -395,7 +396,8 @@ const AnimatedScore: React.FC<{ score: number, is301: boolean }> = ({ score, is3
     );
 };
 
-export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false }) => {
+    const lightweightTestMode = import.meta.env.DEV && testMode;
     const is301 = options.dartsMode === '301';
     
     const [scores, setScores] = useState<number[]>(is301 ? Array(options.players).fill(301) : Array(options.players).fill(0));
@@ -427,7 +429,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>([]);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-    const [introActive, setIntroActive] = useState(true);
+    const [introActive, setIntroActive] = useState(!lightweightTestMode);
     const [showAimOverlay, setShowAimOverlay] = useState(true);
     const [boardSize, setBoardSize] = useState<number | null>(null);
     const [boardOffsetY, setBoardOffsetY] = useState(0);
@@ -1060,7 +1062,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     return (
         <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden relative`}>
             
-            <div data-scoreboard-header="true" className={`${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative sm:min-h-[148px]`} style={chalkboardStyle}>
+            <div data-scoreboard-header="true" className={`${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[50] shadow-sm border-b border-slate-900 relative sm:min-h-[140px]`} style={chalkboardStyle}>
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center text-slate-100 hover:text-red-200 items-center text-sm bg-black/40 hover:bg-red-900/40 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-700">
@@ -1147,7 +1149,17 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                 className={`flex-grow relative overflow-hidden min-h-0 bg-[#160d09] ${introActive ? 'cursor-default' : 'cursor-crosshair'}`}
             >
                 <div className="absolute inset-0 flex items-center justify-center">
-                    {isMobileViewport ? (
+                    {lightweightTestMode ? (
+                        <button
+                            type="button"
+                            aria-label="Aim at bullseye"
+                            data-testid="darts-test-board"
+                            className="w-64 h-64 rounded-full border-8 border-slate-200 bg-slate-900 flex items-center justify-center"
+                            onClick={() => handleBoardClick({ sector: 25, multiplier: 2, points: 50, label: 'Bullseye', position: new THREE.Vector3(0, BOARD_Y, BOARD_Z) })}
+                        >
+                            <span className="w-12 h-12 rounded-full bg-red-600 border-8 border-green-600" />
+                        </button>
+                    ) : isMobileViewport ? (
                         <div
                             style={boardSize ? {
                                 width: `${boardSize}px`,

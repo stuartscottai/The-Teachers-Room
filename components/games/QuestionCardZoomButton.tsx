@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import './question-card-zoom.css';
 
-type Camera = { scene: HTMLElement; card: HTMLElement; fixed: Array<{ element: HTMLElement; style: string | null }> };
+type Camera = { scene: HTMLElement; card: HTMLElement; viewport: HTMLElement; viewportStyle: string | null; fixed: Array<{ element: HTMLElement; style: string | null }> };
 
 /** Moves the game view like a camera while keeping the live answer controls usable. */
-export const QuestionCardZoomButton: React.FC = () => {
+export const QuestionCardZoomButton: React.FC<{ targetSelector?: string; resetKey?: string | number }> = ({ targetSelector, resetKey }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const cameraRef = useRef<Camera | null>(null);
   const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,6 +16,8 @@ export const QuestionCardZoomButton: React.FC = () => {
     if (!camera) return;
     camera.scene.classList.remove('game-view-camera', 'game-view-zoomed');
     camera.card.classList.remove('game-question-zoomed');
+    if (camera.viewportStyle === null) camera.viewport.removeAttribute('style');
+    else camera.viewport.setAttribute('style', camera.viewportStyle);
     for (const { element, style } of camera.fixed) {
       if (style === null) element.removeAttribute('style');
       else element.setAttribute('style', style);
@@ -46,16 +48,19 @@ export const QuestionCardZoomButton: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => { close(true); }, [resetKey]);
+
   const toggle = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (open) { close(); return; }
     if (restoreTimer.current) clearTimeout(restoreTimer.current);
     restore();
-    const card = buttonRef.current?.parentElement;
+    const card = targetSelector ? buttonRef.current?.closest<HTMLElement>(targetSelector) : buttonRef.current?.parentElement;
     if (!card) return;
     const fullscreen = document.fullscreenElement;
     const scene = card.closest<HTMLElement>('.gameplay-appearance');
-    if (!scene) return;
+    const viewport = scene?.closest<HTMLElement>('.gameplay-viewport');
+    if (!scene || !viewport) return;
     const rect = card.getBoundingClientRect();
     const sceneRect = scene.getBoundingClientRect();
     const navBottom = fullscreen ? 0 : Math.max(0, ...Array.from(document.querySelectorAll('nav')).map(nav => {
@@ -84,7 +89,11 @@ export const QuestionCardZoomButton: React.FC = () => {
         }
       }
     }
-    cameraRef.current = { scene, card, fixed };
+    // Fixed-position games have no flow height. Give the clipping viewport room
+    // for the camera view; otherwise it clips the game and exposes the footer.
+    const viewportStyle = viewport.getAttribute('style');
+    viewport.style.minHeight = `${Math.max(0, window.innerHeight - viewport.getBoundingClientRect().top)}px`;
+    cameraRef.current = { scene, card, viewport, viewportStyle, fixed };
     scene.style.setProperty('--game-view-scale', String(scale));
     scene.style.setProperty('--game-view-x', `${shiftX}px`);
     scene.style.setProperty('--game-view-y', `${shiftY}px`);

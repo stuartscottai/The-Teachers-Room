@@ -728,7 +728,7 @@ const normalizeBlockBeatersQuestions = (
     return withPrefix(clean);
   };
 
-  return rawQuestions.map((question, index) => {
+  return rawQuestions.map<GeneratedQuestion | null>((question, index) => {
     const answer = asText(question.answer);
     const questionText = asText(question.question);
     const answerLetter = normalizeLetter(answer);

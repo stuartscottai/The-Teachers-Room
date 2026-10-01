@@ -31,6 +31,8 @@ html[data-theme='dark'] .question-card-zoom-button,
   transition: transform 320ms cubic-bezier(.2,.8,.2,1);
 }
 .gameplay-viewport:has(.game-view-camera) { overflow: clip; }
+/* Keep the transformed game above the following footer, below site navigation. */
+main:has(.game-view-camera) { z-index: 1; }
 .game-view-camera.game-view-zoomed {
   transform: translate(var(--game-view-x), var(--game-view-y)) scale(var(--game-view-scale));
 }

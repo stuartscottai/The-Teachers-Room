@@ -187,7 +187,7 @@ export const GameSmokeTest: React.FC = () => {
       teamNames: Array.from({ length: playerCount }, (_, index) => `Team ${index + 1}`),
       enableBonuses: bonusesEnabled,
       blockBeatersStealLimit: Number(params.get('stealLimit')) || 3,
-      blockBeatersMode: params.get('blockMode') === 'numbers' ? 'numbers' : undefined,
+      blockBeatersMode: params.get('blockMode') === 'numbers' ? 'numbers' as const : undefined,
       snakesLaddersBonusOptions: snakesBonusType ? [snakesBonusType] : undefined,
     },
     onBack: () => undefined,

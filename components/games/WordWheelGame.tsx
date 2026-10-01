@@ -1262,7 +1262,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     100% { transform: translate(-50%, -50%) scale(1); }
                 }
             `}</style>
-            <div ref={headerRef} data-scoreboard-header="true" className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[148px]`}>
+            <div ref={headerRef} data-scoreboard-header="true" className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[140px]`}>
                 <div className={`flex ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button

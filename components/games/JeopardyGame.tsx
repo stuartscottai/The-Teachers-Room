@@ -730,7 +730,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 `}
             </style>
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[148px]`}>
+            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button 

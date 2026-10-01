@@ -25,18 +25,6 @@ const FIRE_EMITTER_Y_RATIO = 0.92;
 const FIRE_LAYER_NUDGE_Y_PX = 18;
 const FIRE_FILL_ACTIVITY_MULTIPLIER = 3;
 const TIMER_STEP_MS = 50;
-const CHARCOAL_HEADER_BACKGROUND_STYLE: React.CSSProperties = {
-    backgroundImage: 'url("/assets/background/charcoalbackground.jpg")',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
-};
-const CHARRED_REVIEW_HEADER_BACKGROUND_STYLE: React.CSSProperties = {
-    backgroundImage: 'url("/assets/background/charredbackground.jpg")',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat'
-};
 
 type FlameParticle = {
     cx: number;
@@ -479,7 +467,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const letterPool = useMemo(() => buildLetterPool(), []);
 
     useEffect(() => {
-        const shouldLock = isFlipped || showReview || showRoundSummary || showTieBreakerResolve;
+        const shouldLock = !showWinner && (isFlipped || showReview || showRoundSummary || showTieBreakerResolve);
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => {
             document.body.style.overflow = 'auto';
@@ -679,6 +667,9 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     };
 
     const beginRound = () => {
+        // Setup can scroll, but play locks scrolling: restore the scoreboard first.
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        containerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         const count = isTieBreaker ? 1 : categoryCount;
         const categories = pickCategories(count);
         setCurrentCategories(categories);
@@ -866,21 +857,15 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     }
 
     return (
-        <div ref={containerRef} className="min-h-screen bg-slate-100 flex flex-col relative overflow-hidden">
+        <div ref={containerRef} className="stop-fire-game min-h-screen bg-slate-100 flex flex-col relative overflow-hidden">
             <div
                 data-scoreboard-header="true"
-                className="relative z-[650] w-full overflow-visible border-b border-[#3f3129]/75 backdrop-blur-md px-3 py-2 sm:px-6 sm:py-3"
-                style={CHARCOAL_HEADER_BACKGROUND_STYLE}
+                className="team-scoreboard-header bg-white relative z-[650] w-full overflow-visible border-b border-slate-200 px-3 py-2 sm:px-6 sm:py-3"
             >
-                <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute inset-0 bg-black/46" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#120f0d]/74 via-[#1a1411]/56 to-[#100d0b]/74" />
-                    <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-[#a35631]/78 to-transparent" />
-                </div>
                 <div className="relative max-w-6xl mx-auto flex items-center gap-2 sm:gap-4">
                     <button
                         onClick={onBack}
-                        className="shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-3 sm:px-4 rounded-lg border border-[#645047]/70 bg-[#1a1512]/90 text-[#f1dbcf] hover:bg-[#241b17] hover:border-[#c98062]/78 transition-colors font-bold"
+                        className="shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-3 sm:px-4 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-bold"
                     >
                         <ArrowLeft size={16} />
                         <span className="hidden sm:inline">Back</span>
@@ -898,16 +883,16 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         key={`score-${idx}`}
                                         className={`min-w-0 rounded-xl border-2 px-2 py-1 sm:px-3 sm:py-2 text-center transition-all ${
                                             isTieBreakerTeam
-                                                ? 'border-rose-300/85 bg-rose-500/20'
+                                                ? 'border-sky-600 bg-brand-blue text-white'
                                                 : isLeader
-                                                    ? 'border-[#b98666]/76 bg-gradient-to-b from-[#3a2d27]/90 to-[#181312]/92'
-                                                    : 'border-[#5a453a]/72 bg-gradient-to-b from-[#251d1a]/90 to-[#13100f]/92'
+                                                    ? 'border-sky-600 bg-brand-blue text-white'
+                                                    : 'border-slate-200 bg-white text-slate-600'
                                         }`}
                                     >
-                                        <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.13em] text-[#f2ddd1] truncate">
+                                        <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.13em] text-inherit truncate">
                                             {teamNames[idx]}
                                         </div>
-                                        <div className="font-mono text-lg sm:text-3xl leading-none font-black text-white tabular-nums truncate [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
+                                        <div className="font-mono text-lg sm:text-3xl leading-none font-black text-inherit tabular-nums truncate [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
                                             {score}
                                         </div>
                                     </div>
@@ -918,14 +903,14 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
-                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-[#645047]/70 bg-[#1a1512]/90 text-[#f1dbcf] hover:bg-[#241b17] hover:border-[#c98062]/78 transition-colors flex items-center justify-center"
+                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
                             title={isMuted ? 'Unmute' : 'Mute'}
                         >
                             {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                         </button>
                         <button
                             onClick={toggleFullscreen}
-                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-[#645047]/70 bg-[#1a1512]/90 text-[#f1dbcf] hover:bg-[#241b17] hover:border-[#c98062]/78 transition-colors flex items-center justify-center"
+                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
                             title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                         >
                             {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
@@ -955,21 +940,21 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     <div className="flex justify-center">
                         <div
                             className={`w-full max-w-[420px] ${
-                                isMobileViewport
+                                !isFlipped ? 'h-auto max-h-none' : isMobileViewport
                                     ? isFlipped
                                         ? 'h-[68vh] max-h-[720px] min-h-[380px]'
                                         : 'h-auto max-h-none'
                                     : 'h-[68vh] max-h-[720px] min-h-[380px]'
-                            } sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]`}
+                            } sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full ${isFlipped ? 'md:aspect-[16/9]' : ''} [perspective:1000px]`}
                             style={
                                 isMobileViewport && !isFlipped && mobileSetupHeight
                                     ? { height: mobileSetupHeight }
                                     : undefined
                             }
                         >
-                            {isFlipped && <QuestionCardZoomButton />}
+                            {isFlipped && !showReview && <QuestionCardZoomButton resetKey={String(showStopPrompt)} />}
                             <div
-                                className={`relative w-full ${isMobileViewport && !isFlipped ? 'h-auto' : 'h-full'} transition-all duration-700 [transform-style:preserve-3d] ${
+                                className={`relative w-full ${!isFlipped ? 'h-auto' : 'h-full'} transition-all duration-700 [transform-style:preserve-3d] ${
                                     isFlipped ? '[transform:rotateY(180deg)]' : ''
                                 }`}
                             >
@@ -977,7 +962,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                         <div
                             ref={setupFaceRef}
                             className={`${
-                                isMobileViewport && !isFlipped
+                                !isFlipped
                                     ? 'relative w-full h-auto'
                                     : 'absolute inset-0 h-full'
                             } [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl border border-[#4f4540]/80 shadow-[0_24px_60px_rgba(15,23,42,0.18)] overflow-hidden flex flex-col bg-[#14110f] ${
@@ -985,25 +970,19 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                             }`}
                         >
                             <div
-                                className="relative text-[#f8efe9] p-4 sm:p-6 flex items-center justify-between overflow-hidden border-b border-[#4f4540]/70"
-                                style={CHARCOAL_HEADER_BACKGROUND_STYLE}
+                                className="relative text-[#f8efe9] p-4 flex items-center justify-between overflow-hidden border-b border-[#4f4540]/70"
+                                style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
-                                <div className="pointer-events-none absolute inset-0">
-                                    <div className="absolute inset-0 bg-black/34" />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0f0d0c]/62 via-[#171513]/42 to-[#0e0c0b]/62" />
-                                </div>
                                 <div className="relative">
-                                    <div className="text-xs uppercase tracking-widest text-[#e7c9b8]">Setup</div>
+                                    <div className="text-xs uppercase tracking-widest text-white/80">Round settings</div>
                                     <div className="text-lg sm:text-2xl font-bold">
                                         {isTieBreaker ? 'Tie-breaker Round' : `Round ${roundIndex}`}
                                     </div>
                                 </div>
-                                <div className="relative text-right">
-                                    <div className="text-3xl sm:text-4xl font-black">{currentLetter}</div>
-                                </div>
+                                <div className="relative flex items-center gap-3"><span className="text-3xl font-black">{currentLetter}</span><button type="button" onClick={rerollLetter} title="Reroll letter" className="p-2 rounded-lg hover:bg-white/10"><RefreshCw size={18} /></button></div>
                             </div>
 
-                            <div className="flex-1 bg-[#fff8f1]/95 overflow-visible sm:overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex-1 stop-fire-surface overflow-visible p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Players / Teams</label>
@@ -1015,7 +994,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                     disabled={!canEditTeams}
                                                     className={`w-10 h-10 rounded-lg font-bold transition-all ${
                                                         players === num
-                                                            ? 'bg-[#7a2f12] text-white shadow-md'
+                                                            ? 'bg-brand-blue text-white shadow-md'
                                                             : 'bg-slate-100 text-slate-600'
                                                     } ${!canEditTeams ? 'opacity-50 cursor-not-allowed' : 'hover:bg-amber-50'}`}
                                                 >
@@ -1060,8 +1039,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                     onClick={() => setDifficulty(level)}
                                                     disabled={!!manualCategoryPool}
                                                     className={`py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-                                                        difficulty === level ? 'bg-[#7a2f12] text-white' : 'bg-slate-100 text-slate-600 hover:bg-amber-50'
-                                                    } ${manualCategoryPool ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        difficulty === level ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-amber-50'
+                                                    } ${manualCategoryPool ? 'opacity-75 cursor-not-allowed' : ''}`}
                                                 >
                                                     {level}
                                                 </button>
@@ -1082,9 +1061,9 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                 value={categoryCount}
                                                 onChange={(e) => !isTieBreaker && setCategoryCount(Number(e.target.value))}
                                                 disabled={isTieBreaker}
-                                                className="w-full accent-[#7a2f12]"
+                                                className="w-full accent-brand-blue"
                                             />
-                                            <div className="min-w-[44px] text-center text-sm font-bold text-[#7a2f12] bg-amber-50 border border-amber-200 rounded-lg py-1">
+                                            <div className="min-w-[44px] text-center text-sm font-bold text-brand-blue bg-amber-50 border border-amber-200 rounded-lg py-1">
                                                 {categoryCount}
                                             </div>
                                         </div>
@@ -1107,7 +1086,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowCategoryPicker((prev) => !prev)}
-                                                    className="text-xs font-bold text-[#7a2f12] hover:text-[#5b1f0a]"
+                                                    className="text-xs font-bold text-brand-blue hover:text-[#5b1f0a]"
                                                 >
                                                     {showCategoryPicker ? 'Hide' : 'Select'}
                                                 </button>
@@ -1128,14 +1107,14 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                         <button
                                                             type="button"
                                                             onClick={() => setSelectedCategories(manualCategoryList)}
-                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-[#7a2f12]"
+                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-brand-blue"
                                                         >
                                                             Select all
                                                         </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => setSelectedCategories([])}
-                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-[#7a2f12]"
+                                                            className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-brand-blue"
                                                         >
                                                             Clear
                                                         </button>
@@ -1153,7 +1132,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                                         type="checkbox"
                                                                         checked={selectedCategories.includes(cat)}
                                                                         onChange={() => toggleCategorySelection(cat)}
-                                                                        className="accent-[#7a2f12]"
+                                                                        className="accent-brand-blue"
                                                                     />
                                                                     <span className="flex-1">{cat}</span>
                                                                 </label>
@@ -1173,7 +1152,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                     key={value}
                                                     onClick={() => setTimerSeconds(value)}
                                                     className={`py-2 rounded-lg text-xs font-bold transition-all ${
-                                                        timerSeconds === value ? 'bg-[#7a2f12] text-white' : 'bg-slate-100 text-slate-600 hover:bg-amber-50'
+                                                        timerSeconds === value ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-600 hover:bg-amber-50'
                                                     }`}
                                                 >
                                                     {value}s
@@ -1182,19 +1161,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         </div>
                                     </div>
 
-                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
-                                        <div>
-                                            <div className="text-xs uppercase tracking-widest text-[#9a3412]">Preview</div>
-                                            <div className="text-3xl font-black text-[#7a2f12]">{currentLetter}</div>
-                                        </div>
-                                        <button
-                                            onClick={rerollLetter}
-                                            className="p-2 rounded-full bg-white text-[#9a3412] border border-amber-200 hover:bg-amber-100"
-                                            title="Reroll letter"
-                                        >
-                                            <RefreshCw size={18} />
-                                        </button>
-                                    </div>
+
                                 </div>
                             </div>
 
@@ -1204,16 +1171,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 } bg-[#161311] overflow-hidden ${
                                     isMobileViewport ? '' : 'sticky bottom-0 z-10'
                                 }`}
-                                style={CHARCOAL_HEADER_BACKGROUND_STYLE}
+                                style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
-                                <div className="pointer-events-none absolute inset-0">
-                                    <div className="absolute inset-0 bg-black/36" />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0f0d0c]/64 via-[#171513]/46 to-[#0e0c0b]/64" />
-                                </div>
                                 {isTieBreaker && <div className="relative text-xs text-[#d5c4b9]">Tie-breaker round: 1 category, first to answer.</div>}
                                 <button
                                     onClick={beginRound}
-                                    className="relative bg-[#2a2220] border border-[#6a5950]/70 text-[#f7ddd1] font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-[#342925] transition-colors"
+                                    className="relative bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-sky-700 transition-colors"
                                 >
                                     Start Round
                                 </button>
@@ -1229,33 +1192,29 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 >
                             <div
                                 className="relative px-4 py-5 sm:px-6 sm:py-7 min-h-[122px] sm:min-h-[138px] flex items-center justify-between text-[#f8efe9] border-b border-[#4f4540]/70 overflow-hidden rounded-t-2xl"
-                                style={CHARCOAL_HEADER_BACKGROUND_STYLE}
+                                style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
-                                <div className="pointer-events-none absolute inset-0">
-                                    <div className="absolute inset-0 bg-black/34" />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0f0d0c]/62 via-[#171513]/42 to-[#0e0c0b]/62" />
-                                </div>
                                 <div className="relative z-10">
                                     <div className="text-xs uppercase tracking-widest text-[#e7c9b8]">
                                         {isTieBreaker ? 'Tie-breaker' : `Round ${roundIndex}`}
                                     </div>
                                 </div>
                                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                    <div className="translate-y-[2px] text-[clamp(54px,7.8vw,112px)] font-black leading-none text-[#f7ddd1] [text-shadow:0_3px_8px_rgba(0,0,0,0.55)]">
+                                    <div className="translate-y-[2px] text-[clamp(54px,7.8vw,112px)] font-black leading-none text-white [text-shadow:0_3px_8px_rgba(0,0,0,0.55)]">
                                         {currentLetter}
                                     </div>
                                 </div>
                                 <div className="relative z-10 flex items-center gap-3 shrink-0">
                                     <button
                                         onClick={handleStop}
-                                        className="bg-[#27211e] border border-[#6a5950]/70 text-[#f7ddd1] font-bold px-4 py-2 rounded-full shadow-md hover:bg-[#322925]"
+                                        className="bg-[#27211e] border border-[#6a5950]/70 text-white font-bold px-4 py-2 rounded-full shadow-md hover:bg-[#322925]"
                                     >
                                         Stop
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex-1 bg-[#fff8f1]/95 p-3 sm:p-6 flex flex-col min-h-0 rounded-b-2xl">
+                            <div className="flex-1 stop-fire-surface p-3 sm:p-6 flex flex-col min-h-0 rounded-b-2xl">
                                 <div className="mb-3 sm:mb-4">
                                     <div className="relative h-8 sm:h-10 overflow-visible">
                                         <div className="absolute inset-0 rounded-full overflow-hidden bg-[#20130e]/85 shadow-[inset_0_3px_8px_rgba(0,0,0,0.5)]">
@@ -1318,13 +1277,13 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         return (
                                             <div
                                                 key={`${originalIndex}-${category}`}
-                                                className={`flex items-center gap-3 rounded-xl bg-[#fffdf9] border border-[#ead7c4] shadow-sm min-h-0 overflow-hidden ${
+                                                className={`flex items-center gap-3 rounded-xl stop-fire-raised border border-[#ead7c4] shadow-sm min-h-0 overflow-hidden ${
                                                     isMobileViewport ? '' : 'h-full'
                                                 }`}
                                                 style={{ padding: `${categoryLayout.padding}px` }}
                                             >
                                             <div
-                                                className="rounded-full bg-[#7a2f12] text-white font-bold flex items-center justify-center leading-none"
+                                                className="rounded-full bg-brand-blue text-white font-bold flex items-center justify-center leading-none"
                                                 style={{
                                                     width: `${categoryLayout.circle}px`,
                                                     height: `${categoryLayout.circle}px`,
@@ -1377,15 +1336,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             isCompactHeight ? 'h-auto max-h-none min-h-[380px]' : ''
                                         }`}
                                     >
-                                        <div className="h-full rounded-2xl border border-[#4f4540]/80 shadow-[0_24px_60px_rgba(15,23,42,0.22)] overflow-hidden flex flex-col bg-[#14110f]">
+                                        <div className="relative h-full rounded-2xl border border-[#4f4540]/80 shadow-[0_24px_60px_rgba(15,23,42,0.22)] overflow-hidden flex flex-col bg-[#14110f]">
+                                            <QuestionCardZoomButton />
                                             <div
                                                 className="relative p-4 sm:p-6 border-b border-[#4f4540]/70 flex items-center justify-between overflow-hidden"
-                                                style={CHARRED_REVIEW_HEADER_BACKGROUND_STYLE}
+                                                style={{ backgroundColor: 'var(--stop-heading)' }}
                                             >
-                                                <div className="pointer-events-none absolute inset-0">
-                                                    <div className="absolute inset-0 bg-black/48" />
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0f0d0c]/76 via-[#171513]/54 to-[#0e0c0b]/76" />
-                                                </div>
                                                 <div className="relative rounded-lg border border-white/15 bg-black/45 px-3 py-2 backdrop-blur-[1px]">
                                                     <h2 className="text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]">Score Round</h2>
                                                     <p className="text-sm text-[#f2e4da] [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]">
@@ -1394,14 +1350,14 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                 </div>
                                             </div>
 
-                                            <div className={`flex-1 basis-0 min-h-0 p-6 bg-[#fff8f1] ${isCompactHeight ? 'overflow-visible' : 'overflow-auto'}`}>
-                                                <div className="bg-[#fffdf9] border border-[#d8c5b5] rounded-2xl p-4 sm:p-6 mb-6">
-                                                    <div className="text-xs uppercase tracking-widest text-[#9a3412] mb-2">Category</div>
+                                            <div className={`flex-1 basis-0 min-h-0 p-6 stop-fire-surface ${isCompactHeight ? 'overflow-visible' : 'overflow-auto'}`}>
+                                                <div className="stop-fire-raised border border-[#d8c5b5] rounded-2xl p-4 sm:p-6 mb-6">
+                                                    <div className="text-xs uppercase tracking-widest text-brand-blue mb-2">Category</div>
                                                     <div className="text-lg sm:text-2xl font-bold text-slate-800">{currentReviewCategory}</div>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {teamNames.map((name, tIdx) => (
-                                                        <div key={name} className="flex items-center justify-between gap-4 bg-[#fffdf9] border border-[#dfcfc2] rounded-xl px-4 py-3">
+                                                        <div key={name} className="flex items-center justify-between gap-4 stop-fire-raised border border-[#dfcfc2] rounded-xl px-4 py-3">
                                                             <div className="font-semibold text-slate-700">{name}</div>
                                                             <div className="flex items-center gap-2">
                                                                 {[0, 1, 2].map((value) => {
@@ -1412,7 +1368,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                                             onClick={() => updateRoundScore(tIdx, reviewIndex, value)}
                                                                             className={`w-10 h-10 rounded-lg font-bold border transition-colors ${
                                                                                 active
-                                                                                    ? 'bg-[#2a2220] text-[#f7ddd1] border-[#6f564a]'
+                                                                                    ? 'bg-brand-blue text-white border-[#6f564a]'
                                                                                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                                                                             }`}
                                                                         >
@@ -1428,31 +1384,27 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
                                             <div
                                                 className="relative p-4 sm:p-6 border-t border-[#4f4540]/70 overflow-hidden"
-                                                style={CHARRED_REVIEW_HEADER_BACKGROUND_STYLE}
+                                                style={{ backgroundColor: 'var(--stop-heading)' }}
                                             >
-                                                <div className="pointer-events-none absolute inset-0">
-                                                    <div className="absolute inset-0 bg-black/36" />
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-[#0f0d0c]/64 via-[#171513]/46 to-[#0e0c0b]/64" />
-                                                </div>
-                                                <div className="relative ml-auto flex flex-row items-center justify-end gap-3 w-full">
+                                                <div className="relative ml-auto flex flex-row items-center justify-end gap-3 w-full pr-8">
                                                     <button
                                                         onClick={() => setReviewIndex((prev) => Math.max(0, prev - 1))}
                                                         disabled={reviewIndex === 0}
-                                                        className="flex-none bg-[#2a2220] text-[#f7ddd1] border border-[#6a5950]/70 font-bold px-5 py-3 rounded-xl hover:bg-[#342925] disabled:opacity-50"
+                                                        className="flex-none bg-brand-blue text-white border border-[#6a5950]/70 font-bold px-5 py-3 rounded-xl hover:bg-sky-700 disabled:opacity-50"
                                                     >
                                                         Previous
                                                     </button>
                                                     {reviewIndex < totalCategories - 1 ? (
                                                         <button
                                                             onClick={() => setReviewIndex((prev) => Math.min(totalCategories - 1, prev + 1))}
-                                                            className="flex-none bg-[#2a2220] border border-[#6a5950]/70 text-[#f7ddd1] font-bold px-6 py-3 rounded-xl hover:bg-[#342925]"
+                                                            className="flex-none bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                                         >
                                                             Next Category
                                                         </button>
                                                     ) : (
                                                         <button
                                                             onClick={applyScores}
-                                                            className="flex-none bg-[#2a2220] border border-[#6a5950]/70 text-[#f7ddd1] font-bold px-6 py-3 rounded-xl hover:bg-[#342925]"
+                                                            className="flex-none bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                                         >
                                                             Apply Scores
                                                         </button>
@@ -1470,7 +1422,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
             {showStopPrompt && (
                 <div
-                    className={`fixed inset-0 z-[500] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
+                    className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 text-center">
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">Stop the Fire?</h2>
@@ -1508,7 +1460,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             setTimeLeftMs((prev) => prev + extraTime * 1000);
                                             startTimer();
                                         }}
-                                        className="bg-[#2a2220] border border-[#6a5950]/70 text-[#f7ddd1] font-bold px-6 py-3 rounded-xl hover:bg-[#342925]"
+                                        className="bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                     >
                                         Add Time
                                     </button>
@@ -1532,7 +1484,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             setShowStopPrompt(false);
                                             endRound();
                                         }}
-                                        className="flex-1 bg-[#2a2220] border border-[#6a5950]/70 text-[#f7ddd1] font-bold py-3 rounded-xl hover:bg-[#342925]"
+                                        className="flex-1 bg-brand-blue border border-[#6a5950]/70 text-white font-bold py-3 rounded-xl hover:bg-sky-700"
                                     >
                                         Yes, Score
                                     </button>
@@ -1554,7 +1506,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
             {/* ROUND SUMMARY */}
             {showRoundSummary && (
                 <div
-                    className={`fixed inset-0 z-[500] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
+                    className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 text-center">
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">Round Complete</h2>
@@ -1569,7 +1521,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={handleNextRound}
-                                className="flex-1 bg-[#7a2f12] text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
+                                className="flex-1 bg-brand-blue text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
                             >
                                 Play Another Round
                             </button>
@@ -1587,7 +1539,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
             {/* TIE BREAKER RESOLVE */}
             {showTieBreakerResolve && (
                 <div
-                    className={`fixed inset-0 z-[500] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
+                    className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 text-center">
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">Tie-breaker Winner</h2>
@@ -1597,7 +1549,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 <button
                                     key={idx}
                                     onClick={() => resolveTieBreaker(idx)}
-                                    className="w-full bg-[#7a2f12] text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
+                                    className="w-full bg-brand-blue text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
                                 >
                                     {teamNames[idx]} Wins
                                 </button>

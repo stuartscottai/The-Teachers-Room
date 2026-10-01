@@ -330,3 +330,24 @@ html[data-theme='dark'] .profile-theme-choice[aria-pressed='true'] { background:
 @media print {
   html[data-theme='dark'] :is(body, #root, main) { background: #fff !important; color: #111827 !important; }
 }
+/* Stop the Fire uses matched surfaces rather than light artwork behind dark text. */
+.stop-fire-game { --stop-surface: #f8fafc; --stop-raised: #fff; --stop-text: #1e293b; --stop-muted: #475569; --stop-border: #cbd5e1; --stop-heading: #075985; }
+html[data-theme='dark'] .stop-fire-game,
+.gameplay-appearance[data-game-appearance='dark'] .stop-fire-game { --stop-surface: #22272e; --stop-raised: #2a313a; --stop-text: #eff3f8; --stop-muted: #b5c1cf; --stop-border: #526272; --stop-heading: #16465f; }
+html[data-theme] .gameplay-appearance[data-game-appearance='light'] .stop-fire-game { --stop-surface: #f8fafc; --stop-raised: #fff; --stop-text: #1e293b; --stop-muted: #475569; --stop-border: #cbd5e1; --stop-heading: #075985; }
+html[data-theme] .stop-fire-game .stop-fire-surface { background: var(--stop-surface); color: var(--stop-text); }
+html[data-theme] .stop-fire-game .stop-fire-raised { background: var(--stop-raised); color: var(--stop-text); border-color: var(--stop-border); }
+html[data-theme] .stop-fire-game :is(.stop-fire-surface, .stop-fire-raised) :is(.text-slate-800, .text-slate-700) { color: var(--stop-text); }
+html[data-theme] .stop-fire-game :is(.stop-fire-surface, .stop-fire-raised) :is(.text-slate-600, .text-slate-500, .text-slate-400) { color: var(--stop-muted); }
+html[data-theme] .stop-fire-game .text-brand-blue { color: #0369a1; }
+html[data-theme='dark'] .stop-fire-game .text-brand-blue,
+html[data-theme] .gameplay-appearance[data-game-appearance='dark'] .stop-fire-game .text-brand-blue { color: #7dd3fc; }
+html[data-theme] .gameplay-appearance[data-game-appearance='light'] .stop-fire-game .text-brand-blue { color: #0369a1; }
+html[data-theme] .stop-fire-game .team-scoreboard-header [data-scoreboard-card] { background: var(--stop-raised); border-color: var(--stop-border); color: var(--stop-text); }
+html[data-theme] .stop-fire-game .team-scoreboard-header [data-scoreboard-card].bg-brand-blue { background: #0284c7; border-color: #0369a1; color: #fff; }
+/* The icon sits within the question panel, above the answer grid. */
+html[data-theme] .millionaire-question-panel > .question-card-zoom-button { color: #c7d2fe; right: .75rem; bottom: .75rem; }
+html[data-theme] .stop-fire-game .bg-brand-blue:hover { background-color: #0369a1; color: #fff; }
+html[data-theme] .stop-fire-game .stop-fire-surface input[type='text'] { background: var(--stop-raised); color: var(--stop-text); border-color: var(--stop-border); }
+/* Keep white labels legible on small selected controls as well as large cards. */
+html[data-theme] .stop-fire-game .bg-brand-blue { background-color: #0369a1; color: #fff; }

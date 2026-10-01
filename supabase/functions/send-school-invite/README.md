@@ -2,6 +2,14 @@
 
 Supabase Edge Function that sends School invite emails after invite records are created.
 
+### Check the code
+
+From the repository root, run `npm run typecheck:server`. This uses the pinned
+local Deno checker and the configuration in `supabase/functions/deno.json`.
+It follows the function's imports without running its handler or sending emails.
+No secrets are needed for this check. It also runs automatically during every
+`npm run build`, separately from the website's TypeScript check.
+
 ### Required secrets
 
 Set these in Supabase:

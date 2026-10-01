@@ -1,4 +1,4 @@
-import { searchStockImages } from '../services/stockImageService';
+import { searchStockImages, type StockImageResult } from '../services/stockImageService';
 import { extractPixabaySourceUrl } from './stockImageUrl';
 import { GameConfig, GameType, GeneratedQuestion } from '../types';
 
@@ -280,7 +280,7 @@ const buildImageIntent = (question: GeneratedQuestion, config: GameConfig): Imag
     visualSearch.primaryQuery || '',
     visualSearch.backupQuery || '',
   ].map((value) => String(value || '').trim()).filter(Boolean)).slice(0, 3);
-  const derivedVisualSearch = !aiVisualQueries.length && query
+  const derivedVisualSearch: GeneratedQuestion['visualSearch'] = !aiVisualQueries.length && query
     ? {
         primaryQuery: query,
         answerRevealRisk: 'medium' as const,
@@ -510,7 +510,7 @@ const scoreImageCandidate = (
 };
 
 const pickBestImageCandidate = (
-  candidates: Array<{ id: string; url: string; thumbUrl: string; alt: string; kind?: 'photo' | 'illustration' | 'vector'; tags?: string; width?: number; height?: number }>,
+  candidates: StockImageResult[],
   intent: ImageIntent,
   opts?: { relaxed?: boolean }
 ) => {

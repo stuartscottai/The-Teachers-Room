@@ -567,7 +567,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         <div ref={containerRef} className={`bg-[#102b2d] flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`} style={pubQuizBackgroundStyle}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div ref={scorebarRef} className={`pub-quiz-scoreboard bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 min-h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[148px]`}>
+            <div ref={scorebarRef} className={`pub-quiz-scoreboard bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[140px]`}>
                 <div className="hidden sm:flex justify-between items-center gap-4">
                     <div className="flex flex-col items-start gap-2 min-w-[140px]">
                         <button 
