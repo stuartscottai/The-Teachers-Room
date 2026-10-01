@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import './question-card-zoom.css';
@@ -6,6 +7,7 @@ type Camera = { scene: HTMLElement; card: HTMLElement; viewport: HTMLElement; vi
 
 /** Moves the game view like a camera while keeping the live answer controls usable. */
 export const QuestionCardZoomButton: React.FC<{ targetSelector?: string; resetKey?: string | number }> = ({ targetSelector, resetKey }) => {
+  useUiLanguage();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const cameraRef = useRef<Camera | null>(null);
   const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -106,8 +108,8 @@ export const QuestionCardZoomButton: React.FC<{ targetSelector?: string; resetKe
   };
 
   return <button ref={buttonRef} type="button" className="question-card-zoom-button" onClick={toggle}
-    aria-label={open ? 'Close enlarged question card' : 'Enlarge question card'}
-    aria-pressed={open} title={open ? 'Zoom out' : 'Zoom in'}>
+    aria-label={open ? ui("Close enlarged question card") : ui("Enlarge question card")}
+    aria-pressed={open} title={open ? ui("Zoom out") : ui("Zoom in")}>
     {open ? <ZoomOut size={18} strokeWidth={1.8} /> : <ZoomIn size={18} strokeWidth={1.8} />}
   </button>;
 };

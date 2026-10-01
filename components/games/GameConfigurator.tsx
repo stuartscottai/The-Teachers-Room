@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import './game-workspace.css';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -21,9 +22,9 @@ const MAX_AI_SOURCE_TOTAL_BYTES = 3 * 1024 * 1024;
 const getProcessedSourceBytes = (file: UploadedFile) => Math.ceil(String(file.data || '').length * 0.75);
 const BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS = 12;
 const BLOCK_BEATERS_BOARD_OPTIONS: Array<{ value: 'small' | 'medium' | 'large'; label: string; tiles: number }> = [
-    { value: 'small', label: 'Small - 5 x 5', tiles: 25 },
-    { value: 'medium', label: 'Medium - 6 x 6', tiles: 36 },
-    { value: 'large', label: 'Large - 7 x 7', tiles: 49 },
+    { value: 'small', get label() { return ui("Small - 5 x 5"); }, tiles: 25 },
+    { value: 'medium', get label() { return ui("Medium - 6 x 6"); }, tiles: 36 },
+    { value: 'large', get label() { return ui("Large - 7 x 7"); }, tiles: 49 },
 ];
 const getBlockBeatersQuestionCount = (boardSize: 'small' | 'medium' | 'large' = 'medium') =>
     (BLOCK_BEATERS_BOARD_OPTIONS.find((option) => option.value === boardSize)?.tiles || 36) + BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS;
@@ -67,6 +68,7 @@ const copyTextToClipboard = async (text: string) => {
 
 // Mode Selector Sub-Component
 export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onModeSelect: (mode: 'ai' | 'manual' | 'bank') => void, mobileTopInset?: number }> = ({ type, onBack, onModeSelect, mobileTopInset = 0 }) => {
+  useUiLanguage();
     const isStopTheFire = type === GameType.STOP_THE_FIRE;
     const [isCompactHeight, setIsCompactHeight] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
@@ -140,8 +142,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                 <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
-                <h2 className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">Create {type}</h2>
-                <p className="text-center text-slate-500 mb-5 sm:mb-8">How would you like to build your game?</p>
+                <h2 className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">{ui("Create ")}{type}</h2>
+                <p className="text-center text-slate-500 mb-5 sm:mb-8">{ui("How would you like to build your game?")}</p>
 
                 <div className="space-y-4">
                     {isStopTheFire ? (
@@ -154,8 +156,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <Edit className="text-orange-600" size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-bold text-slate-800 text-lg">Manual Categories</h3>
-                                    <p className="text-slate-500 text-sm">Create and use your own custom category list.</p>
+                                    <h3 className="font-bold text-slate-800 text-lg">{ui("Manual Categories")}</h3>
+                                    <p className="text-slate-500 text-sm">{ui("Create and use your own custom category list.")}</p>
                                 </div>
                             </button>
                             <button
@@ -166,8 +168,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <Sparkles className="text-orange-600" size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-bold text-slate-800 text-lg">Use Word Bank</h3>
-                                    <p className="text-slate-500 text-sm">Choose from the built-in 1000-category bank.</p>
+                                    <h3 className="font-bold text-slate-800 text-lg">{ui("Use Word Bank")}</h3>
+                                    <p className="text-slate-500 text-sm">{ui("Choose from the built-in 1000-category bank.")}</p>
                                 </div>
                             </button>
                             <button
@@ -178,8 +180,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <Sparkles className="text-orange-600" size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-bold text-slate-800 text-lg">Use AI to Create Word Bank</h3>
-                                    <p className="text-slate-500 text-sm">Upload files or add instructions to generate categories.</p>
+                                    <h3 className="font-bold text-slate-800 text-lg">{ui("Use AI to Create Word Bank")}</h3>
+                                    <p className="text-slate-500 text-sm">{ui("Upload files or add instructions to generate categories.")}</p>
                                 </div>
                             </button>
                         </>
@@ -193,8 +195,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <Edit className="text-slate-700 group-hover:text-sky-600" size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-bold text-slate-800 text-lg">Manual Creation</h3>
-                                    <p className="text-slate-500 text-sm">Build from scratch using the editor table.</p>
+                                    <h3 className="font-bold text-slate-800 text-lg">{ui("Manual Creation")}</h3>
+                                    <p className="text-slate-500 text-sm">{ui("Build from scratch using the editor table.")}</p>
                                 </div>
                             </button>
                             <button
@@ -205,8 +207,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                     <Sparkles className="text-slate-900" size={24} />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="font-bold text-slate-800 text-lg">Use AI Assistant</h3>
-                                    <p className="text-slate-500 text-sm">Generate questions instantly with a prompt.</p>
+                                    <h3 className="font-bold text-slate-800 text-lg">{ui("Use AI Assistant")}</h3>
+                                    <p className="text-slate-500 text-sm">{ui("Generate questions instantly with a prompt.")}</p>
                                 </div>
                             </button>
                         </>
@@ -228,6 +230,7 @@ interface GameConfiguratorProps {
 }
 
 export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, onBack, onProceed, initialConfig, mobileTopInset = 0 }) => {
+  useUiLanguage();
     const { user } = useAuth();
     // Lock body scroll when configurator is active
     useEffect(() => {
@@ -331,33 +334,33 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         return (
             <>
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">MCQ Option Strategy</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">{ui("MCQ Option Strategy")}</label>
                     <select
                         value={strategy}
                         onChange={(e) => updateMcOptionStrategy(e.target.value as 'fixed' | 'vary')}
                         className={selectClassName}
                     >
-                        <option value="vary">Let AI Vary (2-4)</option>
-                        <option value="fixed">Fixed Count</option>
+                        <option value="vary">{ui("Let AI Vary (2-4)")}</option>
+                        <option value="fixed">{ui("Fixed Count")}</option>
                     </select>
                     <p className="text-xs text-slate-500 mt-1">
                         {isExplicitMcq
-                            ? 'Use a fixed count for exam-style consistency, or let AI vary between 2, 3, and 4 options.'
-                            : 'If AI includes MCQs, this controls whether they stay fixed or vary between 2, 3, and 4 options.'}
+                            ? ui("Use a fixed count for exam-style consistency, or let AI vary between 2, 3, and 4 options.")
+                            : ui("If AI includes MCQs, this controls whether they stay fixed or vary between 2, 3, and 4 options.")}
                     </p>
                 </div>
 
                 {strategy === 'fixed' && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Options</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Options")}</label>
                         <select
                             value={optionCount}
                             onChange={(e) => updateMcOptionCount(Number(e.target.value) as 2 | 3 | 4)}
                             className={selectClassName}
                         >
-                            <option value="2">2 Options</option>
-                            <option value="3">3 Options</option>
-                            <option value="4">4 Options</option>
+                            <option value="2">{ui("2 Options")}</option>
+                            <option value="3">{ui("3 Options")}</option>
+                            <option value="4">{ui("4 Options")}</option>
                         </select>
                     </div>
                 )}
@@ -516,7 +519,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             for (let i = 0; i < rawFiles.length; i++) {
                 const file = rawFiles[i];
                 if (uploadedFiles.length + newFiles.length >= 3) {
-                    alert("Maximum 3 files allowed.");
+                    alert(ui("Maximum 3 files allowed."));
                     break;
                 }
                 try {
@@ -530,7 +533,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     const nextTotalBytes = [...uploadedFiles, ...newFiles, nextUploadedFile]
                         .reduce((sum, source) => sum + getProcessedSourceBytes(source), 0);
                     if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
-                        alert(`"${file.name}" could not be attached. The maximum total attachment size is 3 MB.`);
+                        alert(ui("\"{file.name}\" could not be attached. The maximum total attachment size is 3 MB.", { "file.name": (file.name) }));
                         continue;
                     }
                     newFiles.push(nextUploadedFile);
@@ -539,7 +542,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     }
                 } catch (err) {
                     console.error("Error reading file", err);
-                    alert(`Failed to read file: ${file.name}`);
+                    alert(ui("Failed to read file: {file.name}", { "file.name": (file.name) }));
                 }
             }
 
@@ -571,12 +574,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     if (failures.length > 0) {
                         setSaveUploadsToSchoolStorage(false);
                         console.warn('Some files were not saved to school storage:', failures);
-                        alert('One or more files could not be saved to School Storage. They were still attached locally for this game.');
+                        alert(ui("One or more files could not be saved to School Storage. They were still attached locally for this game."));
                     }
                 } catch (err) {
                     setSaveUploadsToSchoolStorage(false);
                     const message = err instanceof Error ? err.message : 'School Storage is full.';
-                    alert(`${message} These files were still attached locally for this game.`);
+                    alert(ui("{message} These files were still attached locally for this game.", { "message": (message) }));
                 } finally {
                     setSchoolStorageSavingUploads(false);
                 }
@@ -603,13 +606,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             await copyTextToClipboard(externalLlmPrompt);
             setManualImportFeedback({
                 tone: 'success',
-                text: 'Prompt copied. Paste it into ChatGPT or another AI tool, then upload or paste the result here.'
+                text: ui("Prompt copied. Paste it into ChatGPT or another AI tool, then upload or paste the result here.")
             });
         } catch (error) {
             console.error('Failed to copy external LLM prompt', error);
             setManualImportFeedback({
                 tone: 'error',
-                text: 'Could not copy the prompt automatically. Please try again.'
+                text: ui("Could not copy the prompt automatically. Please try again.")
             });
         }
     };
@@ -623,7 +626,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         setManualImportExpanded(true);
         setManualImportFeedback({
             tone: 'neutral',
-            text: `Importing ${label}...`
+            text: ui("Importing {label}...", {label})
         });
 
         try {
@@ -633,7 +636,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             console.error('Failed to import manual game JSON', error);
             setManualImportFeedback({
                 tone: 'error',
-                text: error instanceof Error ? error.message : `Could not import ${label}.`
+                text: error instanceof Error ? error.message : ui("Could not import {label}.", {label})
             });
         } finally {
             setManualImportBusy(false);
@@ -655,7 +658,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             setManualImportExpanded(true);
             setManualImportFeedback({
                 tone: 'error',
-                text: 'Paste the result from your AI tool before importing.'
+                text: ui("Paste the result from your AI tool before importing.")
             });
             return;
         }
@@ -677,7 +680,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                     0
                 );
                 if (nextTotalBytes > MAX_AI_SOURCE_TOTAL_BYTES) {
-                    alert(`"${file.name}" could not be attached. The maximum total attachment size is 3 MB.`);
+                    alert(ui("\"{file.name}\" could not be attached. The maximum total attachment size is 3 MB.", { "file.name": (file.name) }));
                     continue;
                 }
                 next.push(file);
@@ -746,7 +749,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
         if (failures.length > 0) {
             setSaveUploadsToSchoolStorage(false);
             console.warn('Some existing uploads were not saved to school storage:', failures);
-            alert('One or more uploaded files could not be saved to School Storage. Please try again.');
+            alert(ui("One or more uploaded files could not be saved to School Storage. Please try again."));
             setSchoolStorageSavingUploads(false);
             return;
         }
@@ -953,26 +956,25 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             <div>
                 <div className="workspace-shell" style={{ maxWidth: 1160 }}>
                     <button onClick={onBack} className="workspace-back">
-                        <ArrowLeft size={18} /> Back to creation options
-                    </button>
+                        <ArrowLeft size={18} /> {ui(" Back to creation options")}</button>
                     <header>
-                        <p className="workspace-eyebrow mb-2">Game setup</p>
-                        <h1 className="workspace-heading">Create {type}</h1>
-                        <p className="mt-2 text-sm text-slate-600">{mode === 'ai' ? 'Choose your topic and settings, then review the questions.' : 'Set up your game, then add your content in the editor.'}</p>
+                        <p className="workspace-eyebrow mb-2">{ui("Game setup")}</p>
+                        <h1 className="workspace-heading">{ui("Create ")}{type}</h1>
+                        <p className="mt-2 text-sm text-slate-600">{mode === 'ai' ? ui("Choose your topic and settings, then review the questions.") : ui("Set up your game, then add your content in the editor.")}</p>
                     </header>
                     <div className="workspace-config-grid">
                       <div className="workspace-config-form">
-                        <h2 className="workspace-section-title"><span>1</span> Game details</h2>
+                        <h2 className="workspace-section-title"><span>1</span> {ui(" Game details")}</h2>
                         <div className="space-y-4">
                             {/* Global Title Field */}
                             <div>
-                                <label htmlFor="config-game-title" className="block text-sm font-semibold text-slate-700 mb-2">Game title <span className="text-red-500">*</span></label>
+                                <label htmlFor="config-game-title" className="block text-sm font-semibold text-slate-700 mb-2">{ui("Game title ")}<span className="text-red-500">*</span></label>
                                 <input
                                     id="config-game-title" aria-invalid={invalidField === 'config-game-title'} aria-describedby={invalidField === 'config-game-title' ? 'game-title-error' : undefined}
                                     type="text"
                                     value={config.title}
                                     onChange={(e) => { setConfig({...config, title: e.target.value}); if (invalidField === 'config-game-title') { setInvalidField(''); setGenerationError(''); } }}
-                                    placeholder="e.g. Friday revision quiz"
+                                    placeholder={ui("e.g. Friday revision quiz")}
                                     className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                                 />
                                 {invalidField === 'config-game-title' && <p id="game-title-error" className="mt-2 text-sm text-red-700">{generationError}</p>}
@@ -981,13 +983,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             {/* AI Specific Fields */}
                             {mode === 'ai' && type !== GameType.JEOPARDY && type !== GameType.PUB_QUIZ && (
                                 <div>
-                                    <label htmlFor="config-game-topic" className="block text-sm font-semibold text-slate-700 mb-2">Topic <span className="font-normal text-slate-500">or attach source material below</span></label>
+                                    <label htmlFor="config-game-topic" className="block text-sm font-semibold text-slate-700 mb-2">{ui("Topic ")}<span className="font-normal text-slate-500">{ui("or attach source material below")}</span></label>
                                     <input
                                         id="config-game-topic" aria-invalid={invalidField === 'config-game-topic'} aria-describedby={invalidField === 'config-game-topic' ? 'game-topic-error' : undefined}
                                         type="text"
                                         value={config.topic}
                                         onChange={(e) => setConfig({...config, topic: e.target.value})}
-                                        placeholder="e.g. Ancient Rome"
+                                        placeholder={ui("e.g. Ancient Rome")}
                                         className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-400 outline-none"
                                     />
                                     {invalidField === 'config-game-topic' && <p id="game-topic-error" className="mt-2 text-sm text-red-700">{generationError}</p>}
@@ -995,7 +997,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             )}
 
                             <section className="workspace-config-settings">
-                            <h2 className="workspace-section-title"><span>2</span> Question settings</h2>
+                            <h2 className="workspace-section-title"><span>2</span> {ui(" Question settings")}</h2>
                             {/* CONFIG RENDER SWITCH */}
                             {type === GameType.MILLIONAIRE ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
@@ -1004,10 +1006,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <Sparkles size={20} />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-800">Format Locked</h3>
+                                            <h3 className="font-bold text-slate-800">{ui("Format Locked")}</h3>
                                             <p className="text-sm text-slate-600 mt-1">
-                                                This game mode uses a strict format of 15 multiple-choice questions with 4 options each, sorted by increasing difficulty.
-                                            </p>
+                                                {ui("This game mode uses a strict format of 15 multiple-choice questions with 4 options each, sorted by increasing difficulty.")}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1020,18 +1021,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <Edit size={20} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-800">Your Custom Categories</h3>
+                                                    <h3 className="font-bold text-slate-800">{ui("Your Custom Categories")}</h3>
                                                     <p className="text-sm text-slate-600 mt-1">
-                                                        Enter the categories you want to use. These will be the only categories used in the game.
-                                                    </p>
+                                                        {ui("Enter the categories you want to use. These will be the only categories used in the game.")}</p>
                                                 </div>
                                             </div>
                                             <div className="bg-white border border-slate-200 rounded-xl p-4">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Add multiple categories</label>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Add multiple categories")}</label>
                                                 <textarea
                                                     value={bulkManualInput}
                                                     onChange={(e) => setBulkManualInput(e.target.value)}
-                                                    placeholder="Paste categories here, one per line."
+                                                    placeholder={ui("Paste categories here, one per line.")}
                                                     className="w-full min-h-[90px] p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-200 outline-none"
                                                 />
                                                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1055,11 +1055,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         }}
                                                         className="px-4 py-2 rounded-lg bg-orange-500 text-white font-bold text-sm hover:bg-orange-600"
                                                     >
-                                                        Add to Bank
-                                                    </button>
+                                                        {ui("Add to Bank")}</button>
                                                     <span className="text-xs text-slate-400">
-                                                        One category per line. Duplicates are ignored.
-                                                    </span>
+                                                        {ui("One category per line. Duplicates are ignored.")}</span>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
@@ -1075,7 +1073,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                                 setManualCategories(next);
                                                             }}
                                                             className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-orange-300 outline-none"
-                                                            placeholder="e.g., Things in a kitchen"
+                                                            placeholder={ui("e.g., Things in a kitchen")}
                                                         />
                                                         <button
                                                             type="button"
@@ -1085,8 +1083,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             }}
                                                             className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-red-600"
                                                         >
-                                                            Remove
-                                                        </button>
+                                                            {ui("Remove")}</button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -1095,8 +1092,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 onClick={() => setManualCategories((prev) => [...prev, ''])}
                                                 className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-orange-300 hover:text-orange-600 transition-colors"
                                             >
-                                                + Add Category
-                                            </button>
+                                                {ui("+ Add Category")}</button>
                                         </>
                                     ) : mode === 'ai' ? (
                                         <div className="flex items-start">
@@ -1104,10 +1100,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <Sparkles size={20} />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-slate-800">AI Word Bank</h3>
+                                                <h3 className="font-bold text-slate-800">{ui("AI Word Bank")}</h3>
                                                 <p className="text-sm text-slate-600 mt-1">
-                                                    Provide a topic or upload files, and AI will generate a word bank (about 100 categories) you can edit later.
-                                                </p>
+                                                    {ui("Provide a topic or upload files, and AI will generate a word bank (about 100 categories) you can edit later.")}</p>
                                             </div>
                                         </div>
                                     ) : (
@@ -1116,10 +1111,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <Sparkles size={20} />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-slate-800">Built-in Category Bank</h3>
+                                                <h3 className="font-bold text-slate-800">{ui("Built-in Category Bank")}</h3>
                                                 <p className="text-sm text-slate-600 mt-1">
-                                                    Stop the Fire uses a curated bank of 1000 categories. You will choose difficulty, category count, timer, and letter inside the game setup card.
-                                                </p>
+                                                    {ui("Stop the Fire uses a curated bank of 1000 categories. You will choose difficulty, category count, timer, and letter inside the game setup card.")}</p>
                                             </div>
                                         </div>
                                     )}
@@ -1127,7 +1121,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             ) : type === GameType.TIME_BOMB ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Count")}</label>
                                         <input
                                             type="number"
                                             min={20}
@@ -1136,25 +1130,25 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             onChange={(e) => setConfig({...config, questionCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         />
-                                        <p className="text-xs text-slate-500 mt-1">More questions are better for Time Bomb to avoid repeats.</p>
+                                        <p className="text-xs text-slate-500 mt-1">{ui("More questions are better for Time Bomb to avoid repeats.")}</p>
                                     </div>
 
                                     {mode === 'ai' && (
                                         <>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                 <select
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
-                                                    <option value="ai-decide">AI Decide (Mixed)</option>
-                                                    <option value="open">Open Ended</option>
-                                                    <option value="gap-fill">Gap Fill</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="mixed">Mixed Format</option>
+                                                    <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                    <option value="open">{ui("Open Ended")}</option>
+                                                    <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                    <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                    <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
-                                                <p className="text-xs text-slate-500 mt-1">Time Bomb works best with quick-answer formats.</p>
+                                                <p className="text-xs text-slate-500 mt-1">{ui("Time Bomb works best with quick-answer formats.")}</p>
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
@@ -1163,7 +1157,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             ) : type === GameType.SURVEY_SHOWDOWN ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Rounds")}</label>
                                         <input
                                             type="number"
                                             min={1}
@@ -1176,28 +1170,28 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
                                     {mode === 'ai' && (
                                         <fieldset className="space-y-3">
-                                            <legend className="mb-2 text-sm font-semibold text-slate-700">What should the numbers show?</legend>
+                                            <legend className="mb-2 text-sm font-semibold text-slate-700">{ui("What should the numbers show?")}</legend>
                                             <label className="flex items-start gap-3 text-sm text-slate-700">
                                                 <input type="radio" name="survey-scoring" value="survey"
                                                     checked={(config.surveyScoreMode || 'survey') === 'survey'}
                                                     onChange={() => setConfig({ ...config, surveyScoreMode: 'survey' })}
                                                     className="mt-1 text-brand-blue focus:ring-brand-blue" />
-                                                <span><span className="font-semibold">Survey points</span><span className="mt-1 block text-xs text-slate-500">Share 100 points across the 10 answers, like a survey game. These are game points, not real survey results.</span></span>
+                                                <span><span className="font-semibold">{ui("Survey points")}</span><span className="mt-1 block text-xs text-slate-500">{ui("Share 100 points across the 10 answers, like a survey game. These are game points, not real survey results.")}</span></span>
                                             </label>
                                             <label className="flex items-start gap-3 text-sm text-slate-700">
                                                 <input type="radio" name="survey-scoring" value="statistics"
                                                     checked={config.surveyScoreMode === 'statistics'}
                                                     onChange={() => setConfig({ ...config, surveyScoreMode: 'statistics' })}
                                                     className="mt-1 text-brand-blue focus:ring-brand-blue" />
-                                                <span><span className="font-semibold">Actual statistics</span><span className="mt-1 block text-xs text-slate-500">Use the actual figures, such as goals scored or population. They do not need to total 100. For current figures, tick Web search below or provide your own data.</span></span>
+                                                <span><span className="font-semibold">{ui("Actual statistics")}</span><span className="mt-1 block text-xs text-slate-500">{ui("Use the actual figures, such as goals scored or population. They do not need to total 100. For current figures, tick Web search below or provide your own data.")}</span></span>
                                             </label>
                                         </fieldset>
                                     )}
 
                                     {/* Specific Prompts for Survey */}
                                     <div className="border-t border-slate-200 pt-4">
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Round Prompts (Optional)</label>
-                                        {mode === 'ai' && <p className="text-xs text-slate-500 mb-3">Leave blank to let AI decide based on topic/files.</p>}
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">{ui("Round Prompts (Optional)")}</label>
+                                        {mode === 'ai' && <p className="text-xs text-slate-500 mb-3">{ui("Leave blank to let AI decide based on topic/files.")}</p>}
                                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                             {roundPrompts.map((p, i) => (
                                                 <div key={i} className="flex items-center gap-2">
@@ -1210,7 +1204,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             newP[i] = e.target.value;
                                                             setRoundPrompts(newP);
                                                         }}
-                                                        placeholder={`e.g. Name a fruit (Round ${i+1})`}
+                                                        placeholder={ui("e.g. Name a fruit (Round {i+1})", { "i+1": (i+1) })}
                                                         className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue outline-none"
                                                     />
                                                 </div>
@@ -1221,14 +1215,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             ) : type === GameType.WORD_WHEEL ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div className="bg-white rounded-xl border border-slate-200 p-4">
-                                        <h3 className="text-sm font-bold text-slate-800 mb-1">Word Wheel Structure</h3>
+                                        <h3 className="text-sm font-bold text-slate-800 mb-1">{ui("Word Wheel Structure")}</h3>
                                         <p className="text-sm text-slate-600">
-                                            This mode uses an English A-Z wheel (26 clues), one clue per letter.
-                                        </p>
+                                            {ui("This mode uses an English A-Z wheel (26 clues), one clue per letter.")}</p>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Letter Rule</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Letter Rule")}</label>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <button
                                                 type="button"
@@ -1239,8 +1232,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                                 }`}
                                             >
-                                                <div className="text-sm font-bold text-slate-800">Flexible Q/V/X/Y/Z</div>
-                                                <p className="text-xs text-slate-500 mt-1">Hard letters can contain or start with the letter (contains preferred); all others start with the letter.</p>
+                                                <div className="text-sm font-bold text-slate-800">{ui("Flexible Q/V/X/Y/Z")}</div>
+                                                <p className="text-xs text-slate-500 mt-1">{ui("Hard letters can contain or start with the letter (contains preferred); all others start with the letter.")}</p>
                                             </button>
                                             <button
                                                 type="button"
@@ -1251,31 +1244,30 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                                 }`}
                                             >
-                                                <div className="text-sm font-bold text-slate-800">Starts with all letters</div>
-                                                <p className="text-xs text-slate-500 mt-1">Every answer must start with its assigned letter.</p>
+                                                <div className="text-sm font-bold text-slate-800">{ui("Starts with all letters")}</div>
+                                                <p className="text-xs text-slate-500 mt-1">{ui("Every answer must start with its assigned letter.")}</p>
                                             </button>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letters</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">{ui("Letters")}</label>
                                             <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
                                                 26 (A-Z)
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Answer Format</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">{ui("Answer Format")}</label>
                                             <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
-                                                Open response
-                                            </div>
+                                                {ui("Open response")}</div>
                                         </div>
                                         <div className="col-span-2">
-                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Letter Matching</label>
+                                            <label className="block text-xs font-bold uppercase text-slate-500 mb-1">{ui("Letter Matching")}</label>
                                             <div className="p-3 rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700">
                                                 {(config.wordWheelLetterRule || 'contains-hard') === 'contains-hard'
-                                                    ? 'Q/V/X/Y/Z can contain or start with the letter (contains preferred); others start with the letter'
-                                                    : 'All letters use starts with'}
+                                                    ? ui("Q/V/X/Y/Z can contain or start with the letter (contains preferred); others start with the letter")
+                                                    : ui("All letters use starts with")}
                                             </div>
                                         </div>
                                     </div>
@@ -1283,13 +1275,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             ) : type === GameType.BLOCK_BEATERS ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div className="bg-white rounded-xl border border-slate-200 p-4">
-                                        <h3 className="text-sm font-bold text-slate-800 mb-1">Block Beaters Structure</h3>
+                                        <h3 className="text-sm font-bold text-slate-800 mb-1">{ui("Block Beaters Structure")}</h3>
                                         <p className="text-sm text-slate-600">
-                                            Players claim hex tiles and race to connect opposite sides. A completed path still needs one final question to win.
-                                        </p>
+                                            {ui("Players claim hex tiles and race to connect opposite sides. A completed path still needs one final question to win.")}</p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Content Mode</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Content Mode")}</label>
                                         <div className="grid gap-3 sm:grid-cols-2">
                                             <button
                                                 type="button"
@@ -1300,8 +1291,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                                 }`}
                                             >
-                                                <div className="text-sm font-bold text-slate-800">Letters</div>
-                                                <p className="mt-1 text-xs text-slate-500">Each answer must start with the question letter. Players type answers.</p>
+                                                <div className="text-sm font-bold text-slate-800">{ui("Letters")}</div>
+                                                <p className="mt-1 text-xs text-slate-500">{ui("Each answer must start with the question letter. Players type answers.")}</p>
                                             </button>
                                             <button
                                                 type="button"
@@ -1312,13 +1303,13 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         : 'border-slate-200 bg-white hover:border-slate-300'
                                                 }`}
                                             >
-                                                <div className="text-sm font-bold text-slate-800">Numbers</div>
-                                                <p className="mt-1 text-xs text-slate-500">Tiles are numbered and questions can use mixed formats, including multiple choice.</p>
+                                                <div className="text-sm font-bold text-slate-800">{ui("Numbers")}</div>
+                                                <p className="mt-1 text-xs text-slate-500">{ui("Tiles are numbered and questions can use mixed formats, including multiple choice.")}</p>
                                             </button>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-2">Board Size</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">{ui("Board Size")}</label>
                                         <div className="grid gap-3 sm:grid-cols-3">
                                             {BLOCK_BEATERS_BOARD_OPTIONS.map((board) => {
                                                 const requiredQuestions = board.tiles + BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS;
@@ -1338,8 +1329,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                                 : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
                                                     >
                                                         <span className="block text-base font-black">
-                                                            {board.label} = {requiredQuestions} questions required
-                                                        </span>
+                                                            {board.label} = {requiredQuestions} {ui(" questions required")}</span>
                                                     </button>
                                                 );
                                             })}
@@ -1348,17 +1338,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {mode === 'ai' && config.blockBeatersMode === 'numbers' && (
                                         <>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                 <select
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
-                                                    <option value="ai-decide">AI Decide (Mixed)</option>
-                                                    <option value="mixed">Mixed Format</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="gap-fill">Gap Fill</option>
-                                                    <option value="open">Open Ended</option>
+                                                    <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                    <option value="mixed">{ui("Mixed Format")}</option>
+                                                    <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                    <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                    <option value="open">{ui("Open Ended")}</option>
                                                 </select>
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1369,7 +1359,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">
-                                            {type === GameType.LIVE_QUIZ_CHALLENGE ? 'Question Count' : 'Grid Size'}
+                                            {type === GameType.LIVE_QUIZ_CHALLENGE ? ui("Question Count") : ui("Grid Size")}
                                         </label>
                                         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                                             {(type === GameType.LIVE_QUIZ_CHALLENGE ? [5, 10, 15, 20, 25, 30] : [12, 15, 20, 24, 30, 36]).map(num => (
@@ -1388,21 +1378,21 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     </div>
 
                                     {type === GameType.LIVE_QUIZ_CHALLENGE ? (
-                                        <p className="text-sm text-slate-600">Four answer options per question. Up to 1,000 points for speed and accuracy.</p>
+                                        <p className="text-sm text-slate-600">{ui("Four answer options per question. Up to 1,000 points for speed and accuracy.")}</p>
                                     ) : mode === 'ai' && (
                                         <>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                 <select
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
-                                                    <option value="ai-decide">AI Decide (Mixed)</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="gap-fill">Gap Fill</option>
-                                                    <option value="open">Open Ended</option>
-                                                    <option value="mixed">Mixed Format</option>
+                                                    <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                    <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                    <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                    <option value="open">{ui("Open Ended")}</option>
+                                                    <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
                                             </div>
 
@@ -1414,29 +1404,29 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Number of Categories</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Categories")}</label>
                                             <select
                                                 value={config.jeopardyCategories}
                                                 onChange={(e) => setConfig({...config, jeopardyCategories: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                             >
-                                                {[3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Categories</option>)}
+                                                {[3, 4, 5, 6].map(n => <option key={n} value={n}>{n} {ui(" Categories")}</option>)}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Questions per Category</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Questions per Category")}</label>
                                             <select
                                                 value={config.jeopardyRows}
                                                 onChange={(e) => setConfig({...config, jeopardyRows: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                             >
-                                                {[3, 4, 5].map(n => <option key={n} value={n}>{n} Rows</option>)}
+                                                {[3, 4, 5].map(n => <option key={n} value={n}>{n} {ui(" Rows")}</option>)}
                                             </select>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-3">Category Names <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-3">{ui("Category Names ")}<span className="text-red-500">*</span></label>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {config.jeopardyCategoryNames?.map((name, idx) => (
                                                 <input
@@ -1448,7 +1438,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         newNames[idx] = e.target.value;
                                                         setConfig({...config, jeopardyCategoryNames: newNames});
                                                     }}
-                                                    placeholder={`Category ${idx + 1} Name`}
+                                                    placeholder={ui("Category {idx + 1} Name", { "idx + 1": (idx + 1) })}
                                                     className="p-2 rounded border border-slate-300 text-sm focus:border-sky-500 outline-none"
                                                 />
                                             ))}
@@ -1458,17 +1448,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {mode === 'ai' && (
                                         <>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                 <select
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
-                                                    <option value="ai-decide">AI Decide (Mixed)</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="gap-fill">Gap Fill</option>
-                                                    <option value="open">Open Ended</option>
-                                                    <option value="mixed">Mixed Format</option>
+                                                    <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                    <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                    <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                    <option value="open">{ui("Open Ended")}</option>
+                                                    <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1479,29 +1469,29 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Number of Rounds</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Rounds")}</label>
                                         <select
                                             value={config.pubQuizRoundsCount}
                                             onChange={(e) => setConfig({...config, pubQuizRoundsCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         >
-                                            {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Rounds</option>)}
+                                            {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} {ui(" Rounds")}</option>)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Questions per Round</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Questions per Round")}</label>
                                         <select
                                             value={config.pubQuizQuestionsPerRound}
                                             onChange={(e) => setConfig({...config, pubQuizQuestionsPerRound: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         >
-                                            {[3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} Questions</option>)}
+                                            {[3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} {ui(" Questions")}</option>)}
                                         </select>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-3">Round Titles <span className="text-red-500">*</span></label>
+                                    <label className="block text-sm font-bold text-slate-700 mb-3">{ui("Round Titles ")}<span className="text-red-500">*</span></label>
                                     <div className="grid grid-cols-1 gap-3">
                                         {config.pubQuizRoundNames?.map((name, idx) => (
                                             <input
@@ -1513,7 +1503,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     newNames[idx] = e.target.value;
                                                     setConfig({...config, pubQuizRoundNames: newNames});
                                                 }}
-                                                placeholder={`Round ${idx + 1} Name (e.g. Geography, Music)`}
+                                                placeholder={ui("Round {idx + 1} Name (e.g. Geography, Music)", { "idx + 1": (idx + 1) })}
                                                 className="p-2 rounded border border-slate-300 text-sm focus:border-sky-500 outline-none"
                                             />
                                         ))}
@@ -1523,17 +1513,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 {mode === 'ai' && (
                                     <>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                             <select
                                                 value={config.questionType}
                                                 onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                             >
-                                                <option value="ai-decide">AI Decide (Mixed)</option>
-                                                <option value="multiple-choice">Multiple Choice</option>
-                                                <option value="gap-fill">Gap Fill</option>
-                                                <option value="open">Open Ended</option>
-                                                <option value="mixed">Mixed Format</option>
+                                                <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                <option value="open">{ui("Open Ended")}</option>
+                                                <option value="mixed">{ui("Mixed Format")}</option>
                                             </select>
                                         </div>
                                         {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1544,7 +1534,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 // STANDARD GAME CONFIG (Fallback - Snakes & Ladders, Darts)
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Count</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Count")}</label>
                                         <input
                                             type="number"
                                             min={5}
@@ -1558,17 +1548,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {mode === 'ai' && (
                                         <>
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                 <select
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
                                                 >
-                                                    <option value="ai-decide">AI Decide (Mixed)</option>
-                                                    <option value="multiple-choice">Multiple Choice</option>
-                                                    <option value="gap-fill">Gap Fill</option>
-                                                    <option value="open">Open Ended</option>
-                                                    <option value="mixed">Mixed Format</option>
+                                                    <option value="ai-decide">{ui("AI Decide (Mixed)")}</option>
+                                                    <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                    <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                    <option value="open">{ui("Open Ended")}</option>
+                                                    <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1596,7 +1586,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <span className="bg-sky-100 p-2 rounded-lg text-sky-700">
                                                 <Upload size={18} />
                                             </span>
-                                            <span className="font-bold text-slate-800">Import from Another AI Tool</span>
+                                            <span className="font-bold text-slate-800">{ui("Import from Another AI Tool")}</span>
                                         </span>
                                         <ChevronDown
                                             size={18}
@@ -1607,22 +1597,20 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     {manualImportExpanded && (
                                         <div className="space-y-4">
                                             <p className="text-sm text-slate-600">
-                                                Fill in the game settings above, then copy a prompt built from those settings. Use ChatGPT, Claude, Gemini, or another AI tool to generate the game content, then upload or paste it here to open a prefilled editor.
-                                            </p>
+                                                {ui("Fill in the game settings above, then copy a prompt built from those settings. Use ChatGPT, Claude, Gemini, or another AI tool to generate the game content, then upload or paste it here to open a prefilled editor.")}</p>
 
                                             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
                                                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
-                                                    Prompt Settings
-                                                </label>
+                                                    {ui("Prompt Settings")}</label>
 
                                                 {supportsExternalTopic && (
                                                     <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Topic / Theme</label>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Topic / Theme")}</label>
                                                         <input
                                                             type="text"
                                                             value={config.topic}
                                                             onChange={(e) => setConfig({ ...config, topic: e.target.value })}
-                                                            placeholder="e.g., Ancient Rome, Ecosystems, Easter revision"
+                                                            placeholder={ui("e.g., Ancient Rome, Ecosystems, Easter revision")}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                         />
                                                     </div>
@@ -1630,17 +1618,17 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
                                                 {supportsExternalQuestionType && (
                                                     <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Question Type</label>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
                                                         <select
                                                             value={config.questionType}
                                                             onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                         >
-                                                            <option value="ai-decide">AI Decides (Mixed)</option>
-                                                            <option value="mixed">Mixed Format</option>
-                                                            <option value="multiple-choice">Multiple Choice</option>
-                                                            <option value="gap-fill">Gap Fill</option>
-                                                            <option value="open">Open Ended</option>
+                                                            <option value="ai-decide">{ui("AI Decides (Mixed)")}</option>
+                                                            <option value="mixed">{ui("Mixed Format")}</option>
+                                                            <option value="multiple-choice">{ui("Multiple Choice")}</option>
+                                                            <option value="gap-fill">{ui("Gap Fill")}</option>
+                                                            <option value="open">{ui("Open Ended")}</option>
                                                         </select>
                                                     </div>
                                                 )}
@@ -1649,26 +1637,26 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
                                                 {supportsExternalPointsMode && (
                                                     <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-2">Points Strategy</label>
+                                                        <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Points Strategy")}</label>
                                                         <select
                                                             value={externalPromptPointsMode}
                                                             onChange={(e) => setExternalPromptPointsMode(e.target.value as 'fixed' | 'random' | 'ai-random' | 'manual')}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                         >
-                                                            <option value="fixed">Fixed Points</option>
-                                                            <option value="random">Random Points</option>
-                                                            <option value="ai-random">Vary By Difficulty</option>
-                                                            <option value="manual">Edit Points Later</option>
+                                                            <option value="fixed">{ui("Fixed Points")}</option>
+                                                            <option value="random">{ui("Random Points")}</option>
+                                                            <option value="ai-random">{ui("Vary By Difficulty")}</option>
+                                                            <option value="manual">{ui("Edit Points Later")}</option>
                                                         </select>
                                                     </div>
                                                 )}
 
                                                 <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-2">Extra Instructions</label>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Extra Instructions")}</label>
                                                     <textarea
                                                         value={config.customInstructions}
                                                         onChange={(e) => setConfig({ ...config, customInstructions: e.target.value })}
-                                                        placeholder="e.g., Keep the language around B1 level. Avoid trick questions. Focus on phrasal verbs."
+                                                        placeholder={ui("e.g., Keep the language around B1 level. Avoid trick questions. Focus on phrasal verbs.")}
                                                         className="w-full min-h-[110px] rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                     />
                                                 </div>
@@ -1681,8 +1669,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue"
                                                 >
                                                     <Copy size={16} />
-                                                    Copy Prompt for AI Tool
-                                                </button>
+                                                    {ui("Copy Prompt for AI Tool")}</button>
                                                 <button
                                                     type="button"
                                                     onClick={openManualImportPicker}
@@ -1690,30 +1677,26 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                                                 >
                                                     <Upload size={16} />
-                                                    {manualImportBusy ? 'Importing...' : 'Upload JSON / MD'}
+                                                    {manualImportBusy ? ui("Importing...") : ui("Upload JSON / MD")}
                                                 </button>
                                             </div>
 
                                             <div className="rounded-xl border border-slate-200 bg-white p-4">
                                                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-                                                    How To Use It
-                                                </label>
+                                                    {ui("How To Use It")}</label>
                                                 <p className="text-sm text-slate-600">
-                                                    Complete the information above first. Then copy the prompt, paste it into your AI tool, and copy the response it gives you back into the box below.
-                                                </p>
+                                                    {ui("Complete the information above first. Then copy the prompt, paste it into your AI tool, and copy the response it gives you back into the box below.")}</p>
                                                 <p className="mt-2 text-xs text-slate-500">
-                                                    Accepted formats: <span className="font-mono">.json</span>, <span className="font-mono">.txt</span>, or <span className="font-mono">.md</span> containing JSON.
-                                                </p>
+                                                    {ui("Accepted formats: ")}<span className="font-mono">.json</span>, <span className="font-mono">.txt</span>{ui(", or ")}<span className="font-mono">.md</span> {ui(" containing JSON.")}</p>
                                             </div>
 
                                             <div className="rounded-xl border border-slate-200 bg-white p-4">
                                                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-                                                    Paste JSON Directly
-                                                </label>
+                                                    {ui("Paste JSON Directly")}</label>
                                                 <textarea
                                                     value={manualImportText}
                                                     onChange={(e) => setManualImportText(e.target.value)}
-                                                    placeholder="Paste the result from your AI tool here."
+                                                    placeholder={ui("Paste the result from your AI tool here.")}
                                                     className="w-full min-h-[180px] rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
                                                 />
                                                 <div className="mt-3 flex flex-wrap gap-3">
@@ -1724,7 +1707,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                                                     >
                                                         <Upload size={16} />
-                                                        {manualImportBusy ? 'Importing...' : 'Import Pasted JSON'}
+                                                        {manualImportBusy ? ui("Importing...") : ui("Import Pasted JSON")}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -1732,8 +1715,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         disabled={manualImportBusy || !manualImportText}
                                                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                     >
-                                                        Clear
-                                                    </button>
+                                                        {ui("Clear")}</button>
                                                 </div>
                                             </div>
 
@@ -1759,10 +1741,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 <div className="mt-5 rounded-lg border border-slate-200 p-3">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
-                                            <label className="block text-sm font-semibold text-slate-800">Include images</label>
+                                            <label className="block text-sm font-semibold text-slate-800">{ui("Include images")}</label>
                                             <p className="text-xs text-slate-500 mt-1">
-                                                You can change or replace images in the editor.
-                                            </p>
+                                                {ui("You can change or replace images in the editor.")}</p>
                                         </div>
                                         <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
                                             <input
@@ -1778,8 +1759,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 }}
                                                 className="h-4 w-4 text-brand-blue rounded border-slate-300"
                                             />
-                                            Enable
-                                        </label>
+                                            {ui("Enable")}</label>
                                     </div>
 
                                     {config.includeImages && (
@@ -1794,13 +1774,11 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="mt-1 h-4 w-4 text-brand-blue border-slate-300"
                                                 />
                                                 <span>
-                                                    <span className="font-semibold text-slate-800">Auto-pick images</span>
+                                                    <span className="font-semibold text-slate-800">{ui("Auto-pick images")}</span>
                                                     <span className="block text-xs text-slate-500">
-                                                        The AI will choose a suitable stock image for each question.
-                                                    </span>
+                                                        {ui("The AI will choose a suitable stock image for each question.")}</span>
                                                     <span className="mt-1 block text-[11px] text-amber-700">
-                                                        Auto-selected images are suggestions. Please review them and replace any that are not a good fit.
-                                                    </span>
+                                                        {ui("Auto-selected images are suggestions. Please review them and replace any that are not a good fit.")}</span>
                                                 </span>
                                             </label>
                                             <label className="flex items-start gap-3 text-sm text-slate-700">
@@ -1813,10 +1791,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     className="mt-1 h-4 w-4 text-brand-blue border-slate-300"
                                                 />
                                                 <span>
-                                                    <span className="font-semibold text-slate-800">Pick later (manual)</span>
+                                                    <span className="font-semibold text-slate-800">{ui("Pick later (manual)")}</span>
                                                     <span className="block text-xs text-slate-500">
-                                                        Generate questions first, then choose images in the editor.
-                                                    </span>
+                                                        {ui("Generate questions first, then choose images in the editor.")}</span>
                                                 </span>
                                             </label>
                                         </div>
@@ -1827,9 +1804,9 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             </section>
                             {mode === 'ai' && (
                                 <section className="workspace-config-sources">
-                                    <h2 className="workspace-section-title"><span>3</span> Instructions &amp; sources</h2>
-                                    <label htmlFor="game-instructions" className="block text-sm font-semibold text-slate-700">What should the questions cover?</label>
-                                    <p className="mt-1 text-sm text-slate-600">Optional. Add the class level, focus areas or anything to avoid.</p>
+                                    <h2 className="workspace-section-title"><span>3</span> {ui(" Instructions &amp; sources")}</h2>
+                                    <label htmlFor="game-instructions" className="block text-sm font-semibold text-slate-700">{ui("What should the questions cover?")}</label>
+                                    <p className="mt-1 text-sm text-slate-600">{ui("Optional. Add the class level, focus areas or anything to avoid.")}</p>
                                     <div className="workspace-source-tools">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <input
@@ -1843,39 +1820,37 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <button
                                                 type="button"
                                                 onClick={openSourcePicker}
-                                                title="Add source material"
+                                                title={ui("Add source material")}
                                                 className="workspace-button"
                                             >
-                                                <Paperclip size={16} /> Attach files
-                                            </button>
+                                                <Paperclip size={16} /> {ui(" Attach files")}</button>
                                             <button
                                                 type="button"
                                                 onClick={toggleDictation}
                                                 disabled={dictation.isBusy}
-                                                title={dictation.isListening ? 'Stop dictation' : 'Start dictation'}
+                                                title={dictation.isListening ? ui("Stop dictation") : ui("Start dictation")}
                                                 className={`workspace-button transition-colors
                                                     ${dictation.isListening ? 'bg-red-50 border-red-200 text-red-600' : 'border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue'}
                                                     ${dictation.isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             >
-                                                {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />} {dictation.isListening ? 'Stop dictation' : 'Dictate'}
+                                                {dictation.isListening ? <MicOff size={16} /> : <Mic size={16} />} {dictation.isListening ? ui("Stop dictation") : ui("Dictate")}
                                             </button>
                                             {canUseSchoolStorage && (
                                                 <button
                                                     type="button"
                                                     onClick={() => setSchoolStorageBrowserOpen(true)}
-                                                    title="Browse School Storage"
+                                                    title={ui("Browse School Storage")}
                                                     className="workspace-button"
                                                 >
-                                                    <HardDrive size={16} /> School storage
-                                                </button>
+                                                    <HardDrive size={16} /> {ui(" School storage")}</button>
                                             )}
                                         </div>
                                     </div>
-                                    <p className="mb-2 text-xs text-slate-500">PDF, Word or images. Maximum total attachment size: 3 MB.</p>
+                                    <p className="mb-2 text-xs text-slate-500">{ui("PDF, Word or images. Maximum total attachment size: 3 MB.")}</p>
                                     <textarea id="game-instructions"
                                         value={config.customInstructions}
                                         onChange={(e) => setConfig({...config, customInstructions: e.target.value})}
-                                        placeholder="e.g. For Year 7. Focus on everyday life in Ancient Rome. Use straightforward language."
+                                        placeholder={ui("e.g. For Year 7. Focus on everyday life in Ancient Rome. Use straightforward language.")}
                                         className="w-full p-3 rounded-lg border border-slate-200 outline-none h-24 resize-none"
                                     />
                                     <label className="mt-3 flex items-start gap-3 text-sm text-slate-700">
@@ -1886,8 +1861,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
                                         />
                                         <span>
-                                            <span className="font-semibold">Web search</span>
-                                            <span className="mt-1 block text-xs text-slate-500">Look up information online when creating this game. Useful for recent events and statistics. This may take a little longer.</span>
+                                            <span className="font-semibold">{ui("Web search")}</span>
+                                            <span className="mt-1 block text-xs text-slate-500">{ui("Look up information online when creating this game. Useful for recent events and statistics. This may take a little longer.")}</span>
                                         </span>
                                     </label>
                                     {dictation.statusMessage && (
@@ -1907,7 +1882,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         className="h-4 w-4 rounded border-slate-300 text-brand-blue"
                                                     />
                                                     <span className="font-medium">
-                                                        {schoolStorageSavingUploads ? 'Saving uploads to School Storage...' : 'Save uploaded files to School Storage'}
+                                                        {schoolStorageSavingUploads ? ui("Saving uploads to School Storage...") : ui("Save uploaded files to School Storage")}
                                                     </span>
                                                 </label>
                                                 <button
@@ -1915,20 +1890,18 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     onClick={() => setSchoolStorageBrowserOpen(true)}
                                                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-brand-blue hover:text-brand-blue"
                                                 >
-                                                    <HardDrive size={14} /> Browse School Storage
-                                                </button>
+                                                    <HardDrive size={14} /> {ui(" Browse School Storage")}</button>
                                             </div>
                                             <div className="mt-3">
                                                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">
-                                                    School folder for new uploads
-                                                </label>
+                                                    {ui("School folder for new uploads")}</label>
                                                 <select
                                                     value={schoolUploadFolderId}
                                                     onChange={(event) => setSchoolUploadFolderId(event.target.value)}
                                                     disabled={schoolStorageLoading}
                                                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue disabled:opacity-60"
                                                 >
-                                                    <option value="">Root folder</option>
+                                                    <option value="">{ui("Root folder")}</option>
                                                     {schoolStorageFolders.map((folder) => (
                                                         <option key={folder.id} value={folder.id}>
                                                             {folder.name}
@@ -1938,8 +1911,8 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             </div>
                                             <p className="mt-2 text-xs text-slate-500">
                                                 {localUploadsPendingSchoolSave > 0
-                                                    ? `${localUploadsPendingSchoolSave} uploaded file${localUploadsPendingSchoolSave === 1 ? '' : 's'} not yet saved to School Storage.`
-                                                    : 'Current uploaded files are already saved to School Storage.'}
+                                                    ? ui("{localUploadsPendingSchoolSave} uploaded file{localUploadsPendingSchoolSave === 1 ? '' : 's'} not yet saved to School Storage.", { "localUploadsPendingSchoolSave": (localUploadsPendingSchoolSave), "localUploadsPendingSchoolSave === 1 ? '' : 's'": (localUploadsPendingSchoolSave === 1 ? '' : 's') })
+                                                    : ui("Current uploaded files are already saved to School Storage.")}
                                             </p>
                                         </div>
                                     )}
@@ -1951,7 +1924,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                         <FileText size={16} className="text-slate-400 mr-2 flex-shrink-0" />
                                                         <span className="text-sm text-slate-600 truncate max-w-[220px]">
                                                             {file.name}
-                                                            {file.source === 'school-storage' ? ' (school storage)' : ''}
+                                                            {file.source === 'school-storage' ? ui(" (school storage)") : ''}
                                                         </span>
                                                     </div>
                                                     <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 p-1">
@@ -1966,16 +1939,16 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
 
                         </div>
                       </div>
-                      <aside className="workspace-config-summary" aria-label="Game summary">
+                      <aside className="workspace-config-summary" aria-label={ui("Game summary")}>
                         <img src={GAME_BACKDROP_IMAGES[type]} alt="" />
-                        <p className="workspace-eyebrow">Your game</p>
+                        <p className="workspace-eyebrow">{ui("Your game")}</p>
                         <h2 className="mt-1 text-lg font-bold text-slate-800">{type}</h2>
                         <dl>
-                          <div><dt>{type === GameType.STOP_THE_FIRE ? 'Categories' : 'Questions'}</dt><dd>{type === GameType.JEOPARDY ? (config.jeopardyCategories || 5) * (config.jeopardyRows || 5) : type === GameType.PUB_QUIZ ? (config.pubQuizRoundsCount || 3) * (config.pubQuizQuestionsPerRound || 5) : type === GameType.STOP_THE_FIRE && mode === 'manual' ? manualCategories.filter(c => c.trim()).length : type === GameType.STOP_THE_FIRE && mode === 'bank' ? '1,000' : config.questionCount}</dd></div>
-                          {type === GameType.JEOPARDY && <div><dt>Categories</dt><dd>{config.jeopardyCategories}</dd></div>}
-                          {type === GameType.PUB_QUIZ && <div><dt>Rounds</dt><dd>{config.pubQuizRoundsCount}</dd></div>}
-                          <div><dt>Creation</dt><dd>{mode === 'ai' ? 'AI assisted' : mode === 'bank' ? 'Word bank' : 'Manual'}</dd></div>
-                          {supportsQuestionImages && <div><dt>Question images</dt><dd>{config.includeImages ? 'Included' : 'Off'}</dd></div>}
+                          <div><dt>{type === GameType.STOP_THE_FIRE ? ui("Categories") : ui("Questions")}</dt><dd>{type === GameType.JEOPARDY ? (config.jeopardyCategories || 5) * (config.jeopardyRows || 5) : type === GameType.PUB_QUIZ ? (config.pubQuizRoundsCount || 3) * (config.pubQuizQuestionsPerRound || 5) : type === GameType.STOP_THE_FIRE && mode === 'manual' ? manualCategories.filter(c => c.trim()).length : type === GameType.STOP_THE_FIRE && mode === 'bank' ? '1,000' : config.questionCount}</dd></div>
+                          {type === GameType.JEOPARDY && <div><dt>{ui("Categories")}</dt><dd>{config.jeopardyCategories}</dd></div>}
+                          {type === GameType.PUB_QUIZ && <div><dt>{ui("Rounds")}</dt><dd>{config.pubQuizRoundsCount}</dd></div>}
+                          <div><dt>{ui("Creation")}</dt><dd>{mode === 'ai' ? ui("AI assisted") : mode === 'bank' ? ui("Word bank") : ui("Manual")}</dd></div>
+                          {supportsQuestionImages && <div><dt>{ui("Question images")}</dt><dd>{config.includeImages ? ui("Included") : ui("Off")}</dd></div>}
                         </dl>
                             {generationError && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">{generationError}</p>}
                             <button
@@ -1992,14 +1965,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                 )}
                                 <span className="relative z-10 flex items-center justify-center">
                                 {loading ? (
-                                    <>Generating questions...</>
+                                    <>{ui("Generating questions...")}</>
                                 ) : (
                                     <>{mode === 'ai' ? <Sparkles className="mr-2" /> : <Edit className="mr-2" />}
-                                    {mode === 'ai' ? generationError && !invalidField ? 'Try again' : 'Generate questions' : 'Open editor'}</>
+                                    {mode === 'ai' ? generationError && !invalidField ? ui("Try again") : ui("Generate questions") : ui("Open editor")}</>
                                 )}
                                 </span>
                             </button>
-                        <p className="mt-3 text-sm leading-5 text-slate-600">{mode === 'ai' ? 'Review and edit your questions before playing.' : 'Add and edit your content before playing.'}</p>
+                        <p className="mt-3 text-sm leading-5 text-slate-600">{mode === 'ai' ? ui("Review and edit your questions before playing.") : ui("Add and edit your content before playing.")}</p>
                       </aside>
                     </div>
                 </div>

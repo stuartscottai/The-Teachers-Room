@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
@@ -231,6 +232,7 @@ const RadioactiveSlimeTimer: React.FC<{ isPaused: boolean; progress: number }> =
 };
 
 export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     // Game State
     const [teamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
     const [teamLives, setTeamLives] = useState<number[]>(Array(options.players).fill(options.teamLives || 3));
@@ -933,7 +935,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         if (options.studentPractice) {
             return (
                 <PracticeReviewSummary
-                    playerName={teamNames[0]}
+                    playerName={displayTeamName(teamNames[0])}
                     correctCount={correctCount}
                     totalCount={correctCount + missedItems.length}
                     missedItems={missedItems}
@@ -955,8 +957,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         const winnerHeadline = winners.length === 0
             ? 'NO SURVIVOR'
             : winners.length > 1
-                ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-                : `WINNER: ${winners[0].name}`;
+                ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+                : ui("WINNER: {name}", {name: displayTeamName(winners[0].name)});
 
         return (
             <div
@@ -964,7 +966,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final survival standings"
+                    subtitle={ui("Final survival standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -1742,7 +1744,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
                         className="w-9 h-9 text-black bg-yellow-400 hover:bg-yellow-300 rounded-lg transition-colors flex items-center justify-center text-sm font-bold border border-black/60"
-                        title="End game now"
+                        title={ui("End game now")}
                     >
                         <Flag size={14} />
                     </button>
@@ -1753,15 +1755,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
                 <div className="hidden sm:flex flex-col items-start gap-2 min-w-[140px]">
                     <button onClick={() => setShowQuitConfirm(true)} className="w-[140px] justify-center text-yellow-100 hover:text-white bg-black/70 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-yellow-400/60 hover:border-white/70">
-                        <ArrowLeft size={16} className="mr-2" /> Quit
-                    </button>
+                        <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
                     <button
                         onClick={() => setShowEndGameConfirm(true)}
                         className="w-[140px] justify-center text-black bg-yellow-400 hover:bg-yellow-300 px-3 py-2 rounded-lg transition-colors flex items-center text-sm font-bold border border-black/60"
-                        title="End game now"
+                        title={ui("End game now")}
                     >
-                        <Flag size={16} className="mr-2" /> End Game
-                    </button>
+                        <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
                 </div>
 
                 {/* Team Status Bar */}
@@ -1785,18 +1785,17 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                 `}
                             >
                                 <div className="text-[10px] sm:text-sm font-black uppercase tracking-wider leading-tight mb-0.5 sm:mb-2 text-center truncate w-full">
-                                    {name}
+                                    {displayTeamName(name)}
                                 </div>
                                 {options.studentPractice ? (
                                     <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wide text-current">
-                                        Practice mode
-                                    </div>
+                                        {ui("Practice mode")}</div>
                                 ) : (
                                     <div className="flex gap-1">
                                         {Array.from({length: Math.max(0, teamLives[idx])}).map((_, i) => (
                                             <Heart key={i} size={isMobileViewport ? 10 : 20} className="fill-red-500 text-red-500 drop-shadow-sm" />
                                         ))}
-                                        {teamLives[idx] === 0 && <span className="text-[10px] sm:text-xs font-bold text-red-900 uppercase">Eliminated</span>}
+                                        {teamLives[idx] === 0 && <span className="text-[10px] sm:text-xs font-bold text-red-900 uppercase">{ui("Eliminated")}</span>}
                                     </div>
                                 )}
                                 
@@ -1857,18 +1856,17 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 {gameState === 'intro' ? (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-lime-950/55 backdrop-blur-sm animate-fade-in">
                         <div className="flex flex-col items-center justify-center max-w-2xl relative">
-                            <h1 className="text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-tight drop-shadow-2xl text-center">TIME BOMB</h1>
+                            <h1 className="text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-tight drop-shadow-2xl text-center">{ui("TIME BOMB")}</h1>
                             <p className="text-2xl text-slate-300 mb-12 leading-relaxed font-light text-center">
-                                Pass the bomb by answering correctly. <br/>
-                                Wrong answers cost time. <br/>
-                                <span className="text-red-400 font-bold">Don't explode!</span>
+                                {ui("Pass the bomb by answering correctly. ")}<br/>
+                                {ui("Wrong answers cost time. ")}<br/>
+                                <span className="text-red-400 font-bold">{ui("Don't explode!")}</span>
                             </p>
                             <button 
                                 onClick={() => { setGameState('play'); setIsTicking(true); }}
                                 className="bg-red-600 hover:bg-red-500 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-[0_0_50px_rgba(220,38,38,0.6)] transition-all hover:scale-105 active:scale-95 border-4 border-red-800 relative z-20 animate-pulse"
                             >
-                                ARM BOMB
-                            </button>
+                                {ui("ARM BOMB")}</button>
                         </div>
                     </div>
                 ) : (
@@ -1916,7 +1914,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                     onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                                     role={isMobileViewport ? undefined : 'button'}
                                                                     tabIndex={isMobileViewport ? -1 : 0}
-                                                                    title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                                    title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                                     className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                                 />
                                                             </div>
@@ -2002,7 +2000,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                             role={isMobileViewport ? undefined : 'button'}
                                                             tabIndex={isMobileViewport ? -1 : 0}
-                                                            title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                            title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                             className={`h-44 sm:h-52 md:h-60 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                         />
                                                         <div
@@ -2105,7 +2103,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     type="button"
                                                     onClick={() => setIsPaused(!isPaused)}
                                                     className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full border-b-4 transition-all flex items-center justify-center font-bold active:border-b-0 active:translate-y-1 ${isPaused ? 'bg-yellow-400 text-slate-950 border-yellow-600' : 'bg-slate-800 text-slate-100 border-slate-950 hover:bg-slate-700'}`}
-                                                    title={isPaused ? "Resume" : "Pause"}
+                                                    title={isPaused ? ui("Resume") : ui("Pause")}
                                                 >
                                                     {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
                                                 </button>
@@ -2114,8 +2112,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     disabled={isPaused}
                                                     className="bg-slate-800 text-slate-100 w-[clamp(150px,54%,240px)] sm:w-auto px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg hover:bg-slate-700 transition-colors flex items-center justify-center border-b-4 border-slate-950 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                 >
-                                                    <SkipForward size={14} className="mr-2" /> Skip (-5s)
-                                                </button>
+                                                    <SkipForward size={14} className="mr-2" /> {ui(" Skip (-5s)")}</button>
                                                 
                                                 {!hasOptions && (
                                                     <button 
@@ -2123,8 +2120,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                         disabled={isPaused}
                                                         className="bg-brand-blue text-white px-6 sm:px-10 py-1.5 sm:py-2.5 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
                                                     >
-                                                        Reveal Answer
-                                                    </button>
+                                                        {ui("Reveal Answer")}</button>
                                                 )}
                                             </div>
                                         </div>
@@ -2132,8 +2128,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         {/* BACK: ANSWER & SCORING */}
                                         <div className={`absolute inset-0 rounded-2xl shadow-2xl overflow-hidden flex-col bg-white border-4 border-yellow-400 ${!isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
                                             <div className="bg-slate-800 text-white h-[clamp(52px,8vh,72px)] sm:h-20 md:h-24 px-3 sm:px-4 border-b border-slate-700 flex justify-between items-center gap-3 shrink-0">
-                                                <span className="font-bold uppercase tracking-widest text-[10px] sm:text-sm text-slate-300">Answer</span>
-                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-slate-700 rounded-full text-slate-200 hover:text-white hover:bg-slate-600 transition-colors" title="Back to question">
+                                                <span className="font-bold uppercase tracking-widest text-[10px] sm:text-sm text-slate-300">{ui("Answer")}</span>
+                                                <button onClick={() => setIsFlipped(false)} className="p-2 bg-slate-700 rounded-full text-slate-200 hover:text-white hover:bg-slate-600 transition-colors" title={ui("Back to question")}>
                                                     <RotateCcw size={20} />
                                                 </button>
                                             </div>
@@ -2153,7 +2149,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     type="button"
                                                     onClick={() => setIsPaused(!isPaused)}
                                                     className={`w-10 h-full min-h-[48px] sm:w-12 rounded-xl border-b-4 transition-all flex items-center justify-center font-bold active:border-b-0 active:translate-y-1 ${isPaused ? 'bg-yellow-400 text-slate-950 border-yellow-600' : 'bg-slate-800 text-slate-100 border-slate-950 hover:bg-slate-700'}`}
-                                                    title={isPaused ? "Resume" : "Pause"}
+                                                    title={isPaused ? ui("Resume") : ui("Pause")}
                                                 >
                                                     {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
                                                 </button>
@@ -2163,7 +2159,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     className="bg-red-600 text-white font-bold text-sm sm:text-lg md:text-xl rounded-xl py-2.5 sm:py-4 hover:bg-red-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-red-800 active:border-b-0 active:translate-y-1 group disabled:opacity-50"
                                                 >
                                                     <XCircle size={20} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
-                                                    <span>Wrong <span className="text-red-200 text-sm block md:inline">(-10s)</span></span>
+                                                    <span>{ui("Wrong ")}<span className="text-red-200 text-sm block md:inline">(-10s)</span></span>
                                                 </button>
 
                                                 <button 
@@ -2172,7 +2168,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     className="bg-green-600 text-white font-bold text-sm sm:text-lg md:text-xl rounded-xl py-2.5 sm:py-4 hover:bg-green-500 transition-colors flex flex-col md:flex-row items-center justify-center border-b-4 border-green-800 active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(22,163,74,0.4)] group disabled:opacity-50"
                                                 >
                                                     <CheckCircle size={20} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
-                                                    <span>Correct <span className="text-green-200 text-sm block md:inline">(Pass)</span></span>
+                                                    <span>{ui("Correct ")}<span className="text-green-200 text-sm block md:inline">{ui("(Pass)")}</span></span>
                                                 </button>
                                             </div>
                                         </div>
@@ -2192,14 +2188,13 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     <div className="bg-slate-800 border-2 border-slate-600 text-white p-12 rounded-3xl max-w-md w-full text-center shadow-2xl relative overflow-hidden">
                         <div className="absolute inset-0 bg-yellow-500/10 animate-pulse pointer-events-none"></div>
                         <Pause size={80} className="text-yellow-400 mx-auto mb-6" />
-                        <h2 className="text-4xl font-display font-black mb-4">GAME PAUSED</h2>
-                        <p className="text-slate-400 mb-8 text-lg">Timer stopped. Take a breather.</p>
+                        <h2 className="text-4xl font-display font-black mb-4">{ui("GAME PAUSED")}</h2>
+                        <p className="text-slate-400 mb-8 text-lg">{ui("Timer stopped. Take a breather.")}</p>
                         <button 
                             onClick={() => setIsPaused(false)}
                             className="bg-yellow-500 hover:bg-yellow-400 text-slate-900 text-xl font-bold py-4 px-10 rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center mx-auto"
                         >
-                            <Play size={24} fill="currentColor" className="mr-2" /> Resume
-                        </button>
+                            <Play size={24} fill="currentColor" className="mr-2" /> {ui(" Resume")}</button>
                     </div>
                 </div>
             )}
@@ -2219,12 +2214,12 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                     </div>
                                 </div>
                                 <h2 className="time-bomb-radioactive-title font-display font-black mb-4 text-black drop-shadow-[0_2px_0_rgba(250,204,21,0.7)] uppercase">
-                                    <span className="block">Radioactive</span>
-                                    <span className="block">Explosion</span>
+                                    <span className="block">{ui("Radioactive")}</span>
+                                    <span className="block">{ui("Explosion")}</span>
                                 </h2>
                                 <div className="bg-black/90 rounded-xl p-4 mb-8 border-2 border-yellow-500 shadow-inner">
                                     <p className="text-xl sm:text-2xl text-yellow-100 font-mono tracking-widest uppercase">
-                                        {options.studentPractice ? "Time's up!" : `${teamNames[activeTeamIndex]} has lost a life.`}
+                                        {options.studentPractice ? ui("Time's up!") : ui("{teamNames[activeTeamIndex]} has lost a life.", { "teamNames[activeTeamIndex]": (displayTeamName(teamNames[activeTeamIndex])) })}
                                     </p>
                                 </div>
                                 
@@ -2232,8 +2227,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                     onClick={handleContinueAfterExplosion}
                                     className="bg-black text-yellow-300 text-3xl sm:text-4xl font-black py-4 px-12 rounded-full shadow-xl hover:bg-slate-900 transition-transform hover:scale-105 active:scale-95 border-b-4 border-yellow-700 active:border-b-0 active:translate-y-1"
                                 >
-                                    Continue
-                                </button>
+                                    {ui("Continue")}</button>
                             </div>
                         </div>
                     </div>
@@ -2254,7 +2248,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             type="button"
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-black/80 transition-colors"
-                            aria-label="Close image"
+                            aria-label={ui("Close image")}
                         >
                             X
                         </button>
@@ -2270,7 +2264,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -2287,11 +2281,11 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-slate-700 text-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
-                        <h2 className="text-2xl font-bold mb-2">Abandon Mission?</h2>
-                        <p className="text-slate-400 mb-6">The bomb will remain armed.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Abandon Mission?")}</h2>
+                        <p className="text-slate-400 mb-6">{ui("The bomb will remain armed.")}</p>
                         <div className="flex space-x-4">
-                            <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-lg hover:bg-slate-700">Cancel</button>
-                            <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-500">Quit</button>
+                            <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-lg hover:bg-slate-700">{ui("Cancel")}</button>
+                            <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-500">{ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -2300,15 +2294,14 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-slate-700 text-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
-                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
-                        <p className="text-slate-400 mb-6">The game will stop and move to the winners screen.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-400 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="flex-1 py-3 bg-slate-800 text-slate-300 font-bold rounded-lg hover:bg-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
@@ -2316,8 +2309,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-500"
                             >
-                                End game
-                            </button>
+                                {ui("End game")}</button>
                         </div>
                     </div>
                 </div>

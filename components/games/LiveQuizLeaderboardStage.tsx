@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, Crown, Trophy } from 'lucide-react';
@@ -69,6 +70,7 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
   onRemoveParticipant,
   preferSingleLineRows = false,
 }) => {
+  useUiLanguage();
   const [showFinalOrder, setShowFinalOrder] = useState(false);
 
   useEffect(() => {
@@ -121,9 +123,9 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-yellow text-slate-950">
                 <Trophy size={14} />
               </span>
-              {subtitle}
+              {ui(subtitle)}
             </div>
-            <h1 className="text-3xl font-black leading-none drop-shadow-[0_4px_0_rgba(2,6,23,0.45)] sm:text-6xl">{title}</h1>
+            <h1 className="text-3xl font-black leading-none drop-shadow-[0_4px_0_rgba(2,6,23,0.45)] sm:text-6xl">{ui(title)}</h1>
           </div>
         </div>
 
@@ -186,8 +188,8 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
                           type="button"
                           onClick={() => onRemoveParticipant(participant)}
                           disabled={removingParticipantId === participant.id}
-                          title={`Remove ${player.name}`}
-                          aria-label={`Remove ${player.name}`}
+                          title={ui("Remove {player.name}", { "player.name": (player.name) })}
+                          aria-label={ui("Remove {player.name}", { "player.name": (player.name) })}
                           className="group block w-full min-w-0 max-w-full text-left disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <span className={`min-w-0 truncate ${preferSingleLineRows ? 'text-xl sm:text-3xl xl:text-4xl' : 'text-xl sm:text-4xl'} font-black group-hover:line-through`}>
@@ -205,7 +207,7 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
                       <div className={`font-mono font-black leading-none drop-shadow-[0_2px_0_rgba(2,6,23,0.45)] ${scoreClass} ${preferSingleLineRows ? 'text-2xl sm:text-4xl xl:text-5xl' : 'text-2xl sm:text-5xl'}`}>
                         <AnimatedScore value={participant.displayScore} />
                       </div>
-                      <div className="text-[10px] font-black uppercase text-white/55">points</div>
+                      <div className="text-[10px] font-black uppercase text-white/55">{ui("points")}</div>
                     </div>
 
                     <div className={`col-span-4 col-start-1 mt-1 grid min-w-0 grid-cols-[36px_32px_minmax(0,1fr)_auto] items-center gap-x-2 sm:col-span-4 sm:col-start-1 sm:mt-0 sm:grid sm:grid-cols-[56px_44px_minmax(0,1fr)_auto] sm:gap-x-4 ${preferSingleLineRows ? 'xl:col-span-3 xl:col-start-4 xl:row-start-1 xl:grid-cols-[180px_56px_240px] xl:gap-x-0' : ''}`}>
@@ -229,12 +231,12 @@ export const LiveQuizLeaderboardStage: React.FC<LiveQuizLeaderboardStageProps> =
                         }`}>
                         {showFinalOrder
                           ? participant.roundGain > 0
-                            ? `+${participant.roundGain} this round`
-                            : '0 this round'
-                          : 'Calculating'}
+                            ? ui("+{participant.roundGain} this round", { "participant.roundGain": (participant.roundGain) })
+                            : ui("0 this round")
+                          : ui("Calculating")}
                       </div>
                       <div className={`shrink-0 text-xs font-black uppercase tracking-wide text-cyan-100/70 sm:text-sm ${preferSingleLineRows ? 'xl:order-1 xl:justify-self-start' : ''}`}>
-                        {totalQuestions ? `${participant.correctCount}/${totalQuestions} correct` : `${participant.correctCount} correct`}
+                        {totalQuestions ? ui("{participant.correctCount}/{totalQuestions} correct", { "participant.correctCount": (participant.correctCount), "totalQuestions": (totalQuestions) }) : ui("{participant.correctCount} correct", { "participant.correctCount": (participant.correctCount) })}
                       </div>
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -7,6 +8,8 @@ import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
 import { LoginModal } from './LoginModal';
 import { Avatar } from './Avatar';
 import { BrandName } from './BrandName';
+import { InterfaceText } from './InterfaceText';
+import { useInterfaceLanguage } from '../utils/interfaceLanguage';
 import {
   AUTH_PROMPT_EVENT,
   AuthPromptDetail,
@@ -18,6 +21,7 @@ import { AuthTurnstile } from './AuthTurnstile';
 
 // SafeLink Component to intercept navigation if changes are unsaved
 const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: string; onClick?: () => void; state?: any }> = ({ to, children, className, onClick, state }) => {
+  useUiLanguage();
     const { isDirty, setIsDirty, isPlaying, setIsPlaying, confirmAction } = useUnsavedChanges();
     const navigate = useNavigate();
     const location = useLocation();
@@ -38,10 +42,10 @@ const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: st
         };
 
         if (isPlaying) {
-            confirmAction('Your current round and scores will be lost if you leave this game.', performNavigation, 'Leave game?');
+            confirmAction(ui("Your current round and scores will be lost if you leave this game."), performNavigation, ui("Leave game?"));
         } else if (isDirty) {
             confirmAction(
-                "You have unsaved changes. Are you sure you want to leave? Your progress will be lost.",
+                ui("You have unsaved changes. Are you sure you want to leave? Your progress will be lost."),
                 performNavigation
             );
         } else {
@@ -57,6 +61,8 @@ const SafeLink: React.FC<{ to: string; children: React.ReactNode; className?: st
 };
 
 const Navbar: React.FC = () => {
+  useUiLanguage();
+  const { language, t } = useInterfaceLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [loginDefaultMode, setLoginDefaultMode] = useState<'login' | 'signup'>('login');
@@ -126,7 +132,7 @@ const Navbar: React.FC = () => {
   const handleResendConfirmation = async () => {
     if (!emailConfirmationState?.email || isResendingConfirmation) return;
     if (!resendCaptchaToken) {
-      setEmailConfirmationError('Please complete the human verification check before resending.');
+      setEmailConfirmationError(ui("Please complete the human verification check before resending."));
       return;
     }
 
@@ -143,7 +149,7 @@ const Navbar: React.FC = () => {
       const lowerMessage = message.toLowerCase();
 
       if (code === 'over_email_send_rate_limit' || lowerMessage.includes('rate limit') || lowerMessage.includes('request this after')) {
-        setEmailConfirmationError('Please wait a moment before requesting another confirmation email.');
+        setEmailConfirmationError(ui("Please wait a moment before requesting another confirmation email."));
       } else {
         setEmailConfirmationError(message);
       }
@@ -151,7 +157,7 @@ const Navbar: React.FC = () => {
       return;
     }
 
-    setEmailConfirmationFeedback('We sent another confirmation link. Please check your inbox and spam folder.');
+    setEmailConfirmationFeedback(ui("We sent another confirmation link. Please check your inbox and spam folder."));
     setIsResendingConfirmation(false);
   };
 
@@ -175,13 +181,13 @@ const Navbar: React.FC = () => {
   }, []);
   
   const navItems = [
-    { name: 'Home', path: '/', icon: <Home size={18} /> },
-    { name: 'Games', path: '/games', icon: <GraduationCap size={18} /> },
-    { name: 'Join Live', path: '/live', icon: <Radio size={18} /> },
-    { name: 'Pricing', path: '/pricing', icon: <BookOpen size={18} /> },
-    { name: 'Info', path: '/info', icon: <HelpCircle size={18} /> },
-    { name: 'Blog', path: '/blog', icon: <MessageSquare size={18} /> },
-    { name: 'Contact', path: '/contact', icon: <User size={18} /> },
+    { name: t('nav.home'), path: '/', icon: <Home size={18} /> },
+    { name: t('nav.games'), path: '/games', icon: <GraduationCap size={18} /> },
+    { name: t('nav.live'), path: '/live', icon: <Radio size={18} /> },
+    { name: t('nav.pricing'), path: '/pricing', icon: <BookOpen size={18} /> },
+    { name: t('nav.info'), path: '/info', icon: <HelpCircle size={18} /> },
+    { name: t('nav.blog'), path: '/blog', icon: <MessageSquare size={18} /> },
+    { name: t('nav.contact'), path: '/contact', icon: <User size={18} /> },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -202,18 +208,18 @@ const Navbar: React.FC = () => {
           
           {/* Desktop Menu */}
           <div className="hidden xl:flex items-center space-x-1">
-            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle" aria-label={`Switch game to ${gameAppearance === 'light' ? 'dark' : 'bright'} appearance`} title="Change game appearance without changing your site preference">{gameAppearance === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{gameAppearance === 'light' ? 'Dark game' : 'Bright game'}</span></button>}
+            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle" aria-label={ui(gameAppearance === 'light' ? "Switch game to dark appearance" : "Switch game to bright appearance")} title={ui("Change game appearance without changing your site preference")}>{gameAppearance === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate">{t(gameAppearance === 'light' ? 'appearance.darkGame' : 'appearance.brightGame')}</span></button>}
             {navItems.map((item) => (
               <SafeLink
-                key={item.name}
+                key={item.path}
                 to={item.path}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer
+                className={`px-2 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer
                   ${isActive(item.path) 
                     ? 'bg-sky-50 text-sky-700' 
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
               >
                 {item.icon}
-                {item.name}
+                <span translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate whitespace-nowrap">{item.name}</span>
               </SafeLink>
             ))}
             <div className="ml-4 pl-4 border-l border-slate-200 relative">
@@ -238,7 +244,7 @@ const Navbar: React.FC = () => {
                      <div className="fixed inset-0 z-[100]" onClick={() => setShowUserMenu(false)} />
                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[102] animate-fade-in">
                         <div className="px-4 py-2 border-b border-slate-50 mb-2">
-                          <p className="text-xs text-slate-400 uppercase">Signed in as</p>
+                          <p className="text-xs text-slate-400 uppercase">{ui("Signed in as")}</p>
                           <p className="font-bold text-slate-800 truncate">{user.email}</p>
                         </div>
                         <SafeLink 
@@ -246,14 +252,14 @@ const Navbar: React.FC = () => {
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <User size={16} className="mr-2 text-brand-blue" /> My Profile
+                          <User size={16} className="mr-2 text-brand-blue" /> <InterfaceText textKey="nav.profile" />
                         </SafeLink>
                         <SafeLink
                           to="/change-plan"
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <BookOpen size={16} className="mr-2 text-brand-blue" /> Change Plan
+                          <BookOpen size={16} className="mr-2 text-brand-blue" /> <InterfaceText textKey="nav.plan" />
                         </SafeLink>
                         <SafeLink 
                           to="/games" 
@@ -261,26 +267,25 @@ const Navbar: React.FC = () => {
                           onClick={() => setShowUserMenu(false)}
                           className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                         >
-                          <Grid size={16} className="mr-2 text-brand-blue" /> My Saved Games
-                        </SafeLink>
+                          <Grid size={16} className="mr-2 text-brand-blue" /> {ui("My Saved Games")}</SafeLink>
                         {canAccessSchoolAdmin && (
                           <SafeLink
                             to="/school-admin"
                             onClick={() => setShowUserMenu(false)}
                             className="block px-4 py-3 text-sm text-slate-700 hover:bg-sky-50 flex items-center w-full"
                           >
-                            <Building2 size={16} className="mr-2 text-brand-blue" /> School Admin
+                            <Building2 size={16} className="mr-2 text-brand-blue" /> <InterfaceText textKey="nav.school" />
                           </SafeLink>
                         )}
                         <button 
                           onClick={() => {
                             const signOut = () => { setIsPlaying(false); void logout(); setShowUserMenu(false); };
-                            if (isPlaying) confirmAction('Your current round and scores will be lost if you sign out.', signOut, 'Leave game?');
+                            if (isPlaying) confirmAction(ui("Your current round and scores will be lost if you sign out."), signOut, ui("Leave game?"));
                             else signOut();
                           }}
                           className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center"
                         >
-                          <LogOut size={16} className="mr-2" /> Sign Out
+                          <LogOut size={16} className="mr-2" /> <InterfaceText textKey="nav.signOut" />
                         </button>
                      </div>
                      </>
@@ -293,7 +298,7 @@ const Navbar: React.FC = () => {
                 >
                   <div className="bg-slate-100 p-2 rounded-full hover:bg-sky-50 hover:text-sky-600 transition-colors flex items-center gap-2 px-4">
                      <User size={20} />
-                     <span className="text-sm font-bold">Login</span>
+                     <span className="text-sm font-bold"><InterfaceText textKey="nav.signIn" /></span>
                   </div>
                 </button>
               )}
@@ -302,10 +307,10 @@ const Navbar: React.FC = () => {
 
           {/* Mobile menu button */}
           <div className="flex items-center xl:hidden">
-            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle game-appearance-toggle-mobile" aria-label={`Switch game to ${gameAppearance === 'light' ? 'dark' : 'bright'} appearance`} title="Change game appearance">{gameAppearance === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>}
+            {isPlaying && <button type="button" onClick={() => setGameAppearance(gameAppearance === 'light' ? 'dark' : 'light')} className="game-appearance-toggle game-appearance-toggle-mobile" aria-label={ui(gameAppearance === 'light' ? "Switch game to dark appearance" : "Switch game to bright appearance")} title={ui("Change game appearance")}>{gameAppearance === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              aria-label={isOpen ? 'Close menu' : 'Open menu'}
+              aria-label={t(isOpen ? 'nav.closeMenu' : 'nav.openMenu')}
               className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -320,7 +325,7 @@ const Navbar: React.FC = () => {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <SafeLink
-                key={item.name}
+                key={item.path}
                 to={item.path}
                 onClick={() => setIsOpen(false)}
                 className={`block px-3 py-2 rounded-md text-base font-medium flex items-center gap-2
@@ -329,7 +334,7 @@ const Navbar: React.FC = () => {
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
               >
                 {item.icon}
-                {item.name}
+                <span translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate whitespace-nowrap">{item.name}</span>
               </SafeLink>
             ))}
             <div className="border-t border-slate-100 pt-3 mt-3">
@@ -345,28 +350,27 @@ const Navbar: React.FC = () => {
                        <span className="font-bold text-slate-800">{user.name}</span>
                     </div>
                     <SafeLink to="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        My Profile
+                        <InterfaceText textKey="nav.profile" />
                     </SafeLink>
                     <SafeLink to="/change-plan" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        Change Plan
+                        <InterfaceText textKey="nav.plan" />
                     </SafeLink>
                     <SafeLink to="/games" state={{ view: 'library' }} onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        My Saved Games
-                    </SafeLink>
+                        {ui("My Saved Games")}</SafeLink>
                     {canAccessSchoolAdmin && (
                       <SafeLink to="/school-admin" onClick={() => setIsOpen(false)} className="block px-3 py-2 text-slate-600 hover:text-sky-600">
-                        School Admin
+                        <InterfaceText textKey="nav.school" />
                       </SafeLink>
                     )}
                     <button
                       onClick={() => {
                         const signOut = () => { setIsPlaying(false); setIsOpen(false); void logout(); };
-                        if (isPlaying) confirmAction('Your current round and scores will be lost if you sign out.', signOut, 'Leave game?');
+                        if (isPlaying) confirmAction(ui("Your current round and scores will be lost if you sign out."), signOut, ui("Leave game?"));
                         else signOut();
                       }}
                       className="w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50"
                     >
-                      Sign Out
+                      <InterfaceText textKey="nav.signOut" />
                     </button>
                   </>
                 ) : (
@@ -374,7 +378,7 @@ const Navbar: React.FC = () => {
                     onClick={() => { openLoginModal('login'); setIsOpen(false); }}
                     className="w-full text-left px-3 py-2 text-slate-600 font-medium hover:text-sky-600"
                   >
-                    Login / Sign Up
+                    <InterfaceText textKey="nav.login" />
                   </button>
                 )}
             </div>
@@ -405,17 +409,14 @@ const Navbar: React.FC = () => {
               <MailCheck className="text-slate-900" size={24} />
             </div>
             <h2 className="font-display text-2xl font-bold text-slate-800">
-              Check Your Email
-            </h2>
+              {ui("Check Your Email")}</h2>
             <p className="text-slate-500 text-sm mt-2">
-              We sent a confirmation link to <span className="font-semibold text-slate-700">{emailConfirmationState.email}</span>.
+              {ui("We sent a confirmation link to")}<span className="font-semibold text-slate-700">{emailConfirmationState.email}</span>.
             </p>
             <p className="text-slate-500 text-sm mt-3">
-              Confirm your account from that email.
-            </p>
+              {ui("Confirm your account from that email.")}</p>
             <p className="text-slate-400 text-xs mt-3">
-              If you don&apos;t see it, check your spam folder.
-            </p>
+              {ui("If you don't see it, check your spam folder.")}</p>
             {emailConfirmationFeedback && (
               <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {emailConfirmationFeedback}
@@ -444,7 +445,7 @@ const Navbar: React.FC = () => {
                 {isResendingConfirmation ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  'Resend Confirmation Email'
+                  ui("Resend Confirmation Email")
                 )}
               </button>
               <button
@@ -452,8 +453,7 @@ const Navbar: React.FC = () => {
                 onClick={dismissEmailConfirmation}
                 className="w-full py-2.5 px-3 border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors"
               >
-                Close
-              </button>
+                {ui("Close")}</button>
             </div>
           </div>
         </div>
@@ -470,6 +470,7 @@ const Navbar: React.FC = () => {
 };
 
 const Footer: React.FC = () => {
+  useUiLanguage();
   const [showMobileGames, setShowMobileGames] = useState(false);
 
   return (
@@ -477,55 +478,54 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-x-6 gap-y-6 mb-6 md:grid-cols-3 md:gap-y-10 md:mb-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.6fr)] lg:gap-x-8">
           <div className="col-span-2 md:col-span-1">
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Site</h3>
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">{ui("Site")}</h3>
             <ul className="flex flex-wrap gap-x-6 gap-y-2 md:block md:space-y-3">
-              <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">Games</SafeLink></li>
-              <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">Pricing</SafeLink></li>
-              <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">Blog</SafeLink></li>
+              <li><SafeLink to="/games" className="hover:text-brand-yellow text-sm transition-colors">{ui("Games")}</SafeLink></li>
+              <li><SafeLink to="/pricing" className="hover:text-brand-yellow text-sm transition-colors">{ui("Pricing")}</SafeLink></li>
+              <li><SafeLink to="/blog" className="hover:text-brand-yellow text-sm transition-colors">{ui("Blog")}</SafeLink></li>
             </ul>
           </div>
           <div className="col-span-2">
-            <h3 className="hidden text-sm font-semibold text-white uppercase tracking-wider mb-4 md:block">Game Types</h3>
+            <h3 className="hidden text-sm font-semibold text-white uppercase tracking-wider mb-4 md:block">{ui("Game Types")}</h3>
             <button type="button" aria-controls="footer-game-links" aria-expanded={showMobileGames} onClick={() => setShowMobileGames(open => !open)} className="flex w-full items-center justify-between border-y border-slate-700 py-3 text-left text-sm font-semibold text-white md:hidden">
-              Explore games and guides
-              <ChevronDown size={18} aria-hidden="true" className={`transition-transform ${showMobileGames ? 'rotate-180' : ''}`} />
+              {ui("Explore games and guides")}<ChevronDown size={18} aria-hidden="true" className={`transition-transform ${showMobileGames ? 'rotate-180' : ''}`} />
             </button>
             <div id="footer-game-links" className={`${showMobileGames ? 'block' : 'hidden'} pt-4 md:block md:pt-0`}>
             <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5">
-              <li><SafeLink to="/game-types/trivia" className="hover:text-brand-yellow text-sm transition-colors">Trivia</SafeLink></li>
-              <li><SafeLink to="/game-types/jeopardy" className="hover:text-brand-yellow text-sm transition-colors">Jeopardy</SafeLink></li>
-              <li><SafeLink to="/game-types/time-bomb" className="hover:text-brand-yellow text-sm transition-colors">Time Bomb</SafeLink></li>
-              <li><SafeLink to="/game-types/wordwheel" className="hover:text-brand-yellow text-sm transition-colors">Word Wheel</SafeLink></li>
-              <li><SafeLink to="/game-types/survey-showdown" className="hover:text-brand-yellow text-sm transition-colors">Survey Showdown</SafeLink></li>
-              <li><SafeLink to="/game-types/stop-the-fire" className="hover:text-brand-yellow text-sm transition-colors">Stop the Fire</SafeLink></li>
-              <li><SafeLink to="/game-types/millionaire-maker" className="hover:text-brand-yellow text-sm transition-colors">Millionaire Maker</SafeLink></li>
-              <li><SafeLink to="/game-types/darts-challenge" className="hover:text-brand-yellow text-sm transition-colors">Darts Challenge</SafeLink></li>
-              <li><SafeLink to="/game-types/snakes-and-ladders" className="hover:text-brand-yellow text-sm transition-colors">Snakes and Ladders</SafeLink></li>
-              <li><SafeLink to="/game-types/pub-quiz" className="hover:text-brand-yellow text-sm transition-colors">Pub Quiz</SafeLink></li>
-              <li><SafeLink to="/game-types/live-quiz" className="hover:text-brand-yellow text-sm transition-colors">Live Quiz</SafeLink></li>
-              <li><SafeLink to="/game-types/blockbeaters" className="hover:text-brand-yellow text-sm transition-colors">Block Beaters</SafeLink></li>
+              <li><SafeLink to="/game-types/trivia" className="hover:text-brand-yellow text-sm transition-colors">{ui("Trivia")}</SafeLink></li>
+              <li><SafeLink to="/game-types/jeopardy" className="hover:text-brand-yellow text-sm transition-colors">{ui("Jeopardy")}</SafeLink></li>
+              <li><SafeLink to="/game-types/time-bomb" className="hover:text-brand-yellow text-sm transition-colors">{ui("Time Bomb")}</SafeLink></li>
+              <li><SafeLink to="/game-types/wordwheel" className="hover:text-brand-yellow text-sm transition-colors">{ui("Word Wheel")}</SafeLink></li>
+              <li><SafeLink to="/game-types/survey-showdown" className="hover:text-brand-yellow text-sm transition-colors">{ui("Survey Showdown")}</SafeLink></li>
+              <li><SafeLink to="/game-types/stop-the-fire" className="hover:text-brand-yellow text-sm transition-colors">{ui("Stop the Fire")}</SafeLink></li>
+              <li><SafeLink to="/game-types/millionaire-maker" className="hover:text-brand-yellow text-sm transition-colors">{ui("Millionaire Maker")}</SafeLink></li>
+              <li><SafeLink to="/game-types/darts-challenge" className="hover:text-brand-yellow text-sm transition-colors">{ui("Darts Challenge")}</SafeLink></li>
+              <li><SafeLink to="/game-types/snakes-and-ladders" className="hover:text-brand-yellow text-sm transition-colors">{ui("Snakes and Ladders")}</SafeLink></li>
+              <li><SafeLink to="/game-types/pub-quiz" className="hover:text-brand-yellow text-sm transition-colors">{ui("Pub Quiz")}</SafeLink></li>
+              <li><SafeLink to="/game-types/live-quiz" className="hover:text-brand-yellow text-sm transition-colors">{ui("Live Quiz")}</SafeLink></li>
+              <li><SafeLink to="/game-types/blockbeaters" className="hover:text-brand-yellow text-sm transition-colors">{ui("Block Beaters")}</SafeLink></li>
             </ul>
-            <h4 className="mt-5 border-t border-slate-700 pt-4 text-xs font-semibold text-white">More for teachers</h4>
+            <h4 className="mt-5 border-t border-slate-700 pt-4 text-xs font-semibold text-white">{ui("More for teachers")}</h4>
             <ul className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2.5">
-              <li><SafeLink to="/create-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">Create classroom games</SafeLink></li>
-              <li><SafeLink to="/classroom-quiz-maker" className="hover:text-brand-yellow text-sm transition-colors">Classroom quiz maker</SafeLink></li>
-              <li><SafeLink to="/live-quiz-for-teachers" className="hover:text-brand-yellow text-sm transition-colors">Live quiz for teachers</SafeLink></li>
-              <li><SafeLink to="/esl-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">ESL classroom games</SafeLink></li>
+              <li><SafeLink to="/create-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">{ui("Create classroom games")}</SafeLink></li>
+              <li><SafeLink to="/classroom-quiz-maker" className="hover:text-brand-yellow text-sm transition-colors">{ui("Classroom quiz maker")}</SafeLink></li>
+              <li><SafeLink to="/live-quiz-for-teachers" className="hover:text-brand-yellow text-sm transition-colors">{ui("Live quiz for teachers")}</SafeLink></li>
+              <li><SafeLink to="/esl-classroom-games" className="hover:text-brand-yellow text-sm transition-colors">{ui("ESL classroom games")}</SafeLink></li>
             </ul>
             </div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Support</h3>
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">{ui("Support")}</h3>
             <ul className="space-y-2 md:space-y-3">
-              <li><SafeLink to="/info" className="hover:text-brand-yellow text-sm transition-colors">FAQs</SafeLink></li>
-              <li><SafeLink to="/contact" className="hover:text-brand-yellow text-sm transition-colors">Contact</SafeLink></li>
+              <li><SafeLink to="/info" className="hover:text-brand-yellow text-sm transition-colors">{ui("FAQs")}</SafeLink></li>
+              <li><SafeLink to="/contact" className="hover:text-brand-yellow text-sm transition-colors">{ui("Contact")}</SafeLink></li>
             </ul>
           </div>
            <div>
-            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">Legal</h3>
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-2 md:mb-4">{ui("Legal")}</h3>
             <ul className="space-y-2 md:space-y-3">
-              <li><SafeLink to="/terms" className="hover:text-brand-yellow text-sm transition-colors">Terms of Service</SafeLink></li>
-              <li><SafeLink to="/privacy" className="hover:text-brand-yellow text-sm transition-colors">Privacy Policy</SafeLink></li>
+              <li><SafeLink to="/terms" className="hover:text-brand-yellow text-sm transition-colors">{ui("Terms of Service")}</SafeLink></li>
+              <li><SafeLink to="/privacy" className="hover:text-brand-yellow text-sm transition-colors">{ui("Privacy Policy")}</SafeLink></li>
             </ul>
           </div>
            <div className="hidden md:col-span-1 md:block">
@@ -535,12 +535,12 @@ const Footer: React.FC = () => {
                 </div>
                 <BrandName className="font-display font-bold text-lg text-white" />
              </div>
-             <p className="text-xs text-slate-400">Making teaching easier, one game at a time.</p>
+             <p className="text-xs text-slate-400">{ui("Making teaching easier, one game at a time.")}</p>
           </div>
         </div>
         <div className="border-t border-slate-800 pt-4 md:pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-xs text-slate-500">&copy; {new Date().getFullYear()} <BrandName />.</p>
-          <p className="text-xs text-slate-500 mt-2 md:mt-0">Designed and managed by 3P Machine digital.</p>
+          <p className="text-xs text-slate-500 mt-2 md:mt-0">{ui("Designed and managed by 3P Machine digital.")}</p>
         </div>
       </div>
     </footer>
@@ -548,6 +548,7 @@ const Footer: React.FC = () => {
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { language } = useInterfaceLanguage();
   const location = useLocation();
 
   useEffect(() => {
@@ -555,7 +556,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }, [location.pathname]);
 
   return (
-    <div className="flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
+        <div translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
       <Navbar />
       <main className="bg-white relative z-0">
         {children}

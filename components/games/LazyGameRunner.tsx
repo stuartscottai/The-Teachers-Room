@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { Suspense, lazy } from 'react';
 import { GameRunOptions, GameType, GeneratedGame } from '../../types';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
@@ -24,14 +25,14 @@ const TriviaGame = lazy(() => import('./TriviaGame').then(({ TriviaGame }) => ({
 const WordWheelGame = lazy(() => import('./WordWheelGame').then(({ WordWheelGame }) => ({ default: WordWheelGame })));
 const BlockBeatersGame = lazy(() => import('./BlockBeatersGame').then(({ BlockBeatersGame }) => ({ default: BlockBeatersGame })));
 
-const GameLoading: React.FC = () => (
+const GameLoading: React.FC = () => { useUiLanguage(); return ((
   <div className="min-h-[50vh] flex items-center justify-center px-6 text-center">
     <div>
       <div className="mx-auto mb-4 h-10 w-10 rounded-full border-4 border-brand-blue border-t-transparent animate-spin" />
-      <p className="text-sm font-bold text-slate-500">Loading game...</p>
+      <p className="text-sm font-bold text-slate-500">{ui("Loading game...")}</p>
     </div>
   </div>
-);
+)); };
 
 const selectGameType = (game: GeneratedGame) =>
   game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? GameType.TRIVIA : game.config.type;

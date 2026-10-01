@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, QuestionEditorPanel, AnswerOptions, useWorkspaceDialog } from './GameWorkspace';
 import { GameWebSources } from './GameWebSources';
 
@@ -83,6 +84,7 @@ const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: str
 };
 
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack, imageRepairKeys = [] }) => {
+  useUiLanguage();
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [coverUploading, setCoverUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<number>(0);
@@ -257,7 +259,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const handleSave = async (opts?: { overrideIsPublic?: boolean }) => {
         if (coverUploading) return null;
         if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
-            alert('Word Bank games cannot be saved. Switch to Manual or AI to save this game.');
+            alert(ui("Word Bank games cannot be saved. Switch to Manual or AI to save this game."));
             return null;
         }
         if (!user) {
@@ -320,12 +322,12 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             setEditedGame(savedGame);
             onSave(savedGame);
             if (publishLockedForRemix) {
-                alert("Remixed community games stay private until you make a content edit.");
+                alert(ui("Remixed community games stay private until you make a content edit."));
             }
             return savedGame;
         } else {
             setSaveStatus('idle');
-            alert("Failed to save. Please try again.");
+            alert(ui("Failed to save. Please try again."));
             return null;
         }
     };
@@ -356,7 +358,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             return;
         }
         if (!isPublic && editedGame.sourceGameId && !hasEdits) {
-            alert("Make at least one edit before publishing a community game copy.");
+            alert(ui("Make at least one edit before publishing a community game copy."));
             return;
         }
         setIsPublic(!isPublic);
@@ -383,7 +385,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
     const handleShare = async () => {
         if (editedGame.config.type === GameType.STOP_THE_FIRE && editedGame.config.stopTheFireMode === 'bank') {
-            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            alert(ui("Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game."));
             return;
         }
         if (!user) {
@@ -398,14 +400,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 setShowShareToast(true);
                 setTimeout(() => setShowShareToast(false), 2000);
             } catch (error) {
-                alert(`Copy failed. Share this link:\n${shareUrl}`);
+                alert(ui("Copy failed. Share this link: {shareUrl}", { "shareUrl": (shareUrl) }));
             }
             return;
         }
 
         let desiredPublic = isPublic;
         if (!desiredPublic) {
-            const confirmPublic = window.confirm("This game is private. Make it public to share?");
+            const confirmPublic = window.confirm(ui("This game is private. Make it public to share?"));
             if (!confirmPublic) return;
             desiredPublic = true;
             setIsPublic(true);
@@ -414,7 +416,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         let shareGame = editedGame;
         const needsSave = hasEdits;
         if (needsSave) {
-            const confirmSave = window.confirm("Save this game to generate a share link?");
+            const confirmSave = window.confirm(ui("Save this game to generate a share link?"));
             if (!confirmSave) return;
             const saved = await handleSave({ overrideIsPublic: desiredPublic });
             if (!saved) return;
@@ -430,7 +432,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         }
 
         if (!shareGame.id || !isUuid(shareGame.id)) {
-            alert("Please save this game before sharing.");
+            alert(ui("Please save this game before sharing."));
             return;
         }
 
@@ -440,13 +442,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
             setShowShareToast(true);
             setTimeout(() => setShowShareToast(false), 2000);
         } catch (error) {
-            alert(`Copy failed. Share this link:\n${shareUrl}`);
+            alert(ui("Copy failed. Share this link: {shareUrl}", { "shareUrl": (shareUrl) }));
         }
     };
 
     const handleStudentShare = async () => {
         if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)) {
-            alert('Student practice sharing is not available for this game type.');
+            alert(ui("Student practice sharing is not available for this game type."));
             return;
         }
 
@@ -462,7 +464,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
         let desiredPublic = isPublic;
         if (!desiredPublic) {
-            const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+            const confirmPublic = window.confirm(ui("This game must be public for student practice links. Make it public?"));
             if (!confirmPublic) return;
             desiredPublic = true;
             setIsPublic(true);
@@ -471,7 +473,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         let shareGame = editedGame;
         const needsSave = hasEdits;
         if (needsSave) {
-            const confirmSave = window.confirm('Save this game to generate a student practice link?');
+            const confirmSave = window.confirm(ui("Save this game to generate a student practice link?"));
             if (!confirmSave) return;
             const saved = await handleSave({ overrideIsPublic: desiredPublic });
             if (!saved) return;
@@ -483,7 +485,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         }
 
         if (!shareGame.id || !isUuid(shareGame.id)) {
-            alert('Please save this game before sharing it with students.');
+            alert(ui("Please save this game before sharing it with students."));
             return;
         }
 
@@ -606,7 +608,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 }
             } catch (err) {
                 console.error('Image upload failed:', err);
-                alert('Failed to upload image. Please try again.');
+                alert(ui("Failed to upload image. Please try again."));
             } finally {
                 setImageUploadTarget(null);
                 if (imagePickerOpen) {
@@ -641,7 +643,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     };
 
     const removeQuestion = (index: number) => {
-        confirmAction("Delete this question permanently?", () => {
+        confirmAction(ui("Delete this question permanently?"), () => {
             optionCountDraftsRef.current.clear();
             handleChange(prev => ({
                 ...prev,
@@ -788,7 +790,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const isStopTheFire = editedGame.config.type === GameType.STOP_THE_FIRE;
     const isStopTheFireBank = isStopTheFire && editedGame.config.stopTheFireMode === 'bank';
     const groups = editedGame.config.type === GameType.JEOPARDY ? editedGame.jeopardyBoard : editedGame.pubQuizRounds;
-    const groupLabel = editedGame.config.type === GameType.JEOPARDY ? "Category" : "Round";
+    const groupLabel = editedGame.config.type === GameType.JEOPARDY ? ui("Category") : ui("Round");
     const isMillionaire = editedGame.config.type === GameType.MILLIONAIRE;
     const isSurvey = editedGame.config.type === GameType.SURVEY_SHOWDOWN;
     const isWordWheel = editedGame.config.type === GameType.WORD_WHEEL;
@@ -853,40 +855,40 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         <div className="game-workspace fixed inset-0 top-16 z-50 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
                 <div className="workspace-shell relative z-20">
-                        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> Back</button>
+                        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(" Back")}</button>
                         <header className="workspace-editor-top">
                           <div className="workspace-editor-title">
-                            <h1 className="sr-only">Edit game</h1><div className="workspace-eyebrow mb-1">Edit game <span className="px-1 text-slate-300">/</span> {editedGame.config.type}</div>
-                            <label htmlFor="editor-game-title" className="sr-only">Game title</label>
-                            <input id="editor-game-title" value={editedGame.title} onChange={event => handleTitleChange(event.target.value)} placeholder="Enter game title" />
+                            <h1 className="sr-only">{ui("Edit game")}</h1><div className="workspace-eyebrow mb-1">{ui("Edit game ")}<span className="px-1 text-slate-300">/</span> {editedGame.config.type}</div>
+                            <label htmlFor="editor-game-title" className="sr-only">{ui("Game title")}</label>
+                            <input id="editor-game-title" value={editedGame.title} onChange={event => handleTitleChange(event.target.value)} placeholder={ui("Enter game title")} />
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-                              {showCreatorAttribution && <span>Originally by {createdByName ? <Link to="/games" state={{ view: 'community', ...(createdById ? { creatorFilter: { id: createdById, name: createdByName } } : { searchQuery: createdByName }) }} className="font-semibold hover:underline">{createdByName}</Link> : 'Unknown creator'}{showEditedBy && <> · Edited by {editedByName}</>}</span>}
-                              {createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{isPublic ? "Public" : "Private"}</span>
+                              {showCreatorAttribution && <span>{ui("Originally by ")}{createdByName ? <Link to="/games" state={{ view: 'community', ...(createdById ? { creatorFilter: { id: createdById, name: createdByName } } : { searchQuery: createdByName }) }} className="font-semibold hover:underline">{createdByName}</Link> : ui("Unknown creator")}{showEditedBy && <> {ui(" · Edited by ")}{editedByName}</>}</span>}
+                              {createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{isPublic ? ui("Public") : ui("Private")}</span>
                             </div>
                           </div>
                           <div className="flex flex-col gap-2 lg:items-end">
                             <div className="workspace-editor-actions">
-                              <WorkspaceMenu label="Game details">
-                                <button type="button" onClick={handleVisibilityToggle} disabled={!user || publicToggleLocked} title={publicToggleLocked ? 'Make an edit before making this copy public.' : undefined}>
+                              <WorkspaceMenu label={ui("Game details")}>
+                                <button type="button" onClick={handleVisibilityToggle} disabled={!user || publicToggleLocked} title={publicToggleLocked ? ui("Make an edit before making this copy public.") : undefined}>
                                   {isPublic ? <Lock size={16} /> : <Globe size={16} />}
-                                  <span><strong className="block">{isPublic ? 'Make game private' : 'Make game public'}</strong><small className="block font-normal text-slate-500">Currently {isPublic ? 'public' : 'private'}</small></span>
+                                  <span><strong className="block">{isPublic ? ui("Make game private") : ui("Make game public")}</strong><small className="block font-normal text-slate-500">{ui("Currently ")}{isPublic ? ui("public") : ui("private")}</small></span>
                                 </button>
-                                {editedGame.config.isAI && <button type="button" onClick={() => setShowAiPrompt(true)}><Sparkles size={16} /> Generation instructions</button>}
+                                {editedGame.config.isAI && <button type="button" onClick={() => setShowAiPrompt(true)}><Sparkles size={16} /> {ui(" Generation instructions")}</button>}
                               </WorkspaceMenu>
-                              <WorkspaceMenu label="Share">
-                                <button type="button" onClick={handleShare} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank}><Share2 size={16} /> Teacher share</button>
-                                <button type="button" onClick={handleStudentShare} disabled={coverUploading || saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}><QrCode size={16} /> Student share</button>
+                              <WorkspaceMenu label={ui("Share")}>
+                                <button type="button" onClick={handleShare} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank}><Share2 size={16} /> {ui(" Teacher share")}</button>
+                                <button type="button" onClick={handleStudentShare} disabled={coverUploading || saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}><QrCode size={16} /> {ui(" Student share")}</button>
                               </WorkspaceMenu>
                               <button type="button" onClick={() => void handleSave()} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank} className="workspace-button workspace-button-primary">
-                                {saveStatus === 'saved' ? <Check size={16} /> : <Save size={16} />}{saveStatus === 'saving' ? 'Saving...' : 'Save changes'}
+                                {saveStatus === 'saved' ? <Check size={16} /> : <Save size={16} />}{saveStatus === 'saving' ? ui("Saving...") : ui("Save changes")}
                               </button>
-                              {canPlayLiveQuiz && <button type="button" onClick={() => onLiveQuiz?.(editedGame)} disabled={liveQuizNeedsSave} className="workspace-button" title={liveQuizNeedsSave ? 'Save this game before starting a live quiz' : 'Play live quiz'}><Radio size={16} /> Live quiz</button>}
-                              {!isLiveQuiz && <button type="button" onClick={handlePlay} className="workspace-button workspace-button-play"><Play size={16} fill="currentColor" /> Play</button>}
+                              {canPlayLiveQuiz && <button type="button" onClick={() => onLiveQuiz?.(editedGame)} disabled={liveQuizNeedsSave} className="workspace-button" title={liveQuizNeedsSave ? ui("Save this game before starting a live quiz") : ui("Play live quiz")}><Radio size={16} /> {ui(" Live quiz")}</button>}
+                              {!isLiveQuiz && <button type="button" onClick={handlePlay} className="workspace-button workspace-button-play"><Play size={16} fill="currentColor" /> {ui(" Play")}</button>}
                             </div>
-                            <p className="text-xs text-slate-600" role="status">{isStopTheFireBank ? 'Built-in bank · saving is unavailable' : saveStatus === 'saving' ? 'Saving your game...' : isDirty ? 'Unsaved changes' : saveStatus === 'saved' ? 'Saved' : 'Save when ready'}{liveQuizNeedsSave && ' · Save before hosting a live quiz'}</p>
+                            <p className="text-xs text-slate-600" role="status">{isStopTheFireBank ? ui("Built-in bank · saving is unavailable") : saveStatus === 'saving' ? ui("Saving your game...") : isDirty ? ui("Unsaved changes") : saveStatus === 'saved' ? ui("Saved") : ui("Save when ready")}{liveQuizNeedsSave && ' · Save before hosting a live quiz'}</p>
                           </div>
                         </header>
-                        {imageRepairCount > 0 && <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle size={18} className="shrink-0" /> {imageRepairCount} {imageRepairCount === 1 ? 'image needs' : 'images need'} replacing. Open the marked questions to choose replacements.</div>}
+                        {imageRepairCount > 0 && <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle size={18} className="shrink-0" /> {imageRepairCount} {imageRepairCount === 1 ? ui("image needs") : ui("images need")} {ui(" replacing. Open the marked questions to choose replacements.")}</div>}
 
                         <GameWebSources config={editedGame.config} />
                         <GameCoverEditor compact game={editedGame} userId={user?.id} disabled={coverUploading || saveStatus === 'saving'} onBusyChange={setCoverUploading}
@@ -898,7 +900,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         {!user && (
                         <div className="mb-4 bg-sky-50 p-3 rounded-lg flex items-center text-sky-800 text-sm border border-sky-100">
                             <AlertCircle size={16} className="mr-2 shrink-0" />
-                            <span>Guest editing. Sign in to save to your library and share your game.</span>
+                            <span>{ui("Guest editing. Sign in to save to your library and share your game.")}</span>
                         </div>
                         )}
 
@@ -912,18 +914,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     <Sparkles size={22} />
                                                 </div>
                                                 <div>
-                                                    <h2 className="text-xl font-bold text-slate-800">Custom Categories</h2>
+                                                    <h2 className="text-xl font-bold text-slate-800">{ui("Custom Categories")}</h2>
                                                     <p className="text-slate-600 mt-1">
-                                                        These categories are your word bank. Every save updates this bank.
-                                                    </p>
+                                                        {ui("These categories are your word bank. Every save updates this bank.")}</p>
                                                 </div>
                                             </div>
                                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Add multiple categories</label>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Add multiple categories")}</label>
                                                 <textarea
                                                     value={bulkCategoryInput}
                                                     onChange={(e) => setBulkCategoryInput(e.target.value)}
-                                                    placeholder="Paste categories here, one per line."
+                                                    placeholder={ui("Paste categories here, one per line.")}
                                                     className="w-full min-h-[90px] p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-orange-200 outline-none"
                                                 />
                                                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -946,11 +947,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         }}
                                                         className="px-4 py-2 rounded-lg bg-orange-500 text-white font-bold text-sm hover:bg-orange-600"
                                                     >
-                                                        Add to Bank
-                                                    </button>
+                                                        {ui("Add to Bank")}</button>
                                                     <span className="text-xs text-slate-400">
-                                                        Tips: one category per line. Duplicates are ignored.
-                                                    </span>
+                                                        {ui("Tips: one category per line. Duplicates are ignored.")}</span>
                                                 </div>
                                             </div>
                                             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-2">
@@ -967,7 +966,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 return { ...prev, stopTheFireCategories: next };
                                                             })}
                                                             className="flex-1 p-2 text-sm border border-slate-200 rounded focus:ring-1 focus:ring-orange-300 outline-none"
-                                                            placeholder="e.g., Things in a kitchen"
+                                                            placeholder={ui("e.g., Things in a kitchen")}
                                                         />
                                                         <button
                                                             type="button"
@@ -977,8 +976,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             })}
                                                             className="px-2 py-1 text-xs font-bold text-slate-500 hover:text-red-600"
                                                         >
-                                                            Remove
-                                                        </button>
+                                                            {ui("Remove")}</button>
                                                     </div>
                                                 ))}
                                             </div>
@@ -990,8 +988,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 }))}
                                                 className="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 font-bold hover:border-orange-300 hover:text-orange-600 transition-colors"
                                             >
-                                                + Add Category
-                                            </button>
+                                                {ui("+ Add Category")}</button>
                                         </div>
                                     ) : (
                                         <div className="flex items-start gap-4">
@@ -999,13 +996,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 <Sparkles size={22} />
                                             </div>
                                             <div>
-                                                <h2 className="text-xl font-bold text-slate-800">Stop the Fire uses a built-in category bank</h2>
+                                                <h2 className="text-xl font-bold text-slate-800">{ui("Stop the Fire uses a built-in category bank")}</h2>
                                                 <p className="text-slate-600 mt-1">
-                                                    You will choose difficulty, category count, timer, and the round letter inside the game setup card.
-                                                </p>
+                                                    {ui("You will choose difficulty, category count, timer, and the round letter inside the game setup card.")}</p>
                                                 <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-600">
-                                                    Tip: Use the in-game setup side to preview the letter before starting the round.
-                                                </div>
+                                                    {ui("Tip: Use the in-game setup side to preview the letter before starting the round.")}</div>
                                             </div>
                                         </div>
                                     )}
@@ -1035,7 +1030,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     type="button"
                                     onClick={() => handleTabsScroll('left')}
                                     className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
-                                    aria-label="Scroll tabs left"
+                                    aria-label={ui("Scroll tabs left")}
                                 >
                                     <ChevronLeft size={16} className="mx-auto" />
                                 </button>
@@ -1043,7 +1038,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     type="button"
                                     onClick={() => handleTabsScroll('right')}
                                     className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
-                                    aria-label="Scroll tabs right"
+                                    aria-label={ui("Scroll tabs right")}
                                 >
                                     <ChevronRight size={16} className="mx-auto" />
                                 </button>
@@ -1051,7 +1046,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                 <div className="p-3 sm:p-4">
                                     <div className="mb-4">
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Current {groupLabel} Name</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Current ")}{groupLabel} {ui(" Name")}</label>
                                         <input
                                             type="text"
                                             value={groups[activeTab].name}
@@ -1064,18 +1059,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     : {...prev, pubQuizRounds: newGroups};
                                             })}
                                             className="w-full p-4 text-xl font-bold border border-slate-200 rounded-lg focus:border-brand-blue focus:ring-2 focus:ring-sky-100 outline-none transition-all bg-slate-50/50"
-                                            placeholder={`Enter ${groupLabel} Name`}
+                                            placeholder={ui("Enter {groupLabel} Name", { "groupLabel": (groupLabel) })}
                                         />
                                     </div>
 
                                     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                                         <p className="text-xs font-medium text-slate-500">
-                                            Showing {groupedQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, groupedQuestions.length)} of {groupedQuestions.length} questions
-                                        </p>
+                                            {ui("Showing ")}{groupedQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, groupedQuestions.length)} {ui(" of ")}{groupedQuestions.length} {ui(" questions")}</p>
                                         <div className="flex items-center gap-3">
                                             <button
                                                 type="button"
-                                                aria-label="Previous page"
+                                                aria-label={ui("Previous page")}
                                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
                                                 className={editorPageButtonClass}
@@ -1083,11 +1077,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 <ChevronLeft size={18} />
                                             </button>
                                             <span className="text-sm font-bold text-slate-600">
-                                                Page {currentPage} of {totalPages}
+                                                {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                                             </span>
                                             <button
                                                 type="button"
-                                                aria-label="Next page"
+                                                aria-label={ui("Next page")}
                                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
                                                 className={editorPageButtonClass}
@@ -1105,13 +1099,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             const imageUrl = resolveGameQuestionImageUrl(q.image);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
-                                            <QuestionEditorPanel key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? `${q.options.length} options · ${q.points} pts` : `Open answer · ${q.points} pts`} warning={needsImageRepair ? 'Replace image' : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? 'Choose a correct answer' : undefined} initiallyOpen={index === 0}>
+                                            <QuestionEditorPanel key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? ui("{count} options · {points} pts", {count: q.options.length, points: q.points}) : ui("Open answer · {points} pts", {points: q.points})} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
-                                                            {editedGame.config.type === GameType.JEOPARDY ? `${q.points} Points` : `Question ${qIdx + 1}`}
+                                                            {editedGame.config.type === GameType.JEOPARDY ? ui("{q.points} Points", { "q.points": (q.points) }) : ui("Question {qIdx + 1}", { "qIdx + 1": (qIdx + 1) })}
                                                         </span>
-                                                        {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Replace this image</span>}
+                                                        {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{ui("Replace this image")}</span>}
                                                     </div>
 
                                                     {/* TYPE TOGGLE */}
@@ -1138,22 +1132,20 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 className={`px-2 py-1 text-[10px] font-bold rounded ${!q.options ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:text-slate-600'}`}
                                                                 disabled={!q.options}
                                                             >
-                                                                Open
-                                                            </button>
+                                                                {ui("Open")}</button>
                                                             <button
                                                                 onClick={() => updateGroupedType(qIdx, 'multiple-choice')}
                                                                 className={`px-2 py-1 text-[10px] font-bold rounded ${q.options ? 'bg-sky-100 text-sky-600' : 'text-slate-400 hover:text-slate-600'}`}
                                                                 disabled={!!q.options}
                                                             >
-                                                                Multi-Choice
-                                                            </button>
+                                                                {ui("Multi-Choice")}</button>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div>
-                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question / Clue</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Question / Clue")}</label>
                                                         <textarea
                                                             value={q.question}
                                                             onChange={(e) => handleChange(prev => {
@@ -1170,14 +1162,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm h-28 resize-none focus:ring-2 focus:ring-sky-200 outline-none transition-all"
-                                                            placeholder="Enter the question here..."
+                                                            placeholder={ui("Enter the question here...")}
                                                         />
                                                     </div>
                                                 {/* OPTIONS EDITOR */}
                                                 {q.options && q.options.length > 0 && (
                                                     <div className="min-w-0">
                                                         <div className="flex items-center justify-between mb-2">
-                                                            <span className="text-sm font-semibold text-slate-600">Number of options</span>
+                                                            <span className="text-sm font-semibold text-slate-600">{ui("Number of options")}</span>
                                                             <div className="flex bg-white rounded border border-slate-200 overflow-hidden">
                                                                 {[2, 3, 4].map(num => (
                                                                     <button
@@ -1185,8 +1177,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                         onClick={() => updateGroupedOptionCount(qIdx, num)}
                                                                         className={`px-2 py-0.5 text-[10px] font-bold transition-colors ${q.options!.length === num ? 'bg-brand-yellow text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}
                                                                     >
-                                                                        {num} Opts
-                                                                    </button>
+                                                                        {num} {ui(" Opts")}</button>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -1199,7 +1190,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     </div>
                                                 )}
                                                     {!q.options?.length && <div>
-                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Answer</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Answer")}</label>
                                                         <textarea
                                                             value={q.answer}
                                                             onChange={(e) => handleChange(prev => {
@@ -1215,13 +1206,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm h-28 resize-none focus:ring-2 focus:ring-green-200 outline-none transition-all"
-                                                            placeholder="Enter the answer here..."
+                                                            placeholder={ui("Enter the answer here...")}
                                                         />
                                                     </div>}
                                                 </div>
 
                                                 <details className="mt-4 pt-4 border-t border-slate-200" open={needsImageRepair ? true : undefined}>
-                                                    <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-3">Question image <span className="font-normal">{imageUrl ? "(image added)" : "(optional)"}</span></summary>
+                                                    <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-3">{ui("Question image ")}<span className="font-normal">{imageUrl ? ui("(image added)") : ui("(optional)")}</span></summary>
                                                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                                                         <div className="w-full md:w-56">
                                                             {imageUrl ? (
@@ -1234,8 +1225,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 </div>
                                                             ) : (
                                                                 <div className="w-full aspect-video bg-white border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-400 font-bold">
-                                                                    No image selected
-                                                                </div>
+                                                                    {ui("No image selected")}</div>
                                                             )}
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
@@ -1244,8 +1234,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 onClick={() => openImagePicker({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx }, q)}
                                                                 className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
                                                             >
-                                                                Pick from library
-                                                            </button>
+                                                                {ui("Pick from library")}</button>
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
@@ -1254,16 +1243,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 }}
                                                                 className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
                                                             >
-                                                                Upload
-                                                            </button>
+                                                                {ui("Upload")}</button>
                                                             {imageUrl && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => updateQuestionImage({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx }, null)}
                                                                     className="px-3 py-2 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                                                                 >
-                                                                    Remove
-                                                                </button>
+                                                                    {ui("Remove")}</button>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1277,7 +1264,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         <div className="flex items-center gap-3">
                                             <button
                                                 type="button"
-                                                aria-label="Previous page"
+                                                aria-label={ui("Previous page")}
                                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                                 disabled={currentPage === 1}
                                                 className={editorPageButtonClass}
@@ -1285,11 +1272,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 <ChevronLeft size={18} />
                                             </button>
                                             <span className="text-sm font-bold text-slate-600">
-                                                Page {currentPage} of {totalPages}
+                                                {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                                             </span>
                                             <button
                                                 type="button"
-                                                aria-label="Next page"
+                                                aria-label={ui("Next page")}
                                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                                 disabled={currentPage === totalPages}
                                                 className={editorPageButtonClass}
@@ -1300,13 +1287,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         <div className="relative ml-auto min-w-[120px]">
                                             <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                             <select
-                                                aria-label="Questions per page"
+                                                aria-label={ui("Questions per page")}
                                             value={itemsPerPage}
                                                 onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
                                                 className={editorPageSizeSelectClass}
                                             >
                                                 {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
-                                                    <option key={size} value={size}>{size} per page</option>
+                                                    <option key={size} value={size}>{size} {ui(" per page")}</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -1318,12 +1305,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                             <div className="workspace-editor-questions">
                                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
                                     <p className="text-xs text-slate-500 font-medium">
-                                        Showing {displayQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, displayQuestions.length)} of {displayQuestions.length} questions
-                                    </p>
+                                        {ui("Showing ")}{displayQuestions.length === 0 ? 0 : pageStart + 1}-{Math.min(pageStart + itemsPerPage, displayQuestions.length)} {ui(" of ")}{displayQuestions.length} {ui(" questions")}</p>
                                     <div className="flex items-center gap-3">
                                         <button
                                             type="button"
-                                            aria-label="Previous page"
+                                            aria-label={ui("Previous page")}
                                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                             disabled={currentPage === 1}
                                             className={editorPageButtonClass}
@@ -1331,11 +1317,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             <ChevronLeft size={18} />
                                         </button>
                                         <span className="text-sm font-bold text-slate-600">
-                                            Page {currentPage} of {totalPages}
+                                            {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                                         </span>
                                         <button
                                             type="button"
-                                            aria-label="Next page"
+                                            aria-label={ui("Next page")}
                                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                             disabled={currentPage === totalPages}
                                             className={editorPageButtonClass}
@@ -1357,30 +1343,30 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const wordWheelRuleHint = getWordWheelRuleHint(activeLetterRule, wordWheelLetter);
                                         const answerFitsWordWheelRule = !isLetterAnswerGame || answerMatchesWordWheelRule(q.answer, wordWheelLetter, activeLetterRule);
                                         return (
-                                        <QuestionEditorPanel key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? 'Survey answers' : isLetterAnswerGame ? `Letter ${wordWheelLetter}` : q.options?.length ? `${q.options.length} answer options` : 'Open answer'} warning={needsImageRepair ? 'Replace image' : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? 'Choose a correct answer' : undefined} initiallyOpen={index === 0}>
+                                        <QuestionEditorPanel key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? ui("Survey answers") : isLetterAnswerGame ? ui("Letter {letter}", {letter: wordWheelLetter}) : q.options?.length ? ui("{count} answer options", {count: q.options.length}) : ui("Open answer")} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                             {!isWordWheel && (
                                                 <button
                                                     onClick={() => removeQuestion(questionIndex)}
                                                     className="absolute top-4 right-4 text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                                                    title="Delete Question"
+                                                    title={ui("Delete Question")}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
                                             )}
                                             <div className="workspace-question-controls flex items-center justify-between mb-4 pr-10">
                                                 <div className="flex items-center gap-2">
-                                                    {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">Replace this image</span>}
+                                                    {needsImageRepair && <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{ui("Replace this image")}</span>}
 
                                                     {isLetterAnswerGame && (
                                                         <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold uppercase ml-1">
-                                                            Letter {wordWheelLetter || '?'}
+                                                            {ui("Letter ")}{wordWheelLetter || '?'}
                                                         </span>
                                                     )}
 
                                                     {/* Millionaire Label */}
                                                     {isMillionaire && (
                                                         <span className="bg-brand-yellow text-slate-900 px-3 py-1 rounded-full text-xs font-bold uppercase ml-2">
-                                                            Level {questionIndex + 1}
+                                                            {ui("Level ")}{questionIndex + 1}
                                                         </span>
                                                     )}
 
@@ -1390,7 +1376,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             <Coins size={14} className="text-brand-yellow mr-2" />
                                                             <input
                                                                 type="number"
-                                                                aria-label="Question points"
+                                                                aria-label={ui("Question points")}
                                                                 value={q.points}
                                                                 onChange={(e) => handleChange(prev => {
                                                                     const newQuestions = [...prev.questions];
@@ -1399,7 +1385,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 })}
                                                                 className="w-12 p-0.5 text-xs border-none text-center focus:ring-0 outline-none font-bold"
                                                             />
-                                                            <span className="text-[10px] font-bold text-slate-400 ml-1">pts</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 ml-1">{ui("pts")}</span>
                                                         </div>
                                                     )}
 
@@ -1414,9 +1400,9 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                       q.difficulty === 'medium' ? 'text-yellow-600 bg-yellow-50' :
                                                                       'text-green-600 bg-green-50'}`}
                                                             >
-                                                                <option value="easy">Easy</option>
-                                                                <option value="medium">Medium</option>
-                                                                <option value="hard">Hard</option>
+                                                                <option value="easy">{ui("Easy")}</option>
+                                                                <option value="medium">{ui("Medium")}</option>
+                                                                <option value="hard">{ui("Hard")}</option>
                                                             </select>
                                                         </div>
                                                     )}
@@ -1427,26 +1413,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             {!isMillionaire && !isSurvey && !isLetterAnswerGame && !isLiveQuiz && (
                                                 <div className="workspace-question-format flex flex-wrap items-center gap-4 mb-4 bg-slate-100 p-2 rounded-lg border border-slate-200">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Format:</span>
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{ui("Format:")}</span>
                                                         <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
                                                             <button
                                                                 onClick={() => updateQuestionType(questionIndex, 'open')}
                                                                 className={`px-3 py-1 text-xs font-bold transition-colors ${!q.options || q.options.length === 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                                                             >
-                                                                Open
-                                                            </button>
+                                                                {ui("Open")}</button>
                                                             <button
                                                                 onClick={() => updateQuestionType(questionIndex, 'multiple-choice')}
                                                                 className={`px-3 py-1 text-xs font-bold transition-colors ${q.options && q.options.length > 0 ? 'bg-brand-blue text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                                                             >
-                                                                Multi-Choice
-                                                            </button>
+                                                                {ui("Multi-Choice")}</button>
                                                         </div>
                                                     </div>
 
                                                     {q.options && q.options.length > 0 && (
                                                         <div className="flex items-center gap-2 animate-fade-in">
-                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Options:</span>
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{ui("Options:")}</span>
                                                             <div className="flex bg-white rounded border border-slate-200 overflow-hidden shadow-sm">
                                                                 {[2, 3, 4].map(num => (
                                                                     <button
@@ -1465,8 +1449,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                             {isLiveQuiz && q.options && q.options.length > 0 && (
                                                 <div className="mb-4 flex flex-wrap items-center gap-3">
-                                                    <span className="text-sm font-semibold text-slate-700">Answer choices</span>
-                                                    <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white" role="group" aria-label="Number of answer choices">
+                                                    <span className="text-sm font-semibold text-slate-700">{ui("Answer choices")}</span>
+                                                    <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white" role="group" aria-label={ui("Number of answer choices")}>
                                                         {[2, 3, 4].map(count => (
                                                             <button
                                                                 key={count}
@@ -1484,7 +1468,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Question / Prompt</label>
+                                                    <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Question / Prompt")}</label>
                                                     <textarea
                                                         value={q.question}
                                                         onChange={(e) => handleChange(prev => {
@@ -1493,7 +1477,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             return {...prev, questions: newQuestions};
                                                         })}
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-sky-200 outline-none"
-                                                        placeholder="Type question here..."
+                                                        placeholder={ui("Type question here...")}
                                                     />
                                                 </div>
                                             {/* OPTIONS EDITOR (MC) */}
@@ -1506,7 +1490,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             )}
                                                 {!isSurvey && (!q.options?.length || isLetterAnswerGame) && (
                                                     <div>
-                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Answer {isMillionaire && <span className="text-red-500">(Must match option text)</span>}</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Answer ")}{isMillionaire && <span className="text-red-500">{ui("(Must match option text)")}</span>}</label>
                                                     <textarea
                                                         value={q.answer}
                                                         onChange={(e) => handleChange(prev => {
@@ -1515,24 +1499,23 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             return {...prev, questions: newQuestions};
                                                         })}
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
-                                                            placeholder="Type answer here..."
+                                                            placeholder={ui("Type answer here...")}
                                                         />
                                                         {isLetterAnswerGame && wordWheelLetter && (
                                                             <p className={`mt-2 text-xs font-semibold ${answerFitsWordWheelRule ? 'text-teal-700' : 'text-red-600'}`}>
-                                                                Rule for {wordWheelLetter}: {wordWheelRuleHint}
+                                                                {ui("Rule for ")}{wordWheelLetter}: {wordWheelRuleHint}
                                                             </p>
                                                         )}
                                                         {isLetterAnswerGame && wordWheelLetter && !answerFitsWordWheelRule && q.answer.trim() && (
                                                             <p className="mt-1 text-xs text-red-500">
-                                                                Current answer does not match this letter rule.
-                                                            </p>
+                                                                {ui("Current answer does not match this letter rule.")}</p>
                                                         )}
                                                     </div>
                                                 )}
 
                                                 {!isSurvey && !isLetterAnswerGame && (
                                                     <details className="md:col-span-2">
-                                                        <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-2">Category <span className="font-normal">{q.category ? `: ${q.category}` : "(optional)"}</span></summary>
+                                                        <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-2">{ui("Category ")}<span className="font-normal">{q.category ? `: ${q.category}` : ui("(optional)")}</span></summary>
                                                         <input
                                                             type="text"
                                                             value={q.category || ''}
@@ -1542,25 +1525,24 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 return { ...prev, questions: newQuestions };
                                                             })}
                                                             className="w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:ring-2 focus:ring-sky-200"
-                                                            placeholder="Optional, e.g. Past perfect 1"
+                                                            placeholder={ui("Optional, e.g. Past perfect 1")}
                                                         />
                                                         <p className="mt-1 text-xs font-semibold text-slate-400">
-                                                            Used when this question set is played as Jeopardy or Pub Quiz.
-                                                        </p>
+                                                            {ui("Used when this question set is played as Jeopardy or Pub Quiz.")}</p>
                                                     </details>
                                                 )}
 
                                                 {/* SURVEY ANSWERS EDITOR */}
                                                 {isSurvey && (
                                                     <div className="col-span-1 md:col-span-2 bg-white rounded border border-slate-200 p-4">
-                                                        <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">Top 10 Survey Answers</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-3 uppercase">{ui("Top 10 Survey Answers")}</label>
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                                             {(q.surveyAnswers || Array.from({ length: 10 }, () => ({text:"", score:0}))).map((ans, aIdx) => (
                                                                 <div key={aIdx} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 items-start sm:items-center">
                                                                     <div className="w-7 sm:w-8 flex items-center justify-center font-bold text-slate-400">#{aIdx+1}</div>
                                                                     <textarea
                                                                         value={ans.text}
-                                                                        placeholder="Answer"
+                                                                        placeholder={ui("Answer")}
                                                                         rows={2}
                                                                         onChange={(e) => handleChange(prev => {
                                                                             const newQuestions = [...prev.questions];
@@ -1576,7 +1558,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                     <input
                                                                         type="number"
                                                                         value={ans.score}
-                                                                        placeholder="Pts"
+                                                                        placeholder={ui("Pts")}
                                                                         onChange={(e) => handleChange(prev => {
                                                                             const newQuestions = [...prev.questions];
                                                                             const newAnswers = [...(newQuestions[questionIndex].surveyAnswers || [])];
@@ -1597,7 +1579,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             {isLetterAnswerGame && (
                                                 <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Letter</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Letter")}</label>
                                                         <input
                                                             type="text"
                                                             value={(q.letter || WORD_WHEEL_LETTERS[questionIndex % WORD_WHEEL_LETTERS.length] || '').toUpperCase()}
@@ -1611,7 +1593,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">Accepted Variants (comma separated)</label>
+                                                        <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Accepted Variants (comma separated)")}</label>
                                                         <input
                                                             type="text"
                                                             value={(q.answerAliases || []).join(', ')}
@@ -1624,14 +1606,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 return { ...prev, questions: newQuestions };
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
-                                                            placeholder="e.g., automobile, car"
+                                                            placeholder={ui("e.g., automobile, car")}
                                                         />
                                                     </div>
                                                 </div>
                                             )}
 
                                             <details className="mt-4 pt-4 border-t border-slate-200" open={needsImageRepair ? true : undefined}>
-                                                <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-3">Question image <span className="font-normal">{imageUrl ? "(image added)" : "(optional)"}</span></summary>
+                                                <summary className="cursor-pointer text-sm font-semibold text-slate-600 mb-3">{ui("Question image ")}<span className="font-normal">{imageUrl ? ui("(image added)") : ui("(optional)")}</span></summary>
                                                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                                                     <div className="w-full md:w-56">
                                                         {imageUrl ? (
@@ -1644,8 +1626,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             </div>
                                                         ) : (
                                                             <div className="w-full aspect-video bg-white border border-dashed border-slate-200 rounded-lg flex items-center justify-center text-xs text-slate-400 font-bold">
-                                                                No image selected
-                                                            </div>
+                                                                {ui("No image selected")}</div>
                                                         )}
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
@@ -1654,8 +1635,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             onClick={() => openImagePicker({ scope: 'standard', index: questionIndex }, q)}
                                                             className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
                                                         >
-                                                            Pick from library
-                                                        </button>
+                                                            {ui("Pick from library")}</button>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -1664,16 +1644,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                             }}
                                                             className="px-3 py-2 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
                                                         >
-                                                            Upload
-                                                        </button>
+                                                            {ui("Upload")}</button>
                                                         {imageUrl && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => updateQuestionImage({ scope: 'standard', index: questionIndex }, null)}
                                                                 className="px-3 py-2 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                                                             >
-                                                                Remove
-                                                            </button>
+                                                                {ui("Remove")}</button>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1687,7 +1665,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <div className="flex items-center gap-3">
                                         <button
                                             type="button"
-                                            aria-label="Previous page"
+                                            aria-label={ui("Previous page")}
                                             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                             disabled={currentPage === 1}
                                             className={editorPageButtonClass}
@@ -1695,11 +1673,11 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             <ChevronLeft size={18} />
                                         </button>
                                         <span className="text-sm font-bold text-slate-600">
-                                            Page {currentPage} of {totalPages}
+                                            {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                                         </span>
                                         <button
                                             type="button"
-                                            aria-label="Next page"
+                                            aria-label={ui("Next page")}
                                             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                             disabled={currentPage === totalPages}
                                             className={editorPageButtonClass}
@@ -1710,13 +1688,13 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     <div className="relative ml-auto min-w-[120px]">
                                         <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                         <select
-                                            aria-label="Questions per page"
+                                            aria-label={ui("Questions per page")}
                                             value={itemsPerPage}
                                             onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
                                             className={editorPageSizeSelectClass}
                                         >
                                             {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
-                                                <option key={size} value={size}>{size} per page</option>
+                                                <option key={size} value={size}>{size} {ui(" per page")}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -1727,8 +1705,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         onClick={addQuestion}
                                         className="mt-8 w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:border-sky-400 hover:text-sky-600 transition-colors flex items-center justify-center cursor-pointer"
                                     >
-                                        <Plus size={20} className="mr-2" /> Add question
-                                    </button>
+                                        <Plus size={20} className="mr-2" /> {ui(" Add question")}</button>
                                 )}
                             </div>
                         ))}
@@ -1737,18 +1714,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
             {showShareToast && (
                 <div className="fixed top-24 right-6 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-fade-in z-[120]">
-                    <CheckCircle size={14} className="text-green-400" /> Share link copied!
-                </div>
+                    <CheckCircle size={14} className="text-green-400" /> {ui(" Share link copied!")}</div>
             )}
 
             {/* AI Prompt Info Modal */}
             {showAiPrompt && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-                    <div ref={promptDialogRef} role="dialog" aria-modal="true" aria-label="Generation instructions" tabIndex={-1}
+                    <div ref={promptDialogRef} role="dialog" aria-modal="true" aria-label={ui("Generation instructions")} tabIndex={-1}
                         className="relative flex max-w-lg w-full flex-col overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-2xl animate-slide-up"
                         style={{ maxHeight: AI_PROMPT_MODAL_MAX_HEIGHT }}
                     >
-                        <button aria-label="Close generation instructions" onClick={() => setShowAiPrompt(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                        <button aria-label={ui("Close generation instructions")} onClick={() => setShowAiPrompt(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                             <X size={24} />
                         </button>
                         <div className="shrink-0 px-8 pt-8">
@@ -1756,14 +1732,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                 <div className="bg-indigo-100 p-3 rounded-full mr-4 text-indigo-600">
                                     <Sparkles size={24} />
                                 </div>
-                                <h2 className="font-display text-2xl font-bold text-slate-800">AI Generation Info</h2>
+                                <h2 className="font-display text-2xl font-bold text-slate-800">{ui("AI Generation Info")}</h2>
                             </div>
                         </div>
 
                         <div className="min-h-0 overflow-y-auto px-8 pb-8">
                             <div className="space-y-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Original Topic</label>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Original Topic")}</label>
                                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium">
                                         {editedGame.config.topic || "N/A (Jeopardy/Pub Quiz Mode)"}
                                     </div>
@@ -1771,31 +1747,28 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
 
                                 <div className="relative">
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
-                                        Custom Instructions
-                                        <button
+                                        {ui("Custom Instructions")}<button
                                             onClick={handleCopyInstructions}
                                             className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center"
-                                            title="Copy Instructions"
+                                            title={ui("Copy Instructions")}
                                         >
-                                            <Copy size={12} className="mr-1" /> Copy
-                                        </button>
+                                            <Copy size={12} className="mr-1" /> {ui(" Copy")}</button>
                                     </label>
                                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-sm min-h-[80px]">
-                                        {editedGame.config.customInstructions || <span className="italic text-slate-400">No custom instructions provided.</span>}
+                                        {editedGame.config.customInstructions || <span className="italic text-slate-400">{ui("No custom instructions provided.")}</span>}
                                     </div>
                                     {showCopyToast && (
                                         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex items-center gap-1.5 animate-fade-in z-[110]">
-                                            <CheckCircle size={12} className="text-green-400" /> Instructions Copied!
-                                        </div>
+                                            <CheckCircle size={12} className="text-green-400" /> {ui(" Instructions Copied!")}</div>
                                     )}
                                 </div>
 
                                 <div className="flex justify-between items-center pt-2 text-xs text-slate-400">
                                     <div className="flex items-center">
                                         <FileText size={14} className="mr-1" />
-                                        <span>Questions: {editedGame.config.questionCount || 'Auto'}</span>
+                                        <span>{ui("Questions: ")}{editedGame.config.questionCount || 'Auto'}</span>
                                     </div>
-                                    <div className="uppercase font-bold tracking-wider">Generated by AI</div>
+                                    <div className="uppercase font-bold tracking-wider">{ui("Generated by AI")}</div>
                                 </div>
                             </div>
                         </div>

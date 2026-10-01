@@ -1,16 +1,18 @@
+import { translateInterfaceText as ui, useInterfaceLanguage } from '../../utils/interfaceLanguage';
 import React from 'react';
 import type { WorkbookExercise as Exercise } from '../../data/classBooklets';
 
 export function WorkbookExercise({ exercise, value, onChange, readOnly = false }: {
   exercise: Exercise; value: string | string[]; onChange: (value: string | string[]) => void; readOnly?: boolean;
 }) {
+  useInterfaceLanguage();
   const id = `answer-${exercise.id}`;
   const label = `${exercise.number}. ${exercise.prompt}`;
   if (readOnly) {
     if (exercise.kind === 'gaps') {
       const parts = exercise.prompt.split('{{}}');
       const values = Array.isArray(value) ? value : [];
-      return <div className="class-saved-exercise"><p className="class-saved-question">Question {exercise.number}</p>
+      return <div className="class-saved-exercise"><p className="class-saved-question">{ui("Question {number}", { number: exercise.number })}</p>
         <p className="class-saved-sentence">{parts.map((part, index) => <React.Fragment key={index}>{part}{index < parts.length - 1 && <span className="class-saved-gap">{values[index] || '________'}</span>}</React.Fragment>)}</p>
       </div>;
     }
@@ -21,15 +23,15 @@ export function WorkbookExercise({ exercise, value, onChange, readOnly = false }
       {exercise.options && exercise.kind !== 'dropdown' && <ul className="class-saved-options">{exercise.options.map(option => <li key={option}>
         <span>{selected.includes(option) ? '[x]' : '[ ]'}</span> {option}
       </li>)}</ul>}
-      <p className="class-saved-answer"><strong>Answer: </strong>{selected.length ? selected.join('; ') : 'Not answered'}</p>
+      <p className="class-saved-answer"><strong>{ui("Answer: ")}</strong>{selected.length ? selected.join('; ') : ui("Not answered")}</p>
     </div>;
   }
   if (exercise.kind === 'gaps') {
     const values = Array.isArray(value) ? value : [];
     const parts = exercise.prompt.split('{{}}');
-    return <fieldset className="class-exercise class-gap-exercise"><legend>Question {exercise.number}</legend>
+    return <fieldset className="class-exercise class-gap-exercise"><legend>{ui("Question {number}", { number: exercise.number })}</legend>
       <div className="class-gap-sentence">{parts.map((part, index) => <React.Fragment key={index}>{part}{index < parts.length - 1 && <input
-        type="text" autoComplete="off" aria-label={`Question ${exercise.number}, gap ${index + 1}: ${exercise.prompt.replaceAll('{{}}', '…')}`}
+        type="text" autoComplete="off" aria-label={ui("Question {number}, gap {gap}: {prompt}", { number: exercise.number, gap: index + 1, prompt: exercise.prompt.replaceAll('{{}}', '…') })}
         value={values[index] || ''} onChange={event => { const next = Array.from({ length: parts.length - 1 }, (_, n) => values[n] || ''); next[index] = event.target.value; onChange(next); }} />}</React.Fragment>)}</div>
     </fieldset>;
   }
@@ -52,9 +54,9 @@ export function WorkbookExercise({ exercise, value, onChange, readOnly = false }
     <label htmlFor={id}>{label}</label>
     {exercise.example && <p className="class-help">{exercise.example}</p>}
     {exercise.kind === 'dropdown' ? <select id={id} value={typeof value === 'string' ? value : ''} onChange={e => onChange(e.target.value)}>
-      <option value="">Choose an option</option>{exercise.options?.map(option => <option key={option}>{option}</option>)}
-    </select> : exercise.kind === 'long-text' ? <textarea id={id} rows={6} value={typeof value === 'string' ? value : ''} onChange={e => onChange(e.target.value)} placeholder="Type your answer here…" />
-      : <input id={id} type="text" autoComplete="off" value={typeof value === 'string' ? value : ''} onChange={e => onChange(e.target.value)} placeholder="Type your answer…" />}
-    {exercise.wordTarget && <p className="class-help class-word-count" aria-live="polite">{typeof value === 'string' && value.trim() ? value.trim().split(/\s+/).length : 0} words · Aim for {exercise.wordTarget}</p>}
+      <option value="">{ui("Choose an option")}</option>{exercise.options?.map(option => <option key={option}>{option}</option>)}
+    </select> : exercise.kind === 'long-text' ? <textarea id={id} rows={6} value={typeof value === 'string' ? value : ''} onChange={e => onChange(e.target.value)} placeholder={ui("Type your answer here…")} />
+      : <input id={id} type="text" autoComplete="off" value={typeof value === 'string' ? value : ''} onChange={e => onChange(e.target.value)} placeholder={ui("Type your answer…")} />}
+    {exercise.wordTarget && <p className="class-help class-word-count" aria-live="polite">{typeof value === 'string' && value.trim() ? value.trim().split(/\s+/).length : 0} {ui("words · Aim for {target}", { target: exercise.wordTarget })}</p>}
   </div>;
 }

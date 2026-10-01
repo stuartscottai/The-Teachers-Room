@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { QuestionCardZoomButton } from './QuestionCardZoomButton';
@@ -61,6 +62,7 @@ const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName
 };
 
 export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
     const [currentTeam, setCurrentTeam] = useState(0);
@@ -118,21 +120,21 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
     const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
     const bonusEffectText =
-        activeQ?.bonusType === 'double' ? 'DOUBLE POINTS!' :
-        activeQ?.bonusType === 'bust' ? 'OH NO! BUSTED!' :
-        activeQ?.bonusType === 'steal' ? 'POINT STEAL!' :
-        activeQ?.bonusType === 'lose-all' ? 'LOSE ALL POINTS!' :
-        activeQ?.bonusType === 'reset-score' ? 'RESET SCORE!' :
-        activeQ?.bonusType === 'first-place' ? 'FIRST PLACE!' :
-        activeQ?.bonusType === 'last-place' ? 'LAST PLACE!' : '';
+        activeQ?.bonusType === 'double' ? ui("DOUBLE POINTS!") :
+        activeQ?.bonusType === 'bust' ? ui("OH NO! BUSTED!") :
+        activeQ?.bonusType === 'steal' ? ui("POINT STEAL!") :
+        activeQ?.bonusType === 'lose-all' ? ui("LOSE ALL POINTS!") :
+        activeQ?.bonusType === 'reset-score' ? ui("RESET SCORE!") :
+        activeQ?.bonusType === 'first-place' ? ui("FIRST PLACE!") :
+        activeQ?.bonusType === 'last-place' ? ui("LAST PLACE!") : '';
     const bonusDetailText =
-        activeQ?.bonusType === 'double' ? `You get 2x points (+${(activeQ?.points || 100) * 2}) automatically!` :
-        activeQ?.bonusType === 'bust' ? `You lose the value of this tile (-${activeQ?.points || 100}).` :
-        activeQ?.bonusType === 'steal' ? "Steal this tile's value from the current leader!" :
-        activeQ?.bonusType === 'lose-all' ? 'Your team loses every point it has.' :
-        activeQ?.bonusType === 'reset-score' ? 'Your team score goes back to 0.' :
-        activeQ?.bonusType === 'first-place' ? 'Your team jumps just ahead of the current leader.' :
-        activeQ?.bonusType === 'last-place' ? 'Your team drops just behind the lowest score.' : '';
+        activeQ?.bonusType === 'double' ? ui("You get 2x points (+{(activeQ?.points || 100) * 2}) automatically!", { "(activeQ?.points || 100) * 2": ((activeQ?.points || 100) * 2) }) :
+        activeQ?.bonusType === 'bust' ? ui("You lose the value of this tile (-{activeQ?.points || 100}).", { "activeQ?.points || 100": (activeQ?.points || 100) }) :
+        activeQ?.bonusType === 'steal' ? ui("Steal this tile's value from the current leader!") :
+        activeQ?.bonusType === 'lose-all' ? ui("Your team loses every point it has.") :
+        activeQ?.bonusType === 'reset-score' ? ui("Your team score goes back to 0.") :
+        activeQ?.bonusType === 'first-place' ? ui("Your team jumps just ahead of the current leader.") :
+        activeQ?.bonusType === 'last-place' ? ui("Your team drops just behind the lowest score.") : '';
     const timerProgress = options.timerSeconds > 0
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
@@ -644,13 +646,13 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setOptionFontSize(size);
     }, [hasOptions, optionKey, isBonus, isFlipped, isMobileViewport, resizeTick]);
 
-    if (!gameBoard) return <div>Loading Board...</div>;
+    if (!gameBoard) return <div>{ui("Loading Board...")}</div>;
 
     if (isGameOver) {
         if (options.studentPractice) {
             return (
                 <PracticeReviewSummary
-                    playerName={teamNames[0]}
+                    playerName={displayTeamName(teamNames[0])}
                     correctCount={Math.max(0, answeredQuestions.length - missedItems.length)}
                     totalCount={gameBoard.reduce((total, category) => total + category.questions.length, 0)}
                     missedItems={missedItems}
@@ -666,8 +668,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         const winnerScore = ranking.length ? ranking[0].score : 0;
         const winners = ranking.filter((team) => team.score === winnerScore);
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -675,7 +677,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final standings"
+                    subtitle={ui("Final standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -737,33 +739,31 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             onClick={() => setShowQuitConfirm(true)} 
                             className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
                         >
-                            <ArrowLeft size={16} className="mr-2" /> Quit
-                        </button>
+                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
-                            title="End game now"
+                            title={ui("End game now")}
                         >
-                            <Flag size={16} className="mr-2" /> End Game
-                        </button>
+                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
-                            title="Quit"
+                            title={ui("Quit")}
                         >
                             <X size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors`}
-                            title={isMuted ? "Unmute" : "Mute"}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
@@ -786,7 +786,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                             >
                                 <div className={`${mobileTeamNameClass} sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1`}>
-                                    {teamNames[idx]}
+                                    {displayTeamName(teamNames[idx])}
                                     {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
                                 </div>
                                 <AnimatedScore score={score} className={`${mobileScoreTextClass} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
@@ -802,11 +802,11 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         <button 
                             onClick={() => setIsMuted(!isMuted)} 
                             className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
-                            title={isMuted ? "Unmute" : "Mute"}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </button>
-                        <button aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
+                        <button aria-label={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")} onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
                             {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                         </button>
                     </div>
@@ -865,9 +865,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
              {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">Edit Team Details</h3>
+                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">{ui("Edit Team Details")}</h3>
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Team Name</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Team Name")}</label>
                             <input 
                                 type="text" 
                                 value={editName}
@@ -876,7 +876,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             />
                         </div>
                         <div className="mb-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Score Override</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Score Override")}</label>
                             <div className="flex items-center gap-2 justify-center">
                                 <button onClick={() => setEditScore(s => s - 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">-50</button>
                                 <input 
@@ -893,14 +893,12 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 onClick={() => setEditingTeamIndex(null)}
                                 className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button 
                                 onClick={saveTeamEdit}
                                 className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600"
                             >
-                                Save Changes
-                            </button>
+                                {ui("Save Changes")}</button>
                         </div>
                     </div>
                 </div>
@@ -923,12 +921,11 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                     <div
                                         className="relative p-4 sm:p-8 md:p-12 text-center flex flex-col items-center justify-center h-full cursor-pointer"
                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                                        title="Reveal bonus"
+                                        title={ui("Reveal bonus")}
                                     >
                                         <div className="absolute inset-0 bonus-sparkle bonus-shine opacity-60 pointer-events-none"></div>
                                         <div className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-5xl sm:text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
-                                            BONUS
-                                        </div>
+                                            {ui("BONUS")}</div>
                                     </div>
                                 ) : (
                                     <>
@@ -936,7 +933,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         <div className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
                                             <div className="font-bold text-sm sm:text-xl opacity-80 truncate max-w-[45%]">{gameBoard[selectedQuestion!.categoryIndex].name}</div>
                                             <div className="font-black text-2xl sm:text-4xl">{activeQ.points}</div>
-                                            <div className="font-bold text-sm sm:text-xl opacity-80 text-right max-w-[35%] truncate">{teamNames[currentTeam]}</div>
+                                            <div className="font-bold text-sm sm:text-xl opacity-80 text-right max-w-[35%] truncate">{displayTeamName(teamNames[currentTeam])}</div>
                                         </div>
 
                                         {/* CONTENT BODY (White) */}
@@ -956,7 +953,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                                 onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                                 role={isMobileViewport ? undefined : 'button'}
                                                                 tabIndex={isMobileViewport ? -1 : 0}
-                                                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                                title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                                 className={`h-full w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                             />
                                                         </div>
@@ -976,8 +973,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
                                                     {options.strictMode && (
                                                         <div className="mt-1 sm:mt-3 bg-brand-yellow/20 text-brand-yellow-dark px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-[10px] sm:text-sm border border-brand-yellow/50 self-center flex-shrink-0">
-                                                            Strict Mode: Answer must start with "What is..."
-                                                        </div>
+                                                            {ui("Strict Mode: Answer must start with \"What is...\"")}</div>
                                                     )}
 
                                                     {hasOptions && !isFlipped && (
@@ -1038,7 +1034,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                         role={isMobileViewport ? undefined : 'button'}
                                                         tabIndex={isMobileViewport ? -1 : 0}
-                                                        title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                        title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                         className={`h-44 sm:h-52 md:h-60 w-full rounded-xl object-contain border border-slate-200/70 bg-white shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                     />
                                                     <div
@@ -1056,8 +1052,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
                                                     {options.strictMode && (
                                                         <div className="bg-brand-yellow/20 text-brand-yellow-dark px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-[10px] sm:text-sm border border-brand-yellow/50 self-center flex-shrink-0">
-                                                            Strict Mode: Answer must start with "What is..."
-                                                        </div>
+                                                            {ui("Strict Mode: Answer must start with \"What is...\"")}</div>
                                                     )}
                                                 </div>
                                             ) : (
@@ -1077,8 +1072,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
                                                     {options.strictMode && (
                                                         <div className="mt-1 sm:mt-3 bg-brand-yellow/20 text-brand-yellow-dark px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-bold text-[10px] sm:text-sm border border-brand-yellow/50 self-center flex-shrink-0">
-                                                            Strict Mode: Answer must start with "What is..."
-                                                        </div>
+                                                            {ui("Strict Mode: Answer must start with \"What is...\"")}</div>
                                                     )}
 
                                                     {hasOptions && !isFlipped && (
@@ -1141,7 +1135,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         />
                                                     )}
                                                     <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
-                                                        {isTimesUp ? "TIME'S UP!" : (
+                                                        {isTimesUp ? ui("TIME'S UP!") : (
                                                             <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                         )}
                                                     </div>
@@ -1153,8 +1147,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
                                                         className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
                                                     >
-                                                        Check
-                                                    </button>
+                                                        {ui("Check")}</button>
                                                 </div>
                                             )}
                                         </div>
@@ -1180,20 +1173,19 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                             onClick={(e) => { e.stopPropagation(); handleBonusAction(); }}
                                             className={`mt-6 px-6 sm:px-10 py-3 sm:py-4 ${isNegativeBonus ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-xl font-bold text-base sm:text-xl transition-colors shadow-lg cursor-pointer relative z-50`}
                                         >
-                                            Apply Effect
-                                        </button>
+                                            {ui("Apply Effect")}</button>
                                     </div>
                                 ) : (
                                     <>
                                         {/* HEADER (Gray) */}
                                         <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
-                                            <div className="font-bold text-base sm:text-xl opacity-80">Answer</div>
+                                            <div className="font-bold text-base sm:text-xl opacity-80">{ui("Answer")}</div>
                                             
                                             {/* ALWAYS SHOW FLIP BACK BUTTON */}
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); setIsFlipped(false); }}
                                                 className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer relative z-50"
-                                                title="Flip back to question"
+                                                title={ui("Flip back to question")}
                                             >
                                                 <RotateCcw size={18} className="sm:w-5 sm:h-5" />
                                             </button>
@@ -1208,12 +1200,12 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         {mcResult === 'correct' ? (
                                                             <div className="flex flex-col items-center">
                                                                 <CheckCircle size={56} className="text-green-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
-                                                                <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">Correct!</h2>
+                                                                <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">{ui("Correct!")}</h2>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center">
                                                                 <XCircle size={56} className="text-red-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
-                                                                <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">Incorrect</h2>
+                                                                <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">{ui("Incorrect")}</h2>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1239,22 +1231,19 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                             ? 'bg-green-500 hover:bg-green-600 border-green-700' 
                                                             : 'bg-red-500 hover:bg-red-600 border-red-700'}`}
                                                 >
-                                                    Continue
-                                                </button>
+                                                    {ui("Continue")}</button>
                                             ) : (
                                                 <>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleAnswer(false); }}
                                                         className="flex-1 bg-red-500 text-white font-bold text-lg sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0 cursor-pointer relative z-50"
                                                     >
-                                                        <X size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Oops
-                                                    </button>
+                                                        <X size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" Oops")}</button>
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); handleAnswer(true); }}
                                                         className="flex-1 bg-green-500 text-white font-bold text-lg sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0 cursor-pointer relative z-50"
                                                     >
-                                                        <Check size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> OK
-                                                    </button>
+                                                        <Check size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" OK")}</button>
                                                 </>
                                             )}
                                         </div>
@@ -1280,7 +1269,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             type="button"
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center hover:bg-black/80 transition-colors"
-                            aria-label="Close image"
+                            aria-label={ui("Close image")}
                         >
                             X
                         </button>
@@ -1296,7 +1285,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -1314,21 +1303,19 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
-                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
                         <div className="flex space-x-4">
                             <button 
                                 onClick={() => setShowQuitConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button 
                                 onClick={() => { setShowQuitConfirm(false); onBack(); }}
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
-                                Quit
-                            </button>
+                                {ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -1337,15 +1324,14 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
-                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
@@ -1353,8 +1339,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
                             >
-                                End game
-                            </button>
+                                {ui("End game")}</button>
                         </div>
                     </div>
                 </div>

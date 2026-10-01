@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState } from 'react';
 import { X, LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   titleOverride,
   messageOverride
 }) => {
+  useUiLanguage();
   const [view, setView] = useState<AuthView>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -109,7 +111,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     e.preventDefault();
 
     if (!captchaToken) {
-      setError('Please complete the human verification check before continuing.');
+      setError(ui("Please complete the human verification check before continuing."));
       return;
     }
 
@@ -130,7 +132,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         if (error) throw error;
       } else {
         if (!name) {
-          setError('Name is required');
+          setError(ui("Name is required"));
           setLoading(false);
           return;
         }
@@ -194,7 +196,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="relative flex h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-fade-in sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={ui("Close")}
           className="absolute right-3 top-3 z-20 rounded-full bg-slate-100/95 p-1 text-slate-400 backdrop-blur-sm hover:text-slate-600 sm:right-4 sm:top-4"
         >
           <X size={20} />
@@ -223,11 +225,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           {isForgotPassword && passwordResetRequestedEmail ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-5 text-sm text-emerald-800">
-                <p className="font-semibold text-emerald-900">Check your email</p>
+                <p className="font-semibold text-emerald-900">{ui("Check your email")}</p>
                 <p className="mt-2">
-                  If an account exists for <span className="font-semibold">{passwordResetRequestedEmail}</span>, a password reset link has been sent.
-                </p>
-                <p className="mt-2 text-emerald-700">Check your inbox and spam folder.</p>
+                  {ui("If an account exists for ")}<span className="font-semibold">{passwordResetRequestedEmail}</span>{ui(", a password reset link has been sent.")}</p>
+                <p className="mt-2 text-emerald-700">{ui("Check your inbox and spam folder.")}</p>
               </div>
               <button
                 type="button"
@@ -236,8 +237,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 }}
                 className="w-full py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md"
               >
-                Back To Login
-              </button>
+                {ui("Back To Login")}</button>
               <button
                 type="button"
                 onClick={() => {
@@ -246,40 +246,39 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 }}
                 className="w-full py-3 border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition-colors"
               >
-                Try Another Email
-              </button>
+                {ui("Try Another Email")}</button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {!isLogin && !isForgotPassword && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Full Name")}</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 p-2.5 outline-none focus:ring-2 focus:ring-brand-blue sm:p-3"
-                    placeholder="Teacher Name"
+                    placeholder={ui("Teacher Name")}
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Email Address")}</label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 p-2.5 outline-none focus:ring-2 focus:ring-brand-blue sm:p-3"
-                  placeholder="name@school.edu"
+                  placeholder={ui("name@school.edu")}
                 />
               </div>
 
               {!isForgotPassword && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Password")}</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -287,7 +286,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full rounded-lg border border-slate-200 p-2.5 pr-10 outline-none focus:ring-2 focus:ring-brand-blue sm:p-3 sm:pr-10"
-                      placeholder="Enter your password"
+                      placeholder={ui("Enter your password")}
                     />
                     <button
                       type="button"
@@ -307,8 +306,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         }}
                         className="text-sm font-bold text-brand-blue hover:underline"
                       >
-                        Forgot password?
-                      </button>
+                        {ui("Forgot password?")}</button>
                     </div>
                   )}
                 </div>
@@ -323,8 +321,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       onChange={(e) => setHasSchoolCode(e.target.checked)}
                       className="mr-2 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
                     />
-                    I have a school code
-                  </label>
+                    {ui("I have a school code")}</label>
                   {hasSchoolCode && (
                     <div className="mt-3">
                       <input
@@ -332,11 +329,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                         value={schoolCode}
                         onChange={(e) => setSchoolCode(e.target.value.toUpperCase())}
                         className="w-full rounded-lg border border-slate-200 p-2.5 font-mono tracking-wide outline-none focus:ring-2 focus:ring-brand-blue sm:p-3"
-                        placeholder="Enter school code"
+                        placeholder={ui("Enter school code")}
                       />
                       <p className="mt-2 text-xs text-slate-500">
-                        Your request will be pending until a school admin approves it.
-                      </p>
+                        {ui("Your request will be pending until a school admin approves it.")}</p>
                     </div>
                   )}
                 </div>
@@ -358,25 +354,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : isForgotPassword ? (
-                  'Send Reset Link'
+                  ui("Send Reset Link")
                 ) : isLogin ? (
-                  'Sign In'
+                  ui("Sign In")
                 ) : (
-                  'Create Account'
+                  ui("Create Account")
                 )}
               </button>
               {!isLogin && !isForgotPassword && (
                 <p className="text-xs leading-relaxed text-slate-500">
-                  We use your name and email to create and protect your account. By creating an account,
-                  you confirm that you are at least 18 and accept our{' '}
+                  {ui("We use your name and email to create and protect your account. By creating an account, you confirm that you are at least 18 and accept our")}{' '}
                   <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-bold text-brand-blue hover:underline">
-                    Terms
-                  </a>. See our{' '}
+                    {ui("Terms")}</a>{ui(". See our")}{' '}
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-brand-blue hover:underline">
-                    Privacy Policy
-                  </a>{' '}
-                  for how your information is used and how to exercise your rights.
-                </p>
+                    {ui("Privacy Policy")}</a>{' '}
+                  {ui("for how your information is used and how to exercise your rights.")}</p>
               )}
             </form>
           )}
@@ -384,26 +376,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div className="mt-4 border-t border-slate-100 pt-4 text-center sm:mt-6 sm:pt-6">
             {isForgotPassword ? (
               <p className="text-sm text-slate-500">
-                Remembered your password?{' '}
+                {ui("Remembered your password?")}{' '}
                 <button
                   onClick={() => {
                     changeView('login');
                   }}
                   className="text-brand-blue font-bold hover:underline"
                 >
-                  Log In
-                </button>
+                  {ui("Log In")}</button>
               </p>
             ) : (
               <p className="text-sm text-slate-500">
-                {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                {isLogin ? ui("Don't have an account? ") : ui("Already have an account? ")}
                 <button
                   onClick={() => {
                     changeView(isLogin ? 'signup' : 'login');
                   }}
                   className="text-brand-blue font-bold hover:underline"
                 >
-                  {isLogin ? 'Sign Up' : 'Log In'}
+                  {isLogin ? ui("Sign Up") : ui("Log In")}
                 </button>
               </p>
             )}

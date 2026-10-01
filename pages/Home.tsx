@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 
 import React, { useEffect, useState } from 'react';
 import { Link, To, useNavigate } from 'react-router-dom';
@@ -58,11 +59,11 @@ const getGameVisual = (type?: GameType) => {
 };
 
 const FALLBACK_TRENDING_GAMES: HomeTrendingCard[] = [
-    { id: 'fallback-1', title: 'Jeopardy', plays: '0', to: '/games', ...getGameVisual(GameType.JEOPARDY) },
-    { id: 'fallback-2', title: 'Millionaire Maker', plays: '0', to: '/games', ...getGameVisual(GameType.MILLIONAIRE) },
-    { id: 'fallback-3', title: 'Survey Showdown', plays: '0', to: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
-    { id: 'fallback-4', title: 'Trivia Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.TRIVIA) },
-    { id: 'fallback-5', title: 'Pub Quiz', plays: '0', to: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
+    { id: 'fallback-1', get title() { return ui("Jeopardy"); }, plays: '0', to: '/games', ...getGameVisual(GameType.JEOPARDY) },
+    { id: 'fallback-2', get title() { return ui("Millionaire Maker"); }, plays: '0', to: '/games', ...getGameVisual(GameType.MILLIONAIRE) },
+    { id: 'fallback-3', get title() { return ui("Survey Showdown"); }, plays: '0', to: '/games', ...getGameVisual(GameType.SURVEY_SHOWDOWN) },
+    { id: 'fallback-4', get title() { return ui("Trivia Quiz"); }, plays: '0', to: '/games', ...getGameVisual(GameType.TRIVIA) },
+    { id: 'fallback-5', get title() { return ui("Pub Quiz"); }, plays: '0', to: '/games', ...getGameVisual(GameType.PUB_QUIZ) }
 ];
 
 // Simple Animated Counter Component
@@ -73,10 +74,10 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
         let start = 0;
         // Don't animate if 0
         if (end === 0) return;
-        
+
         const duration = 2000; // 2s duration
         const increment = end / (duration / 16); // 60fps
-        
+
         const timer = setInterval(() => {
             start += increment;
             if (start >= end) {
@@ -86,7 +87,7 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
                 setCount(Math.floor(start));
             }
         }, 16);
-        
+
         return () => clearInterval(timer);
     }, [end]);
 
@@ -104,6 +105,7 @@ const StatCounter: React.FC<{ end: number, label: string }> = ({ end, label }) =
 
 // Robust Card for Trending Games
 const TrendingGameCard: React.FC<{ game: HomeTrendingCard; priority?: boolean }> = ({ game, priority = false }) => {
+    useUiLanguage();
     return (
         <Link to={game.to} state={game.state} className="group block h-full">
             <div className="bg-slate-50 rounded-xl overflow-hidden shadow-sm group-hover:shadow-xl hover:shadow-sky-200 transition-all border border-slate-100 h-full flex flex-col">
@@ -122,7 +124,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard; priority?: boolean }>
                 </div>
                 <div className="p-4 flex-grow">
                     <h3 className="font-bold text-slate-700 group-hover:text-sky-600 transition-colors truncate" title={game.title}>{game.title}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{game.plays} {game.playsLabel || 'plays'}</p>
+                    <p className="text-xs text-slate-400 mt-1">{game.plays} {ui(game.playsLabel || 'plays')}</p>
                 </div>
             </div>
         </Link>
@@ -130,6 +132,7 @@ const TrendingGameCard: React.FC<{ game: HomeTrendingCard; priority?: boolean }>
 };
 
 export const Home: React.FC = () => {
+  useUiLanguage();
   const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
   const [stats, setStats] = useState({ games: 0, gamesPlayed: 0 });
@@ -233,7 +236,7 @@ export const Home: React.FC = () => {
               type="button"
               onClick={handleSkipTour}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors"
-              aria-label="Close tour popup"
+              aria-label={ui("Close tour popup")}
             >
               <X size={20} />
             </button>
@@ -241,10 +244,9 @@ export const Home: React.FC = () => {
             <div className="mb-3 inline-flex items-center justify-center bg-brand-yellow p-2.5 rounded-full shadow-sm">
               <GraduationCap size={20} className="text-sky-900" />
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl text-slate-800 mb-2 pr-8">Take a quick tour?</h2>
+            <h2 className="font-display text-2xl sm:text-3xl text-slate-800 mb-2 pr-8">{ui("Take a quick tour?")}</h2>
             <p className="text-sm sm:text-base text-slate-600 mb-5 leading-relaxed">
-              Pick where you want to start. We&apos;ll guide you step by step.
-            </p>
+              {ui("Pick where you want to start. We'll guide you step by step.")}</p>
 
             <div className="grid gap-3">
               <button
@@ -252,8 +254,7 @@ export const Home: React.FC = () => {
                 onClick={startTour}
                 className="py-3 px-4 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
               >
-                Games
-              </button>
+                {ui("Games")}</button>
             </div>
 
             <label className="mt-4 flex items-start gap-2 text-sm text-slate-600 leading-relaxed">
@@ -263,35 +264,33 @@ export const Home: React.FC = () => {
                 onChange={(e) => setDontShowTourAgain(e.target.checked)}
                 className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-blue"
               />
-              Don&apos;t show message again
-            </label>
+              {ui("Don't show message again")}</label>
 
             <button
               type="button"
               onClick={handleSkipTour}
               className="mt-4 w-full py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
             >
-              Skip tour
-            </button>
+              {ui("Skip tour")}</button>
           </div>
         </div>
       )}
 
       {/* Hero Section - Parallax Effect */}
       <section className="site-home-hero relative min-h-[85vh] flex items-center justify-center bg-brand-blue overflow-hidden">
-        
+
         {/* Background Image Layer with Parallax */}
-        <div 
+        <div
             className="absolute inset-0 z-0 pointer-events-none"
-            style={{ 
+            style={{
                 transform: `translateY(${scrollY * 0.4}px)`,
                 height: '120%', // Extra height for parallax movement
                 top: '-10%' // Center the extra height
             }}
         >
-            <img 
-                src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2070&auto=format&fit=crop" 
-                alt="Teacher's Desk Background" 
+            <img
+                src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2070&auto=format&fit=crop"
+                alt={ui("Teacher's Desk Background")}
                 crossOrigin="anonymous"
                 className="w-full h-full object-cover opacity-20 mix-blend-overlay filter blur-[1px]"
             />
@@ -312,7 +311,7 @@ export const Home: React.FC = () => {
              style={{ transform: `translateY(${scrollY * 0.2}px) rotate(${scrollY * -0.2}deg)` }}>
              <Circle size={32} fill="currentColor" />
         </div>
-        
+
         {/* Top Right Cluster */}
         <div className="absolute top-24 right-[15%] text-white opacity-30"
              style={{ transform: `translateY(${scrollY * -0.1}px) rotate(${scrollY * 0.1}deg)` }}>
@@ -350,7 +349,7 @@ export const Home: React.FC = () => {
 
         {/* Main Content */}
         <div className="relative z-20 text-center max-w-5xl mx-auto px-4 mt-10">
-          
+
           <h1
             translate="no"
             lang="en"
@@ -368,19 +367,17 @@ export const Home: React.FC = () => {
           </h1>
 
           <p className="text-xl md:text-2xl text-sky-50 mb-12 font-medium max-w-3xl mx-auto leading-relaxed drop-shadow-sm">
-            Create classroom games, quizzes, and review activities with AI. Turn any lesson topic into trivia, live quizzes, Jeopardy-style games, word games, and more.
-          </p>
-          
+            {ui("Create classroom games, quizzes, and review activities with AI. Turn any lesson topic into trivia, live quizzes, Jeopardy-style games, word games, and more.")}</p>
+
           <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16">
-            <Link 
-                to="/games" 
+            <Link
+                to="/games"
                 className="group px-8 py-4 bg-white text-sky-700 font-bold text-lg rounded-full shadow-lg hover:shadow-2xl hover:bg-sky-50 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
             >
                 <div className="bg-brand-yellow text-slate-900 rounded-full p-1 group-hover:rotate-12 transition-transform">
                     <Play size={16} fill="currentColor" />
                 </div>
-                Start Playing
-            </Link>
+                {ui("Start Playing")}</Link>
             <Link
                 to="/live"
                 className="group px-8 py-4 bg-brand-yellow text-slate-900 font-bold text-lg rounded-full shadow-lg hover:shadow-2xl hover:bg-yellow-300 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3"
@@ -388,19 +385,17 @@ export const Home: React.FC = () => {
                 <div className="bg-slate-900 text-brand-yellow rounded-full p-1 group-hover:scale-110 transition-transform">
                     <Radio size={16} />
                 </div>
-                Join Live Quiz
-            </Link>
+                {ui("Join Live Quiz")}</Link>
           </div>
 
           {/* LIVE STATS TICKER */}
           <div className="inline-flex flex-col md:flex-row items-center gap-8 bg-white/10 backdrop-blur-md rounded-3xl p-6 md:px-10 border border-white/20 shadow-xl animate-slide-up">
               <div className="flex items-center gap-2 text-sky-200 uppercase text-xs font-bold tracking-widest mb-2 md:mb-0 md:border-r border-white/20 md:pr-6">
-                  <Activity size={16} className="animate-pulse" /> Live Stats
-              </div>
+                  <Activity size={16} className="animate-pulse" /> {ui(" Live Stats")}</div>
               <div className="flex gap-8 md:gap-12">
-                  <StatCounter end={stats.games} label="Games Created" />
+                  <StatCounter end={stats.games} label={ui("Games Created")} />
                   <div className="w-px bg-white/20 h-10 hidden md:block"></div>
-                  <StatCounter end={stats.gamesPlayed} label="Games Played" />
+                  <StatCounter end={stats.gamesPlayed} label={ui("Games Played")} />
               </div>
           </div>
 
@@ -418,7 +413,7 @@ export const Home: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 pt-12">
             <h2 className="font-display text-3xl font-bold text-center text-slate-800 mb-12">
-                <span className="border-b-4 border-brand-yellow pb-2">Trending Games</span>
+                <span className="border-b-4 border-brand-yellow pb-2">{ui("Trending Games")}</span>
             </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                 {trendingReady ? trendingGames.map((game, index) => (
@@ -441,10 +436,10 @@ export const Home: React.FC = () => {
          <div className="max-w-7xl mx-auto px-4">
              <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
                  {[
-                     { icon: Clock, title: "Less Prep", desc: "Cut planning time in half with AI generation." },
-                     { icon: Smile, title: "More Fun", desc: "Engage students with interactive formats." },
-                     { icon: Star, title: "High Quality", desc: "Curriculum-aligned content every time." },
-                     { icon: Zap, title: "Free to Join", desc: "Sign up free during early access to create and play every game mode." }
+                     { icon: Clock, get title() { return ui("Less Prep"); }, get desc() { return ui("Cut planning time in half with AI generation."); } },
+                     { icon: Smile, get title() { return ui("More Fun"); }, get desc() { return ui("Engage students with interactive formats."); } },
+                     { icon: Star, get title() { return ui("High Quality"); }, get desc() { return ui("Curriculum-aligned content every time."); } },
+                     { icon: Zap, get title() { return ui("Free to Join"); }, get desc() { return ui("Sign up free during early access to create and play every game mode."); } }
                  ].map((feature, idx) => (
                      <div key={idx} className="text-center group">
                          <div className="w-20 h-20 mx-auto bg-brand-yellow rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-yellow-100 border-2 border-transparent group-hover:border-brand-blue">
@@ -482,9 +477,8 @@ export const Home: React.FC = () => {
 
           <div className="max-w-7xl mx-auto px-4 relative z-10">
               <h2 className="font-display text-4xl font-bold text-center text-white mb-4 drop-shadow-md">
-                  Reasons why teachers love us
-              </h2>
-              <p className="text-center text-sky-100 mb-12 text-lg">Join thousands of happy educators transforming their classrooms.</p>
+                  {ui("Reasons why teachers love us")}</h2>
+              <p className="text-center text-sky-100 mb-12 text-lg">{ui("Join thousands of happy educators transforming their classrooms.")}</p>
               <TestimonialCarousel />
           </div>
       </section>
@@ -492,12 +486,12 @@ export const Home: React.FC = () => {
       {/* CTA */}
       <section className="py-24 bg-white">
           <div className="max-w-4xl mx-auto px-4 text-center">
-              <h2 className="font-display text-4xl font-bold text-slate-800 mb-8">Ready to gamify your class?</h2>
-              <Link 
+              <h2 className="font-display text-4xl font-bold text-slate-800 mb-8">{ui("Ready to gamify your class?")}</h2>
+              <Link
                 to="/games"
                 className="inline-flex items-center px-10 py-5 bg-brand-blue text-white text-xl font-bold rounded-full hover:bg-sky-600 transition-colors shadow-xl hover:shadow-2xl shadow-sky-200"
               >
-                  Go to Games <ArrowRight className="ml-3" />
+                  {ui("Go to Games ")}<ArrowRight className="ml-3" />
               </Link>
           </div>
       </section>

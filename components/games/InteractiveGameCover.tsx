@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState } from 'react';
 import type { GameCoverImage } from '../../types';
 import { GameCover } from '../shared/GameCover';
@@ -14,6 +15,7 @@ export const InteractiveGameCover: React.FC<{
   cover?: GameCoverImage; title: string; disabled?: boolean;
   onChange: (cover: GameCoverImage) => void;
 }> = ({ cover, title, disabled, onChange }) => {
+  useUiLanguage();
   const frame = useRef<HTMLDivElement>(null);
   const pointers = useRef(new Map<number, Point>());
   const latest = useRef({ cover, onChange, disabled });
@@ -60,7 +62,7 @@ export const InteractiveGameCover: React.FC<{
   };
 
   return <>
-    <div ref={frame} role="group" aria-label="Reposition game cover" tabIndex={cover && !disabled ? 0 : -1}
+    <div ref={frame} role="group" aria-label={ui("Reposition game cover")} tabIndex={cover && !disabled ? 0 : -1}
       aria-disabled={disabled || !cover} aria-describedby="cover-gesture-help"
       className={`rounded-xl outline-none select-none ${active ? 'ring-2 ring-sky-500 ring-offset-2' : ''} ${cover && !disabled ? dragging ? 'cursor-grabbing' : 'cursor-grab' : ''}`}
       style={{ touchAction: active && !disabled ? 'none' : 'auto' }}
@@ -91,8 +93,7 @@ export const InteractiveGameCover: React.FC<{
       <GameCover cover={cover} title={title} className="aspect-[16/7] rounded-xl pointer-events-none" />
     </div>
     {cover && <p id="cover-gesture-help" className="mt-2 text-xs text-slate-500">
-      Tap or click to adjust. Drag to move; pinch or scroll to zoom. Tap outside to finish.
-      <span className="sr-only"> Use arrow keys to move, plus or minus to zoom, and Escape to finish.</span>
+      {ui("Tap or click to adjust. Drag to move; pinch or scroll to zoom. Tap outside to finish.")}<span className="sr-only"> {ui(" Use arrow keys to move, plus or minus to zoom, and Escape to finish.")}</span>
     </p>}
   </>;
 };

@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Gamepad2, GraduationCap, Radio, Sparkles } from 'lucide-react';
@@ -71,31 +72,32 @@ const pages: Record<string, LandingPageConfig> = {
   }
 };
 
-const LandingPage: React.FC<{ config: LandingPageConfig }> = ({ config }) => (
-  <div className="bg-slate-50 min-h-screen">
-    <section className="bg-brand-blue text-white">
+const LandingPage: React.FC<{ config: LandingPageConfig }> = ({ config }) => {
+  const { language } = useUiLanguage();
+  return (
+  <div translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate seo-landing bg-slate-50 min-h-screen">
+    <section className="seo-landing-hero bg-brand-blue text-white">
       <div className="max-w-6xl mx-auto px-4 py-20 md:py-24">
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-4 py-2 text-sm font-bold text-sky-50 mb-6">
             <span className="text-brand-yellow">{config.icon}</span>
-            {config.badge}
+            {ui(config.badge)}
           </div>
-          <h1 className="font-display text-4xl md:text-6xl font-black leading-tight mb-6">{config.title}</h1>
-          <p className="text-lg md:text-xl text-sky-50 leading-relaxed max-w-2xl">{config.intro}</p>
+          <h1 className="font-display text-4xl md:text-6xl font-black leading-tight mb-6">{ui(config.title)}</h1>
+          <p className="text-lg md:text-xl text-sky-50 leading-relaxed max-w-2xl">{ui(config.intro)}</p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4">
             <Link
               to="/games"
               className="inline-flex items-center justify-center rounded-full bg-brand-yellow px-7 py-4 font-bold text-slate-900 shadow-lg hover:bg-yellow-300 transition-colors"
             >
-              {config.cta}
+              {ui(config.cta)}
               <ArrowRight size={18} className="ml-2" />
             </Link>
             <Link
               to="/info"
               className="inline-flex items-center justify-center rounded-full border border-white/30 px-7 py-4 font-bold text-white hover:bg-white/10 transition-colors"
             >
-              Learn how it works
-            </Link>
+              {ui("Learn how it works")}</Link>
           </div>
         </div>
       </div>
@@ -104,39 +106,39 @@ const LandingPage: React.FC<{ config: LandingPageConfig }> = ({ config }) => (
     <section className="max-w-6xl mx-auto px-4 py-16">
       <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-start">
         <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm">
-          <h2 className="font-display text-3xl font-bold text-slate-800 mb-6">Built for real classroom use</h2>
-          {config === pages.classroomQuizMaker && <Link to="/game-types/trivia" className="mb-6 inline-flex items-center gap-2 font-bold text-sky-700 hover:underline">See Trivia in action <ArrowRight size={18} /></Link>}
+          <h2 className="font-display text-3xl font-bold text-slate-800 mb-6">{ui("Built for real classroom use")}</h2>
+          {config === pages.classroomQuizMaker && <Link to="/game-types/trivia" className="mb-6 inline-flex items-center gap-2 font-bold text-sky-700 hover:underline">{ui("See Trivia in action ")}<ArrowRight size={18} /></Link>}
           <div className="space-y-5">
             {config.bullets.map((bullet) => (
               <div key={bullet} className="flex gap-3">
                 <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={20} />
-                <p className="text-slate-600 leading-relaxed">{bullet}</p>
+                <p className="text-slate-600 leading-relaxed">{ui(bullet)}</p>
               </div>
             ))}
           </div>
         </div>
 
         <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm">
-          <h2 className="font-display text-2xl font-bold text-slate-800 mb-5">Good for</h2>
+          <h2 className="font-display text-2xl font-bold text-slate-800 mb-5">{ui("Good for")}</h2>
           <div className="grid grid-cols-2 gap-3">
             {config.examples.map((example) => (
-              <div key={example} className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm font-bold text-sky-900">
-                {example}
+              <div key={example} className="seo-landing-example rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-sm font-bold text-sky-900">
+                {ui(example)}
               </div>
             ))}
           </div>
           <Link
             to="/games"
-            className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-brand-blue px-5 py-4 font-bold text-white hover:bg-sky-600 transition-colors"
+            className="seo-landing-hub mt-8 inline-flex w-full items-center justify-center rounded-xl bg-brand-blue px-5 py-4 font-bold text-white hover:bg-sky-600 transition-colors"
           >
-            Open Game Hub
-            <ArrowRight size={18} className="ml-2" />
+            {ui("Open Game Hub")}<ArrowRight size={18} className="ml-2" />
           </Link>
         </div>
       </div>
     </section>
   </div>
-);
+  );
+};
 
 export const CreateClassroomGamesPage: React.FC = () => <LandingPage config={pages.createClassroomGames} />;
 export const ClassroomQuizMakerPage: React.FC = () => <LandingPage config={pages.classroomQuizMaker} />;

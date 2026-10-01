@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Calendar } from 'lucide-react';
@@ -64,6 +65,7 @@ const buildStudentOptions = (game: GeneratedGame, studentName: string): GameRunO
 };
 
 export const StudentGame: React.FC = () => {
+  useUiLanguage();
   const { id, shareId } = useParams();
   const navigate = useNavigate();
   const [loadState, setLoadState] = useState<LoadState>('idle');
@@ -134,11 +136,10 @@ export const StudentGame: React.FC = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
             <AlertTriangle size={22} />
           </div>
-          <h1 className="mb-2 text-2xl font-black text-slate-800">Game not available</h1>
-          <p className="mb-6 text-slate-500">Ask your teacher to check the student practice link.</p>
+          <h1 className="mb-2 text-2xl font-black text-slate-800">{ui("Game not available")}</h1>
+          <p className="mb-6 text-slate-500">{ui("Ask your teacher to check the student practice link.")}</p>
           <button onClick={() => navigate('/')} className="rounded-xl bg-brand-blue px-6 py-3 font-bold text-white">
-            Go back
-          </button>
+            {ui("Go back")}</button>
         </div>
       </div>
     );
@@ -154,10 +155,10 @@ export const StudentGame: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
           <div className="mb-5">
-            <div className="text-xs font-black uppercase tracking-wide text-brand-blue">Student Practice</div>
+            <div className="text-xs font-black uppercase tracking-wide text-brand-blue">{ui("Student Practice")}</div>
             <h1 translate="no" className="notranslate mt-2 text-3xl font-black leading-tight text-slate-900">{game.title}</h1>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              {game.config.type} | {questionCount} question{questionCount === 1 ? '' : 's'}
+              {game.config.type} | {questionCount} {ui(" question")}{questionCount === 1 ? '' : 's'}
             </p>
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -169,7 +170,7 @@ export const StudentGame: React.FC = () => {
                     textClassName="text-[11px]"
                   />
                   <div className="min-w-0">
-                    <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">Created by</div>
+                    <div className="text-[10px] font-black uppercase tracking-wide text-slate-400">{ui("Created by")}</div>
                     <div className="truncate text-sm font-black text-slate-800">{createdByName}</div>
                   </div>
                 </div>
@@ -183,8 +184,7 @@ export const StudentGame: React.FC = () => {
 
           {unsupported ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
-              This game type is not available for student practice.
-            </div>
+              {ui("This game type is not available for student practice.")}</div>
           ) : (
             <form
               onSubmit={(event) => {
@@ -194,19 +194,18 @@ export const StudentGame: React.FC = () => {
               className="space-y-4"
             >
               <div>
-                <label className="mb-2 block text-sm font-black text-slate-700">Nickname</label>
+                <label className="mb-2 block text-sm font-black text-slate-700">{ui("Nickname")}</label>
                 <input
                   value={studentName}
                   onChange={(event) => setStudentName(event.target.value)}
-                  placeholder="Enter a nickname"
+                  placeholder={ui("Enter a nickname")}
                   maxLength={20}
                   className="w-full rounded-xl border border-slate-300 bg-white p-4 text-lg font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-yellow"
                 />
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  Your nickname, answers, and score stay on this device and are not sent to your teacher.{' '}
+                  {ui("Your nickname, answers, and score stay on this device and are not sent to your teacher.")}{' '}
                   <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-black text-brand-blue hover:underline">
-                    Privacy information
-                  </a>
+                    {ui("Privacy information")}</a>
                 </p>
               </div>
               <button
@@ -214,8 +213,7 @@ export const StudentGame: React.FC = () => {
                 disabled={questionCount === 0}
                 className="w-full rounded-xl bg-brand-yellow px-6 py-4 text-xl font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Start Game
-              </button>
+                {ui("Start Game")}</button>
             </form>
           )}
         </div>

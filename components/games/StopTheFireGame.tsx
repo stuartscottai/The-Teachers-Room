@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -396,6 +397,7 @@ const getDefaultTeamNames = (count: number) =>
     Array.from({ length: count }, (_, i) => (count === 1 ? 'Player 1' : `Team ${i + 1}`));
 
 export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const [players, setPlayers] = useState<number>(options.players || 2);
     const [teamNames, setTeamNames] = useState<string[]>(
         options.teamNames || getDefaultTeamNames(options.players || 2)
@@ -834,8 +836,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         const winnerScore = ranking.length ? ranking[0].score : 0;
         const winners = ranking.filter((team) => team.score === winnerScore);
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -843,7 +845,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final score standings"
+                    subtitle={ui("Final score standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -868,7 +870,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                         className="shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-3 sm:px-4 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-bold"
                     >
                         <ArrowLeft size={16} />
-                        <span className="hidden sm:inline">Back</span>
+                        <span className="hidden sm:inline">{ui("Back")}</span>
                     </button>
                     <div className="flex-1 min-w-0">
                         <div
@@ -890,7 +892,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         }`}
                                     >
                                         <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.13em] text-inherit truncate">
-                                            {teamNames[idx]}
+                                            {displayTeamName(teamNames[idx])}
                                         </div>
                                         <div className="font-mono text-lg sm:text-3xl leading-none font-black text-inherit tabular-nums truncate [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
                                             {score}
@@ -904,14 +906,14 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
                             className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                            title={isMuted ? 'Unmute' : 'Mute'}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                         </button>
                         <button
                             onClick={toggleFullscreen}
                             className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                            title={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")}
                         >
                             {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
                         </button>
@@ -974,18 +976,18 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
                                 <div className="relative">
-                                    <div className="text-xs uppercase tracking-widest text-white/80">Round settings</div>
+                                    <div className="text-xs uppercase tracking-widest text-white/80">{ui("Round settings")}</div>
                                     <div className="text-lg sm:text-2xl font-bold">
-                                        {isTieBreaker ? 'Tie-breaker Round' : `Round ${roundIndex}`}
+                                        {isTieBreaker ? ui("Tie-breaker Round") : ui("Round {roundIndex}", { "roundIndex": (roundIndex) })}
                                     </div>
                                 </div>
-                                <div className="relative flex items-center gap-3"><span className="text-3xl font-black">{currentLetter}</span><button type="button" onClick={rerollLetter} title="Reroll letter" className="p-2 rounded-lg hover:bg-white/10"><RefreshCw size={18} /></button></div>
+                                <div className="relative flex items-center gap-3"><span className="text-3xl font-black">{currentLetter}</span><button type="button" onClick={rerollLetter} title={ui("Reroll letter")} className="p-2 rounded-lg hover:bg-white/10"><RefreshCw size={18} /></button></div>
                             </div>
 
                             <div className="flex-1 stop-fire-surface overflow-visible p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Players / Teams</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Players / Teams")}</label>
                                         <div className="flex flex-wrap gap-2">
                                             {[1, 2, 3, 4, 5, 6].map((num) => (
                                                 <button
@@ -1003,18 +1005,18 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             ))}
                                         </div>
                                         {!canEditTeams && (
-                                            <p className="text-[11px] text-slate-400 mt-2">Team count locks after scoring starts.</p>
+                                            <p className="text-[11px] text-slate-400 mt-2">{ui("Team count locks after scoring starts.")}</p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Team Names</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Team Names")}</label>
                                         <div className="space-y-2 max-h-44 overflow-y-auto pr-2">
                                             {teamNames.map((name, idx) => (
                                                 <input
                                                     key={idx}
                                                     type="text"
-                                                    value={name}
+                                                    value={displayTeamName(name)}
                                                     onChange={(e) =>
                                                         setTeamNames((prev) => {
                                                             const next = [...prev];
@@ -1031,7 +1033,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Difficulty</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Difficulty")}</label>
                                         <div className="grid grid-cols-3 gap-2">
                                             {(['beginner', 'intermediate', 'advanced'] as StopTheFireDifficulty[]).map((level) => (
                                                 <button
@@ -1047,12 +1049,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             ))}
                                         </div>
                                         {manualCategoryPool && (
-                                            <p className="text-[11px] text-slate-400 mt-2">Using your custom category list.</p>
+                                            <p className="text-[11px] text-slate-400 mt-2">{ui("Using your custom category list.")}</p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Categories</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Categories")}</label>
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="range"
@@ -1073,34 +1075,33 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         </div>
                                         {manualCategoryPool && selectedCategories.length > 0 && (
                                             <p className="text-[11px] text-slate-500 mt-2">
-                                                Using {selectedCategories.length} selected category{selectedCategories.length === 1 ? '' : 'ies'}.
+                                                {ui("Using ")}{selectedCategories.length} {ui(" selected category")}{selectedCategories.length === 1 ? '' : 'ies'}.
                                             </p>
                                         )}
-                                        {isTieBreaker && <p className="text-[11px] text-slate-400 mt-2">Tie-breaker uses 1 category.</p>}
+                                        {isTieBreaker && <p className="text-[11px] text-slate-400 mt-2">{ui("Tie-breaker uses 1 category.")}</p>}
                                     </div>
 
                                     {manualCategoryPool && (
                                         <div>
                                             <div className="flex items-center justify-between mb-2">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase">Choose Categories (Optional)</label>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase">{ui("Choose Categories (Optional)")}</label>
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowCategoryPicker((prev) => !prev)}
                                                     className="text-xs font-bold text-brand-blue hover:text-[#5b1f0a]"
                                                 >
-                                                    {showCategoryPicker ? 'Hide' : 'Select'}
+                                                    {showCategoryPicker ? ui("Hide") : ui("Select")}
                                                 </button>
                                             </div>
                                             <p className="text-[11px] text-slate-400 mb-2">
-                                                Leave none selected to play with a random set from your word bank.
-                                            </p>
+                                                {ui("Leave none selected to play with a random set from your word bank.")}</p>
                                             {showCategoryPicker && (
                                                 <div className="space-y-2">
                                                     <input
                                                         type="text"
                                                         value={categorySearch}
                                                         onChange={(e) => setCategorySearch(e.target.value)}
-                                                        placeholder="Search categories..."
+                                                        placeholder={ui("Search categories...")}
                                                         className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-1 focus:ring-amber-200 outline-none"
                                                     />
                                                     <div className="flex flex-wrap gap-2">
@@ -1109,22 +1110,19 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                             onClick={() => setSelectedCategories(manualCategoryList)}
                                                             className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-brand-blue"
                                                         >
-                                                            Select all
-                                                        </button>
+                                                            {ui("Select all")}</button>
                                                         <button
                                                             type="button"
                                                             onClick={() => setSelectedCategories([])}
                                                             className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-amber-300 hover:text-brand-blue"
                                                         >
-                                                            Clear
-                                                        </button>
+                                                            {ui("Clear")}</button>
                                                         <span className="text-[11px] text-slate-400 flex items-center">
-                                                            {selectedCategories.length} selected
-                                                        </span>
+                                                            {selectedCategories.length} {ui(" selected")}</span>
                                                     </div>
                                                     <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
                                                         {filteredManualCategories.length === 0 ? (
-                                                            <div className="text-xs text-slate-400">No categories found.</div>
+                                                            <div className="text-xs text-slate-400">{ui("No categories found.")}</div>
                                                         ) : (
                                                             filteredManualCategories.map((cat) => (
                                                                 <label key={cat} className="flex items-center gap-2 text-sm text-slate-700">
@@ -1145,7 +1143,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                     )}
 
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Timer</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{ui("Timer")}</label>
                                         <div className="grid grid-cols-3 gap-2">
                                             {TIMER_OPTIONS.map((value) => (
                                                 <button
@@ -1173,13 +1171,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 }`}
                                 style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
-                                {isTieBreaker && <div className="relative text-xs text-[#d5c4b9]">Tie-breaker round: 1 category, first to answer.</div>}
+                                {isTieBreaker && <div className="relative text-xs text-[#d5c4b9]">{ui("Tie-breaker round: 1 category, first to answer.")}</div>}
                                 <button
                                     onClick={beginRound}
                                     className="relative bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:bg-sky-700 transition-colors"
                                 >
-                                    Start Round
-                                </button>
+                                    {ui("Start Round")}</button>
                             </div>
                         </div>
 
@@ -1196,7 +1193,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                             >
                                 <div className="relative z-10">
                                     <div className="text-xs uppercase tracking-widest text-[#e7c9b8]">
-                                        {isTieBreaker ? 'Tie-breaker' : `Round ${roundIndex}`}
+                                        {isTieBreaker ? ui("Tie-breaker") : ui("Round {roundIndex}", { "roundIndex": (roundIndex) })}
                                     </div>
                                 </div>
                                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1209,8 +1206,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         onClick={handleStop}
                                         className="bg-[#27211e] border border-[#6a5950]/70 text-white font-bold px-4 py-2 rounded-full shadow-md hover:bg-[#322925]"
                                     >
-                                        Stop
-                                    </button>
+                                        {ui("Stop")}</button>
                                 </div>
                             </div>
 
@@ -1343,22 +1339,21 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                 style={{ backgroundColor: 'var(--stop-heading)' }}
                                             >
                                                 <div className="relative rounded-lg border border-white/15 bg-black/45 px-3 py-2 backdrop-blur-[1px]">
-                                                    <h2 className="text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]">Score Round</h2>
+                                                    <h2 className="text-xl font-bold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]">{ui("Score Round")}</h2>
                                                     <p className="text-sm text-[#f2e4da] [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]">
-                                                        Category {reviewIndex + 1} of {totalCategories}. Use 2 (unique), 1 (shared), 0 (invalid).
-                                                    </p>
+                                                        {ui("Category ")}{reviewIndex + 1} {ui(" of ")}{totalCategories}{ui(". Use 2 (unique), 1 (shared), 0 (invalid).")}</p>
                                                 </div>
                                             </div>
 
                                             <div className={`flex-1 basis-0 min-h-0 p-6 stop-fire-surface ${isCompactHeight ? 'overflow-visible' : 'overflow-auto'}`}>
                                                 <div className="stop-fire-raised border border-[#d8c5b5] rounded-2xl p-4 sm:p-6 mb-6">
-                                                    <div className="text-xs uppercase tracking-widest text-brand-blue mb-2">Category</div>
+                                                    <div className="text-xs uppercase tracking-widest text-brand-blue mb-2">{ui("Category")}</div>
                                                     <div className="text-lg sm:text-2xl font-bold text-slate-800">{currentReviewCategory}</div>
                                                 </div>
                                                 <div className="space-y-3">
                                                     {teamNames.map((name, tIdx) => (
-                                                        <div key={name} className="flex items-center justify-between gap-4 stop-fire-raised border border-[#dfcfc2] rounded-xl px-4 py-3">
-                                                            <div className="font-semibold text-slate-700">{name}</div>
+                                                        <div key={displayTeamName(name)} className="flex items-center justify-between gap-4 stop-fire-raised border border-[#dfcfc2] rounded-xl px-4 py-3">
+                                                            <div className="font-semibold text-slate-700">{displayTeamName(name)}</div>
                                                             <div className="flex items-center gap-2">
                                                                 {[0, 1, 2].map((value) => {
                                                                     const active = (roundScores[tIdx]?.[reviewIndex] ?? 0) === value;
@@ -1392,22 +1387,19 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                         disabled={reviewIndex === 0}
                                                         className="flex-none bg-brand-blue text-white border border-[#6a5950]/70 font-bold px-5 py-3 rounded-xl hover:bg-sky-700 disabled:opacity-50"
                                                     >
-                                                        Previous
-                                                    </button>
+                                                        {ui("Previous")}</button>
                                                     {reviewIndex < totalCategories - 1 ? (
                                                         <button
                                                             onClick={() => setReviewIndex((prev) => Math.min(totalCategories - 1, prev + 1))}
                                                             className="flex-none bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                                         >
-                                                            Next Category
-                                                        </button>
+                                                            {ui("Next Category")}</button>
                                                     ) : (
                                                         <button
                                                             onClick={applyScores}
                                                             className="flex-none bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                                         >
-                                                            Apply Scores
-                                                        </button>
+                                                            {ui("Apply Scores")}</button>
                                                     )}
                                                 </div>
                                             </div>
@@ -1425,10 +1417,10 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 text-center">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">Stop the Fire?</h2>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">{ui("Stop the Fire?")}</h2>
                         {stopPromptMode === 'timeout' ? (
                             <>
-                                <p className="text-slate-500 mb-6">Time is up. Do you want to score now or add more time?</p>
+                                <p className="text-slate-500 mb-6">{ui("Time is up. Do you want to score now or add more time?")}</p>
                                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
                                     <div className="relative">
                                         <select
@@ -1462,8 +1454,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         }}
                                         className="bg-brand-blue border border-[#6a5950]/70 text-white font-bold px-6 py-3 rounded-xl hover:bg-sky-700"
                                     >
-                                        Add Time
-                                    </button>
+                                        {ui("Add Time")}</button>
                                 </div>
                                 <button
                                     onClick={() => {
@@ -1472,12 +1463,11 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                     }}
                                     className="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200"
                                 >
-                                    Score Now
-                                </button>
+                                    {ui("Score Now")}</button>
                             </>
                         ) : (
                             <>
-                                <p className="text-slate-500 mb-6">Do you want to stop and score this round?</p>
+                                <p className="text-slate-500 mb-6">{ui("Do you want to stop and score this round?")}</p>
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <button
                                         onClick={() => {
@@ -1486,8 +1476,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         }}
                                         className="flex-1 bg-brand-blue border border-[#6a5950]/70 text-white font-bold py-3 rounded-xl hover:bg-sky-700"
                                     >
-                                        Yes, Score
-                                    </button>
+                                        {ui("Yes, Score")}</button>
                                     <button
                                         onClick={() => {
                                             setShowStopPrompt(false);
@@ -1495,8 +1484,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                         }}
                                         className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200"
                                     >
-                                        No, Keep Going
-                                    </button>
+                                        {ui("No, Keep Going")}</button>
                                 </div>
                             </>
                         )}
@@ -1509,12 +1497,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 text-center">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">Round Complete</h2>
-                        <p className="text-slate-500 mb-6">Scores carry over to the next round.</p>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">{ui("Round Complete")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Scores carry over to the next round.")}</p>
                         <div className="flex flex-wrap gap-3 justify-center mb-6">
                             {scores.map((score, idx) => (
                                 <div key={idx} className="bg-slate-50 border border-slate-200 px-4 py-2 rounded-full font-bold text-slate-700">
-                                    {teamNames[idx]}: {score}
+                                    {displayTeamName(teamNames[idx])}: {score}
                                 </div>
                             ))}
                         </div>
@@ -1523,14 +1511,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 onClick={handleNextRound}
                                 className="flex-1 bg-brand-blue text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
                             >
-                                Play Another Round
-                            </button>
+                                {ui("Play Another Round")}</button>
                             <button
                                 onClick={handleEndGame}
                                 className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200"
                             >
-                                End Game
-                            </button>
+                                {ui("End Game")}</button>
                         </div>
                     </div>
                 </div>
@@ -1542,8 +1528,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                     className={`fixed inset-x-0 bottom-0 ${isFullscreen ? 'top-0' : 'top-16'} z-[800] flex ${isCompactHeight ? 'items-start overflow-y-auto py-6' : 'items-center'} justify-center bg-black/40 backdrop-blur-sm p-4`}
                 >
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 text-center">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-2">Tie-breaker Winner</h2>
-                        <p className="text-slate-500 mb-6">Select the team that answered first.</p>
+                        <h2 className="text-2xl font-bold text-slate-800 mb-2">{ui("Tie-breaker Winner")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Select the team that answered first.")}</p>
                         <div className="space-y-3">
                             {tieBreakerTeams.map((idx) => (
                                 <button
@@ -1551,8 +1537,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                     onClick={() => resolveTieBreaker(idx)}
                                     className="w-full bg-brand-blue text-white font-bold py-3 rounded-xl hover:bg-[#5b1f0a]"
                                 >
-                                    {teamNames[idx]} Wins
-                                </button>
+                                    {displayTeamName(teamNames[idx])} {ui(" Wins")}</button>
                             ))}
                         </div>
                     </div>

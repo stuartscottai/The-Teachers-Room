@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage } from '../../utils/interfaceLanguage';
 import React from 'react';
 import type { WorkbookSection as Section } from '../../data/classBooklets';
 import { WorkbookExercise } from './WorkbookExercise';
@@ -10,6 +11,7 @@ export function WorkbookSection({ section, answers, marks, onAnswer, onMarks, on
   onReference: (sourcePage: number) => void;
   readOnly?: boolean;
 }) {
+  useInterfaceLanguage();
   const emphasis = section.reading?.id === 'b2-suitcase' ? ['While', 'when I bumped'].map(phrase => {
     const start = section.reading!.text.indexOf(phrase);
     return { start, end: start + (phrase === 'While' ? 5 : 4) };
@@ -17,12 +19,12 @@ export function WorkbookSection({ section, answers, marks, onAnswer, onMarks, on
   const headingId = `${readOnly ? 'saved-' : ''}section-${section.id}`;
   return <section className="class-unit-section" aria-labelledby={headingId}>
     <div className="class-section-title"><h3 id={headingId}>{section.title}</h3>
-      {!readOnly && section.relatedPage && <button type="button" onClick={() => onReference(section.relatedPage!)}>Read textbook page {section.relatedPage}</button>}
-      {!readOnly && section.referencePage && <button type="button" onClick={() => onReference(section.referencePage!)}>Grammar reference · {section.referencePage}</button>}</div>
+      {!readOnly && section.relatedPage && <button type="button" onClick={() => onReference(section.relatedPage!)}>{ui("Read textbook page {number}", { number: section.relatedPage })}</button>}
+      {!readOnly && section.referencePage && <button type="button" onClick={() => onReference(section.referencePage!)}>{ui("Grammar reference")} · {section.referencePage}</button>}</div>
     {section.instructions && <div className="class-task"><span className="class-task-number">{section.number}</span><p>{section.instructions}</p></div>}
     {section.paragraphs?.map((text, i) => <p key={i} className="class-section-copy">{text}</p>)}
     {section.bullets && <ul className="class-bullets">{section.bullets.map(text => <li key={text}>{text}</li>)}</ul>}
-    {section.table && <div className="class-table-scroll" tabIndex={readOnly ? undefined : 0} role="region" aria-label={`${section.title} table`}><table>
+    {section.table && <div className="class-table-scroll" tabIndex={readOnly ? undefined : 0} role="region" aria-label={ui("{title} table", { title: section.title })}><table>
       <thead><tr>{section.table.headings.map(heading => <th key={heading} scope="col">{heading}</th>)}</tr></thead>
       <tbody>{section.table.rows.map((row, i) => <tr key={i}>{row.map((cell, n) => n === 0 ? <th key={n} scope="row">{cell}</th> : <td key={n}>{cell}</td>)}</tr>)}</tbody>
     </table></div>}

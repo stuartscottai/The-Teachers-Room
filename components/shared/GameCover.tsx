@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useState } from 'react';
 import { BookOpen, Sparkles } from 'lucide-react';
 import type { GameCoverImage } from '../../types';
@@ -33,10 +34,11 @@ export const GameCover: React.FC<{ cover?: GameCoverImage; title: string; public
 };
 
 export const CoverCredit: React.FC<{ cover?: GameCoverImage }> = ({ cover }) => {
+  useUiLanguage();
   if (cover?.source !== 'stock' || !cover.provider) return null;
   const provider = cover.provider === 'pexels' ? 'Pexels' : 'Pixabay';
   const href = cover.provider === 'pexels' ? 'https://www.pexels.com' : 'https://pixabay.com';
   return <a href={href} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-slate-700 hover:underline">
-    Photo from {provider}
+    {ui("Photo from ")}{provider}
   </a>;
 };

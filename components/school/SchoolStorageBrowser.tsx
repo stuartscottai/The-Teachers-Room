@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ExternalLink, FileText, Folder, FolderOpen, HardDrive, RefreshCw, X } from 'lucide-react';
 import { UploadedFile } from '../../types';
@@ -33,6 +34,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
   onAttach,
   onClose,
 }) => {
+  useUiLanguage();
   const [folders, setFolders] = useState<SchoolStorageFolder[]>([]);
   const [files, setFiles] = useState<SchoolStorageFile[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -146,7 +148,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
     if (!selectedFileIds.length) return;
     const nextTotal = existingCount + selectedFileIds.length;
     if (nextTotal > maxFiles) {
-      setError(`You can attach up to ${maxFiles} files total. Remove some existing files first.`);
+      setError(ui("You can attach up to {maxFiles} files total. Remove some existing files first.", { "maxFiles": (maxFiles) }));
       return;
     }
 
@@ -202,18 +204,16 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-brand-blue">
-              <HardDrive size={13} /> School Storage
-            </div>
-            <h2 className="mt-2 text-xl font-bold text-slate-800">Attach Shared School Files</h2>
+              <HardDrive size={13} /> {ui(" School Storage")}</div>
+            <h2 className="mt-2 text-xl font-bold text-slate-800">{ui("Attach Shared School Files")}</h2>
             <p className="text-sm text-slate-500">
-              Browse shared school files and attach up to {maxFiles} source documents.
-            </p>
+              {ui("Browse shared school files and attach up to ")}{maxFiles} {ui(" source documents.")}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-slate-300 hover:text-slate-700"
-            aria-label="Close school storage browser"
+            aria-label={ui("Close school storage browser")}
           >
             <X size={18} />
           </button>
@@ -244,8 +244,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                 onClick={() => setCurrentFolderId(folderById.get(currentFolderId)?.parentId || null)}
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:border-slate-300 hover:text-slate-800"
               >
-                <ChevronLeft size={15} /> Up
-              </button>
+                <ChevronLeft size={15} /> {ui(" Up")}</button>
             )}
             <button
               type="button"
@@ -253,8 +252,7 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
               disabled={loading}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
-            </button>
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {ui(" Refresh")}</button>
           </div>
         </div>
 
@@ -268,12 +266,11 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
           {loading ? (
             <div className="py-16 text-center text-sm text-slate-500">
               <RefreshCw size={16} className="inline-block mr-2 animate-spin" />
-              Loading school storage...
-            </div>
+              {ui("Loading school storage...")}</div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-[1.1fr,1.4fr]">
               <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                <h3 className="text-sm font-bold text-slate-800 mb-3">Folders</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-3">{ui("Folders")}</h3>
                 {childFolders.length ? (
                   <div className="space-y-2">
                     {childFolders.map((folder) => (
@@ -292,21 +289,21 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                           <span className="truncate text-sm font-medium text-slate-700">{folder.name}</span>
                         </span>
                         <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                          {folderDocCounts.get(folder.id) || 0} doc{(folderDocCounts.get(folder.id) || 0) === 1 ? '' : 's'}
+                          {ui((folderDocCounts.get(folder.id) || 0) === 1 ? "{count} doc" : "{count} docs", { count: folderDocCounts.get(folder.id) || 0 })}
                         </span>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">No subfolders here.</p>
+                  <p className="text-sm text-slate-500">{ui("No subfolders here.")}</p>
                 )}
               </section>
 
               <section className="rounded-2xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-slate-800">Files</h3>
+                  <h3 className="text-sm font-bold text-slate-800">{ui("Files")}</h3>
                   <span className="text-xs text-slate-500">
-                    Selected: {selectedFileIds.length} / Remaining: {Math.max(0, maxFiles - existingCount)}
+                    {ui("Selected: ")}{selectedFileIds.length} {ui(" / Remaining: ")}{Math.max(0, maxFiles - existingCount)}
                   </span>
                 </div>
 
@@ -351,14 +348,14 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
                             className="ml-3 inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             <ExternalLink size={13} />
-                            {openingFileId === file.id ? 'Opening...' : 'Open'}
+                            {openingFileId === file.id ? ui("Opening...") : ui("Open")}
                           </button>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">No files in this folder yet.</p>
+                  <p className="text-sm text-slate-500">{ui("No files in this folder yet.")}</p>
                 )}
               </section>
             </div>
@@ -367,23 +364,21 @@ export const SchoolStorageBrowser: React.FC<SchoolStorageBrowserProps> = ({
 
         <div className="flex shrink-0 items-center justify-between border-t border-slate-200 px-5 py-4">
           <p className="text-xs text-slate-500">
-            School files are attached as source material only. They are not copied into the saved game.
-          </p>
+            {ui("School files are attached as source material only. They are not copied into the saved game.")}</p>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800"
             >
-              Cancel
-            </button>
+              {ui("Cancel")}</button>
             <button
               type="button"
               onClick={() => void handleAttach()}
               disabled={!selectedFileIds.length || attaching || loading}
               className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {attaching ? 'Attaching...' : `Attach ${selectedFileIds.length || ''}`.trim()}
+              {attaching ? ui("Attaching...") : `Attach ${selectedFileIds.length || ''}`.trim()}
             </button>
           </div>
         </div>

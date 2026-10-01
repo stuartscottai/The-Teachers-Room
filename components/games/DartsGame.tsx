@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
@@ -93,16 +94,16 @@ const getBoardPointData = (x: number, y: number) => {
     let zone = 'Single';
     let multiplier = 1;
     
-    if (r < R_BULL_INNER) { return { points: 50, label: 'BULLSEYE', multiplier: 1, sector: 50 }; }
-    if (r < R_BULL_OUTER) { return { points: 25, label: 'OUTER BULL', multiplier: 1, sector: 25 }; }
+    if (r < R_BULL_INNER) { return { points: 50, get label() { return ui("BULLSEYE"); }, multiplier: 1, sector: 50 }; }
+    if (r < R_BULL_OUTER) { return { points: 25, get label() { return ui("OUTER BULL"); }, multiplier: 1, sector: 25 }; }
     
     if (r > R_TRIPLE_INNER && r < R_TRIPLE_OUTER) { zone = 'Treble'; multiplier = 3; }
     else if (r > R_DOUBLE_INNER && r < R_DOUBLE_OUTER) { zone = 'Double'; multiplier = 2; }
-    else if (r > R_DOUBLE_OUTER) { return { points: 0, label: 'MISS', multiplier: 0, sector: 0 }; }
+    else if (r > R_DOUBLE_OUTER) { return { points: 0, get label() { return ui("MISS"); }, multiplier: 0, sector: 0 }; }
     
     return {
         points: sector * multiplier,
-        label: `${zone} ${sector}`,
+        get label() { return ui("{zone} {sector}", { "zone": (zone), "sector": (sector) }); },
         multiplier,
         sector
     };
@@ -397,6 +398,7 @@ const AnimatedScore: React.FC<{ score: number, is301: boolean }> = ({ score, is3
 };
 
 export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false }) => {
+  useUiLanguage();
     const lightweightTestMode = import.meta.env.DEV && testMode;
     const is301 = options.dartsMode === '301';
     
@@ -1005,7 +1007,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         if (options.studentPractice) {
             return (
                 <PracticeReviewSummary
-                    playerName={teamNames[0]}
+                    playerName={displayTeamName(teamNames[0])}
                     correctCount={correctCount}
                     totalCount={correctCount + missedItems.length}
                     missedItems={missedItems}
@@ -1026,8 +1028,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         const winnerScore = ranking.length ? ranking[0].score : 0;
         const winners = ranking.filter((team) => team.score === winnerScore);
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -1035,7 +1037,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle={is301 ? 'Final checkout standings' : 'Final score standings'}
+                    subtitle={is301 ? ui("Final checkout standings") : ui("Final score standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -1066,39 +1068,37 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                 <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
                     <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center text-slate-100 hover:text-red-200 items-center text-sm bg-black/40 hover:bg-red-900/40 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-700">
-                            <ArrowLeft size={16} className="mr-2" /> Quit
-                        </button>
+                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700/90 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
-                            title="End game now"
+                            title={ui("End game now")}
                         >
-                            <Flag size={16} className="mr-2" /> End Game
-                        </button>
+                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-700 bg-black/40 text-slate-100 hover:text-red-200 hover:bg-red-900/40 transition-colors`}
-                            title="Quit"
+                            title={ui("Quit")}
                         >
                             <XIcon size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button
                             onClick={() => setIsMuted(!isMuted)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-700 bg-black/40 text-slate-100 hover:text-sky-200 hover:bg-black/60 transition-colors`}
-                            title={isMuted ? "Unmute" : "Mute"}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
                         <div className="hidden sm:flex items-center gap-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-1 rounded">
-                                {is301 ? '301 Mode' : 'High Score'}
+                                {is301 ? ui("301 Mode") : ui("High Score")}
                             </span>
                             {!is301 && (
                                 <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-600 px-2 py-1 rounded flex items-center">
@@ -1129,7 +1129,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'px-1 sm:px-2 py-1 sm:py-2 min-w-[70px] sm:min-w-[120px]'} text-center transition-transform relative group flex flex-col justify-center items-center`}
                             >
                                 <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1 text-slate-100" style={{ fontFamily: CHALK_FONT, textShadow: '0 1px 8px rgba(255,255,255,0.55)' }}>
-                                    {teamNames[idx]}
+                                    {displayTeamName(teamNames[idx])}
                                     {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1" />}
                                 </div>
                                 <AnimatedScore score={score} is301={is301} />
@@ -1152,10 +1152,10 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     {lightweightTestMode ? (
                         <button
                             type="button"
-                            aria-label="Aim at bullseye"
+                            aria-label={ui("Aim at bullseye")}
                             data-testid="darts-test-board"
                             className="w-64 h-64 rounded-full border-8 border-slate-200 bg-slate-900 flex items-center justify-center"
-                            onClick={() => handleBoardClick({ sector: 25, multiplier: 2, points: 50, label: 'Bullseye', position: new THREE.Vector3(0, BOARD_Y, BOARD_Z) })}
+                            onClick={() => handleBoardClick({ sector: 25, multiplier: 2, points: 50, get label() { return ui("Bullseye"); }, position: new THREE.Vector3(0, BOARD_Y, BOARD_Z) })}
                         >
                             <span className="w-12 h-12 rounded-full bg-red-600 border-8 border-green-600" />
                         </button>
@@ -1212,15 +1212,14 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                     <div className="absolute inset-0 z-20 pointer-events-none flex items-end justify-center p-5 sm:p-7 bg-gradient-to-t from-black/55 via-transparent to-black/15">
                         <div className="w-full max-w-xl flex items-center justify-between gap-4 rounded-2xl border border-amber-200/25 bg-black/55 px-4 py-3 text-white shadow-2xl backdrop-blur-md pointer-events-auto">
                             <div>
-                                <div className="font-display text-lg sm:text-2xl font-black tracking-wide text-amber-100">Welcome to the old bar</div>
-                                <div className="text-xs sm:text-sm text-amber-50/70">Taking you to the dartboard…</div>
+                                <div className="font-display text-lg sm:text-2xl font-black tracking-wide text-amber-100">{ui("Welcome to the old bar")}</div>
+                                <div className="text-xs sm:text-sm text-amber-50/70">{ui("Taking you to the dartboard…")}</div>
                             </div>
                             <button
                                 onClick={() => setIntroActive(false)}
                                 className="shrink-0 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold hover:bg-white/20 transition-colors"
                             >
-                                Skip
-                            </button>
+                                {ui("Skip")}</button>
                         </div>
                     </div>
                 )}
@@ -1232,16 +1231,15 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 <div className="pointer-events-auto bg-black/60 text-white px-4 py-3 rounded-2xl shadow-lg backdrop-blur-md border border-white/20 flex items-center justify-between gap-3">
                                     <div className="min-w-0">
                                         <div className="font-display font-black text-[clamp(16px,4.2vw,22px)] leading-tight whitespace-normal break-words" style={{ fontFamily: CHALK_FONT }}>
-                                            {teamNames[currentTeam]}'s Turn
-                                        </div>
+                                            {ui("{team}’s Turn", {team: displayTeamName(teamNames[currentTeam])})}</div>
                                         <div className="text-[clamp(12px,3.2vw,16px)] text-white/80 leading-tight whitespace-normal break-words" style={{ fontFamily: CHALK_FONT }}>
-                                            {is301 ? `You require ${Math.max(scores[currentTeam], 0)}` : 'Click board to aim'}
+                                            {is301 ? ui("You require {Math.max(scores[currentTeam], 0)}", { "Math.max(scores[currentTeam], 0)": (Math.max(scores[currentTeam], 0)) }) : ui("Click board to aim")}
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => setShowAimOverlay(false)}
                                         className="w-8 h-8 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition-colors flex-shrink-0"
-                                        title="Dismiss"
+                                        title={ui("Dismiss")}
                                     >
                                         <XIcon size={16} />
                                     </button>
@@ -1253,14 +1251,12 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             <div className="bg-white/10 backdrop-blur-md p-6 sm:p-10 rounded-3xl border-4 border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col items-center animate-bounce-slow">
                                 <Target size={56} className="text-brand-yellow mb-4 drop-shadow-lg sm:w-20 sm:h-20" />
                                 <div className="text-white text-3xl sm:text-6xl font-display font-black mb-2 drop-shadow-xl uppercase tracking-wider text-center" style={{ textShadow: '0 4px 0 #000' }}>
-                                    {teamNames[currentTeam]}
+                                    {displayTeamName(teamNames[currentTeam])}
                                 </div>
                                 <div className="text-sky-300 font-mono font-bold text-sm sm:text-2xl tracking-[0.3em] uppercase bg-black/50 px-4 sm:px-6 py-2 rounded-full border border-sky-500/50 shadow-inner">
-                                    Your Turn
-                                </div>
+                                    {ui("Your Turn")}</div>
                                 <div className="mt-4 sm:mt-6 text-white/80 font-bold text-sm sm:text-lg animate-pulse">
-                                    CLICK BOARD TO AIM
-                                </div>
+                                    {ui("CLICK BOARD TO AIM")}</div>
                             </div>
                         </div>
                     )
@@ -1274,10 +1270,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             </div>
                             <div className={`${isMobileViewport ? 'text-[clamp(14px,4vw,22px)]' : 'text-3xl'} text-white font-bold mt-2`}>
                                 {is301 
-                                    ? (turnResult.score === 0 ? 'Invalid / Bust' : `-${turnResult.score}`)
+                                    ? (turnResult.score === 0 ? ui("Invalid / Bust") : `-${turnResult.score}`)
                                     : (turnResult.score > 0 ? `+${turnResult.score}` : '0')
-                                } Points
-                            </div>
+                                } {ui(" Points")}</div>
                         </div>
                     </div>
                 )}
@@ -1291,9 +1286,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-gradient-to-r from-[#32170f] via-[#6b351f] to-[#32170f] text-amber-50 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-amber-500/45 shadow-[inset_0_-8px_18px_rgba(0,0,0,0.3)]">
-                                    <div className="font-bold text-sm sm:text-xl text-amber-100/90 truncate max-w-[40%]">{teamNames[currentTeam]}'s Turn</div>
-                                    <div className="bg-black/35 border border-amber-300/45 px-3 py-1 rounded-full font-black text-sm sm:text-xl text-amber-200 shadow-inner">Target: {lockedTarget?.label}</div>
-                                    <div className="font-bold text-sm sm:text-xl text-amber-100/80 text-right">{lockedTarget?.points} Points</div>
+                                    <div className="font-bold text-sm sm:text-xl text-amber-100/90 truncate max-w-[40%]">{ui("{team}’s Turn", {team: displayTeamName(teamNames[currentTeam])})}</div>
+                                    <div className="bg-black/35 border border-amber-300/45 px-3 py-1 rounded-full font-black text-sm sm:text-xl text-amber-200 shadow-inner">{ui("Target: ")}{lockedTarget?.label}</div>
+                                    <div className="font-bold text-sm sm:text-xl text-amber-100/80 text-right">{lockedTarget?.points} {ui(" Points")}</div>
                                 </div>
 
                                 <div className={`bg-[#0f1b14] flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`} style={chalkboardStyle}>
@@ -1312,7 +1307,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                         onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                         role={isMobileViewport ? undefined : 'button'}
                                                         tabIndex={isMobileViewport ? -1 : 0}
-                                                        title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                        title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                         className={`h-full w-full rounded-xl object-contain border border-amber-200/30 bg-black/35 shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                     />
                                                 </div>
@@ -1394,7 +1389,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                 role={isMobileViewport ? undefined : 'button'}
                                                 tabIndex={isMobileViewport ? -1 : 0}
-                                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                 className={`h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain border border-amber-200/30 bg-black/35 shadow-[0_10px_24px_rgba(0,0,0,0.35)] ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                             />
                                             <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
@@ -1482,7 +1477,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-400 transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
                                             )}
                                             <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-amber-50 tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
-                                                {isTimesUp ? "TIME'S UP!" : (
+                                                {isTimesUp ? ui("TIME'S UP!") : (
                                                     <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                 )}
                                             </div>
@@ -1494,8 +1489,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                 onClick={() => setIsFlipped(true)}
                                                 className="bg-gradient-to-b from-amber-300 to-amber-500 text-[#24120b] border border-amber-100/70 px-6 sm:px-12 py-2 rounded-full font-black text-base sm:text-xl shadow-[0_8px_20px_rgba(0,0,0,0.4)] hover:from-amber-200 hover:to-amber-400 hover:scale-105 transition-transform relative z-50 flex items-center"
                                             >
-                                                Check Answer
-                                            </button>
+                                                {ui("Check Answer")}</button>
                                         </div>
                                     )}
                                 </div>
@@ -1503,15 +1497,15 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-gradient-to-r from-[#32170f] via-[#6b351f] to-[#32170f] text-amber-100 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-amber-500/45 shadow-[inset_0_-8px_18px_rgba(0,0,0,0.3)]">
-                                    <div className="font-black text-sm sm:text-xl tracking-wide">Answer</div>
-                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-black/30 border border-amber-200/30 rounded-full hover:bg-amber-300/20 text-amber-100" title="Flip Back"><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
+                                    <div className="font-black text-sm sm:text-xl tracking-wide">{ui("Answer")}</div>
+                                    <button onClick={() => setIsFlipped(false)} className="p-2 bg-black/30 border border-amber-200/30 rounded-full hover:bg-amber-300/20 text-amber-100" title={ui("Flip Back")}><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
                                 </div>
 
                                 <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[#0f1b14] text-center overflow-hidden w-full relative z-0" style={chalkboardStyle}>
                                     <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
                                         {hasOptions && mcResult && (
                                             <div className="animate-bounce mb-4 sm:mb-8">
-                                                {mcResult === 'correct' ? <div className="text-3xl sm:text-6xl font-black text-green-500 uppercase">Correct!</div> : <div className="text-3xl sm:text-6xl font-black text-red-500 uppercase">Incorrect</div>}
+                                                {mcResult === 'correct' ? <div className="text-3xl sm:text-6xl font-black text-green-500 uppercase">{ui("Correct!")}</div> : <div className="text-3xl sm:text-6xl font-black text-red-500 uppercase">{ui("Incorrect")}</div>}
                                             </div>
                                         )}
                                         <div
@@ -1526,11 +1520,11 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
                                 <div className="h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex gap-0 flex-shrink-0 relative z-50">
                                     {hasOptions ? (
-                                        <button onClick={() => handleThrow(mcResult === 'correct')} className={`flex-1 text-white font-bold text-base sm:text-2xl transition-colors flex items-center justify-center ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>Throw Dart</button>
+                                        <button onClick={() => handleThrow(mcResult === 'correct')} className={`flex-1 text-white font-bold text-base sm:text-2xl transition-colors flex items-center justify-center ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>{ui("Throw Dart")}</button>
                                     ) : (
                                         <>
-                                            <button onClick={() => handleThrow(false)} className="flex-1 bg-red-500 text-white font-bold text-base sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0"><XIcon size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Miss</button>
-                                            <button onClick={() => handleThrow(true)} className="flex-1 bg-green-500 text-white font-bold text-base sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0"><Check size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Hit!</button>
+                                            <button onClick={() => handleThrow(false)} className="flex-1 bg-red-500 text-white font-bold text-base sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0"><XIcon size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" Miss")}</button>
+                                            <button onClick={() => handleThrow(true)} className="flex-1 bg-green-500 text-white font-bold text-base sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0"><Check size={20} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" Hit!")}</button>
                                         </>
                                     )}
                                 </div>
@@ -1552,7 +1546,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                         <button
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
-                            title="Close"
+                            title={ui("Close")}
                         >
                             <XIcon size={18} />
                         </button>
@@ -1568,7 +1562,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -1584,18 +1578,18 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4">Edit Team</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-4">{ui("Edit Team")}</h3>
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Name</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Name")}</label>
                             <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-lg" />
                         </div>
                         <div className="mb-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Score</label>
+                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Score")}</label>
                             <input type="number" value={editScore} onChange={(e) => setEditScore(parseInt(e.target.value) || 0)} className="w-full p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-xl" />
                         </div>
                         <div className="flex gap-3">
-                            <button onClick={() => setEditingTeamIndex(null)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">Cancel</button>
-                            <button onClick={saveTeamEdit} className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600">Save</button>
+                            <button onClick={() => setEditingTeamIndex(null)} className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg">{ui("Cancel")}</button>
+                            <button onClick={saveTeamEdit} className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600">{ui("Save")}</button>
                         </div>
                     </div>
                 </div>
@@ -1605,21 +1599,19 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
-                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
                         <div className="flex space-x-4">
                             <button 
                                 onClick={() => setShowQuitConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button 
                                 onClick={() => { setShowQuitConfirm(false); onBack(); }}
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
-                                Quit
-                            </button>
+                                {ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -1628,15 +1620,14 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
-                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
@@ -1644,8 +1635,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
                             >
-                                End game
-                            </button>
+                                {ui("End game")}</button>
                         </div>
                     </div>
                 </div>

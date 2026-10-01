@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React from 'react';
 import { Clock } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export const LiveQuizTimerBar: React.FC<LiveQuizTimerBarProps> = ({
   elapsedMs,
   className = '',
 }) => {
+  useUiLanguage();
   const remainingMs = Math.max(0, (timerSeconds * 1000) - elapsedMs);
   const progress = Math.max(0, Math.min(1, remainingMs / (timerSeconds * 1000)));
   const isUrgent = timeLeft <= 5;
@@ -24,7 +26,7 @@ export const LiveQuizTimerBar: React.FC<LiveQuizTimerBarProps> = ({
   return (
     <div
       className={`relative h-10 overflow-hidden rounded-t-2xl border-b border-slate-200/80 bg-slate-100 transition-opacity duration-700 ease-out ${shouldShowContent ? 'opacity-100' : 'opacity-0'} ${className}`}
-      aria-label={shouldShowContent ? `${timeLeft} seconds remaining` : undefined}
+      aria-label={shouldShowContent ? ui("{timeLeft} seconds remaining", { "timeLeft": (timeLeft) }) : undefined}
       aria-hidden={!shouldShowContent}
     >
       <div
@@ -35,8 +37,7 @@ export const LiveQuizTimerBar: React.FC<LiveQuizTimerBarProps> = ({
       <div className="relative z-10 flex h-full items-center justify-between px-4 text-slate-900">
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide">
           <Clock size={15} />
-          Time remaining
-        </div>
+          {ui("Time remaining")}</div>
         <div className={`rounded-full border px-3 py-0.5 text-xs font-black shadow-sm ${isUrgent && shouldShowContent ? 'border-red-200 bg-white text-red-600' : 'border-slate-200 bg-white/90 text-slate-950'}`}>
           {timeLeft}s
         </div>

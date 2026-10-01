@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Building2, Check, GraduationCap, X } from 'lucide-react';
@@ -12,8 +13,8 @@ type Feedback = { type: 'success' | 'error'; text: string } | null;
 
 const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features: string[] }> = {
   free: {
-    title: 'Starter',
-    subtitle: 'Manual tools for everything, no built-in AI generation.',
+    get title() { return ui("Starter"); },
+    get subtitle() { return ui("Manual tools for everything, no built-in AI generation."); },
     features: [
       'Use all manual creation tools',
       'Save and share games',
@@ -22,8 +23,8 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
     ]
   },
   teacher: {
-    title: 'Teacher Plan',
-    subtitle: 'Currently free during early access. Includes AI game credits for one teacher.',
+    get title() { return ui("Teacher Plan"); },
+    get subtitle() { return ui("Currently free during early access. Includes AI game credits for one teacher."); },
     features: [
       'Credits for approximately 50 AI-created games per month',
       'Unlimited manual game creation',
@@ -32,8 +33,8 @@ const PLAN_DEFS: Record<AccountType, { title: string; subtitle: string; features
     ]
   },
   school: {
-    title: 'School Plan',
-    subtitle: 'Currently free during early access for schools testing the platform.',
+    get title() { return ui("School Plan"); },
+    get subtitle() { return ui("Currently free during early access for schools testing the platform."); },
     features: [
       'AI game credits for each teacher account',
       'Minimum 5 teacher seats',
@@ -49,6 +50,7 @@ interface ChangePlanProps {
 }
 
 export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => {
+  useUiLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, refreshUserAccess, completePlanSelection } = useAuth();
@@ -100,7 +102,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     if (error) {
       setFeedback({
         type: 'error',
-        text: getErrorMessage(error, 'Your account was updated, but onboarding could not be completed.')
+        text: getErrorMessage(error, ui("Your account was updated, but onboarding could not be completed."))
       });
       return false;
     }
@@ -126,8 +128,8 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     if (user.accountType === 'school' && (target === 'teacher' || target === 'free')) {
       const isSchoolTeacher = user.schoolAccess?.role === 'teacher';
       const confirmationMessage = isSchoolTeacher
-        ? `Switch to ${target === 'teacher' ? 'Teacher Plan' : 'Starter'}? This removes your school membership for this account.`
-        : `Switch to ${target === 'teacher' ? 'Teacher Plan' : 'Starter'}? This removes your active school membership for this account. Downgrades are only allowed when all school members are inactive. If you own the school, affiliated members are moved to Starter.`;
+        ? ui("Switch to {target === 'teacher' ? 'Teacher Plan' : 'Starter'}? This removes your school membership for this account.", { "target === 'teacher' ? 'Teacher Plan' : 'Starter'": (target === 'teacher' ? ui('Teacher Plan') : ui('Starter')) })
+        : ui("Switch to {target === 'teacher' ? 'Teacher Plan' : 'Starter'}? This removes your active school membership for this account. Downgrades are only allowed when all school members are inactive. If you own the school, affiliated members are moved to Starter.", { "target === 'teacher' ? 'Teacher Plan' : 'Starter'": (target === 'teacher' ? ui('Teacher Plan') : ui('Starter')) });
       const confirmed = window.confirm(
         confirmationMessage
       );
@@ -155,7 +157,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     }
 
     setPendingTarget(null);
-    setFeedback({ type: 'success', text: `Plan switched to ${PLAN_DEFS[target].title}.` });
+    setFeedback({ type: 'success', text: ui("Plan switched to {PLAN_DEFS[target].title}.", { "PLAN_DEFS[target].title": (PLAN_DEFS[target].title) }) });
   };
 
   const handlePickSchoolLogo = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,7 +166,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     if (!file) return;
 
     if (!file.type || !file.type.startsWith('image/')) {
-      setFeedback({ type: 'error', text: 'Please choose an image file for your school logo.' });
+      setFeedback({ type: 'error', text: ui("Please choose an image file for your school logo.") });
       return;
     }
 
@@ -177,7 +179,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
     const cleanSchoolName = schoolName.trim();
     if (!cleanSchoolName) {
-      setFeedback({ type: 'error', text: 'Please enter your school name.' });
+      setFeedback({ type: 'error', text: ui("Please enter your school name.") });
       return;
     }
 
@@ -191,7 +193,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
     if (error) {
       setPendingTarget(null);
-      setFeedback({ type: 'error', text: getErrorMessage(error, 'Could not switch to School Plan.') });
+      setFeedback({ type: 'error', text: getErrorMessage(error, ui("Could not switch to School Plan.")) });
       return;
     }
 
@@ -204,7 +206,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         await refreshUserAccess();
         setFeedback({
           type: 'error',
-          text: `Plan switched to School Plan, but logo upload failed: ${getErrorMessage(logoError, 'Please try again.')}`
+          text: ui("Plan switched to School Plan, but logo upload failed: {getErrorMessage(logoError, 'Please try again.')}", { "getErrorMessage(logoError, 'Please try again.')": (getErrorMessage(logoError, 'Please try again.')) })
         });
         return;
       }
@@ -222,17 +224,17 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
     }
 
     setPendingTarget(null);
-    setFeedback({ type: 'success', text: 'Plan switched to School Plan.' });
+    setFeedback({ type: 'success', text: ui("Plan switched to School Plan.") });
   };
 
-  const pageTitle = isOnboarding ? 'Choose Your Plan' : 'Change Plan';
+  const pageTitle = isOnboarding ? ui("Choose Your Plan") : ui("Change Plan");
   const pageDescription = isOnboarding
-    ? 'Your account is confirmed. Teacher Plan is free during early access, so you can start creating games straight away.'
-    : 'Choose the plan that fits now. These plans are free during early access, and no credit card information is required to sign up.';
+    ? ui("Your account is confirmed. Teacher Plan is free during early access, so you can start creating games straight away.")
+    : ui("Choose the plan that fits now. These plans are free during early access, and no credit card information is required to sign up.");
   const badgeText =
     isOnboarding && user?.accountType === 'teacher'
-      ? 'Default: Teacher Plan'
-      : `Current: ${PLAN_DEFS[user?.accountType || 'free'].title}`;
+      ? ui("Default: Teacher Plan")
+      : ui("Current: {PLAN_DEFS[user?.accountType || 'free'].title}", { "PLAN_DEFS[user?.accountType || 'free'].title": (PLAN_DEFS[user?.accountType || 'free'].title) });
 
   if (!user) {
     return (
@@ -241,16 +243,15 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{pageTitle}</h1>
           <p className="text-slate-500 mb-6">
             {isOnboarding
-              ? 'Sign up or log in first to choose a plan.'
-              : 'Sign up or log in first to change your plan.'}
+              ? ui("Sign up or log in first to choose a plan.")
+              : ui("Sign up or log in first to change your plan.")}
           </p>
           <button
             type="button"
             onClick={() => promptSignupForFree('Create a free account on the Teacher Plan to continue.')}
             className="px-6 py-3 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
           >
-            Sign Up Free
-          </button>
+            {ui("Sign Up Free")}</button>
         </div>
       </div>
     );
@@ -265,7 +266,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               type="button"
               onClick={() => setShowBetaNotice(false)}
               className="absolute right-4 top-4 rounded-full bg-slate-100 p-1 text-slate-500 hover:text-slate-700"
-              aria-label="Close beta trial notice"
+              aria-label={ui("Close beta trial notice")}
             >
               <X size={18} />
             </button>
@@ -275,17 +276,15 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               imageClassName="h-16 w-16 object-contain"
               nameClassName="mt-2 font-display text-xl font-bold text-slate-800"
             />
-            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">Early Access Period</h2>
+            <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("Early Access Period")}</h2>
             <p className="text-sm leading-relaxed text-slate-600">
-              The Teacher Plan and School Plan are free during early access, and no credit card information is required to sign up.
-            </p>
+              {ui("The Teacher Plan and School Plan are free during early access, and no credit card information is required to sign up.")}</p>
             <button
               type="button"
               onClick={() => setShowBetaNotice(false)}
               className="mt-6 w-full rounded-xl bg-brand-blue py-3 font-bold text-white hover:bg-sky-600 transition-colors"
             >
-              Continue
-            </button>
+              {ui("Continue")}</button>
           </div>
         </div>
       )}
@@ -293,8 +292,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
           {!isOnboarding && (
             <Link to="/profile" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-800 mb-4">
-              <ArrowLeft size={14} className="mr-2" /> Back to Profile
-            </Link>
+              <ArrowLeft size={14} className="mr-2" /> {ui(" Back to Profile")}</Link>
           )}
           <h1 className="font-display text-3xl font-bold text-slate-800">{pageTitle}</h1>
           <p className="text-slate-500 mt-1">{pageDescription}</p>
@@ -321,17 +319,17 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               user.accountType === 'free' ? 'border-brand-blue' : 'border-slate-200'
             }`}
           >
-            <h2 className="text-xl font-bold text-slate-800 mb-1">Starter</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-1">{ui("Starter")}</h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.free.subtitle}</p>
             <ul className="space-y-2 mb-6">
               {PLAN_DEFS.free.features.map((feature) => (
-                <li key={feature} className="flex items-start text-sm text-slate-600">
+                <li key={ui(feature)} className="flex items-start text-sm text-slate-600">
                   {feature.includes('not included') ? (
                     <X size={15} className="text-red-500 mt-0.5 mr-2 shrink-0" />
                   ) : (
                     <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
                   )}
-                  {feature}
+                  {ui(feature)}
                 </li>
               ))}
             </ul>
@@ -347,15 +345,15 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             >
               {isOnboarding
                 ? pendingTarget === 'free'
-                  ? 'Continuing...'
+                  ? ui("Continuing...")
                   : user.accountType === 'free'
-                    ? 'Continue With Starter'
-                    : 'Switch To Starter'
+                    ? ui("Continue With Starter")
+                    : ui("Switch To Starter")
                 : user.accountType === 'free'
-                  ? 'Current Plan'
+                  ? ui("Current Plan")
                   : pendingTarget === 'free'
-                    ? 'Switching...'
-                    : 'Switch To Starter'}
+                    ? ui("Switching...")
+                    : ui("Switch To Starter")}
             </button>
           </section>
 
@@ -365,14 +363,13 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             }`}
           >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
-              <GraduationCap size={18} className="mr-2 text-brand-blue" /> Teacher Plan
-            </h2>
+              <GraduationCap size={18} className="mr-2 text-brand-blue" /> {ui(" Teacher Plan")}</h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.teacher.subtitle}</p>
             <ul className="space-y-2 mb-6">
               {PLAN_DEFS.teacher.features.map((feature) => (
-                <li key={feature} className="flex items-start text-sm text-slate-600">
+                <li key={ui(feature)} className="flex items-start text-sm text-slate-600">
                   <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
-                  {feature}
+                  {ui(feature)}
                 </li>
               ))}
             </ul>
@@ -389,16 +386,16 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               {isOnboarding
                 ? pendingTarget === 'teacher'
                   ? user.accountType === 'teacher'
-                    ? 'Continuing...'
-                    : 'Upgrading...'
+                    ? ui("Continuing...")
+                    : ui("Upgrading...")
                   : user.accountType === 'teacher'
-                    ? 'Continue With Teacher Plan'
-                    : 'Activate Teacher Plan'
+                    ? ui("Continue With Teacher Plan")
+                    : ui("Activate Teacher Plan")
                 : user.accountType === 'teacher'
-                  ? 'Current Plan'
+                  ? ui("Current Plan")
                   : pendingTarget === 'teacher'
-                    ? 'Switching...'
-                    : 'Switch To Teacher Plan'}
+                    ? ui("Switching...")
+                    : ui("Switch To Teacher Plan")}
             </button>
           </section>
 
@@ -408,14 +405,13 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
             }`}
           >
             <h2 className="text-xl font-bold text-slate-800 mb-1 flex items-center">
-              <Building2 size={18} className="mr-2 text-brand-blue" /> School Plan
-            </h2>
+              <Building2 size={18} className="mr-2 text-brand-blue" /> {ui(" School Plan")}</h2>
             <p className="text-sm text-slate-500 mb-4">{PLAN_DEFS.school.subtitle}</p>
             <ul className="space-y-2 mb-6">
               {PLAN_DEFS.school.features.map((feature) => (
-                <li key={feature} className="flex items-start text-sm text-slate-600">
+                <li key={ui(feature)} className="flex items-start text-sm text-slate-600">
                   <Check size={15} className="text-teal-500 mt-0.5 mr-2 shrink-0" />
-                  {feature}
+                  {ui(feature)}
                 </li>
               ))}
             </ul>
@@ -425,8 +421,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                 disabled
                 className="w-full py-2.5 rounded-lg font-bold bg-slate-100 text-slate-500 cursor-not-allowed"
               >
-                Current Plan
-              </button>
+                {ui("Current Plan")}</button>
             ) : (
               <button
                 type="button"
@@ -442,14 +437,14 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                 {isOnboarding
                   ? user.accountType === 'school'
                     ? pendingTarget === 'school'
-                      ? 'Continuing...'
-                      : 'Continue With School Plan'
+                      ? ui("Continuing...")
+                      : ui("Continue With School Plan")
                     : showSchoolSetup
-                      ? 'Hide School Setup'
-                      : 'Set Up School Plan'
+                      ? ui("Hide School Setup")
+                      : ui("Set Up School Plan")
                   : showSchoolSetup
-                    ? 'Hide School Setup'
-                    : 'Switch To School Plan'}
+                    ? ui("Hide School Setup")
+                    : ui("Switch To School Plan")}
               </button>
             )}
           </section>
@@ -457,27 +452,27 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
         {showSchoolSetup && user.accountType !== 'school' && (
           <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-1">School Setup</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-1">{ui("School Setup")}</h3>
             <p className="text-sm text-slate-500 mb-4">
               {isOnboarding
-                ? 'Add the basics for your school account. You can adjust the rest later.'
-                : 'Add initial school details to switch to School Plan.'}
+                ? ui("Add the basics for your school account. You can adjust the rest later.")
+                : ui("Add initial school details to switch to School Plan.")}
             </p>
             <form onSubmit={handleConfirmSchoolPlan} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className={isOnboarding ? 'md:col-span-3' : 'md:col-span-2'}>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">School Name</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{ui("School Name")}</label>
                   <input
                     value={schoolName}
                     onChange={(event) => setSchoolName(event.target.value)}
-                    placeholder="My School"
+                    placeholder={ui("My School")}
                     className="w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-brand-blue focus:border-brand-blue outline-none text-sm"
                     required
                   />
                 </div>
                 {!isOnboarding && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">number of teacher spots</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{ui("number of teacher spots")}</label>
                     <input
                       type="number"
                       min={5}
@@ -489,7 +484,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                   </div>
                 )}
                 <div className="md:col-span-3">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">School logo (optional)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">{ui("School logo (optional)")}</label>
                   <input
                     ref={schoolLogoInputRef}
                     type="file"
@@ -503,10 +498,9 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
                       onClick={() => schoolLogoInputRef.current?.click()}
                       className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      Choose Logo File
-                    </button>
+                      {ui("Choose Logo File")}</button>
                     <span className="text-xs text-slate-500">
-                      {schoolLogoFile ? schoolLogoFile.name : 'No file selected'}
+                      {schoolLogoFile ? schoolLogoFile.name : ui("No file selected")}
                     </span>
                   </div>
                 </div>
@@ -520,11 +514,11 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
               >
                 {pendingTarget === 'school'
                   ? isOnboarding
-                    ? 'Creating...'
-                    : 'Switching...'
+                    ? ui("Creating...")
+                    : ui("Switching...")
                   : isOnboarding
-                    ? 'Continue With School Plan'
-                    : 'Confirm School Plan'}
+                    ? ui("Continue With School Plan")
+                    : ui("Confirm School Plan")}
               </button>
             </form>
           </section>
@@ -533,8 +527,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         {user.accountType === 'school' && user.schoolAccess?.role === 'admin' && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 text-sm flex items-start">
             <AlertCircle size={16} className="mr-2 mt-0.5 shrink-0" />
-            School accounts can switch away from the School Plan only when all school members are inactive. If the owner switches away, affiliated members move to Starter.
-          </div>
+            {ui("School accounts can switch away from the School Plan only when all school members are inactive. If the owner switches away, affiliated members move to Starter.")}</div>
         )}
       </div>
     </div>

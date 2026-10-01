@@ -1,5 +1,6 @@
 import { BlogPost } from '../types';
 import { valenciaRainBlogPost } from './blogRainOnlineLearning';
+import { spanishBlogPosts } from './blogPosts.es';
 
 export const blogPosts: BlogPost[] = [
     valenciaRainBlogPost,
@@ -133,3 +134,8 @@ export const blogPosts: BlogPost[] = [
 ];
 
 export const publicBlogPosts = blogPosts.filter((post) => post.id !== 4);
+
+// Select editorial translations for display; keep the English source and routes intact.
+export const getPublicBlogPosts = (language: 'en' | 'es'): BlogPost[] => language === 'es'
+    ? publicBlogPosts.map(post => ({ ...post, ...spanishBlogPosts[post.id] }))
+    : publicBlogPosts;

@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, User, ArrowRight, Loader2, Mic } from 'lucide-react';
@@ -21,12 +22,13 @@ interface Message {
 }
 
 export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGameGenerated }) => {
+  useUiLanguage();
     const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([
-        { 
-            id: 'init', 
-            role: 'ai', 
-            text: "Hi! I'm your Game Design Assistant. Tell me a bit about your class, topic, or learning goals, and I'll recommend the best game for you." 
+        {
+            id: 'init',
+            role: 'ai',
+            text: ui("Hi! I'm your Game Design Assistant. Tell me a bit about your class, topic, or learning goals, and I'll recommend the best game for you.")
         }
     ]);
     const [input, setInput] = useState('');
@@ -137,9 +139,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         try {
             // Convert internal history to simple format for API
             const history = messages.map(m => ({ role: m.role, text: m.text }));
-            
+
             const response = await chatWithGameWizard(userMsg.text, history);
-            
+
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'ai',
@@ -147,7 +149,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                 suggestion: response.suggestion,
                 suggestions: response.suggestions
             };
-            
+
             setMessages(prev => [...prev, aiMsg]);
         } catch (error) {
             console.error(error);
@@ -197,7 +199,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                 questionType: baseConfig.questionType || 'mixed',
                 isAI: true
             });
-            
+
             const game = await generateGameContent(finalConfig);
             onGameGenerated(game);
         } catch (error) {
@@ -223,8 +225,8 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg leading-tight">AI Assistant</h3>
-                            <p className="text-xs text-sky-100 opacity-80">Game Consultant</p>
+                            <h3 className="font-bold text-lg leading-tight">{ui("AI Assistant")}</h3>
+                            <p className="text-xs text-sky-100 opacity-80">{ui("Game Consultant")}</p>
                         </div>
                     </div>
                     <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
@@ -237,15 +239,15 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-1' : 'order-2'}`}>
-                                <div 
+                                <div
                                     className={`px-4 py-3 rounded-2xl text-sm shadow-sm
-                                    ${msg.role === 'user' 
-                                        ? 'bg-brand-blue text-white rounded-br-none' 
+                                    ${msg.role === 'user'
+                                        ? 'bg-brand-blue text-white rounded-br-none'
                                         : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'}`}
                                 >
                                     {msg.text}
                                 </div>
-                                
+
                                 {/* Suggestion Cards */}
                                 {(() => {
                                     const suggestionList = msg.suggestions?.length
@@ -272,7 +274,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                             className="h-5 w-5 rounded-md object-cover"
                                                         />
                                                         <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
-                                                            {index === 0 ? 'Best Fit' : `Alternative ${index + 1}`}
+                                                            {index === 0 ? ui("Best Fit") : ui("Alternative {index + 1}", { "index + 1": (index + 1) })}
                                                         </span>
                                                     </div>
                                                     <h4 className="font-display font-bold text-lg text-slate-800 mb-1">{suggestion.title}</h4>
@@ -289,9 +291,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                         className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center"
                                                     >
                                                         {isThisSuggestionGenerating ? (
-                                                            <><Loader2 size={16} className="animate-spin mr-2" /> Creating...</>
+                                                            <><Loader2 size={16} className="animate-spin mr-2" /> {ui(" Creating...")}</>
                                                         ) : (
-                                                            <>Generate This Game <ArrowRight size={16} className="ml-2" /></>
+                                                            <>{ui("Generate This Game ")}<ArrowRight size={16} className="ml-2" /></>
                                                         )}
                                                     </button>
                                                 </div>
@@ -301,7 +303,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                     );
                                 })()}
                             </div>
-                            
+
                             {/* Avatar */}
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0 mt-auto mx-2 shadow-sm
                                 ${msg.role === 'user' ? 'bg-sky-100 order-2' : 'bg-indigo-100 order-1'}`}>
@@ -318,7 +320,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             </div>
                         </div>
                     ))}
-                    
+
                     {isTyping && (
                         <div className="flex justify-start">
                             <div className="bg-indigo-100 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden mr-2 order-1">
@@ -345,7 +347,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Describe your lesson topic..."
+                            placeholder={ui("Describe your lesson topic...")}
                             className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue focus:bg-white transition-all text-sm"
                             disabled={isTyping || isGenerating}
                         />
@@ -353,7 +355,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             type="button"
                             onClick={toggleDictation}
                             disabled={isTyping || isGenerating || dictation.isBusy}
-                            title={dictation.isListening ? 'Stop dictation' : 'Start dictation'}
+                            title={dictation.isListening ? ui("Stop dictation") : ui("Start dictation")}
                             className={`absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-lg border transition-colors
                                 ${dictation.isListening ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-blue hover:text-brand-blue'}
                                 ${dictation.isBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -365,7 +367,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                 )}
                             </span>
                         </button>
-                        <button 
+                        <button
                             type="submit"
                             disabled={!input.trim() || isTyping || isGenerating}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-brand-blue text-white rounded-lg hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

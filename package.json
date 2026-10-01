@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "vite",
     "dev:full": "node scripts/dev-full.mjs",
-    "build": "npm run typecheck && npm run privacy:validate && npm run seo:sitemap && vite build && npm run seo:prerender && npm run seo:validate",
+    "build": "npm run typecheck && npm run i18n:validate && npm run privacy:validate && npm run seo:sitemap && vite build && npm run seo:prerender && npm run seo:validate",
     "typecheck": "npm run typecheck:app && npm run typecheck:server",
     "typecheck:app": "tsc --noEmit",
+    "i18n:validate": "node scripts/validate-interface-translations.mjs",
+    "i18n:inventory": "node scripts/inventory-interface-text.mjs",
     "typecheck:server": "node scripts/check-supabase-functions.mjs",
     "preview": "vite preview",
     "seo:sitemap": "node scripts/generate-sitemap.mjs",

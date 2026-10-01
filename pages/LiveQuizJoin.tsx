@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn, RotateCcw } from 'lucide-react';
@@ -12,6 +13,7 @@ import { LiveQuizParticipant, LiveQuizSession } from '../types';
 import { LIVE_QUIZ_AVATAR_OPTIONS, LIVE_QUIZ_NAME_MAX_LENGTH, LiveQuizAvatarIcon, makeLiveQuizDisplayName, parseLiveQuizDisplayName } from '../components/games/liveQuizAvatars';
 
 export const LiveQuizJoin: React.FC = () => {
+  useUiLanguage();
   const { joinCode = '' } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<LiveQuizSession | null>(null);
@@ -96,8 +98,8 @@ export const LiveQuizJoin: React.FC = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-600">
             <AlertTriangle size={22} />
           </div>
-          <h1 className="text-2xl font-black text-slate-900">Live quiz not found</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">Ask your teacher to check the join code.</p>
+          <h1 className="text-2xl font-black text-slate-900">{ui("Live quiz not found")}</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-500">{ui("Ask your teacher to check the join code.")}</p>
         </div>
       </div>
     );
@@ -108,15 +110,14 @@ export const LiveQuizJoin: React.FC = () => {
       <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-white p-5 text-slate-900 shadow-2xl sm:p-6">
         <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
           <LogIn size={14} />
-          Live Quiz
-        </div>
+          {ui("Live Quiz")}</div>
         <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-black leading-tight">{session.title}</h1>
-        <p className="mt-2 text-sm font-bold text-slate-500">Code {session.joinCode}</p>
+        <p className="mt-2 text-sm font-bold text-slate-500">{ui("Code ")}{session.joinCode}</p>
 
         {rememberedParticipant && (
           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <div className="text-sm font-black text-slate-900">Continue as {parseLiveQuizDisplayName(rememberedParticipant.displayName).name}</div>
-            <p className="mt-1 text-xs font-bold text-slate-600">Use this if your connection dropped or you refreshed the page.</p>
+            <div className="text-sm font-black text-slate-900">{ui("Continue as ")}{parseLiveQuizDisplayName(rememberedParticipant.displayName).name}</div>
+            <p className="mt-1 text-xs font-bold text-slate-600">{ui("Use this if your connection dropped or you refreshed the page.")}</p>
             <button
               type="button"
               onClick={() => void handleReconnect()}
@@ -124,7 +125,7 @@ export const LiveQuizJoin: React.FC = () => {
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow px-4 py-3 font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RotateCcw size={17} />
-              {reconnecting ? 'Reconnecting...' : 'Rejoin game'}
+              {reconnecting ? ui("Reconnecting...") : ui("Rejoin game")}
             </button>
           </div>
         )}
@@ -137,26 +138,25 @@ export const LiveQuizJoin: React.FC = () => {
           }}
         >
           <div>
-            <label className="mb-2 block text-sm font-black text-slate-700">Nickname or team name</label>
+            <label className="mb-2 block text-sm font-black text-slate-700">{ui("Nickname or team name")}</label>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-xl border border-slate-300 p-4 text-lg font-bold outline-none focus:ring-2 focus:ring-brand-yellow"
-              placeholder="Enter a nickname"
+              placeholder={ui("Enter a nickname")}
               maxLength={LIVE_QUIZ_NAME_MAX_LENGTH}
             />
             <div className="mt-1 text-right text-xs font-bold text-slate-400">
               {name.length}/{LIVE_QUIZ_NAME_MAX_LENGTH}
             </div>
             <div className="mt-2 text-xs leading-relaxed text-slate-500">
-              The Teachers&apos; Room uses your nickname and answers to run this quiz.{' '}
+              {ui("The Teachers' Room uses your nickname and answers to run this quiz.")}{' '}
               <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-black text-brand-blue hover:underline">
-                Privacy information
-              </a>
+                {ui("Privacy information")}</a>
             </div>
           </div>
           <div>
-            <div className="mb-2 text-sm font-black text-slate-700">Choose an avatar</div>
+            <div className="mb-2 text-sm font-black text-slate-700">{ui("Choose an avatar")}</div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {LIVE_QUIZ_AVATAR_OPTIONS.map((avatar) => (
                 <button
@@ -168,7 +168,7 @@ export const LiveQuizJoin: React.FC = () => {
                       ? 'border-brand-yellow bg-yellow-50 ring-2 ring-brand-yellow'
                       : 'border-slate-200 bg-white hover:bg-slate-50'
                   }`}
-                  aria-label="Choose avatar"
+                  aria-label={ui("Choose avatar")}
                 >
                   <LiveQuizAvatarIcon avatarId={avatar.id} className="h-11 w-11" iconSize={23} />
                 </button>
@@ -181,7 +181,7 @@ export const LiveQuizJoin: React.FC = () => {
             disabled={joining || !name.trim()}
             className="w-full rounded-xl bg-brand-yellow px-6 py-4 text-xl font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {joining ? 'Joining...' : 'Join Game'}
+            {joining ? ui("Joining...") : ui("Join Game")}
           </button>
         </form>
       </div>

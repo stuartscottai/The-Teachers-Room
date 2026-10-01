@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -71,12 +72,12 @@ const ANSWER_TILE_STYLES = [
 ];
 
 const LOBBY_TRACKS = [
-  { id: 'chill', label: 'Chill', src: '/assets/audio/live-quiz/chill.mp3' },
-  { id: 'relax', label: 'Relax', src: '/assets/audio/live-quiz/relax.mp3' },
-  { id: 'mystery', label: 'Mystery', src: '/assets/audio/live-quiz/mystery.mp3' },
-  { id: 'pop', label: 'Pop', src: '/assets/audio/live-quiz/pop.mp3' },
-  { id: 'strings', label: 'Strings', src: '/assets/audio/live-quiz/strings.mp3' },
-  { id: 'cello', label: 'Cello', src: '/assets/audio/live-quiz/cello.mp3' },
+  { id: 'chill', get label() { return ui("Chill"); }, src: '/assets/audio/live-quiz/chill.mp3' },
+  { id: 'relax', get label() { return ui("Relax"); }, src: '/assets/audio/live-quiz/relax.mp3' },
+  { id: 'mystery', get label() { return ui("Mystery"); }, src: '/assets/audio/live-quiz/mystery.mp3' },
+  { id: 'pop', get label() { return ui("Pop"); }, src: '/assets/audio/live-quiz/pop.mp3' },
+  { id: 'strings', get label() { return ui("Strings"); }, src: '/assets/audio/live-quiz/strings.mp3' },
+  { id: 'cello', get label() { return ui("Cello"); }, src: '/assets/audio/live-quiz/cello.mp3' },
 ] as const;
 
 type LobbyTrackId = typeof LOBBY_TRACKS[number]['id'];
@@ -241,6 +242,7 @@ const LiveQuizAnswerGrid: React.FC<{
 };
 
 export const LiveQuizHost: React.FC = () => {
+  useUiLanguage();
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -458,7 +460,7 @@ export const LiveQuizHost: React.FC = () => {
     }
 
     const confirmed = window.confirm(
-      'Leaving the host screen will end this live quiz and disconnect all participants. Students will need a new live quiz link or code to play again. Continue?'
+      ui("Leaving the host screen will end this live quiz and disconnect all participants. Students will need a new live quiz link or code to play again. Continue?")
     );
     if (!confirmed) return;
 
@@ -519,7 +521,7 @@ export const LiveQuizHost: React.FC = () => {
 
   const removeParticipant = async (participant: LiveQuizParticipant) => {
     if (!session || removingParticipantId) return;
-    const confirmed = window.confirm(`Remove ${parseLiveQuizDisplayName(participant.displayName).name} from this live quiz? Their answers and score will be removed.`);
+    const confirmed = window.confirm(ui("Remove {parseLiveQuizDisplayName(participant.displayName).name} from this live quiz? Their answers and score will be removed.", { "parseLiveQuizDisplayName(participant.displayName).name": (parseLiveQuizDisplayName(participant.displayName).name) }));
     if (!confirmed) return;
     setRemovingParticipantId(participant.id);
     const result = await removeLiveQuizParticipant(session.id, participant.id);
@@ -536,7 +538,7 @@ export const LiveQuizHost: React.FC = () => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      alert(`Share this link:\n${joinUrl}`);
+      alert(ui("Share this link: {joinUrl}", { "joinUrl": (joinUrl) }));
     }
   };
 
@@ -546,10 +548,10 @@ export const LiveQuizHost: React.FC = () => {
         type="button"
         onClick={() => setMusicEnabled((value) => !value)}
         className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-black sm:gap-2 sm:px-3 sm:text-sm ${musicEnabled ? 'bg-sky-100 text-sky-800' : 'bg-white/10 text-white'}`}
-        title="Turn live quiz music on or off"
+        title={ui("Turn live quiz music on or off")}
       >
         <Music size={15} />
-        Music {musicEnabled ? 'On' : 'Off'}
+        {ui("Music ")}{musicEnabled ? ui("On") : ui("Off")}
       </button>
       {(session?.status === 'lobby' || session?.status === 'leaderboard') && (
         <div className="relative min-w-0">
@@ -557,7 +559,7 @@ export const LiveQuizHost: React.FC = () => {
             value={lobbyTrack}
             onChange={(event) => setLobbyTrack(event.target.value as LobbyTrackId)}
             className="h-10 w-[96px] appearance-none rounded-xl border border-white/20 bg-white px-3 pr-8 text-xs font-black text-slate-900 [-moz-appearance:none] [-webkit-appearance:none] sm:w-[150px] sm:px-4 sm:pr-12 sm:text-sm"
-            aria-label="Lobby music"
+            aria-label={ui("Lobby music")}
             style={{ backgroundImage: 'none' }}
           >
             {LOBBY_TRACKS.map((track) => (
@@ -577,10 +579,10 @@ export const LiveQuizHost: React.FC = () => {
         type="button"
         onClick={() => setShowJoinQr(true)}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-yellow px-3 py-2 text-xs font-black text-slate-900 shadow-sm hover:bg-yellow-300 sm:px-4 sm:text-sm"
-        title="Show join QR code"
+        title={ui("Show join QR code")}
       >
         <QrCode size={15} />
-        Code {session?.joinCode}
+        {ui("Code ")}{session?.joinCode}
       </button>
     </div>
   );
@@ -592,15 +594,14 @@ export const LiveQuizHost: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
               <QrCode size={14} />
-              Join live quiz
-            </div>
+              {ui("Join live quiz")}</div>
             <h2 className="mt-3 text-2xl font-black">{session.title}</h2>
           </div>
           <button
             type="button"
             onClick={() => setShowJoinQr(false)}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200"
-            aria-label="Close QR code"
+            aria-label={ui("Close QR code")}
           >
             <X size={20} />
           </button>
@@ -618,7 +619,7 @@ export const LiveQuizHost: React.FC = () => {
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-700 hover:bg-slate-50"
           >
             {copied ? <CheckCircle size={18} /> : <Copy size={18} />}
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? ui("Copied") : ui("Copy")}
           </button>
         </div>
       </div>
@@ -638,8 +639,8 @@ export const LiveQuizHost: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="rounded-2xl bg-white p-8 text-center shadow-xl">
-          <h1 className="text-2xl font-black text-slate-900">Host access required</h1>
-          <p className="mt-2 text-slate-500">Sign in as the teacher who created this live quiz.</p>
+          <h1 className="text-2xl font-black text-slate-900">{ui("Host access required")}</h1>
+          <p className="mt-2 text-slate-500">{ui("Sign in as the teacher who created this live quiz.")}</p>
         </div>
       </div>
     );
@@ -662,7 +663,7 @@ export const LiveQuizHost: React.FC = () => {
       <div className="relative min-h-[calc(100vh-4rem)] bg-slate-950">
         <WinnerCeremonyHero
           winnerHeadline={winners.length > 1 ? `WINNERS: ${winners.map((winner) => winner.name).join(' & ')}` : `${winners[0]?.name || 'Winner'} wins!`}
-          subtitle="Live Quiz Challenge final standings"
+          subtitle={ui("Live Quiz Challenge final standings")}
           ranking={finalRanking}
           isMobileViewport={isMobileViewport}
           musicEnabled={musicEnabled}
@@ -671,8 +672,8 @@ export const LiveQuizHost: React.FC = () => {
         >
           <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-              <h2 className="font-display text-2xl font-black text-white sm:text-3xl">Final positions</h2>
-              <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{finalRanking.length} teams</p>
+              <h2 className="font-display text-2xl font-black text-white sm:text-3xl">{ui("Final positions")}</h2>
+              <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{finalRanking.length} {ui(" teams")}</p>
             </div>
             <div className="grid gap-3">
               {finalRanking.map((entry, index) => {
@@ -696,11 +697,10 @@ export const LiveQuizHost: React.FC = () => {
                       <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
                         <div className="truncate font-display text-3xl font-black sm:text-4xl">{entry.name}</div>
                         <div className={`shrink-0 text-sm font-black uppercase tracking-wide sm:text-base ${rank <= 3 ? 'text-slate-700' : 'text-cyan-200'}`}>
-                          {getCorrectCount(submissions, entry.id || '')}/{questions.length} correct
-                        </div>
+                          {getCorrectCount(submissions, entry.id || '')}/{questions.length} {ui(" correct")}</div>
                       </div>
                     </div>
-                    <div className="text-right font-display text-2xl font-black sm:text-3xl">{entry.score.toLocaleString()} pts</div>
+                    <div className="text-right font-display text-2xl font-black sm:text-3xl">{entry.score.toLocaleString()} {ui(" pts")}</div>
                   </div>
                 );
               })}
@@ -718,8 +718,8 @@ export const LiveQuizHost: React.FC = () => {
         submissions={submissions}
         questionIndex={session.currentQuestionIndex}
         totalQuestions={questions.length}
-        title="Leaderboard"
-        subtitle={`Question ${session.currentQuestionIndex + 1} results`}
+        title={ui("Leaderboard")}
+        subtitle={ui("Question {session.currentQuestionIndex + 1} results", { "session.currentQuestionIndex + 1": (session.currentQuestionIndex + 1) })}
         removingParticipantId={removingParticipantId}
         onRemoveParticipant={(participant) => void removeParticipant(participant)}
         preferSingleLineRows
@@ -728,11 +728,10 @@ export const LiveQuizHost: React.FC = () => {
           <>
             <button onClick={nextQuestion} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">
               <SkipForward size={18} />
-              {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Next Question'}
+              {session.currentQuestionIndex + 1 >= questions.length ? ui("Final Podium") : ui("Next Question")}
             </button>
             <button onClick={() => void endGame()} disabled={busy} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-black text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50">
-              End Game
-            </button>
+              {ui("End Game")}</button>
           </>
         }
       />
@@ -746,8 +745,7 @@ export const LiveQuizHost: React.FC = () => {
         <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <button onClick={() => void exitHost()} className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 font-bold hover:bg-white/15">
             <ArrowLeft size={16} />
-            Games
-          </button>
+            {ui("Games")}</button>
           {HostTopControls}
         </div>
 
@@ -755,7 +753,7 @@ export const LiveQuizHost: React.FC = () => {
           <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2 lg:gap-5">
             <div className="flex min-h-0 flex-col rounded-3xl bg-white p-4 text-slate-900 shadow-2xl lg:p-5">
               <h1 className="text-[clamp(1.35rem,2vw,2.25rem)] font-black leading-tight">{session.title}</h1>
-              <p className="mt-1 text-base font-bold text-slate-500">{questions.length} live questions</p>
+              <p className="mt-1 text-base font-bold text-slate-500">{questions.length} {ui(" live questions")}</p>
               <div ref={lobbyQrContainerRef} className="mt-4 flex min-h-[230px] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 p-3 lg:min-h-0">
                 <QRCodeCanvas
                   value={joinUrl}
@@ -768,7 +766,7 @@ export const LiveQuizHost: React.FC = () => {
                 <div className="flex min-w-0 items-center justify-center rounded-2xl bg-slate-950 p-3 text-center font-mono text-[clamp(2rem,3.3vw,3.2rem)] font-black tracking-[0.2em] text-brand-yellow">{session.joinCode}</div>
                 <button onClick={copyJoinLink} className="flex min-w-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-xl font-black text-slate-700">
                   {copied ? <CheckCircle size={17} /> : <Copy size={17} />}
-                  {copied ? 'Copied' : 'Copy link'}
+                  {copied ? ui("Copied") : ui("Copy link")}
                 </button>
               </div>
               <button
@@ -777,13 +775,12 @@ export const LiveQuizHost: React.FC = () => {
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow px-4 py-3 text-xl font-black text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Play size={20} fill="currentColor" />
-                Start Game
-              </button>
+                {ui("Start Game")}</button>
             </div>
             <div className={`flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-md ${hasCrowdedLobby ? 'sm:p-4' : 'sm:p-6'}`}>
               <div className={`flex shrink-0 items-center gap-3 font-black ${hasCrowdedLobby ? 'mb-3 text-2xl' : 'mb-5 text-2xl sm:text-3xl'}`}>
                 <Users size={30} />
-                Players Joined ({participants.length})
+                {ui("Players Joined (")}{participants.length})
               </div>
               <div className={`grid min-h-0 flex-1 content-start overflow-y-auto overscroll-contain pr-1 ${
                 hasDenseLobby
@@ -806,8 +803,8 @@ export const LiveQuizHost: React.FC = () => {
                         type="button"
                         onClick={() => void removeParticipant(participant)}
                         disabled={removingParticipantId === participant.id}
-                        title={`Remove ${player.name}`}
-                        aria-label={`Remove ${player.name}`}
+                        title={ui("Remove {player.name}", { "player.name": (player.name) })}
+                        aria-label={ui("Remove {player.name}", { "player.name": (player.name) })}
                         className={`group flex w-full min-w-0 items-center text-left disabled:cursor-not-allowed disabled:opacity-50 ${hasDenseLobby ? 'gap-2' : 'gap-3'}`}
                       >
                         {player.avatarId && (
@@ -823,7 +820,7 @@ export const LiveQuizHost: React.FC = () => {
                   );
                 })}
               </div>
-              {participants.length === 0 && <div className="rounded-xl border border-white/10 p-8 text-center font-bold text-white/60">Waiting for players...</div>}
+              {participants.length === 0 && <div className="rounded-xl border border-white/10 p-8 text-center font-bold text-white/60">{ui("Waiting for players...")}</div>}
             </div>
           </div>
         ) : (
@@ -839,7 +836,7 @@ export const LiveQuizHost: React.FC = () => {
               <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-black uppercase tracking-wide text-brand-blue">
-                    Question {(session.currentQuestionIndex || 0) + 1} of {questions.length}
+                    {ui("Question {number} of {total}", { number: (session.currentQuestionIndex || 0) + 1, total: questions.length })}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -849,10 +846,9 @@ export const LiveQuizHost: React.FC = () => {
                     {roundComplete ? (
                       <>
                         <Check size={16} />
-                        Round complete
-                      </>
+                        {ui("Round complete")}</>
                     ) : (
-                      `${answeredCount}/${participants.length} answered`
+                      ui("{answeredCount}/{participants.length} answered", { "answeredCount": (answeredCount), "participants.length": (participants.length) })
                     )}
                   </div>
                 </div>
@@ -885,19 +881,17 @@ export const LiveQuizHost: React.FC = () => {
                   />
                 </div>
               ) : (
-                <div className="p-8 text-center font-black text-slate-500">No question loaded.</div>
+                <div className="p-8 text-center font-black text-slate-500">{ui("No question loaded.")}</div>
               )}
 
               <div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:gap-3">
                 {session.status === 'question' && (
                   <button onClick={() => void lockAnswers()} disabled={busy} className="rounded-xl bg-slate-900 px-5 py-3 font-black text-white">
-                    Lock Answers
-                  </button>
+                    {ui("Lock Answers")}</button>
                 )}
                 {['question', 'locked'].includes(session.status) && (
-                  <button onClick={() => void revealAnswer()} disabled={busy || !canRevealAnswer} className="rounded-xl bg-brand-blue px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45" title={canRevealAnswer ? 'Reveal answer' : 'Wait for every player to answer, for the timer to finish, or lock answers first'}>
-                    Reveal Answer
-                  </button>
+                  <button onClick={() => void revealAnswer()} disabled={busy || !canRevealAnswer} className="rounded-xl bg-brand-blue px-5 py-3 font-black text-white disabled:cursor-not-allowed disabled:opacity-45" title={canRevealAnswer ? ui("Reveal answer") : ui("Wait for every player to answer, for the timer to finish, or lock answers first")}>
+                    {ui("Reveal Answer")}</button>
                 )}
                 {session.status === 'reveal' && (
                   <button
@@ -905,12 +899,11 @@ export const LiveQuizHost: React.FC = () => {
                     disabled={busy}
                     className="rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900"
                   >
-                    {session.currentQuestionIndex + 1 >= questions.length ? 'Final Podium' : 'Show Leaderboard'}
+                    {session.currentQuestionIndex + 1 >= questions.length ? ui("Final Podium") : ui("Show Leaderboard")}
                   </button>
                 )}
                 <button onClick={() => void endGame()} disabled={busy} className="rounded-xl border border-slate-200 px-5 py-3 font-black text-slate-600 sm:ml-auto">
-                  End Game
-                </button>
+                  {ui("End Game")}</button>
               </div>
             </div>
 
@@ -922,13 +915,12 @@ export const LiveQuizHost: React.FC = () => {
                     <Trophy size={24} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xl font-black leading-tight">Leaderboard</div>
-                    <div className="text-xs font-black uppercase tracking-wide text-cyan-100/70">Live standings</div>
+                    <div className="text-xl font-black leading-tight">{ui("Leaderboard")}</div>
+                    <div className="text-xs font-black uppercase tracking-wide text-cyan-100/70">{ui("Live standings")}</div>
                   </div>
                 </div>
                 <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-black text-white/75">
-                  {participants.length} players
-                </div>
+                  {participants.length} {ui(" players")}</div>
               </div>
               <div className="relative z-10 space-y-3">
                 {displayedRanking.map((participant, index) => {
@@ -964,8 +956,8 @@ export const LiveQuizHost: React.FC = () => {
                           type="button"
                           onClick={() => void removeParticipant(participant)}
                           disabled={removingParticipantId === participant.id}
-                          title={`Remove ${player.name}`}
-                          aria-label={`Remove ${player.name}`}
+                          title={ui("Remove {player.name}", { "player.name": (player.name) })}
+                          aria-label={ui("Remove {player.name}", { "player.name": (player.name) })}
                           className="group relative z-10 flex min-w-0 items-center gap-3 text-left text-xl font-black disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-black ${rankBadgeClass}`}>
@@ -984,8 +976,8 @@ export const LiveQuizHost: React.FC = () => {
                                   ? 'border-emerald-200 bg-emerald-100 text-emerald-700'
                                   : 'border-white/20 bg-white/10 text-white/35'
                               }`}
-                              title={hasSubmittedCurrentAnswer ? `${player.name} has answered` : `${player.name} has not answered yet`}
-                              aria-label={hasSubmittedCurrentAnswer ? `${player.name} has answered` : `${player.name} has not answered yet`}
+                              title={hasSubmittedCurrentAnswer ? ui("{player.name} has answered", { "player.name": (player.name) }) : ui("{player.name} has not answered yet", { "player.name": (player.name) })}
+                              aria-label={hasSubmittedCurrentAnswer ? ui("{player.name} has answered", { "player.name": (player.name) }) : ui("{player.name} has not answered yet", { "player.name": (player.name) })}
                             >
                               {hasSubmittedCurrentAnswer ? <Check size={16} /> : ''}
                             </span>
@@ -999,8 +991,7 @@ export const LiveQuizHost: React.FC = () => {
                       </div>
                       {showRoundScores && participant.roundGain > 0 && (
                         <div className="relative z-10 mt-2 text-right text-sm font-black text-emerald-300">
-                          +{participant.roundGain} scored this round
-                        </div>
+                          +{participant.roundGain} {ui(" scored this round")}</div>
                       )}
                     </div>
                   );

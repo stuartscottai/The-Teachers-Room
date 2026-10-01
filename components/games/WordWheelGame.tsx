@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { QuestionCardZoomButton } from './QuestionCardZoomButton';
@@ -204,7 +205,7 @@ const buildHintPreview = (
 const getAnswerRevealTone = (status: WheelStatus) => {
     if (status === 'solved') {
         return {
-            label: 'Correct',
+            get label() { return ui("Correct"); },
             listRowClass: 'bg-emerald-500/15 border-emerald-300/45 hover:bg-emerald-500/25',
             listAnswerClass: 'text-emerald-200',
             badgeClass: 'bg-emerald-500/20 text-emerald-100 border-emerald-300/40',
@@ -214,7 +215,7 @@ const getAnswerRevealTone = (status: WheelStatus) => {
     }
     if (status === 'passed') {
         return {
-            label: 'Passed',
+            get label() { return ui("Passed"); },
             listRowClass: 'bg-amber-500/15 border-amber-300/45 hover:bg-amber-500/25',
             listAnswerClass: 'text-amber-100',
             badgeClass: 'bg-amber-500/20 text-amber-100 border-amber-300/40',
@@ -223,7 +224,7 @@ const getAnswerRevealTone = (status: WheelStatus) => {
         };
     }
     return {
-        label: 'Failed',
+        get label() { return ui("Failed"); },
         listRowClass: 'bg-rose-500/15 border-rose-300/45 hover:bg-rose-500/25',
         listAnswerClass: 'text-rose-200',
         badgeClass: 'bg-rose-500/20 text-rose-100 border-rose-300/40',
@@ -346,6 +347,7 @@ const LETTER_PULSE_MS = 1700;
 const CLUE_PURCHASE_COST = 5;
 
 export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const teamCount = Math.max(1, Math.min(4, options.players || 1));
     const initialTeamNames = useMemo(() => {
         const provided = (options.teamNames || []).slice(0, teamCount);
@@ -414,7 +416,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const activeEntry = activeIndex >= 0 ? entries[activeIndex] : null;
     const cardPlayable = Boolean(activeEntry && activeEntry.question && activeEntry.answer);
     const activeRelation = activeEntry ? getLetterRelation(letterRule, activeEntry.letter, activeEntry.answer) : 'starts-with';
-    const activeRelationHeader = activeRelation === 'contains' ? 'Contains the letter' : 'Starts with the letter';
+    const activeRelationHeader = activeRelation === 'contains' ? ui("Contains the letter") : ui("Starts with the letter");
     const solvedCount = entries.filter((entry) => entry.status === 'solved').length;
     const cardOverlayTop = Math.max(0, headerHeight);
     const clearWheelMotionTimeouts = () => {
@@ -1091,7 +1093,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
             return (
                 <PracticeReviewSummary
-                    playerName={teamNames[0]}
+                    playerName={displayTeamName(teamNames[0])}
                     correctCount={reviewableEntries.filter((entry) => entry.status === 'solved').length}
                     totalCount={reviewableEntries.length}
                     missedItems={missedItems}
@@ -1112,10 +1114,10 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             ? getLetterRelation(letterRule, selectedReviewEntry.letter, selectedReviewEntry.answer)
             : 'starts-with';
         const selectedReviewRelationHeader =
-            selectedReviewRelation === 'contains' ? 'Contains the letter' : 'Starts with the letter';
+            selectedReviewRelation === 'contains' ? ui("Contains the letter") : ui("Starts with the letter");
         const winnerHeadline = isTie
-            ? `WINNERS: ${winners.map((winner) => winner.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((winner) => displayTeamName(winner.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -1123,7 +1125,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final standings"
+                    subtitle={ui("Final standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -1133,10 +1135,9 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     <WinnerCeremonyStandingsTable ranking={ranking} />
 
                     <div className="w-full max-w-5xl mt-6 bg-white/10 border border-white/20 rounded-2xl p-4 md:p-6">
-                        <h3 className="text-lg sm:text-2xl font-black">Revealed Answers</h3>
+                        <h3 className="text-lg sm:text-2xl font-black">{ui("Revealed Answers")}</h3>
                         <p className="text-xs sm:text-sm text-cyan-100/90 mt-1 mb-3">
-                            Click an answer to open its clue card context.
-                            {endGameRevealList.length > 0 ? ` (${endGameRevealList.length} unresolved clue${endGameRevealList.length === 1 ? '' : 's'} were revealed when ending early.)` : ''}
+                            {ui("Click an answer to open its clue card context.")}{endGameRevealList.length > 0 ? ui("({endGameRevealList.length} unresolved clue{endGameRevealList.length === 1 ? '' : 's'} were revealed when ending early.)", { "endGameRevealList.length": (endGameRevealList.length), "endGameRevealList.length === 1 ? '' : 's'": (endGameRevealList.length === 1 ? '' : 's') }) : ''}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-left">
                             {revealableEntries.map((entry) => {
@@ -1181,7 +1182,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 <button
                                     onClick={() => setReviewEntryId(null)}
                                     className="shrink-0 rounded-lg bg-white/15 hover:bg-white/25 p-2 text-white"
-                                    aria-label="Close clue review"
+                                    aria-label={ui("Close clue review")}
                                 >
                                     <X size={20} />
                                 </button>
@@ -1189,7 +1190,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
                             <div className="p-4 sm:p-6 md:p-7 space-y-4">
                                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                    <div className="text-xs uppercase tracking-wide font-black text-slate-500">Question</div>
+                                    <div className="text-xs uppercase tracking-wide font-black text-slate-500">{ui("Question")}</div>
                                     <p className="mt-2 text-slate-800 font-display font-bold text-xl sm:text-3xl leading-tight break-words whitespace-pre-wrap">
                                         {selectedReviewEntry.question}
                                     </p>
@@ -1197,7 +1198,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
                                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                                     <div className="flex items-center justify-between gap-3">
-                                        <div className="text-xs uppercase tracking-wide font-black text-slate-500">Answer</div>
+                                        <div className="text-xs uppercase tracking-wide font-black text-slate-500">{ui("Answer")}</div>
                                         <span className={`rounded-full border px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wide ${selectedReviewTone.modalBadgeClass}`}>
                                             {selectedReviewTone.label}
                                         </span>
@@ -1241,7 +1242,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         activeEntry && (activeEntry.revealedLetterIndices?.length || 0) > 0
             ? buildHintPreview(activeEntry, activeHintBaseline, isMobileViewport ? '' : '\u2009')
             : '';
-    const openCardButtonLabel = isWheelSpinning ? 'Spinning...' : hasStartedWheel ? 'Continue' : 'Start';
+    const openCardButtonLabel = isWheelSpinning ? ui("Spinning...") : hasStartedWheel ? ui("Continue") : ui("Start");
     const mobileUsesTwoRowHeader = isMobileViewport && teamNames.length >= 4;
     const mobileHeaderColumns = teamNames.length >= 5 ? 3 : teamNames.length === 4 ? 2 : Math.max(teamNames.length, 1);
 
@@ -1268,23 +1269,23 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center`}
-                            title="Quit"
+                            title={ui("Quit")}
                         >
                             <ArrowLeft size={mobileUsesTwoRowHeader ? 14 : 17} className="sm:mr-2" />
-                            <span className="hidden sm:inline">Quit</span>
+                            <span className="hidden sm:inline">{ui("Quit")}</span>
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center`}
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={mobileUsesTwoRowHeader ? 12 : 14} className="sm:mr-2" />
-                            <span className="hidden sm:inline">End Game</span>
+                            <span className="hidden sm:inline">{ui("End Game")}</span>
                         </button>
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} border border-slate-700 bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center`}
-                            title={isMuted ? 'Unmute' : 'Mute'}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
@@ -1307,7 +1308,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                     } relative group`}
                                 >
                                     <div className={`${mobileUsesTwoRowHeader ? 'text-[9px] leading-none mb-0.5' : 'text-[10px] leading-tight'} sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full`}>
-                                        {teamNames[index]}
+                                        {displayTeamName(teamNames[index])}
                                     </div>
                                     <div className={`font-mono font-black leading-none ${mobileUsesTwoRowHeader ? 'text-sm' : 'text-lg'} sm:text-4xl`}>{score}</div>
                                     <div className={`${mobileUsesTwoRowHeader ? 'mt-0.5 min-h-[6px]' : 'mt-0.5'} flex items-center justify-center gap-1`}>
@@ -1338,14 +1339,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         <button
                             onClick={toggleFullscreen}
                             className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
-                            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                            title={isFullscreen ? ui("Exit Fullscreen") : ui("Fullscreen")}
                         >
                             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                         </button>
                         <button
                             onClick={() => setIsMuted((prev) => !prev)}
                             className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
-                            title={isMuted ? 'Unmute' : 'Mute'}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                         </button>
@@ -1366,10 +1367,9 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                 <div className="relative z-10 max-w-7xl mx-auto h-full flex flex-col items-center justify-between gap-2 sm:gap-3">
                     <div className="text-center shrink-0">
                         <div className="text-sm sm:text-2xl font-black uppercase tracking-wider text-cyan-100">
-                            {teamNames[currentTeam]} Turn
-                        </div>
+                            {displayTeamName(teamNames[currentTeam])} {ui(" Turn")}</div>
                         <div className="text-xs sm:text-base text-slate-300 mt-1">
-                            Solved {solvedCount} / {entries.length}
+                            {ui("Solved ")}{solvedCount} / {entries.length}
                         </div>
                     </div>
 
@@ -1465,7 +1465,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-brand-blue text-white p-3 md:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
-                                    <div className="font-black text-sm sm:text-xl truncate">{teamNames[currentTeam]}</div>
+                                    <div className="font-black text-sm sm:text-xl truncate">{displayTeamName(teamNames[currentTeam])}</div>
                                     <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 min-w-0 leading-none">
                                         <div className="text-[10px] sm:text-2xl md:text-[28px] font-bold uppercase tracking-wide opacity-90 whitespace-nowrap text-right leading-none">
                                             {activeRelationHeader}
@@ -1489,21 +1489,21 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                                                 ? 'border-emerald-300 bg-emerald-500 hover:bg-emerald-400'
                                                                 : 'border-white/25 bg-white/15 hover:bg-white/25'
                                                         }`}
-                                                        title={isTimerPaused ? 'Resume timer' : 'Pause timer'}
-                                                        aria-label={isTimerPaused ? 'Resume timer' : 'Pause timer'}
+                                                        title={isTimerPaused ? ui("Resume timer") : ui("Pause timer")}
+                                                        aria-label={isTimerPaused ? ui("Resume timer") : ui("Pause timer")}
                                                     >
                                                         {isTimerPaused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}
                                                     </button>
                                                 </div>
                                                 <div className="font-bold text-[10px] sm:text-sm uppercase tracking-wide opacity-90 mt-1">
-                                                    {isTimerPaused ? 'Paused' : `Clues ${teamCluesLeft[currentTeam] ?? 0}`}
+                                                    {isTimerPaused ? ui("Paused") : ui("Clues {teamCluesLeft[currentTeam] ?? 0}", { "teamCluesLeft[currentTeam] ?? 0": (teamCluesLeft[currentTeam] ?? 0) })}
                                                 </div>
                                             </>
                                         ) : (
                                             <>
-                                                <div className="font-bold text-xs sm:text-sm uppercase tracking-wide opacity-80">No Timer</div>
+                                                <div className="font-bold text-xs sm:text-sm uppercase tracking-wide opacity-80">{ui("No Timer")}</div>
                                                 <div className="font-bold text-[10px] sm:text-sm uppercase tracking-wide opacity-90 mt-1">
-                                                    Clues {teamCluesLeft[currentTeam] ?? 0}
+                                                    {ui("Clues ")}{teamCluesLeft[currentTeam] ?? 0}
                                                 </div>
                                             </>
                                         )}
@@ -1540,8 +1540,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             {cluePreview && (
                                                 <div className="mt-4 px-4 py-3 sm:px-5 sm:py-4 rounded-xl bg-sky-50 border border-sky-200 w-full max-w-4xl">
                                                     <div className="text-sm sm:text-base md:text-lg uppercase tracking-wide text-sky-700 font-black mb-2">
-                                                        Clue reveal
-                                                    </div>
+                                                        {ui("Clue reveal")}</div>
                                                     <div
                                                         ref={cluePreviewTextRef}
                                                         style={clueFontSize ? { fontSize: `${clueFontSize}px`, lineHeight: '1.08' } : undefined}
@@ -1559,7 +1558,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             type="text"
                                             value={input}
                                             onChange={(event) => setInput(event.target.value)}
-                                            placeholder="Type your answer"
+                                            placeholder={ui("Type your answer")}
                                             className="w-full p-3 sm:p-4 rounded-xl border border-slate-300 bg-white text-slate-900 text-lg sm:text-2xl font-bold outline-none focus:ring-2 focus:ring-brand-yellow"
                                             autoFocus
                                         />
@@ -1569,16 +1568,14 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                                 className="py-3 sm:py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-sm sm:text-2xl disabled:opacity-50"
                                                 disabled={!input.trim()}
                                             >
-                                                Submit
-                                            </button>
+                                                {ui("Submit")}</button>
                                             <button
                                                 type="button"
                                                 onClick={() => handlePass(false)}
                                                 className="py-3 sm:py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm sm:text-2xl disabled:opacity-45 disabled:cursor-not-allowed"
                                                 disabled={!canPassCurrent}
                                             >
-                                                Pass
-                                            </button>
+                                                {ui("Pass")}</button>
                                             <button
                                                 type="button"
                                                 onClick={showBuyClueButton ? handleBuyClue : handleUseClue}
@@ -1590,8 +1587,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                                 disabled={showBuyClueButton ? !canBuyClueCurrent : !canUseClueCurrent}
                                             >
                                                 {showBuyClueButton
-                                                    ? `Buy Clue (-${CLUE_PURCHASE_COST})`
-                                                    : `Use Clue (${currentTeamClues})`}
+                                                    ? ui("Buy Clue (-{CLUE_PURCHASE_COST})", { "CLUE_PURCHASE_COST": (CLUE_PURCHASE_COST) })
+                                                    : ui("Use Clue ({currentTeamClues})", { "currentTeamClues": (currentTeamClues) })}
                                             </button>
                                         </div>
                                     </form>
@@ -1600,7 +1597,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="bg-slate-200 text-slate-700 p-3 md:p-4 flex items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
-                                    <div className="font-black text-lg sm:text-3xl">Result</div>
+                                    <div className="font-black text-lg sm:text-3xl">{ui("Result")}</div>
                                 </div>
 
                                 <div ref={answerWrapRef} data-testid="word-wheel-answer-card" className="flex-1 min-h-0 flex flex-col p-4 sm:p-6 md:p-10 overflow-hidden">
@@ -1608,26 +1605,23 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                         {revealState?.kind === 'correct' ? (
                                             <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
                                                 <CheckCircle2 className="text-green-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
-                                                <h2 className="mt-2 font-black text-green-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Correct</h2>
+                                                <h2 className="mt-2 font-black text-green-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">{ui("Correct")}</h2>
                                                 {Number(revealState.speedBonus) > 0 ? (
                                                     <div className="mt-2 text-center">
                                                         <p className="text-lg sm:text-3xl font-black text-slate-700">
-                                                            {activeEntry.points} points
-                                                        </p>
+                                                            {activeEntry.points} {ui(" points")}</p>
                                                         <p className="mt-1 text-base sm:text-2xl font-black text-green-600">
-                                                            + {revealState.speedBonus} bonus points!
-                                                        </p>
+                                                            + {revealState.speedBonus} {ui(" bonus points!")}</p>
                                                     </div>
                                                 ) : (
                                                     <p className="mt-2 text-lg sm:text-3xl font-black text-slate-700">
-                                                        {activeEntry.points} points
-                                                    </p>
+                                                        {activeEntry.points} {ui(" points")}</p>
                                                 )}
                                             </div>
                                         ) : revealState?.kind === 'incorrect' ? (
                                             <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
                                                 <XCircle className="text-red-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
-                                                <h2 className="mt-2 font-black text-red-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Incorrect</h2>
+                                                <h2 className="mt-2 font-black text-red-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">{ui("Incorrect")}</h2>
                                                 <p className="mt-2 text-lg sm:text-3xl font-black text-slate-700">
                                                     -{revealState.penalty || activeEntry.points}
                                                 </p>
@@ -1635,20 +1629,19 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                         ) : revealState?.kind === 'timeout' ? (
                                             <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
                                                 <Clock className="text-amber-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
-                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Time Up</h2>
-                                                <p className="mt-2 text-base sm:text-xl font-bold text-slate-600">Letter marked as passed.</p>
+                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">{ui("Time Up")}</h2>
+                                                <p className="mt-2 text-base sm:text-xl font-bold text-slate-600">{ui("Letter marked as passed.")}</p>
                                             </div>
                                         ) : (
                                             <div className="flex flex-col items-center mb-[clamp(0.5rem,2vh,1.75rem)]">
                                                 <Clock className="text-amber-500 h-[clamp(2.5rem,10vh,6rem)] w-[clamp(2.5rem,10vh,6rem)]" />
-                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">Passed</h2>
+                                                <h2 className="mt-2 font-black text-amber-500 uppercase [font-size:clamp(1.75rem,7vh,3.75rem)]">{ui("Passed")}</h2>
                                             </div>
                                         )}
 
                                         {revealState?.revealAnswer === false ? (
                                             <p className="text-base sm:text-2xl font-bold text-slate-500">
-                                                Answer hidden. This clue stays in play.
-                                            </p>
+                                                {ui("Answer hidden. This clue stays in play.")}</p>
                                         ) : (
                                             <div
                                                 ref={answerTextRef}
@@ -1664,8 +1657,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             onClick={handleReturnToWheel}
                                             className="px-5 sm:px-8 py-2.5 sm:py-4 rounded-xl bg-brand-blue text-white font-black text-xl sm:text-4xl hover:brightness-110 transition-all"
                                         >
-                                            Continue
-                                        </button>
+                                            {ui("Continue")}</button>
                                     </div>
                                 </div>
                             </div>
@@ -1680,25 +1672,23 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         <button
                             onClick={() => setShowQuitConfirm(false)}
                             className="ml-auto mb-2 text-slate-400 hover:text-slate-600 block"
-                            aria-label="Close"
+                            aria-label={ui("Close")}
                         >
                             <X size={20} />
                         </button>
-                        <h2 className="text-xl font-bold text-slate-800 mb-2">Quit this game?</h2>
-                        <p className="text-slate-500 text-sm mb-5">Current progress in this round will be lost.</p>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">{ui("Quit this game?")}</h2>
+                        <p className="text-slate-500 text-sm mb-5">{ui("Current progress in this round will be lost.")}</p>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => setShowQuitConfirm(false)}
                                 className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
                             >
-                                Continue
-                            </button>
+                                {ui("Continue")}</button>
                             <button
                                 onClick={onBack}
                                 className="py-2.5 rounded-lg bg-red-500 text-white font-bold hover:bg-red-600"
                             >
-                                Quit
-                            </button>
+                                {ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -1710,25 +1700,23 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                         <button
                             onClick={() => setShowEndGameConfirm(false)}
                             className="ml-auto mb-2 text-slate-400 hover:text-slate-600 block"
-                            aria-label="Close"
+                            aria-label={ui("Close")}
                         >
                             <X size={20} />
                         </button>
-                        <h2 className="text-xl font-bold text-slate-800 mb-2">End game now?</h2>
-                        <p className="text-slate-500 text-sm mb-5">The game will stop immediately and all remaining answers will be revealed.</p>
+                        <h2 className="text-xl font-bold text-slate-800 mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-500 text-sm mb-5">{ui("The game will stop immediately and all remaining answers will be revealed.")}</p>
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={handleEndGameNow}
                                 className="py-2.5 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700"
                             >
-                                End game now
-                            </button>
+                                {ui("End game now")}</button>
                         </div>
                     </div>
                 </div>
@@ -1747,18 +1735,17 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                             type="button"
                             onClick={() => setEditingTeamIndex(null)}
                             className="ml-auto mb-2 text-slate-400 hover:text-slate-600 block"
-                            aria-label="Close"
+                            aria-label={ui("Close")}
                         >
                             <X size={20} />
                         </button>
                         <h2 className="text-xl font-bold text-slate-800 mb-4">
-                            Edit {teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}
+                            {ui("Edit ")}{teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}
                         </h2>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1.5">
-                                    Team Name
-                                </label>
+                                    {ui("Team Name")}</label>
                                 <input
                                     type="text"
                                     value={editName}
@@ -1770,8 +1757,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                             </div>
                             <div>
                                 <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1.5">
-                                    Score
-                                </label>
+                                    {ui("Score")}</label>
                                 <input
                                     type="number"
                                     value={editScore}
@@ -1786,14 +1772,12 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 onClick={() => setEditingTeamIndex(null)}
                                 className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 type="submit"
                                 className="py-2.5 rounded-lg bg-brand-blue text-white font-bold hover:brightness-110"
                             >
-                                Save
-                            </button>
+                                {ui("Save")}</button>
                         </div>
                     </form>
                 </div>

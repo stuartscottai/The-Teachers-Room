@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { GameCover } from '../components/shared/GameCover';
@@ -34,30 +35,30 @@ const getGameStats = (game: GeneratedGame) => {
     if (type === GameType.JEOPARDY) {
         const cats = game.jeopardyBoard?.length || 0;
         const qs = game.jeopardyBoard?.reduce((acc: number, cat: any) => acc + (cat.questions?.length || 0), 0) || 0;
-        stats.push({ label: 'Cats', value: cats, icon: <Grid size={12} /> });
-        stats.push({ label: 'Qs', value: qs, icon: <HelpCircle size={12} /> });
+        stats.push({ kind: 'Cats', get label() { return ui("Cats"); }, value: cats, icon: <Grid size={12} /> });
+        stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: qs, icon: <HelpCircle size={12} /> });
     } else if (type === GameType.PUB_QUIZ) {
         const rounds = game.pubQuizRounds?.length || 0;
         const qs = game.pubQuizRounds?.reduce((acc: number, rnd: any) => acc + (rnd.questions?.length || 0), 0) || 0;
-        stats.push({ label: 'Rounds', value: rounds, icon: <Layers size={12} /> });
-        stats.push({ label: 'Qs', value: qs, icon: <HelpCircle size={12} /> });
+        stats.push({ kind: 'Rounds', get label() { return ui("Rounds"); }, value: rounds, icon: <Layers size={12} /> });
+        stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: qs, icon: <HelpCircle size={12} /> });
     } else if (type === GameType.SURVEY_SHOWDOWN) {
         const rounds = game.questions?.length || 0;
-        stats.push({ label: 'Rounds', value: rounds, icon: <List size={12} /> });
+        stats.push({ kind: 'Rounds', get label() { return ui("Rounds"); }, value: rounds, icon: <List size={12} /> });
     } else if (type === GameType.STOP_THE_FIRE) {
         const cats = game.stopTheFireCategories?.length || game.config.stopTheFireCategories?.length || 0;
-        stats.push({ label: 'Cats', value: cats, icon: <List size={12} /> });
+        stats.push({ kind: 'Cats', get label() { return ui("Cats"); }, value: cats, icon: <List size={12} /> });
     } else if (type === GameType.WORD_WHEEL) {
         const count = game.questions?.length || 0;
-        stats.push({ label: 'Letters', value: count, icon: <RefreshCw size={12} /> });
+        stats.push({ kind: 'Letters', get label() { return ui("Letters"); }, value: count, icon: <RefreshCw size={12} /> });
     } else {
         const count = game.questions?.length || 0;
-        stats.push({ label: 'Qs', value: count, icon: <HelpCircle size={12} /> });
+        stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: count, icon: <HelpCircle size={12} /> });
     }
 
     // Type Detail
     if (game.config.questionType === 'multiple-choice') {
-         stats.push({ label: 'MC', value: '', icon: <List size={12} /> });
+         stats.push({ kind: 'MC', get label() { return ui("MC"); }, value: '', icon: <List size={12} /> });
     }
 
     return stats;
@@ -66,28 +67,29 @@ const getGameStats = (game: GeneratedGame) => {
 const getGamePlayCount = (game: GeneratedGame) => Number(game.playCount ?? game.config?.playCount ?? 0);
 
 const PlayCountBadge: React.FC<{ game: GeneratedGame }> = ({ game }) => {
+  useUiLanguage();
     const playCount = getGamePlayCount(game);
 
     return (
         <div
             className="inline-flex items-center rounded-md border border-slate-200 bg-white/85 px-2.5 py-1 text-[10px] font-bold text-slate-600 shadow-sm"
-            title={`This game has been played ${playCount} ${playCount === 1 ? 'time' : 'times'}.`}
+            title={ui("This game has been played {playCount} {playCount === 1 ? 'time' : 'times'}.", { "playCount": (playCount), "playCount === 1 ? 'time' : 'times'": (playCount === 1 ? 'time' : 'times') })}
         >
             <Play size={12} className="mr-1.5 text-slate-400" />
-            <span>{playCount} {playCount === 1 ? 'Play' : 'Plays'}</span>
+            <span>{playCount} {playCount === 1 ? ui("Play") : ui("Plays")}</span>
         </div>
     );
 };
 
-const getGameStatTooltip = (stat: { label: string; value: string | number }) => {
+const getGameStatTooltip = (stat: { kind: string; label: string; value: string | number }) => {
     const value = stat.value === '' ? '' : Number(stat.value);
-    const label = stat.label;
+    const label = stat.kind;
 
-    if (label === 'Qs') return `This game has ${value} ${value === 1 ? 'question' : 'questions'}.`;
-    if (label === 'Cats') return `This game has ${value} ${value === 1 ? 'category' : 'categories'}.`;
-    if (label === 'Rounds') return `This game has ${value} ${value === 1 ? 'round' : 'rounds'}.`;
-    if (label === 'Letters') return `This word wheel uses ${value} ${value === 1 ? 'letter' : 'letters'}.`;
-    if (label === 'MC') return 'This game uses multiple-choice questions.';
+    if (label === 'Qs') return ui(value === 1 ? "This game has {value} question." : "This game has {value} questions.", {value});
+    if (label === 'Cats') return ui(value === 1 ? "This game has {value} category." : "This game has {value} categories.", {value});
+    if (label === 'Rounds') return ui(value === 1 ? "This game has {value} round." : "This game has {value} rounds.", {value});
+    if (label === 'Letters') return ui(value === 1 ? "This word wheel uses {value} letter." : "This word wheel uses {value} letters.", {value});
+    if (label === 'MC') return ui("This game uses multiple-choice questions.");
 
     return `This game has ${value} ${label.toLowerCase()}.`;
 };
@@ -163,6 +165,7 @@ const CompatibleGameChooser: React.FC<{
     onBack: () => void;
     onSelect: (type: GameType) => void;
 }> = ({ sourceGame, onBack, onSelect }) => {
+  useUiLanguage();
     const compatibleTypes = getCompatibleGameTypes(sourceGame);
 
     return (
@@ -173,22 +176,19 @@ const CompatibleGameChooser: React.FC<{
                     onClick={onBack}
                     className="mb-6 inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
                 >
-                    <ArrowLeft size={16} className="mr-2" /> Back to Preview
-                </button>
+                    <ArrowLeft size={16} className="mr-2" /> {ui(" Back to Preview")}</button>
 
                 <div className="mb-6 rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
-                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">Choose a compatible game</h1>
+                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">{ui("Choose a compatible game")}</h1>
                     <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                        Pick a game format, then adjust the setup before playing.
-                    </p>
+                        {ui("Pick a game format, then adjust the setup before playing.")}</p>
                 </div>
 
                 {compatibleTypes.length === 0 ? (
                     <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
-                        <h2 className="text-xl font-bold text-slate-700">No compatible games available</h2>
+                        <h2 className="text-xl font-bold text-slate-700">{ui("No compatible games available")}</h2>
                         <p className="mx-auto mt-2 max-w-lg text-sm text-slate-500">
-                            This question set cannot be converted into another game format yet.
-                        </p>
+                            {ui("This question set cannot be converted into another game format yet.")}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -216,7 +216,7 @@ const CompatibleGameChooser: React.FC<{
                                     </div>
                                     <div className="flex items-center justify-between p-5">
                                         <span>
-                                            <span className="block text-sm font-bold text-slate-700">Set up this game</span>
+                                            <span className="block text-sm font-bold text-slate-700">{ui("Set up this game")}</span>
                                             <span className="mt-1 block text-xs font-semibold text-slate-500">{getCompatibilityHint(type, questionCount)}</span>
                                         </span>
                                         <Play size={17} className="text-brand-blue" fill="currentColor" />
@@ -256,10 +256,11 @@ const CategoryFormatSetup: React.FC<{
     onBack: () => void;
     onStart: (groups: JeopardyCategory[]) => void;
 }> = ({ sourceGame, targetType, onBack, onStart }) => {
+  useUiLanguage();
     const questions = useMemo(() => flattenGameQuestions(sourceGame), [sourceGame]);
     const isJeopardy = targetType === GameType.JEOPARDY;
-    const groupLabel = isJeopardy ? 'Category' : 'Round';
-    const groupLabelPlural = isJeopardy ? 'Categories' : 'Rounds';
+    const groupLabel = isJeopardy ? ui("Category") : ui("Round");
+    const groupLabelPlural = isJeopardy ? ui("Categories") : ui("Rounds");
     const defaultGroupCount = Math.max(1, Math.min(isJeopardy ? 5 : 3, Math.floor(questions.length / (isJeopardy ? 4 : 5)) || 1));
     const [groupCount, setGroupCount] = useState(defaultGroupCount);
     const [questionsPerGroup, setQuestionsPerGroup] = useState(Math.max(1, Math.min(isJeopardy ? 5 : 8, Math.floor(questions.length / defaultGroupCount) || 1)));
@@ -375,21 +376,19 @@ const CategoryFormatSetup: React.FC<{
                     onClick={onBack}
                     className="mb-6 inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-600 shadow-sm hover:border-sky-200 hover:text-brand-blue"
                 >
-                    <ArrowLeft size={16} className="mr-2" /> Back to Games
-                </button>
+                    <ArrowLeft size={16} className="mr-2" /> {ui(" Back to Games")}</button>
 
                 <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
                     <p className="mb-2 text-sm font-black uppercase tracking-wide text-brand-blue">{targetType}</p>
-                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">Set up {groupLabelPlural.toLowerCase()}</h1>
+                    <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">{ui("Set up ")}{groupLabelPlural.toLowerCase()}</h1>
                     <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
-                        Choose the layout, name each {groupLabel.toLowerCase()}, then assign exactly {questionsPerGroup} question{questionsPerGroup === 1 ? '' : 's'} to each one.
-                    </p>
+                        {ui("Choose the layout, name each ")}{groupLabel.toLowerCase()}{ui(", then assign exactly ")}{questionsPerGroup} {ui(" question")}{questionsPerGroup === 1 ? '' : 's'} {ui(" to each one.")}</p>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
                     <div className="space-y-5">
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">Layout</h2>
+                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">{ui("Layout")}</h2>
                             <div className="space-y-4">
                                 <div>
                                     <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{groupLabelPlural}</label>
@@ -404,7 +403,7 @@ const CategoryFormatSetup: React.FC<{
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">Questions per {groupLabel.toLowerCase()}</label>
+                                    <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{ui("Questions per ")}{groupLabel.toLowerCase()}</label>
                                     <select
                                         value={questionsPerGroup}
                                         onChange={(event) => setQuestionsPerGroup(Number(event.target.value))}
@@ -416,23 +415,21 @@ const CategoryFormatSetup: React.FC<{
                                     </select>
                                 </div>
                                 <div className="rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
-                                    Need {totalNeeded} questions. {selectedCount} selected.
-                                </div>
+                                    {ui("Need ")}{totalNeeded} {ui(" questions. ")}{selectedCount} {ui(" selected.")}</div>
                                 {!hasEnoughQuestions && (
                                     <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-600">
-                                        Not enough selected questions for this layout. Go back to Preview and select more questions.
-                                    </div>
+                                        {ui("Not enough selected questions for this layout. Go back to Preview and select more questions.")}</div>
                                 )}
                                 {hasEnoughQuestions && !countsAreReady && (
                                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-700">
-                                        Each {groupLabel.toLowerCase()} needs exactly {questionsPerGroup} question{questionsPerGroup === 1 ? '' : 's'}.
+                                        {ui("Each ")}{groupLabel.toLowerCase()} {ui(" needs exactly ")}{questionsPerGroup} {ui(" question")}{questionsPerGroup === 1 ? '' : 's'}.
                                     </div>
                                 )}
                             </div>
                         </section>
 
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">{groupLabel} names</h2>
+                            <h2 className="mb-4 font-display text-xl font-black text-slate-900">{groupLabel} {ui(" names")}</h2>
                             <div className="space-y-3">
                                 {Array.from({ length: groupCount }, (_, groupIndex) => (
                                     <div key={groupIndex}>
@@ -457,7 +454,7 @@ const CategoryFormatSetup: React.FC<{
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                            <h2 className="font-display text-xl font-black text-slate-900">Questions</h2>
+                            <h2 className="font-display text-xl font-black text-slate-900">{ui("Questions")}</h2>
                             <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
@@ -465,16 +462,14 @@ const CategoryFormatSetup: React.FC<{
                                     disabled={!hasEnoughQuestions}
                                     className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm hover:border-brand-blue hover:text-brand-blue disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <Shuffle size={16} className="mr-2" /> Random fill
-                                </button>
+                                    <Shuffle size={16} className="mr-2" /> {ui(" Random fill")}</button>
                                 <button
                                     type="button"
                                     onClick={() => onStart(buildGroups())}
                                     disabled={!canStart}
                                     className="inline-flex items-center rounded-xl bg-brand-blue px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <Play size={16} className="mr-2" fill="currentColor" /> Continue
-                                </button>
+                                    <Play size={16} className="mr-2" fill="currentColor" /> {ui(" Continue")}</button>
                             </div>
                         </div>
 
@@ -505,7 +500,7 @@ const CategoryFormatSetup: React.FC<{
                                                     {question.question || 'Untitled question'}
                                                 </p>
                                                 <p translate="no" className="notranslate mt-1 line-clamp-1 text-xs font-semibold text-slate-400">
-                                                    Answer: {question.answer || 'No answer saved'}
+                                                    {ui("Answer:")} {question.answer || ui("No answer saved")}
                                                 </p>
                                             </div>
                                             <select
@@ -532,10 +527,11 @@ const CategoryFormatSetup: React.FC<{
 };
 
 // Robust Card Component handles Image Errors Gracefully
-const GameCard: React.FC<{ 
+const GameCard: React.FC<{
     game: { type: GameType, icon: React.ReactNode, desc: string, image: string, previewImages?: string[], color: string },
-    onSelect: (type: GameType) => void 
+    onSelect: (type: GameType) => void
 }> = ({ game, onSelect }) => {
+  useUiLanguage();
     const infoPath = game.type === GameType.TRIVIA ? '/game-types/trivia' : game.type === GameType.JEOPARDY ? '/game-types/jeopardy' : game.type === GameType.TIME_BOMB ? '/game-types/time-bomb' : game.type === GameType.WORD_WHEEL ? '/game-types/wordwheel' : game.type === GameType.BLOCK_BEATERS ? '/game-types/blockbeaters' : game.type === GameType.LIVE_QUIZ_CHALLENGE ? '/game-types/live-quiz' : game.type === GameType.PUB_QUIZ ? '/game-types/pub-quiz' : game.type === GameType.SURVEY_SHOWDOWN ? '/game-types/survey-showdown' : game.type === GameType.STOP_THE_FIRE ? '/game-types/stop-the-fire' : game.type === GameType.MILLIONAIRE ? '/game-types/millionaire-maker' : game.type === GameType.DARTS ? '/game-types/darts-challenge' : game.type === GameType.SNAKES_LADDERS ? '/game-types/snakes-and-ladders' : null;
     const navigate = useNavigate();
     const [hasError, setHasError] = useState(false);
@@ -584,7 +580,7 @@ const GameCard: React.FC<{
             className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
-            <button type="button" aria-label={infoPath ? `More info about ${game.type}` : `Create ${game.type}`} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
+            <button type="button" aria-label={infoPath ? ui("More info about {game.type}", { "game.type": (game.type) }) : ui("Create {game.type}", { "game.type": (game.type) })} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
                 {!hasError && frames.map((frame, index) => (
                     <img
                         key={`${game.type}-${frame.src}`}
@@ -599,7 +595,7 @@ const GameCard: React.FC<{
                         }}
                     />
                 ))}
-                
+
                 {hasError && (
                     // Fallback State - Beautiful Gradient and Icon
                     <div className="w-full h-full flex flex-col items-center justify-center text-white/80 relative">
@@ -612,27 +608,27 @@ const GameCard: React.FC<{
 
                 {/* Decoration Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-80 transition-opacity" />
-                
+
                 {/* Floating Icon Badge (only show if image loaded to avoid double icon) */}
                 {!hasError && (
                     <div className="absolute top-3 right-3 p-2 rounded-xl backdrop-blur-md bg-white/20 border border-white/30 text-white shadow-lg">
                         {game.icon}
                     </div>
                 )}
-                
+
                 {/* Title Overlay */}
                 <div className="absolute bottom-4 left-4 right-4">
                      <h3 className="font-display font-bold text-xl text-white mb-1 drop-shadow-md">{game.type}</h3>
                 </div>
             </button>
-            
+
             {/* Content Body */}
             <div className="p-6 flex-grow flex flex-col">
                 <p className="text-slate-600 text-sm leading-relaxed mb-6 flex-grow">{game.desc}</p>
-                
+
                 <div className="mt-auto flex items-center justify-between gap-4 text-sm font-bold text-brand-blue">
-                    {infoPath && <Link to={infoPath} className="py-2 hover:underline">More info</Link>}
-                    <button type="button" onClick={() => onSelect(game.type)} className="ml-auto flex items-center py-2 hover:underline">Create game <ArrowRight size={16} className="ml-1" /></button>
+                    {infoPath && <Link to={infoPath} className="py-2 hover:underline">{ui("More info")}</Link>}
+                    <button type="button" onClick={() => onSelect(game.type)} className="ml-auto flex items-center py-2 hover:underline">{ui("Create game ")}<ArrowRight size={16} className="ml-1" /></button>
                 </div>
             </div>
         </article>
@@ -842,6 +838,7 @@ const TourPopup: React.FC<{
     onClose: () => void;
     onHeightChange?: (height: number) => void;
 }> = ({ title, text, detail, onClose, onHeightChange }) => {
+  useUiLanguage();
     const popupRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -871,7 +868,7 @@ const TourPopup: React.FC<{
             type="button"
             onClick={onClose}
             className="absolute top-3 right-3 text-slate-400 hover:text-slate-700"
-            aria-label="Close tour"
+            aria-label={ui("Close tour")}
         >
             <X size={16} />
         </button>
@@ -879,8 +876,7 @@ const TourPopup: React.FC<{
             <span className="inline-flex items-center justify-center bg-brand-yellow rounded-full p-1">
                 <GraduationCap size={11} className="text-sky-900" />
             </span>
-            Site Tour
-        </div>
+            {ui("Site Tour")}</div>
         <h3 className="font-display text-lg sm:text-xl font-bold text-slate-800 pr-7">{title}</h3>
         <p className="mt-1 text-[13px] sm:text-sm leading-relaxed text-slate-700 break-words">{text}</p>
         {detail && <p className="mt-2 text-[11px] sm:text-xs leading-relaxed text-slate-500 break-words">{detail}</p>}
@@ -890,10 +886,11 @@ const TourPopup: React.FC<{
 
 // --- PERSONAL LIBRARY COMPONENT ---
 const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> = ({ onLoadGame }) => {
+  useUiLanguage();
     const { user } = useAuth();
     const [games, setGames] = useState<GeneratedGame[]>([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Filters
     const [search, setSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -922,7 +919,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if(window.confirm("Are you sure you want to delete this game?")) {
+        if(window.confirm(ui("Are you sure you want to delete this game?"))) {
             await deleteSavedGame(id, user?.id);
             loadGames();
         }
@@ -977,7 +974,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     return (
         <div className="animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold text-slate-800">My Saved Games</h2>
+                <h2 className="text-2xl font-bold text-slate-800">{ui("My Saved Games")}</h2>
             </div>
 
             {/* Control Bar */}
@@ -985,11 +982,11 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                 <div className="flex w-full gap-2">
                     <div className="relative min-w-0 flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search my games..." 
+                            placeholder={ui("Search my games...")}
                             className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
                         />
                     </div>
@@ -999,19 +996,18 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
                     >
                         <Filter size={18} />
-                        Filters
-                    </button>
+                        {ui("Filters")}</button>
                 </div>
 
                 <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-4 xl:grid-cols-5`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select 
+                    <select
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">All Types</option>
+                        <option value="all">{ui("All Types")}</option>
                         {Object.values(GameType).map(t => (
                             <option key={t} value={t}>{t}</option>
                         ))}
@@ -1022,14 +1018,14 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                         {sourceFilter === 'ai' ? <Sparkles size={18} /> : <PenTool size={18} />}
                     </div>
-                    <select 
+                    <select
                         value={sourceFilter}
                         onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">All Sources</option>
-                        <option value="ai">AI Generated</option>
-                        <option value="manual">Handcrafted</option>
+                        <option value="all">{ui("All Sources")}</option>
+                        <option value="ai">{ui("AI Generated")}</option>
+                        <option value="manual">{ui("Handcrafted")}</option>
                     </select>
                 </div>
 
@@ -1040,24 +1036,24 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">Any Image Status</option>
-                        <option value="with-images">With Images</option>
-                        <option value="without-images">Without Images</option>
+                        <option value="all">{ui("Any Image Status")}</option>
+                        <option value="with-images">{ui("With Images")}</option>
+                        <option value="without-images">{ui("Without Images")}</option>
                     </select>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select 
+                    <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="plays">Most Played</option>
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="az">A-Z (Title)</option>
-                        <option value="za">Z-A (Title)</option>
+                        <option value="plays">{ui("Most Played")}</option>
+                        <option value="newest">{ui("Newest First")}</option>
+                        <option value="oldest">{ui("Oldest First")}</option>
+                        <option value="az">{ui("A-Z (Title)")}</option>
+                        <option value="za">{ui("Z-A (Title)")}</option>
                     </select>
                 </div>
 
@@ -1065,12 +1061,12 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             </div>
 
             <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
-                Showing {filteredGames.length === 0 ? 0 : pageStart + 1}-{pageEnd} of {filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}
+                {ui("Showing ")}{filteredGames.length === 0 ? 0 : pageStart + 1}-{pageEnd} {ui(" of ")}{filteredGames.length} {ui(" game")}{filteredGames.length !== 1 ? 's' : ''}
             </div>
             {filteredGames.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1078,9 +1074,9 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                             <ChevronLeft size={18} />
                         </button>
                         <span className="text-sm font-bold text-slate-600">
-                            Page {currentPage} of {totalPages}
+                            {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                         </span>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1094,16 +1090,16 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             {loading ? (
                 <div className="text-center py-20">
                     <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-500">Loading library...</p>
+                    <p className="text-slate-500">{ui("Loading library...")}</p>
                 </div>
             ) : filteredGames.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 border-dashed">
                     <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <BookOpen size={32} className="text-slate-300" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-700 mb-2">No games found</h3>
+                    <h3 className="text-lg font-bold text-slate-700 mb-2">{ui("No games found")}</h3>
                     <p className="text-slate-400 max-w-sm mx-auto mb-6">
-                        {games.length === 0 ? "Create your first game to see it here." : "Try changing your filters."}
+                        {games.length === 0 ? ui("Create your first game to see it here.") : ui("Try changing your filters.")}
                     </p>
                 </div>
             ) : (
@@ -1131,13 +1127,12 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                         {game.config.isAI && (
-                                            <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title="AI Generated">
-                                                <Sparkles size={10} /> AI
-                                            </div>
+                                            <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title={ui("AI Generated")}>
+                                                <Sparkles size={10} /> {ui(" AI")}</div>
                                         )}
-                                        <button 
+                                        <button
                                             onClick={(e) => handleDelete(e, game.id!)}
-                                            aria-label={`Delete ${game.title}`}
+                                            aria-label={ui("Delete {game.title}", { "game.title": (game.title) })}
                                             className="rounded-full border border-white/25 bg-black/30 p-2 text-white transition-colors hover:bg-black/50"
                                         >
                                             <Trash2 size={16} />
@@ -1148,8 +1143,8 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
 
                             <div className="flex flex-1 flex-col px-4 py-3">
                                 <h3 className="font-display font-bold text-lg text-slate-800 mb-1 line-clamp-1" title={game.title}>{game.title}</h3>
-                                <p className="text-sm font-semibold text-slate-600 mb-3 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
-                                
+                                <p className="text-sm font-semibold text-slate-600 mb-3 line-clamp-1">{ui("Topic: ")}{game.config.topic || 'General'}</p>
+
                                 {/* STATS BADGES */}
                                 <div className="flex flex-wrap items-center gap-2">
                                     <div className="flex flex-wrap gap-2">
@@ -1169,7 +1164,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className={`mt-auto border-t px-4 py-3 flex items-center justify-between gap-3 ${theme.footer}`}>
                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                                     <span className="text-[10px] text-slate-500 font-bold">
@@ -1178,12 +1173,10 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                     <div className="flex items-center gap-2">
                                         {game.config.isPublic ? (
                                             <div className="flex items-center text-green-700 text-[10px] font-bold bg-green-100 px-2 py-1 rounded border border-green-200">
-                                                <Globe size={10} className="mr-1" /> Public
-                                            </div>
+                                                <Globe size={10} className="mr-1" /> {ui(" Public")}</div>
                                         ) : (
                                             <div className="text-slate-500 text-[10px] font-bold uppercase flex items-center">
-                                                <div className="w-2 h-2 bg-slate-400 rounded-full mr-1"></div> Private
-                                            </div>
+                                                <div className="w-2 h-2 bg-slate-400 rounded-full mr-1"></div> {ui(" Private")}</div>
                                         )}
                                     </div>
                                 </div>
@@ -1194,7 +1187,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                 </div>
                 {filteredGames.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 py-6">
-                    <button 
+                    <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
                         className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1202,9 +1195,9 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <ChevronLeft size={18} />
                     </button>
                     <span className="text-sm font-bold text-slate-600">
-                        Page {currentPage} of {totalPages}
+                        {ui("Page ")}{currentPage} {ui(" of ")}{totalPages}
                     </span>
-                    <button 
+                    <button
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
                         className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1219,7 +1212,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                             className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
                         >
                             {pageSizeOptions.map((size) => (
-                                <option key={size} value={size}>{size} per page</option>
+                                <option key={size} value={size}>{size} {ui(" per page")}</option>
                             ))}
                         </select>
                     </div>
@@ -1298,6 +1291,7 @@ const CommunityLibrary: React.FC<{
     initialAuthorFilter?: { id?: string; name: string } | null;
     initialSearch?: string;
 }> = ({ onLoadGame, initialAuthorFilter, initialSearch }) => {
+  useUiLanguage();
     const { user } = useAuth();
     const savedState = useRef(readCommunityLibraryState()).current;
     const [games, setGames] = useState<GeneratedGame[]>([]);
@@ -1321,11 +1315,11 @@ const CommunityLibrary: React.FC<{
     const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
     const schoolCommunityName = user?.accountType === 'school' ? user.schoolAccess?.schoolName : '';
     const canFilterBySchool = Boolean(schoolCommunityId);
-    
+
     const fetchGames = async () => {
         setLoading(true);
         setError(null);
-        
+
         // Strictly fetch PUBLIC games from Database
         const { data, count, error: fetchError } = await getCommunityGames(
             currentPage,
@@ -1338,7 +1332,7 @@ const CommunityLibrary: React.FC<{
             authorFilter?.id,
             communityScope === 'school' ? schoolCommunityId : undefined
         );
-        
+
         if (fetchError) {
             setError(fetchError);
             setLoading(false);
@@ -1381,7 +1375,7 @@ const CommunityLibrary: React.FC<{
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGames();
-        }, 500); 
+        }, 500);
         return () => clearTimeout(timer);
     }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
 
@@ -1437,7 +1431,7 @@ const CommunityLibrary: React.FC<{
     return (
         <div className="animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h2 className="text-2xl font-bold text-slate-800">Community Saved Games</h2>
+                <h2 className="text-2xl font-bold text-slate-800">{ui("Community Saved Games")}</h2>
             </div>
 
             {/* Control Bar */}
@@ -1445,15 +1439,15 @@ const CommunityLibrary: React.FC<{
                 <div className="flex w-full gap-2">
                     <div className="relative min-w-0 flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={searchInput}
                             onChange={(e) => {
                                 setSearchInput(e.target.value);
                                 setSearchQuery(e.target.value);
                                 setIsSearchAutoFilled(false);
                             }}
-                            placeholder="Search community games..." 
+                            placeholder={ui("Search community games...")}
                             className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none text-sm"
                         />
                     </div>
@@ -1463,19 +1457,18 @@ const CommunityLibrary: React.FC<{
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100"
                     >
                         <Filter size={18} />
-                        Filters
-                    </button>
+                        {ui("Filters")}</button>
                 </div>
 
                 <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-3 xl:grid-cols-6`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select 
+                    <select
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">All Types</option>
+                        <option value="all">{ui("All Types")}</option>
                         {Object.values(GameType).map(t => (
                             <option key={t} value={t}>{t}</option>
                         ))}
@@ -1486,14 +1479,14 @@ const CommunityLibrary: React.FC<{
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                         {sourceFilter === 'ai' ? <Sparkles size={18} /> : <PenTool size={18} />}
                     </div>
-                    <select 
+                    <select
                         value={sourceFilter}
                         onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">All Sources</option>
-                        <option value="ai">AI Generated</option>
-                        <option value="manual">Handcrafted</option>
+                        <option value="all">{ui("All Sources")}</option>
+                        <option value="ai">{ui("AI Generated")}</option>
+                        <option value="manual">{ui("Handcrafted")}</option>
                     </select>
                 </div>
 
@@ -1504,25 +1497,25 @@ const CommunityLibrary: React.FC<{
                         onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="all">Any Image Status</option>
-                        <option value="with-images">With Images</option>
-                        <option value="without-images">Without Images</option>
+                        <option value="all">{ui("Any Image Status")}</option>
+                        <option value="with-images">{ui("With Images")}</option>
+                        <option value="without-images">{ui("Without Images")}</option>
                     </select>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select 
+                    <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                     >
-                        <option value="trending">Trending First</option>
-                        <option value="plays">Most Played</option>
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="az">A-Z (Title)</option>
-                        <option value="za">Z-A (Title)</option>
+                        <option value="trending">{ui("Trending First")}</option>
+                        <option value="plays">{ui("Most Played")}</option>
+                        <option value="newest">{ui("Newest First")}</option>
+                        <option value="oldest">{ui("Oldest First")}</option>
+                        <option value="az">{ui("A-Z (Title)")}</option>
+                        <option value="za">{ui("Z-A (Title)")}</option>
                     </select>
                 </div>
 
@@ -1534,17 +1527,17 @@ const CommunityLibrary: React.FC<{
                             onChange={(e) => setCommunityScope(e.target.value as 'all' | 'school')}
                             className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                         >
-                            <option value="all">All Community</option>
+                            <option value="all">{ui("All Community")}</option>
                             <option value="school">{schoolCommunityName || 'My School'}</option>
                         </select>
                     </div>
                 )}
 
 
-                <button 
+                <button
                     onClick={fetchGames}
                     className="flex w-full items-center justify-center p-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors border border-slate-200 md:w-auto"
-                    title="Refresh List"
+                    title={ui("Refresh List")}
                 >
                     <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
                 </button>
@@ -1552,14 +1545,14 @@ const CommunityLibrary: React.FC<{
             </div>
             {authorFilter && (
                 <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-slate-500 font-semibold">Filtering by:</span>
+                    <span className="text-slate-500 font-semibold">{ui("Filtering by:")}</span>
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100 font-bold">
                         {authorFilter.name}
                         <button
                             type="button"
                             onClick={clearAuthorFilter}
                             className="text-sky-700 hover:text-sky-900"
-                            aria-label="Clear author filter"
+                            aria-label={ui("Clear author filter")}
                         >
                             x
                         </button>
@@ -1568,14 +1561,14 @@ const CommunityLibrary: React.FC<{
             )}
             {canFilterBySchool && communityScope === 'school' && (
                 <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-slate-500 font-semibold">School scope:</span>
+                    <span className="text-slate-500 font-semibold">{ui("School scope:")}</span>
                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100 font-bold">
                         {schoolCommunityName || 'My School'}
                         <button
                             type="button"
                             onClick={() => setCommunityScope('all')}
                             className="text-amber-700 hover:text-amber-900"
-                            aria-label="Show all community games"
+                            aria-label={ui("Show all community games")}
                         >
                             x
                         </button>
@@ -1586,11 +1579,11 @@ const CommunityLibrary: React.FC<{
             {!loading && !error && totalCount > 0 && (
                 <>
                 <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
-                    Showing {pageStart}-{pageEnd} of {totalCount} {communityScope === 'school' ? 'school community games' : 'games'}
+                    {ui("Showing ")}{pageStart}-{pageEnd} {ui(" of ")}{totalCount} {communityScope === 'school' ? ui("school community games") : ui("games")}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                     <div className="flex items-center gap-2">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1598,9 +1591,9 @@ const CommunityLibrary: React.FC<{
                             <ChevronLeft size={18} />
                         </button>
                         <span className="text-sm font-bold text-slate-600">
-                            Page {currentPage} of {totalPages || 1}
+                            {ui("Page ")}{currentPage} {ui(" of ")}{totalPages || 1}
                         </span>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages || totalPages === 0}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1615,25 +1608,25 @@ const CommunityLibrary: React.FC<{
             {loading ? (
                 <div className="text-center py-20">
                     <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-slate-500">Loading community games...</p>
+                    <p className="text-slate-500">{ui("Loading community games...")}</p>
                 </div>
             ) : error ? (
                 <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100">
                     <AlertTriangle size={32} className="text-red-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-red-700 mb-2">Connection Error</h3>
+                    <h3 className="text-lg font-bold text-red-700 mb-2">{ui("Connection Error")}</h3>
                     <p className="text-red-600 max-w-sm mx-auto mb-6">{error}</p>
-                    <button onClick={fetchGames} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors">Try Again</button>
+                    <button onClick={fetchGames} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors">{ui("Try Again")}</button>
                 </div>
             ) : games.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 border-dashed">
                     <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Globe size={32} className="text-slate-300" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-700 mb-2">No public games found</h3>
+                    <h3 className="text-lg font-bold text-slate-700 mb-2">{ui("No public games found")}</h3>
                     <p className="text-slate-400 max-w-sm mx-auto mb-6">
                         {communityScope === 'school'
-                            ? `No public games found for ${schoolCommunityName || 'your school'} yet.`
-                            : 'Be the first to publish a game to the community!'}
+                            ? ui("No public games found for {schoolCommunityName || 'your school'} yet.", { "schoolCommunityName || 'your school'": (schoolCommunityName || 'your school') })
+                            : ui("Be the first to publish a game to the community!")}
                     </p>
                 </div>
             ) : (
@@ -1653,9 +1646,8 @@ const CommunityLibrary: React.FC<{
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">
                                             {game.config.isAI && (
-                                                <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title="AI Generated">
-                                                    <Sparkles size={10} /> AI
-                                                </div>
+                                                <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm" title={ui("AI Generated")}>
+                                                    <Sparkles size={10} /> {ui(" AI")}</div>
                                             )}
                                             <div className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/20 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
                                                 <Globe size={12} />
@@ -1663,12 +1655,12 @@ const CommunityLibrary: React.FC<{
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className="flex flex-1 flex-col bg-white px-4 py-3">
                                     <h3 className="font-display font-bold text-lg leading-snug text-slate-800 mb-1 line-clamp-2 min-h-[3rem]" title={game.title}>{game.title}</h3>
-                                    <p className="text-sm font-semibold text-slate-600 mb-1 line-clamp-1">Topic: {game.config.topic || 'General'}</p>
+                                    <p className="text-sm font-semibold text-slate-600 mb-1 line-clamp-1">{ui("Topic: ")}{game.config.topic || 'General'}</p>
                                     <div className="text-xs text-slate-500 mb-3 flex items-center gap-1.5">
-                                        <span>By</span>
+                                        <span>{ui("By")}</span>
                                         <Avatar
                                             name={game.authorName || 'Teacher'}
                                             src={game.authorAvatar || game.config.authorAvatar}
@@ -1680,7 +1672,7 @@ const CommunityLibrary: React.FC<{
                                                 type="button"
                                                 onClick={() => applyAuthorFilter(game.authorId!, game.authorName || 'Teacher')}
                                                 className="truncate text-slate-700 hover:text-brand-blue hover:underline"
-                                                title={`View all by ${game.authorName || 'Teacher'}`}
+                                                title={ui("View all by {game.authorName || 'Teacher'}", { "game.authorName || 'Teacher'": (game.authorName || 'Teacher') })}
                                             >
                                                 {game.authorName || 'Teacher'}
                                             </button>
@@ -1688,7 +1680,7 @@ const CommunityLibrary: React.FC<{
                                             <span className="truncate">{game.authorName || 'Teacher'}</span>
                                         )}
                                     </div>
-                                    
+
                                     {/* STATS BADGES */}
                                     <div className="flex flex-wrap items-center gap-2">
                                         <div className="flex flex-wrap gap-2">
@@ -1708,16 +1700,15 @@ const CommunityLibrary: React.FC<{
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div className={`mt-auto border-t px-4 py-3 flex items-center ${theme.footer}`}>
-                                    <button 
+                                    <button
                                         onClick={() => onLoadGame(game)}
                                         className={`w-full px-3 py-2 bg-white/80 border-2 border-white text-slate-700 rounded-lg font-bold transition-colors flex items-center justify-center gap-2 text-sm ${theme.action}`}
-                                        title="Open Preview"
+                                        title={ui("Open Preview")}
                                     >
                                         <RaisedGameIcon type={game.config.type} />
-                                        Preview
-                                    </button>
+                                        {ui("Preview")}</button>
                                 </div>
                             </div>
                             );
@@ -1726,7 +1717,7 @@ const CommunityLibrary: React.FC<{
 
                     {totalCount > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-3 py-4">
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1734,9 +1725,9 @@ const CommunityLibrary: React.FC<{
                             <ChevronLeft size={18} />
                         </button>
                         <span className="text-sm font-bold text-slate-600">
-                            Page {currentPage} of {totalPages || 1}
+                            {ui("Page ")}{currentPage} {ui(" of ")}{totalPages || 1}
                         </span>
-                        <button 
+                        <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages || totalPages === 0}
                             className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1751,7 +1742,7 @@ const CommunityLibrary: React.FC<{
                                 className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
                             >
                                 {pageSizeOptions.map((size) => (
-                                    <option key={size} value={size}>{size} per page</option>
+                                    <option key={size} value={size}>{size} {ui(" per page")}</option>
                                 ))}
                             </select>
                         </div>
@@ -1764,8 +1755,8 @@ const CommunityLibrary: React.FC<{
 };
 
 // --- MAIN GAME HUB ---
-const GameHub: React.FC<{ 
-    onSelect: (type: GameType) => void, 
+const GameHub: React.FC<{
+    onSelect: (type: GameType) => void,
     initialTab?: GameHubTab,
     onLoadCommunityGame: (game: GeneratedGame) => void,
     onLoadPersonalGame: (game: GeneratedGame) => void,
@@ -1773,14 +1764,15 @@ const GameHub: React.FC<{
     initialCommunityAuthorFilter?: { id?: string; name: string } | null,
     initialCommunitySearch?: string
 }> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant, initialCommunityAuthorFilter, initialCommunitySearch }) => {
+  useUiLanguage();
     const [activeTab, setActiveTab] = useState<GameHubTab>(initialTab);
     const swipeStart = useRef<{ x: number; y: number } | null>(null);
     const hubTabs: Array<{ id: GameHubTab; label: string; icon: React.ReactNode }> = [
-        { id: 'create', label: 'Create New', icon: <Sparkles size={16} /> },
-        { id: 'community', label: 'Community', icon: <Globe size={16} /> },
-        { id: 'library', label: 'My Library', icon: <Library size={16} /> },
+        { id: 'create', get label() { return ui("Create New"); }, icon: <Sparkles size={16} /> },
+        { id: 'community', get label() { return ui("Community"); }, icon: <Globe size={16} /> },
+        { id: 'library', get label() { return ui("My Library"); }, icon: <Library size={16} /> },
     ];
-    
+
     // Sync internal state with prop changes (e.g. from Nav link)
     useEffect(() => {
         setActiveTab(initialTab);
@@ -1815,42 +1807,42 @@ const GameHub: React.FC<{
 
     // Game Types Data
     const games = [
-        { 
+        {
             type: GameType.LIVE_QUIZ_CHALLENGE,
             icon: <GraduationCap size={24} />,
-            desc: "Kahoot-style live quiz with QR joining and speed scoring.",
+            get desc() { return ui("Kahoot-style live quiz with QR joining and speed scoring."); },
             image: getGameThumbnails(GameType.LIVE_QUIZ_CHALLENGE)[0],
             previewImages: getGameThumbnails(GameType.LIVE_QUIZ_CHALLENGE).slice(1),
             color: "bg-cyan-700"
         },
-        { 
-            type: GameType.TRIVIA, 
-            icon: <HelpCircle size={24} />, 
-            desc: "Fast-paced questions to test knowledge.",
+        {
+            type: GameType.TRIVIA,
+            icon: <HelpCircle size={24} />,
+            get desc() { return ui("Fast-paced questions to test knowledge."); },
             image: getGameThumbnails(GameType.TRIVIA)[0],
             previewImages: getGameThumbnails(GameType.TRIVIA).slice(1),
             color: "bg-purple-600"
         },
-        { 
-            type: GameType.JEOPARDY, 
-            icon: <Grid size={24} />, 
-            desc: "Strategic team quiz based on categories.",
+        {
+            type: GameType.JEOPARDY,
+            icon: <Grid size={24} />,
+            get desc() { return ui("Strategic team quiz based on categories."); },
             image: getGameThumbnails(GameType.JEOPARDY)[0],
             previewImages: getGameThumbnails(GameType.JEOPARDY).slice(1),
             color: "bg-blue-600"
         },
-        { 
-            type: GameType.TIME_BOMB, 
-            icon: <Timer size={24} />, 
-            desc: "Pass the bomb before time runs out!",
+        {
+            type: GameType.TIME_BOMB,
+            icon: <Timer size={24} />,
+            get desc() { return ui("Pass the bomb before time runs out!"); },
             image: getGameThumbnails(GameType.TIME_BOMB)[0],
             previewImages: getGameThumbnails(GameType.TIME_BOMB).slice(1),
             color: "bg-slate-900"
         },
-        { 
-            type: GameType.WORD_WHEEL, 
-            icon: <RefreshCw size={24} />, 
-            desc: "Letter-by-letter clue race with pass-or-play pressure.",
+        {
+            type: GameType.WORD_WHEEL,
+            icon: <RefreshCw size={24} />,
+            get desc() { return ui("Letter-by-letter clue race with pass-or-play pressure."); },
             image: getGameThumbnails(GameType.WORD_WHEEL)[0],
             previewImages: getGameThumbnails(GameType.WORD_WHEEL).slice(1),
             color: "bg-teal-600"
@@ -1858,55 +1850,55 @@ const GameHub: React.FC<{
         {
             type: GameType.BLOCK_BEATERS,
             icon: <Hexagon size={24} />,
-            desc: "Claim hex tiles, steal blocks, and complete a path before the final question.",
+            get desc() { return ui("Claim hex tiles, steal blocks, and complete a path before the final question."); },
             image: getGameThumbnails(GameType.BLOCK_BEATERS)[0],
             previewImages: getGameThumbnails(GameType.BLOCK_BEATERS).slice(1),
             color: "bg-[#0f766e]"
         },
-        { 
-            type: GameType.PUB_QUIZ, 
-            icon: <Beer size={24} />, 
-            desc: "Round-based quiz with manual scoring.",
+        {
+            type: GameType.PUB_QUIZ,
+            icon: <Beer size={24} />,
+            get desc() { return ui("Round-based quiz with manual scoring."); },
             image: getGameThumbnails(GameType.PUB_QUIZ)[0],
             previewImages: getGameThumbnails(GameType.PUB_QUIZ).slice(1),
             color: "bg-slate-700"
         },
-        { 
-            type: GameType.SURVEY_SHOWDOWN, 
-            icon: <List size={24} />, 
-            desc: "Guess top answers in this survey game!",
+        {
+            type: GameType.SURVEY_SHOWDOWN,
+            icon: <List size={24} />,
+            get desc() { return ui("Guess top answers in this survey game!"); },
             image: getGameThumbnails(GameType.SURVEY_SHOWDOWN)[0],
             previewImages: getGameThumbnails(GameType.SURVEY_SHOWDOWN).slice(1),
             color: "bg-emerald-600"
         },
-        { 
-            type: GameType.STOP_THE_FIRE, 
-            icon: <Flame size={24} />, 
-            desc: "Fast word race inspired by Scattergories.",
+        {
+            type: GameType.STOP_THE_FIRE,
+            icon: <Flame size={24} />,
+            get desc() { return ui("Fast word race inspired by Scattergories."); },
             image: getGameThumbnails(GameType.STOP_THE_FIRE)[0],
             previewImages: getGameThumbnails(GameType.STOP_THE_FIRE).slice(1),
             color: "bg-[#0f4c81]"
         },
-        { 
-            type: GameType.MILLIONAIRE, 
-            icon: <DollarSign size={24} />, 
-            desc: "Climb the ladder to win big.",
+        {
+            type: GameType.MILLIONAIRE,
+            icon: <DollarSign size={24} />,
+            get desc() { return ui("Climb the ladder to win big."); },
             image: getGameThumbnails(GameType.MILLIONAIRE)[0],
             previewImages: getGameThumbnails(GameType.MILLIONAIRE).slice(1),
             color: "bg-indigo-700"
         },
-        { 
-            type: GameType.DARTS, 
-            icon: <Target size={24} />, 
-            desc: "Hit the target by answering correctly.",
+        {
+            type: GameType.DARTS,
+            icon: <Target size={24} />,
+            get desc() { return ui("Hit the target by answering correctly."); },
             image: getGameThumbnails(GameType.DARTS)[0],
             previewImages: getGameThumbnails(GameType.DARTS).slice(1),
             color: "bg-red-600"
         },
-        { 
-            type: GameType.SNAKES_LADDERS, 
-            icon: <Dice5 size={24} />, 
-            desc: "Classic board game fun with a learning twist.",
+        {
+            type: GameType.SNAKES_LADDERS,
+            icon: <Dice5 size={24} />,
+            get desc() { return ui("Classic board game fun with a learning twist."); },
             image: getGameThumbnails(GameType.SNAKES_LADDERS)[0],
             previewImages: getGameThumbnails(GameType.SNAKES_LADDERS).slice(1),
             color: "bg-orange-500"
@@ -1917,13 +1909,13 @@ const GameHub: React.FC<{
         <div className="max-w-7xl mx-auto px-4 py-8">
             <div className="relative mb-12 flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
                 <div className="min-w-0 text-center md:flex-1 md:pr-6 md:text-left">
-                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">AI Classroom Games Hub</h1>
-                    <p className="text-slate-500">Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.</p>
+                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">{ui("AI Classroom Games Hub")}</h1>
+                    <p className="text-slate-500">{ui("Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.")}</p>
                 </div>
 
                 <div
                     role="tablist"
-                    aria-label="Games hub sections"
+                    aria-label={ui("Games hub sections")}
                     className="game-hub-tabs relative flex h-[56px] w-full items-end justify-center gap-1 px-1 md:mt-14 md:w-auto md:flex-shrink-0 md:justify-end"
                     onTouchStart={handleSwipeStart}
                     onTouchEnd={handleSwipeEnd}
@@ -1975,17 +1967,14 @@ const GameHub: React.FC<{
                                 <div className="game-ai-teaser mt-12 bg-brand-blue rounded-2xl p-7 md:p-9 flex flex-col-reverse md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative animate-slide-up">
                                     <div className="max-w-2xl">
                                         <h3 className="font-display text-2xl font-bold text-white mb-3">
-                                            Not sure which game fits?
-                                        </h3>
+                                            {ui("Not sure which game fits?")}</h3>
                                         <p className="text-sky-100 mb-5 text-base max-w-xl leading-relaxed">
-                                            Tell the assistant what you're teaching. It can suggest a format and draft questions for you to review before playing.
-                                        </p>
+                                            {ui("Tell the assistant what you're teaching. It can suggest a format and draft questions for you to review before playing.")}</p>
                                         <button
                                             onClick={onOpenAiAssistant}
                                             className="bg-white text-brand-blue px-5 py-3 rounded-lg font-bold hover:bg-sky-50 transition-colors inline-flex items-center gap-3"
                                         >
-                                            Open AI Assistant
-                                            <ArrowRight size={18} aria-hidden="true" />
+                                            {ui("Open AI Assistant")}<ArrowRight size={18} aria-hidden="true" />
                                         </button>
                                     </div>
                                     <img
@@ -2018,6 +2007,7 @@ const GameHub: React.FC<{
 
 // MAIN COMPONENT
 export const Games: React.FC = () => {
+  useUiLanguage();
     const { user, isLoading: isAuthLoading } = useAuth();
     const promptedCreation = useRef(false);
     const navigate = useNavigate();
@@ -2058,7 +2048,7 @@ export const Games: React.FC = () => {
         }
 
         if (navState?.view === 'library') {
-            setIsDirty(false); 
+            setIsDirty(false);
             setCommunitySeedAuthorFilter(null);
             setCommunitySeedSearch('');
             setHubTab('library');
@@ -2185,7 +2175,7 @@ export const Games: React.FC = () => {
         if (!user) {
             if (!promptedCreation.current) {
                 promptedCreation.current = true;
-                const creationLabel = ({ trivia: 'Trivia', jeopardy: 'Jeopardy', 'time-bomb': 'Time Bomb', wordwheel: 'Wordwheel', blockbeaters: 'Blockbeaters', 'live-quiz': 'Live Quiz', 'pub-quiz': 'Pub Quiz', 'survey-showdown': 'Survey Showdown', 'stop-the-fire': 'Stop the Fire', 'millionaire-maker': 'Millionaire Maker', 'darts-challenge': 'Darts Challenge', 'snakes-and-ladders': 'Snakes and Ladders' } as Record<string, string>)[requested];
+                const creationLabel = ({ trivia: ui("Trivia"), jeopardy: ui("Jeopardy"), 'time-bomb': ui("Time Bomb"), wordwheel: ui("Wordwheel"), blockbeaters: ui("Blockbeaters"), 'live-quiz': ui("Live Quiz"), 'pub-quiz': ui("Pub Quiz"), 'survey-showdown': ui("Survey Showdown"), 'stop-the-fire': ui("Stop the Fire"), 'millionaire-maker': ui("Millionaire Maker"), 'darts-challenge': ui("Darts Challenge"), 'snakes-and-ladders': ui("Snakes and Ladders") } as Record<string, string>)[requested];
                 promptSignupForFree(`Sign in or create an account to make your own ${creationLabel} game.`);
             }
             return;
@@ -2263,13 +2253,13 @@ export const Games: React.FC = () => {
                 return;
             }
             if (!isUUID(updatedGame.sourceGameId || updatedGame.id)) {
-                alert('Please save this game to your library before starting a live quiz.');
+                alert(ui("Please save this game to your library before starting a live quiz."));
                 return;
             }
             setLiveQuizSelectedItems([]);
             return;
         }
-        
+
         if (updatedGame.config.type === GameType.MILLIONAIRE) {
              beginGamePreparation(updatedGame, {
                  players: 1,
@@ -2290,8 +2280,8 @@ export const Games: React.FC = () => {
              }, 'editor');
         } else if (updatedGame.config.type === GameType.SURVEY_SHOWDOWN) {
              setPlayOptions({
-                 players: 2, 
-                 timerSeconds: 0, 
+                 players: 2,
+                 timerSeconds: 0,
                  enableBonuses: false,
                  strictMode: false,
                  muted: false
@@ -2322,7 +2312,7 @@ export const Games: React.FC = () => {
 
         const converted = convertGameForTemporaryPlay(sourceGame, targetType);
         if (!converted) {
-            alert('This question set cannot be used with that game yet.');
+            alert(ui("This question set cannot be used with that game yet."));
             return;
         }
 
@@ -2359,7 +2349,7 @@ export const Games: React.FC = () => {
 
         const converted = convertGameForTemporaryPlay(sourceGame, pendingFormatType, { groups });
         if (!converted) {
-            alert('This question set cannot be used with that game yet.');
+            alert(ui("This question set cannot be used with that game yet."));
             return;
         }
 
@@ -2381,7 +2371,7 @@ export const Games: React.FC = () => {
         }
 
         if (!isUUID(updatedGame.sourceGameId || updatedGame.id)) {
-            alert('Please save this game to your library before starting a live quiz.');
+            alert(ui("Please save this game to your library before starting a live quiz."));
             return;
         }
 
@@ -2404,7 +2394,7 @@ export const Games: React.FC = () => {
         setSelectedType(game.config.type);
         setHubTab('library'); // Remember tab
         setStep('preview');
-        setIsDirty(false); 
+        setIsDirty(false);
     };
 
     const handleLoadCommunityGame = (game: GeneratedGame) => {
@@ -2414,8 +2404,8 @@ export const Games: React.FC = () => {
         }
         // Strip ID to treat as template (avoid overwriting public game or confusing local store)
         // Also ensure visibility is reset to private for the remixer
-        const safeGame = { 
-            ...game, 
+        const safeGame = {
+            ...game,
             id: undefined,
             sourceGameId: game.id,
             config: {
@@ -2426,9 +2416,9 @@ export const Games: React.FC = () => {
                 originalCreatorAvatar: game.config.originalCreatorAvatar || game.authorAvatar || game.config.authorAvatar || null,
                 lastEditorName: undefined,
                 lastEditorId: undefined
-            } 
+            }
         };
-        
+
         setGeneratedGame(safeGame);
         setSessionGame(null);
         setSelectedType(game.config.type);
@@ -2441,22 +2431,22 @@ export const Games: React.FC = () => {
         const shareUrl = getGameShareUrl(gameId);
         try {
             await navigator.clipboard.writeText(shareUrl);
-            alert('Share link copied!');
+            alert(ui("Share link copied!"));
         } catch (error) {
-            alert(`Copy failed. Share this link:\n${shareUrl}`);
+            alert(ui("Copy failed. Share this link: {shareUrl}", { "shareUrl": (shareUrl) }));
         }
     };
 
     const persistPreviewGame = async (gameToSave: GeneratedGame, opts?: { overrideIsPublic?: boolean }) => {
         if (gameToSave.config.type === GameType.STOP_THE_FIRE && gameToSave.config.stopTheFireMode === 'bank') {
-            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            alert(ui("Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game."));
             return null;
         }
 
         const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
         const result = await saveGameToLibrary(nextGame, user?.id, user?.name, user?.schoolAccess?.schoolId);
         if (!result.success) {
-            alert('Failed to save. Please try again.');
+            alert(ui("Failed to save. Please try again."));
             return null;
         }
 
@@ -2474,14 +2464,14 @@ export const Games: React.FC = () => {
         }
         const savedGame = await persistPreviewGame(generatedGame);
         if (!savedGame) return;
-        alert(hubTab === 'community' ? 'Game saved to your library.' : 'Game saved.');
+        alert(hubTab === 'community' ? ui("Game saved to your library.") : 'Game saved.');
     };
 
     const handlePreviewShare = async () => {
         if (!generatedGame) return;
 
         if (generatedGame.config.type === GameType.STOP_THE_FIRE && generatedGame.config.stopTheFireMode === 'bank') {
-            alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+            alert(ui("Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game."));
             return;
         }
 
@@ -2497,7 +2487,7 @@ export const Games: React.FC = () => {
 
         let shareGame = generatedGame;
         if (!shareGame.config.isPublic) {
-            const confirmPublic = window.confirm('This game is private. Make it public to share?');
+            const confirmPublic = window.confirm(ui("This game is private. Make it public to share?"));
             if (!confirmPublic) return;
             const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
             if (!savedGame) return;
@@ -2509,7 +2499,7 @@ export const Games: React.FC = () => {
         }
 
         if (!shareGame.id || !isUUID(shareGame.id)) {
-            alert('Please save this game before sharing.');
+            alert(ui("Please save this game before sharing."));
             return;
         }
 
@@ -2520,12 +2510,12 @@ export const Games: React.FC = () => {
         if (!generatedGame) return;
 
         if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(generatedGame.config.type)) {
-            alert('Student practice sharing is not available for this game type.');
+            alert(ui("Student practice sharing is not available for this game type."));
             return;
         }
 
         if (selectedItemIds.length === 0) {
-            alert('Select at least one question before sharing with students.');
+            alert(ui("Select at least one question before sharing with students."));
             return;
         }
 
@@ -2537,7 +2527,7 @@ export const Games: React.FC = () => {
         if (generatedGame.sourceGameId && isUUID(generatedGame.sourceGameId)) {
             const result = await createSelectedStudentGameShare(generatedGame.sourceGameId, user.id, generatedGame.title, selectedItemIds);
             if (!result.success || !result.id) {
-                alert('Failed to create student practice link. Please try again.');
+                alert(ui("Failed to create student practice link. Please try again."));
                 return;
             }
             setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
@@ -2547,7 +2537,7 @@ export const Games: React.FC = () => {
 
         let shareGame = generatedGame;
         if (!shareGame.config.isPublic) {
-            const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+            const confirmPublic = window.confirm(ui("This game must be public for student practice links. Make it public?"));
             if (!confirmPublic) return;
             const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
             if (!savedGame) return;
@@ -2559,13 +2549,13 @@ export const Games: React.FC = () => {
         }
 
         if (!shareGame.id || !isUUID(shareGame.id)) {
-            alert('Please save this game before sharing it with students.');
+            alert(ui("Please save this game before sharing it with students."));
             return;
         }
 
         const result = await createSelectedStudentGameShare(shareGame.id, user.id, shareGame.title, selectedItemIds);
         if (!result.success || !result.id) {
-            alert('Failed to create student practice link. Please try again.');
+            alert(ui("Failed to create student practice link. Please try again."));
             return;
         }
 
@@ -2582,12 +2572,12 @@ export const Games: React.FC = () => {
         }
 
         if (selectedItemIds.length === 0) {
-            alert('Select at least one question before starting a live quiz.');
+            alert(ui("Select at least one question before starting a live quiz."));
             return;
         }
 
         if (!isUUID(generatedGame.sourceGameId || generatedGame.id)) {
-            alert('Please save this game to your library before starting a live quiz.');
+            alert(ui("Please save this game to your library before starting a live quiz."));
             return;
         }
 
@@ -2608,7 +2598,7 @@ export const Games: React.FC = () => {
         }
 
         if (result.skipped && result.skipped > 0) {
-            alert(`${result.skipped} selected question${result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.`);
+            alert(ui("{result.skipped} selected question{result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.", { "result.skipped": (result.skipped), "result.skipped === 1 ? ' was' : 's were'": (result.skipped === 1 ? ' was' : 's were') }));
         }
 
         setLiveQuizSelectedItems(null);
@@ -2692,24 +2682,24 @@ export const Games: React.FC = () => {
         };
 
         if (step === 'editor') {
-             confirmAction("Leave editor? Any unsaved changes will be lost.", performBack);
+             confirmAction(ui("Leave editor? Any unsaved changes will be lost."), performBack);
         } else {
             performBack();
         }
     };
 
     const handleGameEnd = () => {
-        setStep(playReturnStep); 
+        setStep(playReturnStep);
     };
 
     const handleReplay = () => {
         setIsDirty(false);
         const replayGame = sessionGame || generatedGame;
         if (selectedType === GameType.MILLIONAIRE) {
-             setStep(playReturnStep); 
+             setStep(playReturnStep);
              setTimeout(() => {
                  if (replayGame && playOptions) beginGamePreparation(replayGame, playOptions, playReturnStep);
-             }, 50); 
+             }, 50);
         } else if (selectedType === GameType.STOP_THE_FIRE) {
              setStep(playReturnStep);
              setTimeout(() => {
@@ -2752,7 +2742,7 @@ export const Games: React.FC = () => {
         const warnOnBack = (event: PopStateEvent) => {
             event.stopImmediatePropagation();
             window.history.pushState(guardState, '', window.location.href);
-            confirmAction('Your current round and scores will be lost if you leave this game.', () => setStep(playReturnStep), 'Leave game?');
+            confirmAction(ui("Your current round and scores will be lost if you leave this game."), () => setStep(playReturnStep), ui("Leave game?"));
         };
         window.addEventListener('popstate', warnOnBack, true);
         return () => {
@@ -2770,19 +2760,19 @@ export const Games: React.FC = () => {
         if (creationMode === 'manual') {
             if (selectedType === GameType.STOP_THE_FIRE) {
                 return {
-                    text: 'Configure your game: add a title and your categories, then click "Open Editor".',
+                    text: ui("Configure your game: add a title and your categories, then click \"Open Editor\"."),
                     detail: 'Manual mode means you will type content yourself in the editor.'
                 };
             }
             return {
-                text: 'Configure your game basics, then click "Open Editor" to build questions manually.',
+                text: ui("Configure your game basics, then click \"Open Editor\" to build questions manually."),
                 detail: 'Manual mode gives full control and usually needs less setup.'
             };
         }
 
         if (creationMode === 'bank') {
             return {
-                text: 'Configure the word-bank options shown, then continue to the editor.',
+                text: ui("Configure the word-bank options shown, then continue to the editor."),
                 detail: 'Bank mode uses prebuilt categories, so setup is quick.'
             };
         }
@@ -2793,7 +2783,7 @@ export const Games: React.FC = () => {
             : 'Give your game a title, topic, question style, image options, AI instructions, then click "Create Game".';
 
         return {
-            text: 'Configure your game for AI generation.',
+            text: ui("Configure your game for AI generation."),
             detail
         };
     };
@@ -2809,8 +2799,8 @@ export const Games: React.FC = () => {
                 <div className="sm:hidden" style={{ height: `${mobileTourSpacerHeight}px` }} aria-hidden />
             )}
             {step === 'hub' && (
-                <GameHub 
-                    onSelect={handleSelect} 
+                <GameHub
+                    onSelect={handleSelect}
                     initialTab={hubTab}
                     onLoadCommunityGame={handleLoadCommunityGame}
                     onLoadPersonalGame={handleLoadPersonalGame}
@@ -2861,7 +2851,7 @@ export const Games: React.FC = () => {
                     onStart={handleCategoryFormatStart}
                 />
             )}
-            
+
             {step === 'mode' && selectedType && (
                 <ModeSelector
                     type={selectedType}
@@ -2872,21 +2862,21 @@ export const Games: React.FC = () => {
             )}
 
             {step === 'config' && selectedType && (
-                <GameConfigurator 
-                    type={selectedType} 
+                <GameConfigurator
+                    type={selectedType}
                     mode={creationMode}
-                    onBack={handleBack} 
-                    onProceed={handleConfigProceed} 
+                    onBack={handleBack}
+                    onProceed={handleConfigProceed}
                     initialConfig={generatedGame?.config}
                     mobileTopInset={isMobileTourViewport && isTourActive && step === 'config' ? mobileTourSpacerHeight : 0}
                 />
             )}
-            
+
             {step === 'editor' && generatedGame && (
-                <GameEditor 
-                    game={generatedGame} 
-                    onSave={handleEditorSave} 
-                    onPlay={handleEditorPlay} 
+                <GameEditor
+                    game={generatedGame}
+                    onSave={handleEditorSave}
+                    onPlay={handleEditorPlay}
                     onLiveQuiz={handleEditorLiveQuiz}
                     onBack={handleBack}
                     imageRepairKeys={imageRepairKeys}
@@ -2894,7 +2884,7 @@ export const Games: React.FC = () => {
             )}
 
             {step === 'setup' && generatedGame && (
-                <GameSetup 
+                <GameSetup
                     game={sessionGame || generatedGame}
                     onBack={() => setStep(playReturnStep)}
                     onStart={handleGameStart}
@@ -2922,9 +2912,9 @@ export const Games: React.FC = () => {
             )}
 
             {isAssistantOpen && (
-                <AiAssistantChat 
-                    onClose={() => setIsAssistantOpen(false)} 
-                    onGameGenerated={handleAiGameGenerated} 
+                <AiAssistantChat
+                    onClose={() => setIsAssistantOpen(false)}
+                    onGameGenerated={handleAiGameGenerated}
                 />
             )}
 
@@ -2938,7 +2928,7 @@ export const Games: React.FC = () => {
 
             {isTourActive && step === 'hub' && !isAssistantOpen && (
                 <TourPopup
-                    title="Step 1"
+                    title={ui("Step 1")}
                     text='To create a new game, choose a game card or use "Open AI Assistant". You can also browse existing games in the Community tab.'
                     onClose={() => setIsTourActive(false)}
                     onHeightChange={setTourPopupHeight}
@@ -2947,7 +2937,7 @@ export const Games: React.FC = () => {
 
             {isTourActive && step === 'mode' && (
                 <TourPopup
-                    title="Step 2"
+                    title={ui("Step 2")}
                     text='Choose how to create your game: Manually or using AI Assistant.'
                     onClose={() => setIsTourActive(false)}
                     onHeightChange={setTourPopupHeight}
@@ -2956,7 +2946,7 @@ export const Games: React.FC = () => {
 
             {isTourActive && step === 'config' && (
                 <TourPopup
-                    title="Step 3"
+                    title={ui("Step 3")}
                     text={getTourConfigCopy().text}
                     detail={getTourConfigCopy().detail}
                     onClose={() => setIsTourActive(false)}

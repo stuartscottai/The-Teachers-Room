@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React from 'react';
 import { Turnstile } from '@marsidev/react-turnstile';
 
@@ -17,11 +18,11 @@ export const AuthTurnstile: React.FC<AuthTurnstileProps> = ({
   onTokenChange,
   discreet = false
 }) => {
+  useUiLanguage();
   if (!siteKey) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        Human verification is not configured. Please contact support.
-      </div>
+        {ui("Human verification is not configured. Please contact support.")}</div>
     );
   }
 

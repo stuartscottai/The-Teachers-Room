@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { getSiteTheme } from '../utils/theme';
 
@@ -14,6 +15,7 @@ interface UnsavedChangesContextType {
 const UnsavedChangesContext = createContext<UnsavedChangesContextType | undefined>(undefined);
 
 export const UnsavedChangesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  useUiLanguage();
   const [isDirty, setIsDirty] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameAppearance, setGameAppearance] = useState<'dark' | 'light'>(() => getSiteTheme());
@@ -34,7 +36,7 @@ export const UnsavedChangesProvider: React.FC<{ children: React.ReactNode }> = (
     message: string;
     title: string;
     action: (() => void) | null;
-  }>({ isOpen: false, message: '', title: 'Unsaved Changes', action: null });
+  }>({ isOpen: false, message: '', get title() { return ui("Unsaved Changes"); }, action: null });
 
   const confirmAction = useCallback((message: string, action: () => void, title = 'Unsaved Changes') => {
     // If not dirty, just do it immediately (though usually caller checks dirty first)
@@ -47,14 +49,14 @@ export const UnsavedChangesProvider: React.FC<{ children: React.ReactNode }> = (
     if (confirmationState.action) {
         confirmationState.action();
     }
-    setConfirmationState({ isOpen: false, message: '', title: 'Unsaved Changes', action: null });
+    setConfirmationState({ isOpen: false, message: '', get title() { return ui("Unsaved Changes"); }, action: null });
     // We assume the action navigates away or resets state, so we clear dirty here to be safe
     // But often the component unmounts anyway.
     setIsDirty(false); 
   };
 
   const handleCancel = () => {
-    setConfirmationState({ isOpen: false, message: '', title: 'Unsaved Changes', action: null });
+    setConfirmationState({ isOpen: false, message: '', get title() { return ui("Unsaved Changes"); }, action: null });
   };
 
   return (
@@ -72,14 +74,12 @@ export const UnsavedChangesProvider: React.FC<{ children: React.ReactNode }> = (
                         onClick={handleCancel}
                         className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
                     >
-                        Cancel
-                    </button>
+                        {ui("Cancel")}</button>
                     <button 
                         onClick={handleConfirm}
                         className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-md"
                     >
-                        Leave
-                    </button>
+                        {ui("Leave")}</button>
                 </div>
             </div>
         </div>

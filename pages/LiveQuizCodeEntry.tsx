@@ -1,8 +1,10 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Radio, X } from 'lucide-react';
 
 export const LiveQuizCodeEntry: React.FC = () => {
+  useUiLanguage();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
 
@@ -15,19 +17,17 @@ export const LiveQuizCodeEntry: React.FC = () => {
           type="button"
           onClick={() => navigate('/')}
           className="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-          aria-label="Go back to homepage"
-          title="Go back to homepage"
+          aria-label={ui("Go back to homepage")}
+          title={ui("Go back to homepage")}
         >
           <X size={20} />
         </button>
         <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
           <Radio size={14} />
-          Join Live Quiz
-        </div>
-        <h1 className="text-3xl font-black leading-tight">Enter your game code</h1>
+          {ui("Join Live Quiz")}</div>
+        <h1 className="text-3xl font-black leading-tight">{ui("Enter your game code")}</h1>
         <p className="mt-2 text-sm font-semibold text-slate-500">
-          Use the 6-character code shown on your teacher&apos;s screen.
-        </p>
+          {ui("Use the 6-character code shown on your teacher's screen.")}</p>
 
         <form
           className="mt-6 space-y-4"
@@ -49,8 +49,7 @@ export const LiveQuizCodeEntry: React.FC = () => {
             disabled={cleanCode.length < 4}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-6 py-4 text-xl font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Join Game
-            <ArrowRight size={20} />
+            {ui("Join Game")}<ArrowRight size={20} />
           </button>
         </form>
       </div>

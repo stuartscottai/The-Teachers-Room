@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ImageIcon, Loader2, Pencil, Play, RefreshCw } from 'lucide-react';
 import { GeneratedGame } from '../../types';
@@ -11,6 +12,7 @@ type GameImagePreparationProps = {
 };
 
 export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game, onReady, onReplace, onBack }) => {
+  useUiLanguage();
   const [progress, setProgress] = useState<{
     ready: number;
     completed: number;
@@ -75,7 +77,7 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
         </div>
 
         <h1 className="text-2xl font-black text-slate-900">
-          {hasFailures || unexpectedError ? 'Some images need attention' : 'Preparing game images'}
+          {hasFailures || unexpectedError ? ui("Some images need attention") : ui("Preparing game images")}
         </h1>
 
         {!isComplete && !unexpectedError && (
@@ -83,11 +85,11 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
             <p className="mt-2 text-sm font-semibold text-slate-500">
               {progress.total > 0
                 ? progress.phase === 'retrying'
-                  ? `Retrying ${progress.total - progress.ready} slow ${progress.total - progress.ready === 1 ? 'image' : 'images'}...`
+                  ? ui("Retrying {progress.total - progress.ready} slow {progress.total - progress.ready === 1 ? 'image' : 'images'}...", { "progress.total - progress.ready": (progress.total - progress.ready), "progress.total - progress.ready === 1 ? 'image' : 'images'": (progress.total - progress.ready === 1 ? 'image' : 'images') })
                   : progress.phase === 'checking'
-                    ? 'Checking the remaining images...'
-                    : `${progress.ready} of ${progress.total} images ready`
-                : 'Checking this game for images...'}
+                    ? ui("Checking the remaining images...")
+                    : ui("{progress.ready} of {progress.total} images ready", { "progress.ready": (progress.ready), "progress.total": (progress.total) })
+                : ui("Checking this game for images...")}
             </p>
             <div className="mt-6 h-3 overflow-hidden rounded-full bg-slate-100">
               <div
@@ -100,20 +102,18 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
 
         {result && (result.unavailable > 0 || result.temporaryFailures > 0) && (
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-            {result.ready} {result.ready === 1 ? 'image' : 'images'} ready.
-            {result.unavailable > 0 && (
-              <> {result.unavailable} {result.unavailable === 1 ? 'image is' : 'images are'} no longer available.</>
+            {result.ready} {result.ready === 1 ? ui("image") : ui("images")} {ui(" ready.")}{result.unavailable > 0 && (
+              <> {result.unavailable} {result.unavailable === 1 ? ui("image is") : ui("images are")} {ui(" no longer available.")}</>
             )}
             {result.temporaryFailures > 0 && (
-              <> {result.temporaryFailures} {result.temporaryFailures === 1 ? 'image could not' : 'images could not'} be prepared.</>
+              <> {result.temporaryFailures} {result.temporaryFailures === 1 ? ui("image could not") : ui("images could not")} {ui(" be prepared.")}</>
             )}
           </p>
         )}
 
         {unexpectedError && (
           <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
-            The images could not be checked. You can return and try again.
-          </p>
+            {ui("The images could not be checked. You can return and try again.")}</p>
         )}
 
         {(hasFailures || unexpectedError) && (
@@ -125,8 +125,7 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
               >
                 <RefreshCw size={18} />
-                Try again
-              </button>
+                {ui("Try again")}</button>
             )}
             {result && result.unavailable > 0 && (
               <button
@@ -135,8 +134,7 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
               >
                 <Pencil size={18} />
-                Replace images
-              </button>
+                {ui("Replace images")}</button>
             )}
             {result && (result.unavailable > 0 || result.temporaryFailures > 0) && (
               <>
@@ -146,8 +144,7 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-5 py-3 font-black text-white hover:bg-blue-600"
                 >
                   <Play size={18} />
-                  Continue without them
-                </button>
+                  {ui("Continue without them")}</button>
               </>
             )}
             <button
@@ -156,8 +153,7 @@ export const GameImagePreparation: React.FC<GameImagePreparationProps> = ({ game
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 hover:bg-slate-50"
             >
               <ArrowLeft size={18} />
-              Go back
-            </button>
+              {ui("Go back")}</button>
           </div>
         )}
       </div>

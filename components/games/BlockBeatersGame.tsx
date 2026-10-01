@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { QuestionCardZoomButton } from './QuestionCardZoomButton';
@@ -160,26 +161,26 @@ const makeTiles = (size: number, enableBonuses: boolean): HexTile[] => {
 };
 
 const bonusLabel = (bonus?: BonusKind) =>
-    bonus === 'free' ? 'Free tile' :
-    bonus === 'steal' ? 'Steal tile' :
-    bonus === 'remove' ? 'Remove tile' :
-    bonus === 'shield' ? 'Shield tile' :
-    bonus === 'extra-turn' ? 'Extra turn' :
-    bonus === 'swap' ? 'Swap tile' : '';
+    bonus === 'free' ? ui("Free tile") :
+    bonus === 'steal' ? ui("Steal tile") :
+    bonus === 'remove' ? ui("Remove tile") :
+    bonus === 'shield' ? ui("Shield tile") :
+    bonus === 'extra-turn' ? ui("Extra turn") :
+    bonus === 'swap' ? ui("Swap tile") : '';
 
 const bonusDetail = (bonus?: BonusKind) =>
-    bonus === 'free' ? 'Claim one empty tile.' :
-    bonus === 'steal' ? 'Turn one opponent tile into yours.' :
-    bonus === 'remove' ? 'Remove one opponent tile from the board.' :
-    bonus === 'shield' ? 'Protect one of your tiles.' :
-    bonus === 'extra-turn' ? 'Keep the turn and play again.' :
-    bonus === 'swap' ? 'Swap one of your tiles with an opponent tile.' : '';
+    bonus === 'free' ? ui("Claim one empty tile.") :
+    bonus === 'steal' ? ui("Turn one opponent tile into yours.") :
+    bonus === 'remove' ? ui("Remove one opponent tile from the board.") :
+    bonus === 'shield' ? ui("Protect one of your tiles.") :
+    bonus === 'extra-turn' ? ui("Keep the turn and play again.") :
+    bonus === 'swap' ? ui("Swap one of your tiles with an opponent tile.") : '';
 
 const getDirectionLabel = (index: number) =>
-    index === 0 ? 'Left to right' :
-    index === 1 ? 'Top to bottom' :
-    index === 2 ? 'Right to left' :
-    'Bottom to top';
+    index === 0 ? ui("Left to right") :
+    index === 1 ? ui("Top to bottom") :
+    index === 2 ? ui("Right to left") :
+    ui("Bottom to top");
 
 const HEX_R = 44;
 const HEX_W = Math.sqrt(3) * HEX_R;
@@ -207,6 +208,7 @@ const getTileCenter = (row: number, col: number) => {
 };
 
 export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const teamCount = Math.max(1, Math.min(4, options.players || 1));
     const teamNames = useMemo(() => getTeamNames(teamCount, options.teamNames), [teamCount, options.teamNames]);
     const mode = options.blockBeatersMode || game.config.blockBeatersMode || 'letters';
@@ -719,11 +721,11 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const bonusCardStatus = activeBonusCardId === currentTeamBonusCard?.id
         ? bonusAction === 'swap'
             ? swapSourceTile
-                ? swapSourceTile.owner === currentTeam ? 'Pick opponent tile' : 'Pick your tile'
+                ? swapSourceTile.owner === currentTeam ? ui("Pick opponent tile") : ui("Pick your tile")
                 : 'Pick any owned tile'
             : 'Pick target tile'
         : queuedExtraTurn && currentTeamBonusCard?.kind === 'extra-turn'
-            ? 'Ready for next tile'
+            ? ui("Ready for next tile")
             : 'Ready';
 
     const getQuestionFontSizeClass = (text: string) => {
@@ -853,8 +855,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             team.score === winnerScore && (correctCounts[team.index] || 0) === winnerCorrect
         ));
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
         const formatBlockBeatersScore = (score: number, entry: typeof ranking[number]) => `${score} pts - ${correctCounts[entry.index] || 0} correct`;
 
         return (
@@ -863,7 +865,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final standings"
+                    subtitle={ui("Final standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -885,32 +887,30 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             onClick={() => setShowQuitConfirm(true)}
                             className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
                         >
-                            <ArrowLeft size={16} className="mr-2" /> Quit
-                        </button>
+                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
                         >
-                            <Flag size={16} className="mr-2" /> End Game
-                        </button>
+                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
-                            title="Quit"
+                            title={ui("Quit")}
                         >
                             <X size={mobileUsesTwoRowHeader ? 14 : 17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
                         </button>
                         <button
                             onClick={() => setIsMuted(!isMuted)}
                             className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-[#0f766e] hover:bg-teal-50 transition-colors`}
-                            title={isMuted ? 'Unmute' : 'Mute'}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
                         </button>
@@ -934,23 +934,23 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     {isMobileViewport ? (
                                         <>
                                             <div className="flex max-w-full items-center gap-1 truncate text-[9px] font-black uppercase leading-none tracking-wider">
-                                                <span className="truncate">{name}</span>
+                                                <span className="truncate">{displayTeamName(name)}</span>
                                                 {active && <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f2c14e] animate-pulse" />}
                                             </div>
                                             <div className="mt-1 flex max-w-full items-baseline justify-center gap-1 truncate leading-none">
                                                 <AnimatedScore score={scores[index] || 0} className="text-base leading-none" diffClassName="text-[10px] -top-5" />
                                                 <span className="text-[8px] font-black opacity-75">/</span>
-                                                <span className="truncate text-[8px] font-black uppercase opacity-75">{correctCounts[index] || 0} correct</span>
+                                                <span className="truncate text-[8px] font-black uppercase opacity-75">{correctCounts[index] || 0} {ui(" correct")}</span>
                                             </div>
                                         </>
                                     ) : (
                                         <>
                                             <div className="text-[9px] leading-none sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
-                                                {name}
+                                                {displayTeamName(name)}
                                                 {active && <div className="w-2 h-2 rounded-full bg-[#f2c14e] animate-pulse ml-1" />}
                                             </div>
                                             <AnimatedScore score={scores[index] || 0} className="text-xl leading-none sm:text-5xl" diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
-                                            <div className="text-[8px] leading-none sm:text-xs font-black uppercase opacity-75 mt-1">{correctCounts[index] || 0} correct</div>
+                                            <div className="text-[8px] leading-none sm:text-xs font-black uppercase opacity-75 mt-1">{correctCounts[index] || 0} {ui(" correct")}</div>
                                         </>
                                     )}
                                     <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -965,11 +965,11 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         <button
                             onClick={() => setIsMuted(!isMuted)}
                             className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200"
-                            title={isMuted ? 'Unmute' : 'Mute'}
+                            title={isMuted ? ui("Unmute") : ui("Mute")}
                         >
                             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </button>
-                        <button aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} onClick={toggleFullscreen} className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200">
+                        <button aria-label={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")} onClick={toggleFullscreen} className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200">
                             {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                         </button>
                     </div>
@@ -985,14 +985,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.38),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.18),transparent_38%)]" />
                         <div className="relative z-10 mb-1 flex items-center justify-between gap-2">
                             <span className="truncate text-[clamp(0.45rem,0.65vw,0.625rem)] font-black uppercase tracking-[0.16em]" style={{ color: PLAYER_COLORS[currentTeam].text }}>
-                                {localTeamNames[currentTeam]}
+                                {displayTeamName(localTeamNames[currentTeam])}
                             </span>
                             <span className="rounded-full bg-white/10 px-[clamp(0.35rem,0.45vw,0.5rem)] py-0.5 text-[clamp(0.45rem,0.65vw,0.625rem)] font-black text-white/80">
                                 {currentTeamBonusCards.length}
                             </span>
                         </div>
                         <div className="relative z-10 flex flex-1 flex-col items-center justify-center">
-                            <div className="text-[clamp(0.45rem,0.8vw,0.75rem)] font-black uppercase tracking-[0.28em] text-yellow-100">Bonus</div>
+                            <div className="text-[clamp(0.45rem,0.8vw,0.75rem)] font-black uppercase tracking-[0.28em] text-yellow-100">{ui("Bonus")}</div>
                             <div className="mt-[clamp(0.25rem,1vh,1.25rem)] flex items-center font-display text-[clamp(0.95rem,2.4vw,1.875rem)] font-black leading-tight text-yellow-200">
                                 {bonusLabel(currentTeamBonusCard.kind)}
                             </div>
@@ -1021,20 +1021,17 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             onClick={() => setReviewBonusKind(currentTeamBonusCard.kind)}
                             className="relative z-10 mt-auto w-full rounded-lg bg-white/14 px-2 py-[clamp(0.3rem,0.6vw,0.375rem)] text-[clamp(0.55rem,0.9vw,0.875rem)] font-black text-white ring-1 ring-white/20 hover:bg-white/22"
                         >
-                            See card
-                        </button>
+                            {ui("See card")}</button>
                         {activeBonusCardId !== currentTeamBonusCard.id ? (
                             <button
                                 onClick={() => startBonusAction(currentTeamBonusCard)}
                                 disabled={!canUseBonusBeforeTile}
                                 className={`relative z-10 mt-[clamp(0.25rem,0.7vw,0.5rem)] w-full rounded-lg px-2 py-[clamp(0.3rem,0.6vw,0.375rem)] text-[clamp(0.55rem,0.9vw,0.875rem)] font-black ${canUseBonusBeforeTile ? 'bg-yellow-300 text-purple-950 hover:bg-yellow-200' : 'bg-white/10 text-white/45'}`}
                             >
-                                Use card now
-                            </button>
+                                {ui("Use card now")}</button>
                         ) : (
                             <div className="relative z-10 mt-[clamp(0.25rem,0.7vw,0.5rem)] rounded-lg bg-yellow-300 px-2 py-[clamp(0.3rem,0.6vw,0.375rem)] text-[clamp(0.55rem,0.9vw,0.875rem)] font-black text-purple-950">
-                                In use
-                            </div>
+                                {ui("In use")}</div>
                         )}
                     </div>
                 )}
@@ -1050,12 +1047,12 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 <img src="/assets/games/block-beaters-steal-hand.webp" alt="" className="h-10 w-10 object-contain" />
                             </div>
                             <div className="min-w-0">
-                                <div className="text-[clamp(0.38rem,0.62vw,0.56rem)] font-black uppercase tracking-[0.14em] text-white/55">Steals</div>
-                                <div className="truncate font-display text-[clamp(0.68rem,1.05vw,0.875rem)] font-black text-white">Remaining</div>
+                                <div className="text-[clamp(0.38rem,0.62vw,0.56rem)] font-black uppercase tracking-[0.14em] text-white/55">{ui("Steals")}</div>
+                                <div className="truncate font-display text-[clamp(0.68rem,1.05vw,0.875rem)] font-black text-white">{ui("Remaining")}</div>
                             </div>
                         </div>
                         <div className="shrink-0 rounded-full border border-white/10 bg-white/10 px-[clamp(0.25rem,0.45vw,0.375rem)] py-0.5 text-[clamp(0.38rem,0.62vw,0.56rem)] font-black text-white/75">
-                            max {maxStealsPerTeam}
+                            {ui("max ")}{maxStealsPerTeam}
                         </div>
                     </div>
                     <div className="relative z-10 flex flex-col gap-[clamp(0.16rem,0.45vw,0.42rem)]">
@@ -1064,15 +1061,15 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             return (
                                 <div key={index} className="flex flex-col justify-center rounded-lg border border-white/10 bg-black/24 p-[clamp(0.35rem,0.55vw,0.5rem)]">
                                     <div className="mb-[clamp(0.12rem,0.3vw,0.25rem)] flex items-center justify-between gap-1.5">
-                                        <span className="truncate text-[clamp(0.45rem,0.9vw,0.78rem)] font-black leading-tight" style={{ color: PLAYER_COLORS[index].text }}>{name}</span>
+                                        <span className="truncate text-[clamp(0.45rem,0.9vw,0.78rem)] font-black leading-tight" style={{ color: PLAYER_COLORS[index].text }}>{displayTeamName(name)}</span>
                                         <span className="font-mono text-[clamp(0.62rem,1.35vw,1.125rem)] font-black leading-none text-white">{remaining}</span>
                                     </div>
-                                    <div className="flex gap-1.5" aria-label={`${remaining} of ${maxStealsPerTeam} steals left`}>
+                                    <div className="flex gap-1.5" aria-label={ui("{remaining} of {maxStealsPerTeam} steals left", { "remaining": (remaining), "maxStealsPerTeam": (maxStealsPerTeam) })}>
                                         {Array.from({ length: maxStealsPerTeam }, (_, stealIndex) => (
                                             <div
                                                 key={stealIndex}
                                                 className={`flex flex-1 items-center justify-center rounded-lg border p-1 ${stealIndex < remaining ? 'border-sky-300/45 bg-sky-300/10' : 'border-white/10 bg-black/15 opacity-35'}`}
-                                                title={stealIndex < remaining ? 'Steal available' : 'Steal used'}
+                                                title={stealIndex < remaining ? ui("Steal available") : ui("Steal used")}
                                             ><img src="/assets/games/block-beaters-steal-hand.webp" alt="" className="h-8 w-8 object-contain" /></div>
                                         ))}
                                     </div>
@@ -1092,14 +1089,13 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     <div className="min-w-0 flex-1">
                         <div className="flex min-w-0 items-center gap-1.5">
                             <span className="truncate text-xs font-black uppercase tracking-[0.14em]" style={{ color: PLAYER_COLORS[currentTeam].text }}>
-                                {localTeamNames[currentTeam]}'s turn
-                            </span>
-                            <span className="flex items-center gap-0.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-white/75" aria-label={`${currentTeamStealsRemaining} steals remaining`}>
+                                {displayTeamName(localTeamNames[currentTeam])}{ui("'s turn")}</span>
+                            <span className="flex items-center gap-0.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-white/75" aria-label={ui("{currentTeamStealsRemaining} steals remaining", { "currentTeamStealsRemaining": (currentTeamStealsRemaining) })}>
                                 {Array.from({ length: maxStealsPerTeam }, (_, stealIndex) => <img key={stealIndex} src="/assets/games/block-beaters-steal-hand.webp" alt="" className={`h-5 w-5 object-contain ${stealIndex < currentTeamStealsRemaining ? '' : 'opacity-30'}`} />)}
                             </span>
                         </div>
                         <div className="mt-1 truncate text-[11px] font-bold text-white/70">
-                            {currentTeamBonusCard ? `${currentTeamBonusCards.length} bonus${currentTeamBonusCards.length === 1 ? '' : 'es'}: ${bonusLabel(currentTeamBonusCard.kind)}` : 'No saved bonuses'}
+                            {currentTeamBonusCard ? ui("{currentTeamBonusCards.length} bonus{currentTeamBonusCards.length === 1 ? '' : 'es'}: {bonusLabel(currentTeamBonusCard.kind)}", { "currentTeamBonusCards.length": (currentTeamBonusCards.length), "currentTeamBonusCards.length === 1 ? '' : 'es'": (currentTeamBonusCards.length === 1 ? '' : 'es'), "bonusLabel(currentTeamBonusCard.kind)": (bonusLabel(currentTeamBonusCard.kind)) }) : ui("No saved bonuses")}
                         </div>
                     </div>
                     {currentTeamBonusCard && (
@@ -1108,14 +1104,13 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 onClick={() => setReviewBonusKind(currentTeamBonusCard.kind)}
                                 className="rounded-lg bg-white/14 px-3 py-1 text-[11px] font-black text-white ring-1 ring-white/20"
                             >
-                                See
-                            </button>
+                                {ui("See")}</button>
                             <button
                                 onClick={() => startBonusAction(currentTeamBonusCard)}
                                 disabled={!canUseBonusBeforeTile}
                                 className={`rounded-lg px-3 py-1 text-[11px] font-black ${canUseBonusBeforeTile ? 'bg-yellow-300 text-purple-950' : 'bg-white/10 text-white/45'}`}
                             >
-                                {activeBonusCardId === currentTeamBonusCard.id ? 'In use' : 'Use'}
+                                {activeBonusCardId === currentTeamBonusCard.id ? ui("In use") : ui("Use")}
                             </button>
                         </div>
                     )}
@@ -1131,7 +1126,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         viewBox={`0 0 ${boardViewWidth} ${boardViewHeight}`}
                         className="relative z-10 h-full max-h-full w-full max-w-full"
                         role="img"
-                        aria-label="Block Beaters hexagon board"
+                        aria-label={ui("Block Beaters hexagon board")}
                     >
                         <style>
                             {`
@@ -1250,7 +1245,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         key={tile.id}
                                         role="button"
                                         tabIndex={0}
-                                        aria-label={`Tile ${tile.label}`}
+                                        aria-label={ui("Tile {tile.label}", { "tile.label": (tile.label) })}
                                         className="block-beaters-tile cursor-pointer outline-none"
                                         onClick={() => openTile(tile)}
                                         onKeyDown={(event) => {
@@ -1354,11 +1349,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     <X size={20} />
                                 </button>
                                 <div className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-6xl sm:text-8xl md:text-9xl tracking-[0.14em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.55)]">
-                                    BONUS
-                                </div>
+                                    {ui("BONUS")}</div>
                                 <div className="relative z-10 mt-5 text-xl sm:text-3xl font-black text-white">
-                                    Answer the question to claim it
-                                </div>
+                                    {ui("Answer the question to claim it")}</div>
                                 <button
                                     onClick={(event) => {
                                         event.stopPropagation();
@@ -1367,13 +1360,12 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     }}
                                     className="relative z-10 mt-8 rounded-xl bg-yellow-300 px-8 py-4 text-lg sm:text-2xl font-black text-purple-950 shadow-lg transition-transform hover:scale-105 hover:bg-yellow-200"
                                 >
-                                    Show Question
-                                </button>
+                                    {ui("Show Question")}</button>
                             </div>
                         ) : showBonusAward && awardedBonus ? (
                             <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-4 border-yellow-300/80 bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-800 p-6 text-center shadow-2xl">
                                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.45),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.24),transparent_36%)]" />
-                                <div className="relative z-10 text-sm sm:text-lg font-black uppercase tracking-[0.3em] text-yellow-100">Bonus awarded</div>
+                                <div className="relative z-10 text-sm sm:text-lg font-black uppercase tracking-[0.3em] text-yellow-100">{ui("Bonus awarded")}</div>
                                 <div className="relative z-10 mt-4 font-display text-5xl sm:text-7xl md:text-8xl font-black text-yellow-200 drop-shadow-[0_8px_20px_rgba(250,204,21,0.45)]">
                                     {bonusLabel(awardedBonus.kind)}
                                 </div>
@@ -1388,8 +1380,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         }}
                                         className="rounded-xl bg-white/14 px-5 py-4 text-lg sm:text-xl font-black text-white ring-2 ring-white/20 transition-colors hover:bg-white/22"
                                     >
-                                        Save for later
-                                    </button>
+                                        {ui("Save for later")}</button>
                                     <button
                                         onClick={(event) => {
                                             event.stopPropagation();
@@ -1397,8 +1388,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         }}
                                         className="rounded-xl bg-yellow-300 px-5 py-4 text-lg sm:text-xl font-black text-purple-950 shadow-lg transition-transform hover:scale-105 hover:bg-yellow-200"
                                     >
-                                        Use card now
-                                    </button>
+                                        {ui("Use card now")}</button>
                                 </div>
                             </div>
                         ) : (
@@ -1408,9 +1398,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 font-bold text-sm sm:text-xl opacity-85 truncate">
                                             {pendingFinal !== null && <Crown size={18} />}
-                                            {pendingFinal !== null ? 'Final Question' : `Tile ${activeTile?.label}`}
+                                            {pendingFinal !== null ? ui("Final Question") : ui("Tile {activeTile?.label}", { "activeTile?.label": (activeTile?.label) })}
                                         </div>
-                                        <div className="font-black text-lg sm:text-3xl truncate">{pendingFinal !== null ? 'Beat the block' : localTeamNames[currentTeam]}</div>
+                                        <div className="font-black text-lg sm:text-3xl truncate">{pendingFinal !== null ? ui("Beat the block") : localTeamNames[currentTeam]}</div>
                                     </div>
                                     <div className="font-black text-xl sm:text-4xl">{fixedPoints}</div>
                                     <button onClick={(event) => { event.stopPropagation(); setActiveTileId(null); setPendingFinal(null); setActiveQuestionIndex(null); setActiveIsSteal(false); }} className={`p-2 rounded-full cursor-pointer relative z-50 ${pendingFinal !== null ? 'bg-slate-950/10 text-slate-950 hover:bg-slate-950/20' : 'bg-white/15 text-white hover:bg-white/25'}`}>
@@ -1438,7 +1428,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                             }}
                                                             role={!isMobileViewport ? 'button' : undefined}
                                                             tabIndex={!isMobileViewport ? 0 : undefined}
-                                                            title={!isMobileViewport ? 'Click to zoom' : undefined}
+                                                            title={!isMobileViewport ? ui("Click to zoom") : undefined}
                                                             onKeyDown={(event) => {
                                                                 if (isMobileViewport) return;
                                                                 if (event.key === 'Enter' || event.key === ' ') {
@@ -1503,7 +1493,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                                 }}
                                                                 role={!isMobileViewport ? 'button' : undefined}
                                                                 tabIndex={!isMobileViewport ? 0 : undefined}
-                                                                title={!isMobileViewport ? 'Click to zoom' : undefined}
+                                                                title={!isMobileViewport ? ui("Click to zoom") : undefined}
                                                                 onKeyDown={(event) => {
                                                                     if (isMobileViewport) return;
                                                                     if (event.key === 'Enter' || event.key === ' ') {
@@ -1576,7 +1566,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                                 if (event.key === 'Enter' && typedAnswer.trim()) checkAndRevealTypedAnswer();
                                                             }}
                                                             className={`mx-auto block w-full max-w-2xl rounded-xl border bg-white p-4 text-center text-xl sm:text-2xl font-bold text-slate-900 placeholder:text-slate-400 caret-slate-900 outline-none ${pendingFinal !== null ? 'border-amber-400 focus:ring-2 focus:ring-amber-400' : 'border-slate-300 focus:ring-2 focus:ring-[#0f766e]'}`}
-                                                            placeholder="Type answer"
+                                                            placeholder={ui("Type answer")}
                                                             autoFocus
                                                         />
                                                     </div>
@@ -1598,8 +1588,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     {!hasOptions && (
                                         <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                             <button onClick={(event) => { event.stopPropagation(); checkAndRevealTypedAnswer(); }} className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:from-amber-400 hover:to-yellow-300' : 'bg-[#0f766e] text-white hover:bg-[#0d9488]'} px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform relative z-50`}>
-                                                Check
-                                            </button>
+                                                {ui("Check")}</button>
                                         </div>
                                     )}
                                 </div>
@@ -1607,7 +1596,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
 
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-slate-200 text-slate-600'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
-                                    <div className="font-bold text-base sm:text-xl opacity-80">Answer</div>
+                                    <div className="font-bold text-base sm:text-xl opacity-80">{ui("Answer")}</div>
                                     <button onClick={(event) => { event.stopPropagation(); setIsFlipped(false); }} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer relative z-50">
                                         <RotateCcw size={18} className="sm:w-5 sm:h-5" />
                                     </button>
@@ -1620,12 +1609,12 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                 {mcResult === 'correct' ? (
                                                     <div className="flex flex-col items-center">
                                                         <CheckCircle size={56} className="text-green-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
-                                                        <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">Correct!</h2>
+                                                        <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">{ui("Correct!")}</h2>
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col items-center">
                                                         <XCircle size={56} className="text-red-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
-                                                        <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">Incorrect</h2>
+                                                        <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">{ui("Incorrect")}</h2>
                                                     </div>
                                                 )}
                                             </div>
@@ -1637,23 +1626,20 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         >
                                             {shownQuestion.answer}
                                         </div>
-                                        {pendingFinal !== null && <div className="mt-5 flex items-center gap-2 rounded-full bg-amber-200 px-5 py-3 text-lg sm:text-xl font-black text-amber-900 shadow-inner"><Crown size={22} /> Final question</div>}
+                                        {pendingFinal !== null && <div className="mt-5 flex items-center gap-2 rounded-full bg-amber-200 px-5 py-3 text-lg sm:text-xl font-black text-amber-900 shadow-inner"><Crown size={22} /> {ui(" Final question")}</div>}
                                     </div>
                                 </div>
 
                                 <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
                                     {hasOptions ? (
                                         <button onClick={(event) => { event.stopPropagation(); finishAnswer(mcResult === 'correct', false); }} className={`flex-1 text-white font-black text-2xl sm:text-4xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50 ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600 border-green-700' : 'bg-red-500 hover:bg-red-600 border-red-700'}`}>
-                                            Continue
-                                        </button>
+                                            {ui("Continue")}</button>
                                     ) : (
                                         <>
                                             <button onClick={(event) => { event.stopPropagation(); finishAnswer(false, false); }} className="flex-1 bg-red-500 text-white font-bold text-lg sm:text-2xl hover:bg-red-600 transition-colors flex items-center justify-center border-t-4 border-red-700 active:border-t-0 cursor-pointer relative z-50">
-                                                <X size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> Oops
-                                            </button>
+                                                <X size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" Oops")}</button>
                                             <button onClick={(event) => { event.stopPropagation(); finishAnswer(true, false); }} className="flex-1 bg-green-500 text-white font-bold text-lg sm:text-2xl hover:bg-green-600 transition-colors flex items-center justify-center border-t-4 border-green-700 active:border-t-0 cursor-pointer relative z-50">
-                                                <Check size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> OK
-                                            </button>
+                                                <Check size={24} className="mr-2 sm:w-8 sm:h-8 sm:mr-3" /> {ui(" OK")}</button>
                                         </>
                                     )}
                                 </div>
@@ -1677,7 +1663,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             type="button"
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute top-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-                            aria-label="Close image"
+                            aria-label={ui("Close image")}
                         >
                             <X size={18} />
                         </button>
@@ -1693,7 +1679,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             className="max-h-[86vh] max-w-[86vw] cursor-zoom-out rounded-2xl border border-white/10 object-contain shadow-2xl"
                         />
                     </div>
@@ -1701,10 +1687,10 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             )}
 
             {showQuitConfirm && (
-                <ConfirmDialog title="Quit current game?" message="Current progress will be lost." cancel="Continue" confirm="Quit" onCancel={() => setShowQuitConfirm(false)} onConfirm={onBack} />
+                <ConfirmDialog title={ui("Quit current game?")} message={ui("Current progress will be lost.")} cancel={ui("Continue")} confirm={ui("Quit")} onCancel={() => setShowQuitConfirm(false)} onConfirm={onBack} />
             )}
             {showEndGameConfirm && (
-                <ConfirmDialog title="End game now?" message="The winner will be decided by score, then correct answers." cancel="Cancel" confirm="End game" onCancel={() => setShowEndGameConfirm(false)} onConfirm={() => setIsGameOver(true)} />
+                <ConfirmDialog title={ui("End game now?")} message={ui("The winner will be decided by score, then correct answers.")} cancel={ui("Cancel")} confirm={ui("End game")} onCancel={() => setShowEndGameConfirm(false)} onConfirm={() => setIsGameOver(true)} />
             )}
             {reviewBonusKind && (
                 <div className="fixed inset-0 z-[700] flex items-center justify-center bg-black/60 p-4">
@@ -1716,7 +1702,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                         >
                             <X size={20} />
                         </button>
-                        <div className="relative z-10 text-sm sm:text-lg font-black uppercase tracking-[0.3em] text-yellow-100">Bonus awarded</div>
+                        <div className="relative z-10 text-sm sm:text-lg font-black uppercase tracking-[0.3em] text-yellow-100">{ui("Bonus awarded")}</div>
                         <div className="relative z-10 mt-4 font-display text-4xl sm:text-6xl md:text-7xl font-black text-yellow-200 drop-shadow-[0_8px_20px_rgba(250,204,21,0.45)]">
                             {bonusLabel(reviewBonusKind)}
                         </div>
@@ -1729,16 +1715,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             {editingTeamIndex !== null && (
                 <div className="fixed inset-0 z-[700] flex items-center justify-center bg-black/60 p-4">
                     <form onSubmit={(event) => { event.preventDefault(); saveTeamEdit(); }} className="w-full max-w-sm rounded-2xl bg-white p-6 text-slate-900">
-                        <h2 className="mb-4 text-xl font-black">Edit team</h2>
-                        <label className="mb-3 block text-sm font-bold">Name
-                            <input value={editName} onChange={(event) => setEditName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
+                        <h2 className="mb-4 text-xl font-black">{ui("Edit team")}</h2>
+                        <label className="mb-3 block text-sm font-bold">{ui("Name")}<input value={editName} onChange={(event) => setEditName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
                         </label>
-                        <label className="block text-sm font-bold">Score
-                            <input type="number" value={editScore} onChange={(event) => setEditScore(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
+                        <label className="block text-sm font-bold">{ui("Score")}<input type="number" value={editScore} onChange={(event) => setEditScore(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
                         </label>
                         <div className="mt-5 grid grid-cols-2 gap-3">
-                            <button type="button" onClick={() => setEditingTeamIndex(null)} className="rounded-lg bg-slate-100 py-3 font-bold">Cancel</button>
-                            <button type="submit" className="rounded-lg bg-[#0f766e] py-3 font-bold text-white">Save</button>
+                            <button type="button" onClick={() => setEditingTeamIndex(null)} className="rounded-lg bg-slate-100 py-3 font-bold">{ui("Cancel")}</button>
+                            <button type="submit" className="rounded-lg bg-[#0f766e] py-3 font-bold text-white">{ui("Save")}</button>
                         </div>
                     </form>
                 </div>

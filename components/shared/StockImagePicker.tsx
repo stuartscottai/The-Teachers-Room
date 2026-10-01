@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { searchStockImages, StockImageResult } from '../../services/stockImageService';
@@ -34,6 +35,7 @@ export const StockImagePicker: React.FC<{
   onConfirm,
   onUpload,
 }) => {
+  useUiLanguage();
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<StockImageResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -212,8 +214,8 @@ export const StockImagePicker: React.FC<{
       <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50">
           <div>
-            <div className="text-sm font-extrabold text-slate-800">Stock Image Bank</div>
-            <div className="text-[11px] text-slate-500">Search and select images to use.</div>
+            <div className="text-sm font-extrabold text-slate-800">{ui("Stock Image Bank")}</div>
+            <div className="text-[11px] text-slate-500">{ui("Search and select images to use.")}</div>
           </div>
           <div className="flex items-center gap-2">
             {onUpload && (
@@ -222,14 +224,13 @@ export const StockImagePicker: React.FC<{
                 onClick={onUpload}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 bg-white hover:bg-slate-100 text-slate-700"
               >
-                Upload
-              </button>
+                {ui("Upload")}</button>
             )}
             <button
               type="button"
               onClick={onClose}
               className="p-2 rounded-lg text-slate-500 hover:bg-slate-200"
-              aria-label="Close"
+              aria-label={ui("Close")}
             >
               <X size={16} />
             </button>
@@ -251,7 +252,7 @@ export const StockImagePicker: React.FC<{
                       runSearch();
                     }
                   }}
-                  placeholder="Search images (e.g., animals, classroom, nouns)"
+                  placeholder={ui("Search images (e.g., animals, classroom, nouns)")}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm"
                 />
               </div>
@@ -261,14 +262,14 @@ export const StockImagePicker: React.FC<{
                 className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white"
                 disabled={loading}
               >
-                {loading ? 'Searching...' : 'Search'}
+                {loading ? ui("Searching...") : ui("Search")}
               </button>
             </div>
 
             {error && (
               <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-3">
                 {error.includes('PIXABAY_API_KEY')
-                  ? 'Stock image search is not configured. Set PIXABAY_API_KEY on the server (and/or VITE_PIXABAY_API_KEY for local fallback).'
+                  ? ui("Stock image search is not configured. Set PIXABAY_API_KEY on the server (and/or VITE_PIXABAY_API_KEY for local fallback).")
                   : error}
               </div>
             )}
@@ -303,23 +304,21 @@ export const StockImagePicker: React.FC<{
                     </div>
                     {isSelected && (
                       <div className="absolute top-2 right-2 bg-teal-500 text-white text-[10px] px-2 py-0.5 rounded-full">
-                        Selected
-                      </div>
+                        {ui("Selected")}</div>
                     )}
                   </button>
                 );
               })}
               {!results.length && !loading && (
                 <div className="col-span-full text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  Search to load images.
-                </div>
+                  {ui("Search to load images.")}</div>
               )}
             </div>
             {results.length > 0 && (
               <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
                 <span>
-                  Showing {results.length}
-                  {totalHits ? ` of ${totalHits}` : ''}
+                  {ui("Showing ")}{results.length}
+                  {totalHits ? ui("of {totalHits}", { "totalHits": (totalHits) }) : ''}
                 </span>
                 {totalHits === 0 || results.length < totalHits ? (
                   <button
@@ -328,10 +327,10 @@ export const StockImagePicker: React.FC<{
                     disabled={loading}
                     className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-60"
                   >
-                    {loading ? 'Loading...' : 'Load more'}
+                    {loading ? ui("Loading...") : ui("Load more")}
                   </button>
                 ) : (
-                  <span>All results loaded</span>
+                  <span>{ui("All results loaded")}</span>
                 )}
               </div>
             )}
@@ -339,7 +338,7 @@ export const StockImagePicker: React.FC<{
 
           <div className="w-full md:w-72 p-4 bg-slate-50">
             <div className="text-xs font-bold text-slate-700 mb-2">
-              Selected ({selected.length})
+              {ui("Selected (")}{selected.length})
             </div>
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
               {selected.map((item) => (
@@ -359,20 +358,20 @@ export const StockImagePicker: React.FC<{
                     value={item.label}
                     onChange={(e) => updateLabel(item.id, e.target.value)}
                     className="flex-1 text-[11px] p-1 rounded border border-slate-200"
-                    placeholder="Label"
+                    placeholder={ui("Label")}
                   />
                   <button
                     type="button"
                     onClick={() => setSelected((prev) => prev.filter((sel) => sel.id !== item.id))}
                     className="text-slate-300 hover:text-red-500 p-1 rounded hover:bg-red-50"
-                    aria-label="Remove image"
+                    aria-label={ui("Remove image")}
                   >
                     <X size={14} />
                   </button>
                 </div>
               ))}
               {selected.length === 0 && (
-                <div className="text-xs text-slate-500">No images selected yet.</div>
+                <div className="text-xs text-slate-500">{ui("No images selected yet.")}</div>
               )}
             </div>
 
@@ -382,7 +381,7 @@ export const StockImagePicker: React.FC<{
               disabled={selected.length === 0}
               className="w-full mt-3 py-2 rounded-xl text-xs font-extrabold text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300"
             >
-              {mode === 'single' ? 'Use Image' : 'Use Selected Images'}
+              {mode === 'single' ? ui("Use Image") : ui("Use Selected Images")}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { translateInterfaceText as ui, useInterfaceLanguage } from '../utils/interfaceLanguage';
 
 interface Testimonial {
   id: number;
@@ -123,6 +124,7 @@ const TestimonialAvatar: React.FC<{ testimonial: Testimonial }> = ({ testimonial
 };
 
 export const TestimonialCarousel: React.FC = () => {
+  useInterfaceLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scroll = (direction: 'left' | 'right') => {
@@ -136,6 +138,7 @@ export const TestimonialCarousel: React.FC = () => {
   return (
     <div className="relative group">
       <button 
+        aria-label={ui("Previous reviews")}
         onClick={() => scroll('left')}
         className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 bg-white shadow-lg p-3 rounded-full z-10 hidden group-hover:block text-slate-600 hover:text-teal-600 transition-all"
       >
@@ -152,16 +155,17 @@ export const TestimonialCarousel: React.FC = () => {
                 <TestimonialAvatar testimonial={t} />
                 <div>
                   <h4 className="font-bold text-slate-800 text-sm">{t.name}</h4>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">{t.role}</p>
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">{ui(t.role)}</p>
                 </div>
              </div>
-             <h5 className="font-display font-semibold text-teal-600 mb-2">{t.title}</h5>
-             <p className="text-slate-600 text-sm italic">"{t.quote}"</p>
+             <h5 className="font-display font-semibold text-teal-600 mb-2">{ui(t.title)}</h5>
+             <p className="text-slate-600 text-sm italic">"{ui(t.quote)}"</p>
           </div>
         ))}
       </div>
 
       <button 
+        aria-label={ui("Next reviews")}
         onClick={() => scroll('right')}
         className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 bg-white shadow-lg p-3 rounded-full z-10 hidden group-hover:block text-slate-600 hover:text-teal-600 transition-all"
       >

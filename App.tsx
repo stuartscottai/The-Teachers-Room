@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from './utils/interfaceLanguage';
 
 import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -97,11 +98,11 @@ const LegacyHashRouteRedirect: React.FC = () => {
   return null;
 };
 
-const RouteLoading: React.FC = () => (
+const RouteLoading: React.FC = () => { useUiLanguage(); return ((
   <div className="min-h-[40vh] flex items-center justify-center px-6 text-center">
-    <p className="text-sm font-semibold text-slate-500">Loading...</p>
+    <p className="text-sm font-semibold text-slate-500">{ui("Loading...")}</p>
   </div>
-);
+)); };
 
 const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Suspense fallback={<RouteLoading />}>{children}</Suspense>
@@ -196,6 +197,7 @@ const App: React.FC = () => {
 
 // Disposable public section: never mount account providers, onboarding or site navigation.
 const AppRoutes: React.FC = () => {
+  useUiLanguage();
   const { pathname } = useLocation();
   if (pathname === '/class' || pathname.startsWith('/class/')) {
     return <><RouteSEO /><Routes>
@@ -204,7 +206,7 @@ const AppRoutes: React.FC = () => {
           <LazyRoute><ClassBooklet key={booklet.slug} booklet={booklet} /></LazyRoute>
         </ErrorBoundary>
       } />)}
-      <Route path="*" element={<main className="min-h-screen p-8 text-center"><h1 className="font-display text-2xl">Booklet not found</h1><p>Please use the full link supplied by your teacher.</p></main>} />
+      <Route path="*" element={<main translate="no" className="notranslate min-h-screen p-8 text-center"><h1 className="font-display text-2xl">{ui("Booklet not found")}</h1><p>{ui("Please use the full link supplied by your teacher.")}</p></main>} />
     </Routes></>;
   }
   return <App />;

@@ -1,13 +1,16 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { publicBlogPosts } from '../data/blogPosts';
+import { getPublicBlogPosts } from '../data/blogPosts';
 
 export const Blog: React.FC = () => {
+  const { language } = useUiLanguage();
+  const publicBlogPosts = getPublicBlogPosts(language);
     return (
         <div className="bg-slate-50 min-h-screen py-20">
             <div className="max-w-7xl mx-auto px-4">
-                <h1 className="font-display text-4xl font-bold text-slate-800 mb-2 text-center">The Teachers' Blog</h1>
-                <p className="text-center text-slate-500 mb-16">Insights, tips, and stories from the education frontier.</p>
+                <h1 className="font-display text-4xl font-bold text-slate-800 mb-2 text-center">{ui("The Teachers' Blog")}</h1>
+                <p className="text-center text-slate-500 mb-16">{ui("Insights, tips, and stories from the education frontier.")}</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {publicBlogPosts.map((post) => (
@@ -28,7 +31,7 @@ export const Blog: React.FC = () => {
                                 <span 
                                     className="text-slate-800 font-bold group-hover:text-brand-blue text-sm transition-colors flex items-center"
                                 >
-                                    Read Article &rarr;
+                                    {ui("Read Article →")}
                                 </span>
                             </div>
                         </Link>

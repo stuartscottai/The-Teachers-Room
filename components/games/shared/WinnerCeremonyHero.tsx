@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../../utils/interfaceLanguage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { LiveQuizAvatarIcon } from '../liveQuizAvatars';
@@ -458,7 +459,7 @@ export const WinnerCeremonyStandingsTable: React.FC<WinnerCeremonyStandingsTable
     return (
         <div className="mx-auto w-full max-w-5xl rounded-3xl border border-white/15 bg-slate-950/82 p-4 text-left shadow-2xl shadow-black/35 backdrop-blur sm:p-6">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-                <h2 className="font-display text-2xl font-black text-white sm:text-3xl">{title}</h2>
+                <h2 className="font-display text-2xl font-black text-white sm:text-3xl">{ui(title)}</h2>
                 <p className="text-sm font-black uppercase tracking-wide text-cyan-200">
                     {countLabel || `${ranking.length} ${ranking.length === 1 ? 'team' : 'teams'}`}
                 </p>
@@ -482,7 +483,7 @@ export const WinnerCeremonyStandingsTable: React.FC<WinnerCeremonyStandingsTable
                         >
                             <div className="font-display text-3xl font-black sm:text-4xl">#{rank}</div>
                             <div className="min-w-0 truncate font-display text-3xl font-black sm:text-4xl">
-                                {entry.name || `Team ${entry.index + 1}`}
+                                {displayTeamName(entry.name || `Team ${entry.index + 1}`)}
                             </div>
                             <div className="text-right font-display text-2xl font-black sm:text-3xl">
                                 {formatScore(entry.score, entry)}
@@ -516,6 +517,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     musicEnabled = true,
     children,
 }) => {
+  useUiLanguage();
     const [winnerAnimationStage, setWinnerAnimationStage] = useState<AnimationStage>('idle');
     const [winnerCelebrationEffect, setWinnerCelebrationEffect] = useState<WinnerCeremonyEffect>('confetti');
     const winnerStageTimeoutsRef = useRef<number[]>([]);
@@ -697,7 +699,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
             >
                 <div className="max-w-6xl mx-auto px-4 pt-6 sm:pt-8 pb-10 flex flex-col items-center text-center">
                     <h1 className="relative z-40 font-display text-4xl sm:text-5xl md:text-6xl font-black mb-2 text-white drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">{winnerHeadline}</h1>
-                    <p className="relative z-40 text-cyan-100 text-base sm:text-xl mb-3 sm:mb-4 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]">{subtitle}</p>
+                    <p className="relative z-40 text-cyan-100 text-base sm:text-xl mb-3 sm:mb-4 font-bold drop-shadow-[0_2px_5px_rgba(0,0,0,0.65)]">{ui(subtitle)}</p>
 
                     <div className="relative w-full max-w-6xl mb-8 px-2 sm:px-4">
                         <div className="relative z-20 mx-auto w-fit max-w-full flex items-end justify-center gap-0 sm:gap-1 md:gap-1 pt-8 sm:pt-12 md:pt-14 pb-6 min-h-[270px] sm:min-h-[340px]">
@@ -753,7 +755,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
                                                         </div>
                                                     )}
                                                     <h3 className="text-white font-display font-black text-lg sm:text-2xl md:text-3xl tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] max-w-[240px] truncate">
-                                                        {teamName}
+                                                        {displayTeamName(teamName)}
                                                     </h3>
                                                     <div className="h-1 w-14 mx-auto my-1 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.75)]" style={{ backgroundColor: CEREMONY_COLORS.accent }} />
                                                     <p className="text-cyan-200 font-black text-[11px] sm:text-sm tracking-[0.16em] uppercase">
@@ -797,14 +799,11 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
 
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                         <button onClick={restartWinnerCeremony} className="px-6 py-3 rounded-xl bg-slate-900/85 border border-white/25 text-white font-bold hover:bg-slate-800 transition-all shadow-lg">
-                            <RefreshCw size={18} className="inline mr-2" /> Replay Ceremony
-                        </button>
+                            <RefreshCw size={18} className="inline mr-2" /> {ui(" Replay Ceremony")}</button>
                         <button onClick={onPlayAgain} className="px-8 py-3 rounded-xl bg-brand-yellow text-slate-950 font-black flex items-center justify-center hover:brightness-105 transition-all shadow-lg shadow-yellow-950/25">
-                            <RefreshCw size={18} className="mr-2" /> Play Again
-                        </button>
+                            <RefreshCw size={18} className="mr-2" /> {ui(" Play Again")}</button>
                         <button onClick={onExit} className="px-8 py-3 rounded-xl bg-white text-slate-950 font-black hover:bg-slate-100 transition-all shadow-lg">
-                            Exit to Game Hub
-                        </button>
+                            {ui("Exit to Game Hub")}</button>
                     </div>
                 </div>
             </div>

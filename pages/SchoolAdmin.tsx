@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ban, Building2, CheckCircle2, ChevronDown, Clock3, Copy, Gamepad2, HardDrive, KeyRound, Mail, Minus, Plus, RefreshCw, Search, Shield, Trash2, Users, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +35,7 @@ import './school-admin.css';
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
 export const SchoolAdmin: React.FC = () => {
+  useUiLanguage();
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
   const [teacherSpots, setTeacherSpots] = useState<SchoolTeacherSpotSummary | null>(null);
@@ -104,7 +106,7 @@ export const SchoolAdmin: React.FC = () => {
       setSchoolCode(joinCodeResult.code);
     } catch (error) {
       console.error('Failed to load school admin data:', error);
-      setFeedback({ type: 'error', text: 'Could not load school admin data.' });
+      setFeedback({ type: 'error', text: ui("Could not load school admin data.") });
     } finally {
       setLoadingData(false);
     }
@@ -182,7 +184,7 @@ export const SchoolAdmin: React.FC = () => {
 
   const handleRegenerateSchoolCode = async () => {
     if (!schoolId) return;
-    const confirmed = window.confirm('Regenerate school code? Existing code will stop working for new signups.');
+    const confirmed = window.confirm(ui("Regenerate school code? Existing code will stop working for new signups."));
     if (!confirmed) return;
 
     setRegeneratingCode(true);
@@ -323,7 +325,7 @@ export const SchoolAdmin: React.FC = () => {
 
   const handleRemoveTeacher = async (teacherUserId: string) => {
     if (!schoolId) return;
-    const confirmed = window.confirm('Remove this teacher from the school account?');
+    const confirmed = window.confirm(ui("Remove this teacher from the school account?"));
     if (!confirmed) return;
 
     const { error } = await removeSchoolTeacher({ schoolId, userId: teacherUserId });
@@ -339,7 +341,7 @@ export const SchoolAdmin: React.FC = () => {
     if (!schoolId || teacher.role === nextRole) return;
 
     if (nextRole === 'teacher') {
-      const confirmed = window.confirm(`Remove admin access for ${teacher.fullName}?`);
+      const confirmed = window.confirm(ui("Remove admin access for {teacher.fullName}?", { "teacher.fullName": (teacher.fullName) }));
       if (!confirmed) return;
     }
 
@@ -375,7 +377,7 @@ export const SchoolAdmin: React.FC = () => {
 
     if (!nextIsActive) {
       const confirmed = window.confirm(
-        `Set ${teacher.fullName} to inactive? They will no longer use a teacher spot or AI generation until re-activated.`
+        ui("Set {teacher.fullName} to inactive? They will no longer use a teacher spot or AI generation until re-activated.", { "teacher.fullName": (teacher.fullName) })
       );
       if (!confirmed) return;
     }
@@ -433,7 +435,7 @@ export const SchoolAdmin: React.FC = () => {
         ['Games played', teacher.totalPlayEvents, 'Game sessions started by this teacher.'],
         ['AI generations', teacher.totalAiGenerations, 'Successful AI generations by this teacher.']
       ].map(([label, value, description]) => (
-        <div key={label} title={String(description)}><dt>{label}</dt><dd>{value}</dd></div>
+        <div key={label} title={ui(String(description))}><dt>{ui(String(label))}</dt><dd>{value}</dd></div>
       ))}
     </dl>
   );
@@ -449,8 +451,7 @@ export const SchoolAdmin: React.FC = () => {
         className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50"
       >
         <Gamepad2 size={13} className="mr-1.5" />
-        View Games
-      </button>
+        {ui("View Games")}</button>
 
       {teacher.status === 'active' ? (
         <button
@@ -463,7 +464,7 @@ export const SchoolAdmin: React.FC = () => {
           className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
         >
           <Ban size={13} className="mr-1.5" />
-          {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Inactive'}
+          {updatingActivityUserId === teacher.userId ? ui("Updating...") : ui("Set Inactive")}
         </button>
       ) : (
         <button
@@ -476,7 +477,7 @@ export const SchoolAdmin: React.FC = () => {
           className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
         >
           <CheckCircle2 size={13} className="mr-1.5" />
-          {updatingActivityUserId === teacher.userId ? 'Updating...' : 'Set Active'}
+          {updatingActivityUserId === teacher.userId ? ui("Updating...") : ui("Set Active")}
         </button>
       )}
 
@@ -491,7 +492,7 @@ export const SchoolAdmin: React.FC = () => {
           className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-sky-700 hover:bg-sky-50 disabled:opacity-60"
         >
           <Shield size={13} className="mr-1.5" />
-          {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Grant Admin'}
+          {updatingRoleUserId === teacher.userId ? ui("Updating...") : ui("Grant Admin")}
         </button>
       )}
 
@@ -506,7 +507,7 @@ export const SchoolAdmin: React.FC = () => {
           className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
         >
           <Shield size={13} className="mr-1.5" />
-          {updatingRoleUserId === teacher.userId ? 'Updating...' : 'Remove Admin'}
+          {updatingRoleUserId === teacher.userId ? ui("Updating...") : ui("Remove Admin")}
         </button>
       )}
 
@@ -518,11 +519,10 @@ export const SchoolAdmin: React.FC = () => {
             void handleRemoveTeacher(teacher.userId);
           }}
           className="w-full text-left inline-flex items-center rounded-md px-2.5 py-2 text-xs font-bold text-red-700 hover:bg-red-50"
-          title="Remove teacher"
+          title={ui("Remove teacher")}
         >
           <Trash2 size={13} className="mr-1.5" />
-          Remove Teacher
-        </button>
+          {ui("Remove Teacher")}</button>
       )}
     </>
   );
@@ -544,27 +544,27 @@ export const SchoolAdmin: React.FC = () => {
   }, [openActionsForUserId]);
 
   const inviteMessage = messageEmail ? [
-    `Hello,`,
+    ui("Hello,"),
     '',
-    `You’re invited to join ${schoolName} on The Teachers’ Room, where we can create classroom games and share teaching resources.`,
+    ui("You’re invited to join {schoolName} on The Teachers’ Room, where we can create classroom games and share teaching resources.", { "schoolName": (schoolName) }),
     '',
-    '1. Visit https://theteachersroom.app and create an account. If you already have one, sign in.',
-    `2. Use this email address: ${messageEmail}`,
-    schoolCode ? `3. Enter our school code during sign up, or in My Profile: ${schoolCode}` : '3. Ask your school admin for the school code, then enter it in My Profile.',
-    '4. Your school access will be pending until a school admin approves your request.',
+    ui("1. Visit https://theteachersroom.app and create an account. If you already have one, sign in."),
+    ui("2. Use this email address: {messageEmail}", { "messageEmail": (messageEmail) }),
+    schoolCode ? ui("3. Enter our school code during sign up, or in My Profile: {schoolCode}", { "schoolCode": (schoolCode) }) : ui("3. Ask your school admin for the school code, then enter it in My Profile."),
+    ui("4. Your school access will be pending until a school admin approves your request."),
     '',
-    'Once approved, you can use our school’s shared resources and start creating games.',
+    ui("Once approved, you can use our school’s shared resources and start creating games."),
     '',
-    `See you there!`,
+    ui("See you there!"),
     schoolName
   ].join('\n') : '';
 
   const copyInviteMessage = async () => {
-    if (await copyText(inviteMessage)) showSuccess('Message copied. Paste it into your email or messaging app to send it.');
+    if (await copyText(inviteMessage)) showSuccess(ui("Message copied. Paste it into your email or messaging app to send it."));
     else {
       messageRef.current?.focus();
       messageRef.current?.select();
-      showError('Your browser blocked automatic copying. The message is selected below; copy it manually.');
+      showError(ui("Your browser blocked automatic copying. The message is selected below; copy it manually."));
     }
   };
 
@@ -580,15 +580,14 @@ export const SchoolAdmin: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full text-center">
-          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">School Admin Access</h1>
-          <p className="text-slate-500 mb-6">Create a free account on the Teacher Plan first, then set up the School Plan to manage teachers.</p>
+          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("School Admin Access")}</h1>
+          <p className="text-slate-500 mb-6">{ui("Create a free account on the Teacher Plan first, then set up the School Plan to manage teachers.")}</p>
           <button
             type="button"
             onClick={() => promptSignupForFree('Create a free account on the Teacher Plan to continue.')}
             className="px-6 py-3 rounded-xl bg-brand-blue text-white font-bold hover:bg-sky-600 transition-colors"
           >
-            Sign Up Free
-          </button>
+            {ui("Sign Up Free")}</button>
         </div>
       </div>
     );
@@ -599,20 +598,18 @@ export const SchoolAdmin: React.FC = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full">
           <div className="flex items-center gap-2 text-amber-700 font-bold mb-2">
-            <Shield size={18} /> Access Restricted
-          </div>
+            <Shield size={18} /> {ui(" Access Restricted")}</div>
           <p className="text-slate-600">
-            This page is available to School Admin users only. If your account should have access, ask your school owner to grant admin rights.
-          </p>
+            {ui("This page is available to School Admin users only. If your account should have access, ask your school owner to grant admin rights.")}</p>
         </div>
       </div>
     );
   }
 
   const tabs = [
-    { id: 'teachers' as const, label: 'Teachers', icon: Users },
-    { id: 'access' as const, label: 'Access & invites', icon: KeyRound },
-    { id: 'files' as const, label: 'Shared files', icon: HardDrive }
+    { id: 'teachers' as const, get label() { return ui("Teachers"); }, icon: Users },
+    { id: 'access' as const, get label() { return ui("Access & invites"); }, icon: KeyRound },
+    { id: 'files' as const, get label() { return ui("Shared files"); }, icon: HardDrive }
   ];
 
   return (
@@ -621,29 +618,28 @@ export const SchoolAdmin: React.FC = () => {
         <header className="school-admin-header">
           <div className="school-identity">
             <div className="school-logo" aria-busy={isLoadingSchoolLogo}>
-              {schoolLogoUrl ? <img src={schoolLogoUrl} alt={`${schoolName} logo`} /> : <Building2 size={28} aria-hidden="true" />}
+              {schoolLogoUrl ? <img src={schoolLogoUrl} alt={ui("{schoolName} logo", { "schoolName": (schoolName) })} /> : <Building2 size={28} aria-hidden="true" />}
             </div>
             <div className="min-w-0">
-              <p className="workspace-eyebrow">School administration</p>
+              <p className="workspace-eyebrow">{ui("School administration")}</p>
               <h1 className="workspace-heading">{schoolName}</h1>
-              <p className="school-muted">Manage your teachers, access and shared resources.</p>
+              <p className="school-muted">{ui("Manage your teachers, access and shared resources.")}</p>
             </div>
           </div>
           <button type="button" className="workspace-button" disabled={loadingData} onClick={() => void loadAdminData()}>
-            <RefreshCw size={16} className={loadingData ? 'animate-spin' : ''} /> Refresh
-          </button>
+            <RefreshCw size={16} className={loadingData ? 'animate-spin' : ''} /> {ui(" Refresh")}</button>
         </header>
 
-        <dl className="school-overview" aria-label="School overview" aria-busy={loadingData}>
-          <div><dt>Active teachers</dt><dd>{teacherSpots?.teacherCount ?? '—'}</dd></div>
-          <div><dt>Available spots</dt><dd>{teacherSpots?.spotsRemaining ?? '—'} <span>of {teacherSpots?.teacherSpotLimit ?? '—'}</span></dd></div>
-          <div><dt>Join requests</dt><dd>{loadingData && !teachers.length ? '—' : joinRequests.length}</dd></div>
-          <div><dt>Pending invites</dt><dd>{loadingData && !invites.length ? '—' : pendingInvites.length}</dd></div>
+        <dl className="school-overview" aria-label={ui("School overview")} aria-busy={loadingData}>
+          <div><dt>{ui("Active teachers")}</dt><dd>{teacherSpots?.teacherCount ?? '—'}</dd></div>
+          <div><dt>{ui("Available spots")}</dt><dd>{teacherSpots?.spotsRemaining ?? '—'} <span>{ui("of ")}{teacherSpots?.teacherSpotLimit ?? '—'}</span></dd></div>
+          <div><dt>{ui("Join requests")}</dt><dd>{loadingData && !teachers.length ? '—' : joinRequests.length}</dd></div>
+          <div><dt>{ui("Pending invites")}</dt><dd>{loadingData && !invites.length ? '—' : pendingInvites.length}</dd></div>
         </dl>
 
         {feedback && <div role={feedback.type === 'error' ? 'alert' : 'status'} className={`school-feedback is-${feedback.type}`}>{feedback.text}</div>}
 
-        <div className="school-tabs" role="tablist" aria-label="School administration sections">
+        <div className="school-tabs" role="tablist" aria-label={ui("School administration sections")}>
           {tabs.map(({ id, label, icon: Icon }, index) => (
             <button key={id} id={`school-tab-${id}`} role="tab" aria-selected={activeTab === id} aria-controls={`school-panel-${id}`} tabIndex={activeTab === id ? 0 : -1}
               onClick={() => { setActiveTab(id); closeActionsMenu(); }}
@@ -664,8 +660,7 @@ export const SchoolAdmin: React.FC = () => {
         <div id="school-panel-teachers" role="tabpanel" aria-labelledby="school-tab-teachers" hidden={activeTab !== 'teachers'} className="school-tab-panel">
         <section className="school-panel">
           <h2 className="school-section-heading">
-            <Clock3 size={18} /> Join requests
-          </h2>
+            <Clock3 size={18} /> {ui(" Join requests")}</h2>
           <div className="school-requests">
             {joinRequests.map((request) => (
               <div key={request.userId} className="school-request">
@@ -674,7 +669,7 @@ export const SchoolAdmin: React.FC = () => {
                   {request.email || 'Email unavailable'}
                 </div>
                 <div className="text-xs text-slate-500 mb-3">
-                  Requested: {new Date(request.requestedAt).toLocaleDateString()}
+                  {ui("Requested: ")}{new Date(request.requestedAt).toLocaleDateString()}
                 </div>
                 <div className="school-request-actions">
                   <button
@@ -684,7 +679,7 @@ export const SchoolAdmin: React.FC = () => {
                     className="inline-flex items-center text-xs font-bold px-3 py-1.5 rounded bg-green-50 text-green-700 hover:bg-green-100 disabled:opacity-60"
                   >
                     <CheckCircle2 size={13} className="mr-1.5" />
-                    {approvingUserId === request.userId ? 'Approving...' : 'Approve'}
+                    {approvingUserId === request.userId ? ui("Approving...") : ui("Approve")}
                   </button>
                   <button
                     type="button"
@@ -693,38 +688,37 @@ export const SchoolAdmin: React.FC = () => {
                     className="inline-flex items-center text-xs font-bold px-3 py-1.5 rounded bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60"
                   >
                     <XCircle size={13} className="mr-1.5" />
-                    {rejectingUserId === request.userId ? 'Rejecting...' : 'Reject'}
+                    {rejectingUserId === request.userId ? ui("Rejecting...") : ui("Reject")}
                   </button>
                 </div>
               </div>
             ))}
-            {!joinRequests.length && <p className="text-sm text-slate-500">No pending join requests.</p>}
+            {!joinRequests.length && <p className="text-sm text-slate-500">{ui("No pending join requests.")}</p>}
           </div>
         </section>
         <section className="school-panel">
           <div className="school-directory-heading">
             <div>
-              <h2 className="school-section-heading"><Users size={18} /> Teacher directory</h2>
-              <p className="school-muted">Activity and access for your school’s teachers.</p>
+              <h2 className="school-section-heading"><Users size={18} /> {ui(" Teacher directory")}</h2>
+              <p className="school-muted">{ui("Activity and access for your school’s teachers.")}</p>
             </div>
             <div className="school-directory-filters">
               <label className="school-search">
                 <Search size={16} aria-hidden="true" />
-                <input aria-label="Search teachers" placeholder="Search name or email" value={teacherSearch} onChange={event => setTeacherSearch(event.target.value)} />
+                <input aria-label={ui("Search teachers")} placeholder={ui("Search name or email")} value={teacherSearch} onChange={event => setTeacherSearch(event.target.value)} />
               </label>
-              <select aria-label="Filter teachers by status" value={teacherStatus} onChange={event => setTeacherStatus(event.target.value)}>
-                <option value="all">All statuses</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="pending">Pending</option>
+              <select aria-label={ui("Filter teachers by status")} value={teacherStatus} onChange={event => setTeacherStatus(event.target.value)}>
+                <option value="all">{ui("All statuses")}</option>
+                <option value="active">{ui("Active")}</option>
+                <option value="inactive">{ui("Inactive")}</option>
+                <option value="pending">{ui("Pending")}</option>
               </select>
             </div>
           </div>
 
           {loadingData ? (
             <div className="flex items-center text-slate-500 text-sm">
-              <RefreshCw size={15} className="animate-spin mr-2" /> Loading teacher directory...
-            </div>
+              <RefreshCw size={15} className="animate-spin mr-2" /> {ui(" Loading teacher directory...")}</div>
           ) : (
             <>
               <div className="school-teacher-mobile md:hidden">
@@ -749,8 +743,7 @@ export const SchoolAdmin: React.FC = () => {
                           </span>
                           {teacher.isOwner && (
                             <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                              Owner
-                            </span>
+                              {ui("Owner")}</span>
                           )}
                         </div>
                       </div>
@@ -762,11 +755,10 @@ export const SchoolAdmin: React.FC = () => {
                             toggleActionsMenu(teacher.userId);
                           }}
                           aria-expanded={openActionsForUserId === teacher.userId}
-                          aria-label={`Actions for ${teacher.fullName}`}
+                          aria-label={ui("Actions for {teacher.fullName}", { "teacher.fullName": (teacher.fullName) })}
                           className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                         >
-                          Actions
-                          <ChevronDown
+                          {ui("Actions")}<ChevronDown
                             size={13}
                             className={`ml-1.5 transition-transform ${
                               openActionsForUserId === teacher.userId ? 'rotate-180' : ''
@@ -786,20 +778,20 @@ export const SchoolAdmin: React.FC = () => {
 
                     <div className="mt-3">{renderUsageBadges(teacher)}</div>
                     <div className="text-[11px] text-slate-500 mt-1">
-                      Last active: {formatDateTime(teacher.lastActivityAt)}
+                      {ui("Last active: ")}{formatDateTime(teacher.lastActivityAt)}
                     </div>
                   </article>
                 ))}
-                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-1">{teachers.length ? 'No teachers match your search.' : 'No teachers assigned yet.'}</p>}
+                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-1">{teachers.length ? ui("No teachers match your search.") : ui("No teachers assigned yet.")}</p>}
               </div>
 
               <div className="hidden md:block overflow-visible">
                 <table className="school-teacher-table">
                   <thead>
                     <tr className="text-left text-slate-500">
-                      <th className="py-2 pr-4">Teacher</th>
-                      <th className="py-2 pr-4">Activity</th>
-                      <th className="py-2">Actions</th>
+                      <th className="py-2 pr-4">{ui("Teacher")}</th>
+                      <th className="py-2 pr-4">{ui("Activity")}</th>
+                      <th className="py-2">{ui("Actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -823,15 +815,14 @@ export const SchoolAdmin: React.FC = () => {
                             </span>
                             {teacher.isOwner && (
                               <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                                Owner
-                              </span>
+                                {ui("Owner")}</span>
                             )}
                           </div>
                         </td>
                         <td className="py-3 pr-4">
                           {renderUsageBadges(teacher)}
                           <div className="text-[11px] text-slate-500 mt-1">
-                            Last active: {formatDateTime(teacher.lastActivityAt)}
+                            {ui("Last active: ")}{formatDateTime(teacher.lastActivityAt)}
                           </div>
                         </td>
                         <td className="py-3">
@@ -843,11 +834,10 @@ export const SchoolAdmin: React.FC = () => {
                                 toggleActionsMenu(teacher.userId);
                               }}
                               aria-expanded={openActionsForUserId === teacher.userId}
-                              aria-label={`Actions for ${teacher.fullName}`}
+                              aria-label={ui("Actions for {teacher.fullName}", { "teacher.fullName": (teacher.fullName) })}
                               className="inline-flex items-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
                             >
-                              Actions
-                              <ChevronDown size={13} className="ml-1.5" />
+                              {ui("Actions")}<ChevronDown size={13} className="ml-1.5" />
                             </button>
                             {openActionsForUserId === teacher.userId && (
                               <div
@@ -863,7 +853,7 @@ export const SchoolAdmin: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-3">{teachers.length ? 'No teachers match your search.' : 'No teachers assigned yet.'}</p>}
+                {!visibleTeachers.length && <p className="text-sm text-slate-500 py-3">{teachers.length ? ui("No teachers match your search.") : ui("No teachers assigned yet.")}</p>}
               </div>
             </>
           )}
@@ -872,19 +862,18 @@ export const SchoolAdmin: React.FC = () => {
         <div id="school-panel-access" role="tabpanel" aria-labelledby="school-tab-access" hidden={activeTab !== 'access'} className="school-tab-panel school-access-grid">
         <section className="school-panel">
             <h2 className="school-section-heading">
-              <Users size={18} /> Teacher spots
-            </h2>
+              <Users size={18} /> {ui(" Teacher spots")}</h2>
             <div className="school-spot-stats">
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Active</p>
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">{ui("Active")}</p>
                 <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherCount ?? 0}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Total Spots</p>
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">{ui("Total Spots")}</p>
                 <p className="text-lg font-bold text-slate-800">{teacherSpots?.teacherSpotLimit ?? 0}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">Available</p>
+                <p className="text-xs uppercase tracking-wide font-bold text-slate-500">{ui("Available")}</p>
                 <p className="text-lg font-bold text-slate-800">{teacherSpots?.spotsRemaining ?? 0}</p>
               </div>
             </div>
@@ -892,7 +881,7 @@ export const SchoolAdmin: React.FC = () => {
             <div className="school-spot-controls">
               <input
                 id="school-spot-count"
-                aria-label="Number of teacher spots to add or remove"
+                aria-label={ui("Number of teacher spots to add or remove")}
                 type="number"
                 min={1}
                 value={spotChangeCount}
@@ -905,30 +894,25 @@ export const SchoolAdmin: React.FC = () => {
                 onClick={() => void handleAdjustTeacherSpots('add')}
                 className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
               >
-                <Plus size={14} className="inline mr-1" /> Add Spots
-              </button>
+                <Plus size={14} className="inline mr-1" /> {ui(" Add Spots")}</button>
               <button
                 type="button"
                 disabled={changingSpots || !teacherSpots || maxRemovableSpots < 1}
                 onClick={() => void handleAdjustTeacherSpots('remove')}
                 className="rounded-lg border border-slate-300 text-slate-700 font-bold px-4 py-2 hover:bg-slate-50 disabled:opacity-60"
               >
-                <Minus size={14} className="inline mr-1" /> Remove Spots
-              </button>
+                <Minus size={14} className="inline mr-1" /> {ui(" Remove Spots")}</button>
             </div>
             <p className="text-xs text-slate-500 mt-3">
-              You can remove up to {maxRemovableSpots} spot{maxRemovableSpots === 1 ? '' : 's'} without affecting active teachers.
-            </p>
+              {ui("You can remove up to ")}{maxRemovableSpots} {ui(" spot")}{maxRemovableSpots === 1 ? '' : 's'} {ui(" without affecting active teachers.")}</p>
           </section>
         <section className="school-panel">
           <h2 className="school-section-heading">
-            <KeyRound size={18} /> School join code
-          </h2>
+            <KeyRound size={18} /> {ui(" School join code")}</h2>
           <p className="text-sm text-slate-500 mb-3">
-            Teachers can enter this code during sign up. Their access stays pending until you approve it.
-          </p>
+            {ui("Teachers can enter this code during sign up. Their access stays pending until you approve it.")}</p>
           <div className="school-join-code">
-            <p className="text-xs uppercase tracking-wide font-bold text-slate-500 mb-1">Current code</p>
+            <p className="text-xs uppercase tracking-wide font-bold text-slate-500 mb-1">{ui("Current code")}</p>
             <p className="font-mono text-xl font-bold text-slate-800 tracking-wide">{schoolCode || 'Not set'}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -937,8 +921,7 @@ export const SchoolAdmin: React.FC = () => {
               onClick={() => void handleCopySchoolCode()}
               className="inline-flex items-center px-3 py-2 rounded-lg bg-brand-blue/10 text-brand-blue text-sm font-bold hover:bg-brand-blue/20"
             >
-              <Copy size={14} className="mr-2" /> Copy Code
-            </button>
+              <Copy size={14} className="mr-2" /> {ui(" Copy Code")}</button>
             <button
               type="button"
               onClick={() => void handleRegenerateSchoolCode()}
@@ -946,26 +929,24 @@ export const SchoolAdmin: React.FC = () => {
               className="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 disabled:opacity-60"
             >
               <RefreshCw size={14} className={`mr-2 ${regeneratingCode ? 'animate-spin' : ''}`} />
-              {regeneratingCode ? 'Regenerating...' : 'Regenerate Code'}
+              {regeneratingCode ? ui("Regenerating...") : ui("Regenerate Code")}
             </button>
           </div>
         </section>
         <section className="school-panel">
             <h2 className="school-section-heading">
-              <Mail size={18} /> Teacher invites
-            </h2>
+              <Mail size={18} /> {ui(" Teacher invites")}</h2>
             <p className="text-sm text-slate-500 mb-3">
-              Save a teacher’s invite, then copy the message into your email or messaging app. No email is sent automatically.
-            </p>
+              {ui("Save a teacher’s invite, then copy the message into your email or messaging app. No email is sent automatically.")}</p>
 
             <form onSubmit={handleInviteTeacher} className="school-invite-form">
-              <label htmlFor="school-invite-email" className="sr-only">Teacher email address</label>
+              <label htmlFor="school-invite-email" className="sr-only">{ui("Teacher email address")}</label>
               <input
                 id="school-invite-email"
                 type="email"
                 value={inviteEmail}
                 onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="teacher@school.edu"
+                placeholder={ui("teacher@school.edu")}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-blue"
               />
               <button
@@ -973,19 +954,18 @@ export const SchoolAdmin: React.FC = () => {
                 disabled={sendingInvite}
                 className="rounded-lg bg-brand-blue text-white font-bold px-4 py-2 hover:bg-sky-600 disabled:opacity-70"
               >
-                Save Invite
-              </button>
+                {ui("Save Invite")}</button>
             </form>
 
             {messageEmail && (
-              <section className="school-invite-message" aria-label="Teacher invitation message">
+              <section className="school-invite-message" aria-label={ui("Teacher invitation message")}>
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <h3 className="text-sm font-semibold">Message for {messageEmail}</h3>
-                  <button type="button" onClick={() => setMessageEmail(null)} className="text-sm text-slate-500">Close message</button>
+                  <h3 className="text-sm font-semibold">{ui("Message for ")}{messageEmail}</h3>
+                  <button type="button" onClick={() => setMessageEmail(null)} className="text-sm text-slate-500">{ui("Close message")}</button>
                 </div>
-                <textarea ref={messageRef} aria-label="Invitation message" value={inviteMessage} readOnly rows={10} />
+                <textarea ref={messageRef} aria-label={ui("Invitation message")} value={inviteMessage} readOnly rows={10} />
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <button type="button" onClick={() => void copyInviteMessage()} className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white"><Copy size={15} /> Copy message</button>
+                  <button type="button" onClick={() => void copyInviteMessage()} className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white"><Copy size={15} /> {ui(" Copy message")}</button>
                 </div>
               </section>
             )}
@@ -995,7 +975,7 @@ export const SchoolAdmin: React.FC = () => {
                 <div key={invite.id} className="rounded-xl border border-slate-200 px-4 py-3">
                   <div className="text-sm font-semibold text-slate-800">{invite.email}</div>
                   <div className="text-xs text-slate-500 mb-3">
-                    Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                    {ui("Expires: ")}{new Date(invite.expiresAt).toLocaleDateString()}
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1004,26 +984,24 @@ export const SchoolAdmin: React.FC = () => {
                       disabled={resendingInviteId === invite.id}
                       className="text-xs font-bold px-3 py-1.5 rounded bg-brand-blue/10 text-brand-blue hover:bg-brand-blue/20 disabled:opacity-60"
                     >
-                      {resendingInviteId === invite.id ? 'Updating...' : 'Extend 7 Days'}
+                      {resendingInviteId === invite.id ? ui("Updating...") : ui("Extend 7 Days")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setMessageEmail(invite.email)}
                       className="text-xs font-bold px-3 py-1.5 rounded bg-sky-50 text-sky-700 hover:bg-sky-100"
                     >
-                      View invite message
-                    </button>
+                      {ui("View invite message")}</button>
                     <button
                       type="button"
                       onClick={() => void handleRevokeInvite(invite.id)}
                       className="text-xs font-bold px-3 py-1.5 rounded bg-red-50 text-red-700 hover:bg-red-100"
                     >
-                      Revoke
-                    </button>
+                      {ui("Revoke")}</button>
                   </div>
                 </div>
               ))}
-              {!pendingInvites.length && <p className="text-sm text-slate-500">No pending invites.</p>}
+              {!pendingInvites.length && <p className="text-sm text-slate-500">{ui("No pending invites.")}</p>}
             </div>
           </section>
         </div>

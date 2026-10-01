@@ -1,0 +1,257 @@
+{
+  "nav.home": {
+    "en": "Home",
+    "es": "Inicio",
+    "context": "Main navigation: the website home page."
+  },
+  "nav.games": {
+    "en": "Games",
+    "es": "Juegos",
+    "context": "Main navigation: create and browse games."
+  },
+  "nav.live": {
+    "en": "Join Live",
+    "es": "Unirse a Live Quiz",
+    "context": "Join the Live Quiz game with a teacher-provided code; not website registration. Keep the game name Live Quiz."
+  },
+  "nav.pricing": {
+    "en": "Pricing",
+    "es": "Planes",
+    "context": "Navigation to subscription plans and prices."
+  },
+  "nav.info": {
+    "en": "Info",
+    "es": "Ayuda",
+    "context": "Navigation to usage information and frequently asked questions."
+  },
+  "nav.blog": {
+    "en": "Blog",
+    "es": "Blog",
+    "context": "Website articles."
+  },
+  "nav.contact": {
+    "en": "Contact",
+    "es": "Contacto",
+    "context": "Contact the website team."
+  },
+  "nav.profile": {
+    "en": "My Profile",
+    "es": "Mi perfil",
+    "context": "Personal account preferences."
+  },
+  "nav.school": {
+    "en": "School Admin",
+    "es": "Administración del centro",
+    "context": "School administrator tools."
+  },
+  "nav.plan": {
+    "en": "Change Plan",
+    "es": "Cambiar de plan",
+    "context": "Change subscription."
+  },
+  "nav.create": {
+    "en": "Create a game",
+    "es": "Crear un juego",
+    "context": "Create classroom content."
+  },
+  "nav.signOut": {
+    "en": "Sign Out",
+    "es": "Cerrar sesión",
+    "context": "Log out of the account."
+  },
+  "nav.login": {
+    "en": "Login / Sign Up",
+    "es": "Acceder / Registrarse",
+    "context": "Open the sign-in or registration dialog."
+  },
+  "appearance.darkGame": {
+    "en": "Dark game",
+    "es": "Modo oscuro",
+    "context": "Switch the game area to a dark appearance."
+  },
+  "appearance.brightGame": {
+    "en": "Bright game",
+    "es": "Modo claro",
+    "context": "Switch the game area to a light appearance, not a clever game."
+  },
+  "settings.title": {
+    "en": "Website settings",
+    "es": "Ajustes del sitio web",
+    "context": "Compact profile section for language and light/dark appearance preferences."
+  },
+  "settings.language": {
+    "en": "Language",
+    "es": "Idioma",
+    "context": "Label for the English/Spanish preference buttons."
+  },
+  "game.check": {
+    "en": "Check",
+    "es": "Comprobar",
+    "context": "Check the answer and turn/reveal the question card; never controlar."
+  },
+  "game.checkAnswer": {
+    "en": "Check answer",
+    "es": "Comprobar respuesta",
+    "context": "Reveal or verify a quiz answer."
+  },
+  "game.question": {
+    "en": "Question",
+    "es": "Pregunta",
+    "context": "Interface label only; never translate the actual question."
+  },
+  "game.answer": {
+    "en": "Answer",
+    "es": "Respuesta",
+    "context": "Interface label only; never translate the actual answer."
+  },
+  "game.quit": {
+    "en": "Quit",
+    "es": "Salir",
+    "context": "Leave the current game; confirm losing progress."
+  },
+  "game.end": {
+    "en": "End Game",
+    "es": "Finalizar partida",
+    "context": "Finish the game session and show results."
+  },
+  "game.team": {
+    "en": "Team {number}",
+    "es": "Equipo {number}",
+    "context": "Default team name only. Keep custom teacher/player names unchanged. Preserve {number}."
+  },
+  "game.start": {
+    "en": "Start Game",
+    "es": "Iniciar partida",
+    "context": "Start playing with the selected settings."
+  },
+  "game.startRound": {
+    "en": "Start Round",
+    "es": "Iniciar ronda",
+    "context": "Begin the next round."
+  },
+  "game.nextCategory": {
+    "en": "Next Category",
+    "es": "Siguiente categoría",
+    "context": "Advance through scoring categories."
+  },
+  "game.nextQuestion": {
+    "en": "Next Question",
+    "es": "Siguiente pregunta",
+    "context": "Advance to the next quiz question."
+  },
+  "game.continue": {
+    "en": "Continue",
+    "es": "Continuar",
+    "context": "Advance after feedback."
+  },
+  "game.correct": {
+    "en": "Correct",
+    "es": "Correcto",
+    "context": "Answer feedback, not the verb to correct written text."
+  },
+  "game.incorrect": {
+    "en": "Incorrect",
+    "es": "Incorrecto",
+    "context": "Answer feedback."
+  },
+  "game.reveal": {
+    "en": "Reveal answer",
+    "es": "Mostrar respuesta",
+    "context": "Show the saved answer."
+  },
+  "game.hide": {
+    "en": "Hide answer",
+    "es": "Ocultar respuesta",
+    "context": "Hide the saved answer."
+  },
+  "game.retry": {
+    "en": "Try again",
+    "es": "Volver a intentar",
+    "context": "Restart student practice."
+  },
+  "game.review": {
+    "en": "Review wrong answers",
+    "es": "Revisar los errores",
+    "context": "Review incorrectly answered practice questions."
+  },
+  "game.scoreRound": {
+    "en": "Score Round",
+    "es": "Puntuar la ronda",
+    "context": "Teacher awards points after a round."
+  },
+  "game.applyScores": {
+    "en": "Apply Scores",
+    "es": "Aplicar puntuaciones",
+    "context": "Save the points awarded in the scoring stage."
+  },
+  "game.stop": {
+    "en": "Stop",
+    "es": "Parar",
+    "context": "Stop the round timer."
+  },
+  "game.timeUp": {
+    "en": "Time’s up!",
+    "es": "¡Se acabó el tiempo!",
+    "context": "Timer has expired."
+  },
+  "game.finalPositions": {
+    "en": "Final positions",
+    "es": "Clasificación final",
+    "context": "Final standings table."
+  },
+  "common.back": {
+    "en": "Back",
+    "es": "Volver",
+    "context": "Go back to the previous screen."
+  },
+  "common.save": {
+    "en": "Save",
+    "es": "Guardar",
+    "context": "Save changes."
+  },
+  "common.cancel": {
+    "en": "Cancel",
+    "es": "Cancelar",
+    "context": "Cancel the current action."
+  },
+  "common.close": {
+    "en": "Close",
+    "es": "Cerrar",
+    "context": "Close a dialog."
+  },
+  "common.copy": {
+    "en": "Copy",
+    "es": "Copiar",
+    "context": "Copy text to the clipboard."
+  },
+  "common.select": {
+    "en": "Select",
+    "es": "Seleccionar",
+    "context": "Select an item, not copy it."
+  },
+  "practice.start": {
+    "en": "Student Practice",
+    "es": "Práctica para el alumnado",
+    "context": "Take-home student game introduction."
+  },
+  "practice.name": {
+    "en": "Enter your name",
+    "es": "Escribe tu nombre",
+    "context": "Student nickname entry."
+  },
+  "nav.signIn": {
+    "en": "Login",
+    "es": "Acceder",
+    "context": "Compact header button opening the login dialog."
+  },
+  "nav.openMenu": {
+    "en": "Open menu",
+    "es": "Abrir menú",
+    "context": "Accessible name of the mobile navigation button."
+  },
+  "nav.closeMenu": {
+    "en": "Close menu",
+    "es": "Cerrar menú",
+    "context": "Accessible name of the mobile navigation button when open."
+  }
+}

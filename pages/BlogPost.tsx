@@ -1,10 +1,13 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Share2 } from 'lucide-react';
-import { publicBlogPosts } from '../data/blogPosts';
+import { getPublicBlogPosts } from '../data/blogPosts';
 import { BrandName } from '../components/BrandName';
 
 export const BlogPostPage: React.FC = () => {
+  const { language } = useUiLanguage();
+  const publicBlogPosts = getPublicBlogPosts(language);
     const { id } = useParams<{ id: string }>();
     const post = publicBlogPosts.find(p => p.id === Number(id));
     const heroImage = post?.heroImage ?? post?.image;
@@ -18,10 +21,9 @@ export const BlogPostPage: React.FC = () => {
     if (!post) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-                <h2 className="text-2xl font-bold text-slate-800 mb-4">Article not found</h2>
+                <h2 className="text-2xl font-bold text-slate-800 mb-4">{ui("Article not found")}</h2>
                 <Link to="/blog" className="text-brand-blue hover:underline flex items-center">
-                    <ArrowLeft size={16} className="mr-2" /> Back to Blog
-                </Link>
+                    <ArrowLeft size={16} className="mr-2" /> {ui(" Back to Blog")}</Link>
             </div>
         );
     }
@@ -47,11 +49,10 @@ export const BlogPostPage: React.FC = () => {
                                 to="/blog"
                                 className="inline-flex items-center mb-6 transition-colors px-4 py-2 rounded-full backdrop-blur-sm text-slate-700 hover:text-slate-900 bg-white/75 hover:bg-white/90 border border-slate-200 shadow-sm"
                             >
-                                <ArrowLeft size={18} className="mr-2" /> Back to Blog
-                            </Link>
+                                <ArrowLeft size={18} className="mr-2" /> {ui(" Back to Blog")}</Link>
                             <div className="flex items-center space-x-6 mb-4 text-sm md:text-base font-medium text-slate-700">
                                 <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
-                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
+                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> {ui(" Team")}</span>
                             </div>
                             <h1 className="text-4xl md:text-6xl font-display font-bold leading-tight mb-4 text-slate-900 max-w-4xl">
                                 {post.title}
@@ -78,11 +79,10 @@ export const BlogPostPage: React.FC = () => {
                                 to="/blog"
                                 className="inline-flex items-center text-white/80 hover:text-white mb-6 transition-colors bg-black/20 hover:bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm"
                             >
-                                <ArrowLeft size={18} className="mr-2" /> Back to Blog
-                            </Link>
+                                <ArrowLeft size={18} className="mr-2" /> {ui(" Back to Blog")}</Link>
                             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/90 mb-4 text-sm md:text-base font-medium">
                                 <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
-                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
+                                <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> {ui(" Team")}</span>
                             </div>
                             <h1 className="text-4xl md:text-6xl font-display font-bold text-white leading-tight mb-4 shadow-black drop-shadow-lg">
                                 {post.title}
@@ -104,17 +104,16 @@ export const BlogPostPage: React.FC = () => {
                 {/* Footer of Article */}
                 <div className="mt-16 pt-8 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div className="text-slate-500 italic text-sm">
-                        Posted in Education Strategies
-                    </div>
+                        {ui("Posted in Education Strategies")}</div>
                     <button 
                         className="flex items-center space-x-2 text-slate-600 hover:text-brand-blue transition-colors px-4 py-2 rounded-lg hover:bg-slate-50"
                         onClick={() => {
                             navigator.clipboard.writeText(window.location.href);
-                            alert("Link copied to clipboard!");
+                            alert(ui("Link copied to clipboard!"));
                         }}
                     >
                         <Share2 size={18} />
-                        <span className="font-bold text-sm">Share Article</span>
+                        <span className="font-bold text-sm">{ui("Share Article")}</span>
                     </button>
                 </div>
             </article>
@@ -122,7 +121,7 @@ export const BlogPostPage: React.FC = () => {
             {/* Suggested Readings */}
             <div className="bg-slate-50 py-16 mt-12 border-t border-slate-100">
                 <div className="max-w-6xl mx-auto px-4">
-                     <h3 className="font-display text-2xl font-bold text-slate-800 mb-8">Read Next</h3>
+                     <h3 className="font-display text-2xl font-bold text-slate-800 mb-8">{ui("Read Next")}</h3>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {publicBlogPosts.filter(p => p.id !== post.id).slice(0, 3).map(related => (
                             <Link to={`/blog/${related.id}`} key={related.id} className="group block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden border border-slate-100">

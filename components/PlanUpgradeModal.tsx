@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React from 'react';
 import { X, GraduationCap, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +16,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
   title,
   message
 }) => {
+  useUiLanguage();
   const navigate = useNavigate();
 
   if (!isOpen) return null;
@@ -31,32 +33,29 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
           type="button"
           onClick={onClose}
           className="absolute right-4 top-4 p-1 rounded-full bg-slate-100 text-slate-500 hover:text-slate-700"
-          aria-label="Close upgrade modal"
+          aria-label={ui("Close upgrade modal")}
         >
           <X size={18} />
         </button>
 
         <div className="p-5 sm:p-8">
           <h2 className="font-display text-2xl font-bold text-slate-800 mb-2">
-            {title || 'Activate Teacher Plan'}
+            {ui(title || "Activate Teacher Plan")}
           </h2>
           <p className="text-sm text-slate-600 mb-6">
-            {message ||
-              'The Teacher Plan includes AI generation and is currently free during early access. No payment is required.'}
+            {ui(message || "The Teacher Plan includes AI generation and is currently free during early access. No payment is required.")}
           </p>
 
           <div className="grid sm:grid-cols-2 gap-3 mb-6">
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
-                <GraduationCap size={16} className="text-brand-blue" /> Teacher Plan
-              </div>
-              <p className="text-xs text-slate-500">AI game credits for one teacher account. Free during early access.</p>
+                <GraduationCap size={16} className="text-brand-blue" /> {ui(" Teacher Plan")}</div>
+              <p className="text-xs text-slate-500">{ui("AI game credits for one teacher account. Free during early access.")}</p>
             </div>
             <div className="rounded-xl border border-slate-200 p-4">
               <div className="flex items-center gap-2 font-bold text-slate-800 mb-2">
-                <Building2 size={16} className="text-brand-blue" /> School Plan
-              </div>
-              <p className="text-xs text-slate-500">School-wide teacher management with AI credits per teacher.</p>
+                <Building2 size={16} className="text-brand-blue" /> {ui(" School Plan")}</div>
+              <p className="text-xs text-slate-500">{ui("School-wide teacher management with AI credits per teacher.")}</p>
             </div>
           </div>
 
@@ -65,8 +64,7 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
             onClick={goToPlanPage}
             className="w-full rounded-xl bg-brand-blue py-3 font-bold text-white hover:bg-sky-600 transition-colors"
           >
-            View Plans
-          </button>
+            {ui("View Plans")}</button>
         </div>
       </div>
     </div>

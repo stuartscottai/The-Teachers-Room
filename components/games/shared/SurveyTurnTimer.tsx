@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState } from 'react';
 import { Clock, Pause, Play } from 'lucide-react';
 
@@ -6,6 +7,7 @@ export const SurveyTurnTimer: React.FC<{
     seconds: number; paused: boolean; manuallyPaused: boolean;
     onTogglePause: () => void; onExpire: () => void;
 }> = ({ seconds, paused, manuallyPaused, onTogglePause, onExpire }) => {
+  useUiLanguage();
     const remaining = useRef(seconds * 1000);
     const expired = useRef(false);
     const onExpireRef = useRef(onExpire);
@@ -34,14 +36,14 @@ export const SurveyTurnTimer: React.FC<{
                 <div aria-hidden="true" className={`absolute inset-y-0 left-0 transition-[width] duration-150 motion-reduce:transition-none ${colour}`} style={{ width: `${Math.max(0, displaySeconds / seconds * 100)}%` }} />
                 <div className="relative flex min-w-0 items-center gap-1 drop-shadow-md sm:gap-2">
                     <Clock className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true" />
-                    <span className="whitespace-nowrap text-[10px] font-bold sm:text-base">Time to guess</span>
-                    {paused && <span className="text-[9px] font-bold text-amber-200 sm:text-xs">Paused</span>}
+                    <span className="whitespace-nowrap text-[10px] font-bold sm:text-base">{ui("Time to guess")}</span>
+                    {paused && <span className="text-[9px] font-bold text-amber-200 sm:text-xs">{ui("Paused")}</span>}
                 </div>
-                <span role="timer" aria-label="Time remaining" className="relative shrink-0 font-mono text-xl font-black tabular-nums text-white drop-shadow-md sm:text-3xl">{displaySeconds}<span className="ml-0.5 text-sm sm:text-lg">s</span></span>
+                <span role="timer" aria-label={ui("Time remaining")} className="relative shrink-0 font-mono text-xl font-black tabular-nums text-white drop-shadow-md sm:text-3xl">{displaySeconds}<span className="ml-0.5 text-sm sm:text-lg">s</span></span>
             </div>
-            <button type="button" onClick={onTogglePause} aria-label={manuallyPaused ? 'Resume timer' : 'Pause timer'} className="flex w-20 shrink-0 items-center justify-center gap-1 rounded-lg border-2 border-slate-400 bg-slate-800 font-bold text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:w-28">
+            <button type="button" onClick={onTogglePause} aria-label={manuallyPaused ? ui("Resume timer") : ui("Pause timer")} className="flex w-20 shrink-0 items-center justify-center gap-1 rounded-lg border-2 border-slate-400 bg-slate-800 font-bold text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:w-28">
                 {manuallyPaused ? <Play className="h-4 w-4 sm:h-5 sm:w-5" /> : <Pause className="h-4 w-4 sm:h-5 sm:w-5" />}
-                <span className="text-[10px] sm:text-sm">{manuallyPaused ? 'Resume' : 'Pause'}</span>
+                <span className="text-[10px] sm:text-sm">{manuallyPaused ? ui("Resume") : ui("Pause")}</span>
             </button>
         </div>
     );

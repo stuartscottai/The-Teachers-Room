@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, HardDrive, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
 import {
@@ -23,6 +24,7 @@ interface SchoolStorageManagerProps {
 }
 
 export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ schoolId }) => {
+  useUiLanguage();
   const [folders, setFolders] = useState<SchoolStorageFolder[]>([]);
   const [files, setFiles] = useState<SchoolStorageFile[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -186,7 +188,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
 
   const folderOptions = useMemo(
     () => [
-      { id: '', label: 'Root' },
+      { id: '', get label() { return ui("Root"); } },
       ...folders
         .slice()
         .sort((a, b) => folderPathLabel(a.id).localeCompare(folderPathLabel(b.id)))
@@ -227,7 +229,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                 type="button"
                 onClick={() => toggleFolderExpanded(folder.id)}
                 className="rounded-md p-1 text-slate-400 hover:bg-white hover:text-slate-700"
-                aria-label={isExpanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
+                aria-label={isExpanded ? ui("Collapse {folder.name}", { "folder.name": (folder.name) }) : ui("Expand {folder.name}", { "folder.name": (folder.name) })}
               >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </button>
@@ -320,7 +322,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
 
       setFeedback({
         type: 'success',
-        text: `${fileList.length} file${fileList.length === 1 ? '' : 's'} uploaded to school storage.`,
+        text: ui("{fileList.length} file{fileList.length === 1 ? '' : 's'} uploaded to school storage.", { "fileList.length": (fileList.length), "fileList.length === 1 ? '' : 's'": (fileList.length === 1 ? '' : 's') }),
       });
       await loadSnapshot();
     } catch (err) {
@@ -354,7 +356,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
   };
 
   const handleDeleteFile = async (file: SchoolStorageFile) => {
-    const confirmed = window.confirm(`Delete "${file.name}" from school storage?`);
+    const confirmed = window.confirm(ui("Delete \"{file.name}\" from school storage?", { "file.name": (file.name) }));
     if (!confirmed) return;
 
     setBusy(true);
@@ -411,12 +413,12 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
     if (childFolders.length || fileCount) {
       setFeedback({
         type: 'error',
-        text: 'Folder must be empty before it can be deleted.',
+        text: ui("Folder must be empty before it can be deleted."),
       });
       return;
     }
 
-    const confirmed = window.confirm(`Delete folder "${folder.name}"?`);
+    const confirmed = window.confirm(ui("Delete folder \"{folder.name}\"?", { "folder.name": (folder.name) }));
     if (!confirmed) return;
 
     setBusy(true);
@@ -439,14 +441,13 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
     <section className="school-storage bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="school-section-heading flex items-center gap-2 text-xl font-bold text-slate-800"><HardDrive size={18} /> Shared files</h2>
+          <h2 className="school-section-heading flex items-center gap-2 text-xl font-bold text-slate-800"><HardDrive size={18} /> {ui(" Shared files")}</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Teachers can save files here. Admins organise folders and file placement.
-          </p>
+            {ui("Teachers can save files here. Admins organise folders and file placement.")}</p>
         </div>
         <div className="school-storage-meter min-w-[260px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-semibold text-slate-700">Storage Used</span>
+            <span className="font-semibold text-slate-700">{ui("Storage Used")}</span>
             <span className="text-slate-500">
               {formatSchoolStorageBytes(storageUsage.totalBytes)} / {SCHOOL_STORAGE_LIMIT_LABEL}
             </span>
@@ -464,8 +465,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
             />
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            {formatSchoolStorageBytes(storageUsage.remainingBytes)} remaining across the whole school account.
-          </p>
+            {formatSchoolStorageBytes(storageUsage.remainingBytes)} {ui(" remaining across the whole school account.")}</p>
         </div>
         <button
           type="button"
@@ -473,8 +473,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
           disabled={loading || busy}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> {ui(" Refresh")}</button>
       </div>
 
       {feedback && (
@@ -502,8 +501,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
             }`}
           >
             <span className="flex items-center gap-2 font-medium">
-              <Folder size={15} /> Root
-            </span>
+              <Folder size={15} /> {ui(" Root")}</span>
             <span className="text-[11px] text-slate-400">{fileCountByFolder.get(null) || 0}</span>
           </button>
           <div className="max-h-[420px] overflow-y-auto pr-1">
@@ -535,15 +533,14 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
             <div className="grid gap-4 lg:grid-cols-[1.1fr,1fr]">
               <div>
                 <label htmlFor="school-folder-name" className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-                  Create Folder Here
-                </label>
+                  {ui("Create Folder Here")}</label>
                 <div className="flex gap-2">
                   <input
                     id="school-folder-name"
                     type="text"
                     value={newFolderName}
                     onChange={(event) => setNewFolderName(event.target.value)}
-                    placeholder={currentFolderId ? 'Subfolder name' : 'Root folder name'}
+                    placeholder={currentFolderId ? ui("Subfolder name") : ui("Root folder name")}
                     className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue"
                   />
                   <button
@@ -552,18 +549,16 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                     disabled={busy || loading}
                     className="inline-flex items-center gap-2 rounded-lg bg-brand-blue px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Plus size={15} /> Create
-                  </button>
+                    <Plus size={15} /> {ui(" Create")}</button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-                  Upload Files To Current Folder
-                </label>
+                  {ui("Upload Files To Current Folder")}</label>
                 <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-semibold text-slate-600 hover:border-brand-blue hover:bg-sky-50">
                   <Upload size={16} />
-                  <span>Upload PDFs, Word docs, or images</span>
+                  <span>{ui("Upload PDFs, Word docs, or images")}</span>
                   <input
                     type="file"
                     multiple
@@ -573,15 +568,14 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                   />
                 </label>
                 <p className="mt-2 text-xs text-slate-500">
-                  No separate per-file limit is applied here. Shared school storage is capped at {SCHOOL_STORAGE_LIMIT_LABEL} in total.
-                </p>
+                  {ui("No separate per-file limit is applied here. Shared school storage is capped at ")}{SCHOOL_STORAGE_LIMIT_LABEL} {ui(" in total.")}</p>
               </div>
             </div>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 p-4">
-              <h3 className="text-sm font-bold text-slate-800 mb-3">Subfolders</h3>
+              <h3 className="text-sm font-bold text-slate-800 mb-3">{ui("Subfolders")}</h3>
               {currentChildFolders.length ? (
                 <div className="space-y-2">
                   {currentChildFolders.map((folder) => {
@@ -601,8 +595,8 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-medium text-slate-700">{folder.name}</span>
                             <span className="block text-xs text-slate-500">
-                              {fileCount} file{fileCount === 1 ? '' : 's'}
-                              {childCount ? ` · ${childCount} folder${childCount === 1 ? '' : 's'}` : ''}
+                              {ui(fileCount === 1 ? "{count} file" : "{count} files", { count: fileCount })}
+                              {childCount > 0 && <> · {ui(childCount === 1 ? "{count} folder" : "{count} folders", { count: childCount })}</>}
                             </span>
                           </span>
                         </button>
@@ -610,7 +604,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                           type="button"
                           onClick={() => void handleDeleteFolder(folder)}
                           className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          title="Delete empty folder"
+                          title={ui("Delete empty folder")}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -619,12 +613,12 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                   })}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No subfolders here yet.</p>
+                <p className="text-sm text-slate-500">{ui("No subfolders here yet.")}</p>
               )}
             </section>
 
             <section className="rounded-2xl border border-slate-200 p-4">
-              <h3 className="text-sm font-bold text-slate-800 mb-3">Files In This Folder</h3>
+              <h3 className="text-sm font-bold text-slate-800 mb-3">{ui("Files In This Folder")}</h3>
               {currentFiles.length ? (
                 <div className="space-y-2">
                   {currentFiles.map((file) => (
@@ -648,16 +642,16 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                             onClick={() => void handleOpenFile(file)}
                             disabled={openingFileId === file.id}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            title="Open file"
+                            title={ui("Open file")}
                           >
                             <ExternalLink size={13} />
-                            {openingFileId === file.id ? 'Opening...' : 'Open'}
+                            {openingFileId === file.id ? ui("Opening...") : ui("Open")}
                           </button>
                           <button
                             type="button"
                             onClick={() => void handleDeleteFile(file)}
                             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            title="Delete file"
+                            title={ui("Delete file")}
                           >
                             <Trash2 size={15} />
                           </button>
@@ -665,10 +659,9 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                       </div>
                       <div className="mt-3 flex items-center gap-2">
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Move to
-                        </label>
+                          {ui("Move to")}</label>
                         <select
-                          aria-label={`Move ${file.name} to folder`}
+                          aria-label={ui("Move {file.name} to folder", { "file.name": (file.name) })}
                           value={file.folderId || ''}
                           onChange={(event) => void handleMoveFile(file.id, event.target.value)}
                           className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-blue"
@@ -684,7 +677,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No files in this folder.</p>
+                <p className="text-sm text-slate-500">{ui("No files in this folder.")}</p>
               )}
             </section>
           </div>

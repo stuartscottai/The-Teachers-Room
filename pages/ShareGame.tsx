@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, LogIn } from 'lucide-react';
@@ -16,6 +17,7 @@ import { LiveQuizSetupModal } from '../components/games/LiveQuizSetupModal';
 type LoadState = 'idle' | 'loading' | 'ready' | 'not-found' | 'error';
 
 export const ShareGame: React.FC = () => {
+  useUiLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
@@ -104,22 +106,22 @@ export const ShareGame: React.FC = () => {
     const shareUrl = getGameShareUrl(gameId);
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert('Share link copied!');
+      alert(ui("Share link copied!"));
     } catch (error) {
-      alert(`Copy failed. Share this link:\n${shareUrl}`);
+      alert(ui("Copy failed. Share this link: {shareUrl}", { "shareUrl": (shareUrl) }));
     }
   };
 
   const persistPreviewGame = async (gameToSave: GeneratedGame, opts?: { overrideIsPublic?: boolean }) => {
     if (gameToSave.config.type === GameType.STOP_THE_FIRE && gameToSave.config.stopTheFireMode === 'bank') {
-      alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+      alert(ui("Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game."));
       return null;
     }
 
     const nextGame = prepareGameForLibrarySave(gameToSave, user, opts?.overrideIsPublic);
     const result = await saveGameToLibrary(nextGame, user?.id, user?.name, user?.schoolAccess?.schoolId);
     if (!result.success) {
-      alert('Failed to save. Please try again.');
+      alert(ui("Failed to save. Please try again."));
       return null;
     }
 
@@ -133,7 +135,7 @@ export const ShareGame: React.FC = () => {
     if (!game) return;
     const savedGame = await persistPreviewGame(game);
     if (!savedGame) return;
-    alert('Game saved to your library.');
+    alert(ui("Game saved to your library."));
   };
 
   const handlePreviewEdit = () => {
@@ -194,7 +196,7 @@ export const ShareGame: React.FC = () => {
     if (!game) return;
 
     if (game.config.type === GameType.STOP_THE_FIRE && game.config.stopTheFireMode === 'bank') {
-      alert('Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game.');
+      alert(ui("Word Bank games cannot be shared or saved. Switch to Manual or AI to save this game."));
       return;
     }
 
@@ -205,7 +207,7 @@ export const ShareGame: React.FC = () => {
 
     let shareGame = game;
     if (!shareGame.config.isPublic) {
-      const confirmPublic = window.confirm('This game is private. Make it public to share?');
+      const confirmPublic = window.confirm(ui("This game is private. Make it public to share?"));
       if (!confirmPublic) return;
       const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
       if (!savedGame) return;
@@ -217,7 +219,7 @@ export const ShareGame: React.FC = () => {
     }
 
     if (!shareGame.id || !isUUID(shareGame.id)) {
-      alert('Please save this game before sharing.');
+      alert(ui("Please save this game before sharing."));
       return;
     }
 
@@ -228,19 +230,19 @@ export const ShareGame: React.FC = () => {
     if (!game) return;
 
     if ([GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(game.config.type)) {
-      alert('Student practice sharing is not available for this game type.');
+      alert(ui("Student practice sharing is not available for this game type."));
       return;
     }
 
     if (selectedItemIds.length === 0) {
-      alert('Select at least one question before sharing with students.');
+      alert(ui("Select at least one question before sharing with students."));
       return;
     }
 
     if (game.sourceGameId && isUUID(game.sourceGameId)) {
       const result = await createSelectedStudentGameShare(game.sourceGameId, user!.id, game.title, selectedItemIds);
       if (!result.success || !result.id) {
-        alert('Failed to create student practice link. Please try again.');
+        alert(ui("Failed to create student practice link. Please try again."));
         return;
       }
       setStudentShareUrl(getSelectedStudentGameShareUrl(result.id));
@@ -250,7 +252,7 @@ export const ShareGame: React.FC = () => {
 
     let shareGame = game;
     if (!shareGame.config.isPublic) {
-      const confirmPublic = window.confirm('This game must be public for student practice links. Make it public?');
+      const confirmPublic = window.confirm(ui("This game must be public for student practice links. Make it public?"));
       if (!confirmPublic) return;
       const savedGame = await persistPreviewGame(shareGame, { overrideIsPublic: true });
       if (!savedGame) return;
@@ -262,13 +264,13 @@ export const ShareGame: React.FC = () => {
     }
 
     if (!shareGame.id || !isUUID(shareGame.id)) {
-      alert('Please save this game before sharing it with students.');
+      alert(ui("Please save this game before sharing it with students."));
       return;
     }
 
     const result = await createSelectedStudentGameShare(shareGame.id, user!.id, shareGame.title, selectedItemIds);
     if (!result.success || !result.id) {
-      alert('Failed to create student practice link. Please try again.');
+      alert(ui("Failed to create student practice link. Please try again."));
       return;
     }
 
@@ -279,7 +281,7 @@ export const ShareGame: React.FC = () => {
   const handlePreviewLiveQuiz = (selectedItemIds: string[]) => {
     if (!game || !user) return;
     if (selectedItemIds.length === 0) {
-      alert('Select at least one question before starting a live quiz.');
+      alert(ui("Select at least one question before starting a live quiz."));
       return;
     }
 
@@ -295,7 +297,7 @@ export const ShareGame: React.FC = () => {
       return;
     }
     if (result.skipped && result.skipped > 0) {
-      alert(`${result.skipped} selected question${result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.`);
+      alert(ui("{result.skipped} selected question{result.skipped === 1 ? ' was' : 's were'} skipped because live quiz currently requires multiple-choice questions with one correct option.", { "result.skipped": (result.skipped), "result.skipped === 1 ? ' was' : 's were'": (result.skipped === 1 ? ' was' : 's were') }));
     }
     setLiveQuizSelectedItems(null);
     navigate(`/live/host/${result.sessionId}`);
@@ -318,23 +320,20 @@ export const ShareGame: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-lg max-w-lg w-full p-8 text-center">
-          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Sign in to view this shared game</h1>
+          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("Sign in to view this shared game")}</h1>
           <p className="text-slate-500 mb-6">
-            Shared games are available to registered users. Create a free account on the Teacher Plan to continue.
-          </p>
+            {ui("Shared games are available to registered users. Create a free account on the Teacher Plan to continue.")}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => setShowLogin(true)}
               className="bg-brand-blue text-white font-bold px-6 py-3 rounded-xl flex items-center justify-center"
             >
-              <LogIn size={16} className="mr-2" /> Log in / Sign up
-            </button>
+              <LogIn size={16} className="mr-2" /> {ui(" Log in / Sign up")}</button>
             <button
               onClick={() => navigate('/games')}
               className="bg-white border border-slate-200 text-slate-700 font-bold px-6 py-3 rounded-xl"
             >
-              Back to Games
-            </button>
+              {ui("Back to Games")}</button>
           </div>
         </div>
         <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
@@ -357,16 +356,14 @@ export const ShareGame: React.FC = () => {
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
             <AlertTriangle size={22} />
           </div>
-          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Game not available</h1>
+          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("Game not available")}</h1>
           <p className="text-slate-500 mb-6">
-            This game may have been set to private or removed by the owner.
-          </p>
+            {ui("This game may have been set to private or removed by the owner.")}</p>
           <button
             onClick={() => navigate('/games')}
             className="bg-brand-blue text-white font-bold px-6 py-3 rounded-xl"
           >
-            Back to Games
-          </button>
+            {ui("Back to Games")}</button>
         </div>
       </div>
     );
@@ -379,14 +376,13 @@ export const ShareGame: React.FC = () => {
           <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
             <AlertTriangle size={22} />
           </div>
-          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">Unable to load game</h1>
-          <p className="text-slate-500 mb-6">Please try again or ask the owner to reshare.</p>
+          <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("Unable to load game")}</h1>
+          <p className="text-slate-500 mb-6">{ui("Please try again or ask the owner to reshare.")}</p>
           <button
             onClick={() => navigate('/games')}
             className="bg-brand-blue text-white font-bold px-6 py-3 rounded-xl"
           >
-            Back to Games
-          </button>
+            {ui("Back to Games")}</button>
         </div>
       </div>
     );

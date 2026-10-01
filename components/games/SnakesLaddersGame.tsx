@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
@@ -321,51 +322,51 @@ const getBonusCardDetails = (effect: SnakesLaddersBonusEffect): BonusCardDetails
         case 'move-forward': {
             const amount = effect.amount || 2;
             return {
-                label: 'Mystic discovery',
-                title: 'Speed Boost',
+                get label() { return ui("Mystic discovery"); },
+                get title() { return ui("Speed Boost"); },
                 story: 'You find a sparkling magic potion hidden beside the path.',
                 action: `Move forward ${amount} space${amount === 1 ? '' : 's'}.`,
             };
         }
         case 'move-five':
             return {
-                label: 'Secret passage',
-                title: 'Choose Your Path',
+                get label() { return ui("Secret passage"); },
+                get title() { return ui("Choose Your Path"); },
                 story: 'A shimmering map reveals a shortcut that only you can see.',
                 action: 'Choose any square up to 5 spaces ahead or back.',
             };
         case 'swap-positions':
             return {
-                label: 'Mirror magic',
-                title: 'Trade Places',
+                get label() { return ui("Mirror magic"); },
+                get title() { return ui("Trade Places"); },
                 story: 'A mischievous mirror makes two playing pieces change places.',
                 action: 'Swap positions with another team.',
             };
         case 'extra-turn':
             return {
-                label: 'Lucky charm',
-                title: 'Another Adventure',
+                get label() { return ui("Lucky charm"); },
+                get title() { return ui("Another Adventure"); },
                 story: 'You discover a lucky charm glowing beneath the board.',
-                action: 'Roll again and answer another question.',
+                action: ui("Roll again and answer another question."),
             };
         case 'skip-next':
             return {
-                label: 'Sleepy spell',
-                title: 'Miss A Turn',
+                get label() { return ui("Sleepy spell"); },
+                get title() { return ui("Miss A Turn"); },
                 story: 'A cloud of sleepy purple dust drifts towards the next team.',
                 action: 'The next team misses one turn.',
             };
         case 'move-rival-back':
             return {
-                label: 'Potion mishap',
-                title: 'Rival Rewind',
+                get label() { return ui("Potion mishap"); },
+                get title() { return ui("Rival Rewind"); },
                 story: 'Your potion fizzes over and sends a rival stumbling backwards.',
                 action: 'Choose a rival to move back 5 spaces.',
             };
         case 'send-rival-to-snake':
             return {
-                label: 'Snake charmer',
-                title: 'Serpent Summons',
+                get label() { return ui("Snake charmer"); },
+                get title() { return ui("Serpent Summons"); },
                 story: 'A distant flute calls the nearest snake into action.',
                 action: 'Choose a rival to send down the nearest snake behind them.',
             };
@@ -921,6 +922,7 @@ const SelectableBonusSquare = ({ index, origin, onSelect }: {
     origin: number;
     onSelect: (index: number) => void;
 }) => {
+  useUiLanguage();
     const [hovered, setHovered] = useState(false);
     const [x, , z] = useMemo(() => getBoardWorldPosition(index), [index]);
     const distance = index - origin;
@@ -965,7 +967,7 @@ const SelectableBonusSquare = ({ index, origin, onSelect }: {
             <Html position={[0, 0.12, 0]} center distanceFactor={9.5} className="snl-bonus-target-html">
                 <button
                     type="button"
-                    aria-label={`Move to square ${index + 1}`}
+                    aria-label={ui("Move to square {index + 1}", { "index + 1": (index + 1) })}
                     className="snl-bonus-square-hit"
                     onMouseEnter={() => setHovered(true)}
                     onMouseLeave={() => setHovered(false)}
@@ -1301,6 +1303,7 @@ interface SnakesLaddersGameProps {
 }
 
 export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false, testStartPosition }) => {
+  useUiLanguage();
     const [positions, setPositions] = useState<number[]>(() => {
         const positions = Array(options.players).fill(0);
         if (testMode && testStartPosition !== undefined) positions[0] = Math.max(0, Math.min(98, testStartPosition));
@@ -1935,7 +1938,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setPendingBonusChoice(null);
         setCollectedBonusCard({ effect, origin: pos, teamId });
         setIsBonusCardExpanded(true);
-        setStatusMessage(`${teamNames[teamId]} found a bonus card!`);
+        setStatusMessage(ui("{teamNames[teamId]} found a bonus card!", { "teamNames[teamId]": (displayTeamName(teamNames[teamId])) }));
         setPhase('bonus-card');
     };
 
@@ -1944,7 +1947,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (effect.type === 'move-forward') {
             const amount = effect.amount || 2;
             const target = Math.min(99, pos + amount);
-            setStatusMessage(`Bonus! Move forward ${amount}`);
+            setStatusMessage(ui("Bonus! Move forward {amount}", { "amount": (amount) }));
             setPhase('ladder-snake');
             setTimeout(() => movePieceTo(teamId, pos, target, true), 450);
             return;
@@ -1952,14 +1955,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
         if (effect.type === 'move-five' || effect.type === 'swap-positions' || effect.type === 'move-rival-back' || effect.type === 'send-rival-to-snake') {
             setPendingBonusChoice({ effect, origin: pos, teamId });
-            setStatusMessage('Bonus! Make your choice');
+            setStatusMessage(ui("Bonus! Make your choice"));
             setPhase('bonus-choice');
             return;
         }
 
         if (effect.type === 'extra-turn') {
             setExtraTurnTeamId(teamId);
-            showBonusResult('Bonus! Take another turn');
+            showBonusResult(ui("Bonus! Take another turn"));
             return;
         }
 
@@ -1974,7 +1977,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 skipTurnCountsRef.current = next;
                 return next;
             });
-            showBonusResult(`Bonus! ${teamNames[nextTeamId]} misses a turn`);
+            showBonusResult(ui("Bonus! {team} misses a turn", {team: displayTeamName(teamNames[nextTeamId])}));
         }
     };
 
@@ -1993,7 +1996,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const distance = target - origin;
         if (target < 0 || target > 99 || distance === 0 || Math.abs(distance) > 5) return;
         setPendingBonusChoice(null);
-        setStatusMessage(`Bonus! Move ${distance > 0 ? 'forward' : 'back'} ${Math.abs(distance)}`);
+        setStatusMessage(ui(distance > 0 ? "Bonus! Move forward {distance}" : "Bonus! Move back {distance}", {distance: Math.abs(distance)}));
         setPhase('ladder-snake');
         setTimeout(() => movePieceTo(teamId, origin, target, true), 250);
     };
@@ -2017,7 +2020,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 [next[ownerTeamId], next[targetTeamId]] = [next[targetTeamId], next[ownerTeamId]];
                 return next;
             });
-            setStatusMessage(`Bonus! Swap places with ${targetName}`);
+            setStatusMessage(ui("Bonus! Swap places with {targetName}", { "targetName": (targetName) }));
             setPhase('ladder-snake');
             setTimeout(() => checkTileEvents(ownerDestination, ownerTeamId), 900);
             return;
@@ -2027,7 +2030,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             const amount = effect.amount || 5;
             const start = positions[targetTeamId];
             const destination = Math.max(0, start - amount);
-            setStatusMessage(`Bonus! ${targetName} moves back ${amount}`);
+            setStatusMessage(ui("Bonus! {targetName} moves back {amount}", { "targetName": (targetName), "amount": (amount) }));
             setPhase('ladder-snake');
             movePieceTo(targetTeamId, start, destination, true);
             return;
@@ -2038,7 +2041,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             const nearestSnake = getNearestSnakeBehind(targetPosition);
             if (nearestSnake) {
                 setMotionTeamId(targetTeamId);
-                setStatusMessage(`${targetName} is heading to the snake on square ${nearestSnake.start + 1}`);
+                setStatusMessage(ui("{targetName} is heading to the snake on square {nearestSnake.start + 1}", { "targetName": (targetName), "nearestSnake.start + 1": (nearestSnake.start + 1) }));
                 setPhase('moving');
                 setPositions((previous) => {
                     const next = [...previous];
@@ -2046,7 +2049,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     return next;
                 });
                 setTimeout(() => {
-                    setStatusMessage(`${targetName}: Sliding down...`);
+                    setStatusMessage(ui("{targetName}: Sliding down...", { "targetName": (targetName) }));
                     setPhase('ladder-snake');
                     playSound('incorrect', isMuted, 'WompWomp');
                     movePieceTo(targetTeamId, nearestSnake.start, nearestSnake.end, true);
@@ -2055,7 +2058,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             }
 
             const destination = Math.max(0, targetPosition - 5);
-            setStatusMessage(`${targetName} moves back 5`);
+            setStatusMessage(ui("{targetName} moves back 5", { "targetName": (targetName) }));
             setPhase('ladder-snake');
             movePieceTo(targetTeamId, targetPosition, destination, true);
         }
@@ -2067,14 +2070,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const isBonus = bonusTiles.includes(pos) && !consumedBonusTiles.includes(pos);
 
         if (snake) {
-            setStatusMessage(`${teamNames[teamId]}: Sliding down...`);
+            setStatusMessage(ui("{teamNames[teamId]}: Sliding down...", { "teamNames[teamId]": (displayTeamName(teamNames[teamId])) }));
             setPhase('ladder-snake');
             setTimeout(() => {
                 playSound('incorrect', isMuted, 'WompWomp'); 
                 movePieceTo(teamId, pos, snake.end, false);
             }, 500);
         } else if (ladder) {
-            setStatusMessage(`${teamNames[teamId]}: Climbing!`);
+            setStatusMessage(ui("{teamNames[teamId]}: Climbing!", { "teamNames[teamId]": (displayTeamName(teamNames[teamId])) }));
             setPhase('ladder-snake');
             setTimeout(() => {
                 playSound('correct', isMuted, 'Magic'); 
@@ -2172,11 +2175,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const currentPos = positions[currentTeamId];
         const target = Math.min(99, currentPos + diceValue);
         
-        if (target === 99) return { text: "Winning Move!", color: "text-brand-yellow drop-shadow-lg", size: "text-2xl md:text-3xl" };
-        if (snakes.some(s => s.start === target)) return { text: "Target: Snake Hazard!", color: "text-red-500 animate-pulse drop-shadow-md", size: "text-xl md:text-2xl" };
-        if (ladders.some(l => l.start === target)) return { text: "Target: Ladder Boost!", color: "text-green-500 animate-bounce drop-shadow-md", size: "text-xl md:text-2xl" };
-        if (bonusTiles.includes(target) && !consumedBonusTiles.includes(target)) return { text: "BONUS TILE!", color: "text-purple-200 drop-shadow-[0_8px_15px_rgba(109,40,217,0.6)] animate-pulse uppercase tracking-[0.35em]", size: "text-3xl md:text-5xl" };
-        return { text: `Target: Square ${target + 1}`, color: "text-slate-200", size: "text-lg md:text-xl" };
+        if (target === 99) return { text: ui("Winning Move!"), color: "text-brand-yellow drop-shadow-lg", size: "text-2xl md:text-3xl" };
+        if (snakes.some(s => s.start === target)) return { text: ui("Target: Snake Hazard!"), color: "text-red-500 animate-pulse drop-shadow-md", size: "text-xl md:text-2xl" };
+        if (ladders.some(l => l.start === target)) return { text: ui("Target: Ladder Boost!"), color: "text-green-500 animate-bounce drop-shadow-md", size: "text-xl md:text-2xl" };
+        if (bonusTiles.includes(target) && !consumedBonusTiles.includes(target)) return { text: ui("BONUS TILE!"), color: "text-purple-200 drop-shadow-[0_8px_15px_rgba(109,40,217,0.6)] animate-pulse uppercase tracking-[0.35em]", size: "text-3xl md:text-5xl" };
+        return { text: ui("Target: Square {target + 1}", { "target + 1": (target + 1) }), color: "text-slate-200", size: "text-lg md:text-xl" };
     };
 
     const targetStatus = getTargetStatus();
@@ -2197,17 +2200,17 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const showExpandedBonusCard = !!collectedBonusCard && isBonusCardExpanded;
     const nextTurnPreview = resolveNextPlayableTurn(currentTurnIndex, turnOrder, skipTurnCounts);
     const nextPlayableTeamId = turnOrder[nextTurnPreview.nextTurnIndex] ?? currentTeamId;
-    const skippedTeamLabel = nextTurnPreview.skippedTeamIds.map((teamId) => teamNames[teamId]).join(', ');
+    const skippedTeamLabel = nextTurnPreview.skippedTeamIds.map((teamId) => displayTeamName(teamNames[teamId])).join(', ');
     const turnCompleteCopy = extraTurnTeamId !== null
-        ? 'The table is yours again.'
+        ? ui("The table is yours again.")
         : nextTurnPreview.skippedTeamIds.length
-            ? `${skippedTeamLabel} ${nextTurnPreview.skippedTeamIds.length === 1 ? 'misses' : 'miss'} this turn. ${teamNames[nextPlayableTeamId]} plays next.`
-            : 'Pass play to the next player.';
+            ? ui(nextTurnPreview.skippedTeamIds.length === 1 ? "{skipped} misses this turn. {next} plays next." : "{skipped} miss this turn. {next} plays next.", {skipped: skippedTeamLabel, next: displayTeamName(teamNames[nextPlayableTeamId])})
+            : ui("Pass play to the next player.");
     const turnCompleteAction = extraTurnTeamId !== null
-        ? 'Roll Again'
+        ? ui("Roll Again")
         : nextTurnPreview.skippedTeamIds.length
-            ? `Continue with ${teamNames[nextPlayableTeamId]}`
-            : 'Next Player';
+            ? ui("Continue with {team}", {team: displayTeamName(teamNames[nextPlayableTeamId])})
+            : ui("Next Player");
     const boardVisualStyle = isMobileViewport
         ? {
             width: boardSize ? `${boardSize}px` : 'min(100%, calc(100vh - 100px))',
@@ -2226,7 +2229,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         if (options.studentPractice) {
             return (
                 <PracticeReviewSummary
-                    playerName={teamNames[0]}
+                    playerName={displayTeamName(teamNames[0])}
                     correctCount={correctCount}
                     totalCount={correctCount + missedItems.length}
                     missedItems={missedItems}
@@ -2246,8 +2249,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const winnerScore = ranking.length ? ranking[0].score : 0;
         const winners = ranking.filter((team) => team.score === winnerScore);
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -2255,7 +2258,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final board positions"
+                    subtitle={ui("Final board positions")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -2327,7 +2330,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 ? 'w-9 h-9 rounded-lg bg-rose-700 text-white hover:bg-rose-600 border border-rose-800 flex items-center justify-center transition-colors'
                                 : 'w-[140px] h-10 justify-center text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 rounded-xl transition-colors font-bold border border-rose-800 shadow-sm'
                             }
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={isMobileViewport ? 14 : 16} className={isMobileViewport ? '' : 'mr-2'} />
                             {!isMobileViewport && 'End Game'}
@@ -2337,8 +2340,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 <button
                                     onClick={() => setIsMuted(!isMuted)}
                                     className="w-9 h-9 rounded-lg bg-slate-100 text-slate-400 hover:text-brand-blue hover:bg-sky-50 border border-slate-200 flex items-center justify-center transition-colors"
-                                    aria-label={isMuted ? 'Turn sound on' : 'Mute sound'}
-                                    title={isMuted ? 'Turn sound on' : 'Mute sound'}
+                                    aria-label={isMuted ? ui("Turn sound on") : ui("Mute sound")}
+                                    title={isMuted ? ui("Turn sound on") : ui("Mute sound")}
                                 >
                                     {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
                                 </button>
@@ -2346,8 +2349,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     type="button"
                                     onClick={() => setShowCredits(true)}
                                     className="snl-credits-trigger w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-                                    aria-label="View asset credits"
-                                    title="Asset credits"
+                                    aria-label={ui("View asset credits")}
+                                    title={ui("Asset credits")}
                                 >
                                     <Info size={17} />
                                 </button>
@@ -2357,10 +2360,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     
                     <div className="flex-1 flex items-center justify-end md:justify-center">
                         <div className={`snl-turn-banner flex items-center gap-3 ${isMobileViewport ? 'px-2 py-1' : 'min-h-11 px-6 py-2'}`} style={{'--team-color': teamColors[currentTeamId % 6].grad} as React.CSSProperties}>
-                            <span className={`font-bold uppercase tracking-wider ${isMobileViewport ? 'text-[9px]' : 'text-xs'}`}>Active team</span>
+                            <span className={`font-bold uppercase tracking-wider ${isMobileViewport ? 'text-[9px]' : 'text-xs'}`}>{ui("Active team")}</span>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColors[currentTeamId % 6].solid }}></div>
-                                <span className={`font-black text-amber-50 ${isMobileViewport ? 'text-[11px]' : ''}`}>{teamNames[currentTeamId]}</span>
+                                <span className={`font-black text-amber-50 ${isMobileViewport ? 'text-[11px]' : ''}`}>{displayTeamName(teamNames[currentTeamId])}</span>
                             </div>
                         </div>
                     </div>
@@ -2371,13 +2374,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 type="button"
                                 onClick={() => setShowCredits(true)}
                                 className="snl-credits-trigger w-10 h-10 flex items-center justify-center rounded-xl transition-colors"
-                                aria-label="View asset credits"
-                                title="Asset credits"
+                                aria-label={ui("View asset credits")}
+                                title={ui("Asset credits")}
                             >
                                 <Info size={20} />
                             </button>
-                            <button onClick={() => setIsMuted(!isMuted)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isMuted ? 'Turn sound on' : 'Mute sound'} title={isMuted ? 'Turn sound on' : 'Mute sound'}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                            <button onClick={toggleFullscreen} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isFullscreen ? 'Exit full screen' : 'Enter full screen'} title={isFullscreen ? 'Exit full screen' : 'Enter full screen'}>{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
+                            <button onClick={() => setIsMuted(!isMuted)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isMuted ? ui("Turn sound on") : ui("Mute sound")} title={isMuted ? ui("Turn sound on") : ui("Mute sound")}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                            <button onClick={toggleFullscreen} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isFullscreen ? ui("Exit full screen") : ui("Enter full screen")} title={isFullscreen ? ui("Exit full screen") : ui("Enter full screen")}>{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
                         </div>
                     )}
                 </div>
@@ -2399,7 +2402,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             <div
                                 className="snl-test-board"
                                 data-testid="snakes-test-board"
-                                aria-label="Snakes and Ladders test board"
+                                aria-label={ui("Snakes and Ladders test board")}
                                 style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: 'repeat(5, 24px)', gap: '4px', placeContent: 'center' }}
                             >
                                 {selectableBonusTargets.map((index) => (
@@ -2407,7 +2410,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         key={`test-bonus-target-${index}`}
                                         type="button"
                                         className="snl-test-board-target"
-                                        aria-label={`Move to square ${index + 1}`}
+                                        aria-label={ui("Move to square {index + 1}", { "index + 1": (index + 1) })}
                                         onClick={() => resolveMoveFiveBonus(index)}
                                         style={{ width: '24px', height: '24px', opacity: 0.01 }}
                                     />
@@ -2439,13 +2442,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 <aside className="snl-controls w-full flex flex-col items-stretch justify-start">
                     <div className={`snl-control-panel w-full p-2 sm:p-4 text-center flex flex-col items-center overflow-hidden ${isMobileViewport ? `snl-control-panel-mobile snl-control-panel-mobile--${phase}` : 'flex-1 min-h-0'} ${!isMobileViewport && teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}>
                         {!isMobileViewport && phase !== 'setup' && !showExpandedBonusCard && (
-                            <div className="snl-scoreboard w-full" aria-label="Team positions">
-                                <div className="snl-panel-label">Players</div>
+                            <div className="snl-scoreboard w-full" aria-label={ui("Team positions")}>
+                                <div className="snl-panel-label">{ui("Players")}</div>
                                 {teamNames.map((name, teamIdx) => (
                                     <div key={teamIdx} className={`snl-score-row ${teamIdx === currentTeamId ? 'is-active' : ''}`}>
                                         <span className="snl-score-token" style={{ background: teamColors[teamIdx % teamColors.length].grad }}>{teamIdx + 1}</span>
-                                        <span className="snl-score-name">{name}</span>
-                                        <strong>Square {positions[teamIdx] + 1}</strong>
+                                        <span className="snl-score-name">{displayTeamName(name)}</span>
+                                        <strong>{ui("Square ")}{positions[teamIdx] + 1}</strong>
                                     </div>
                                 ))}
                             </div>
@@ -2453,23 +2456,21 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                         {!showExpandedBonusCard && phase === 'setup' && (
                             <div className="animate-fade-in w-full">
-                                <h3 className="snl-setup-title font-display font-bold text-sm sm:text-xl mb-2 sm:mb-4">Turn Order</h3>
+                                <h3 className="snl-setup-title font-display font-bold text-sm sm:text-xl mb-2 sm:mb-4">{ui("Turn Order")}</h3>
                                 <div className={`mb-2 sm:mb-6 ${isMobileViewport ? 'grid grid-cols-3 gap-1' : 'space-y-2'}`}>
                                     {turnOrder.map((teamIdx, i) => (
                                         <div key={i} className={`snl-turn-order-row flex items-center rounded-lg ${isMobileViewport ? 'px-1 py-1 text-[10px]' : 'p-2'}`}>
                                             <span className={`snl-turn-order-index font-bold ${isMobileViewport ? 'mr-1' : 'mr-3'}`}>{i+1}.</span>
                                             <div className="w-2.5 h-2.5 rounded-full mr-1" style={{ backgroundColor: teamColors[teamIdx % 6].solid }}></div>
-                                            <span className={`snl-turn-order-name font-bold ${isMobileViewport ? 'text-[10px] truncate' : ''}`}>{teamNames[teamIdx]}</span>
+                                            <span className={`snl-turn-order-name font-bold ${isMobileViewport ? 'text-[10px] truncate' : ''}`}>{displayTeamName(teamNames[teamIdx])}</span>
                                         </div>
                                     ))}
                                 </div>
                                 <div className={`${isMobileViewport ? 'grid grid-cols-2 gap-2' : 'space-y-3'}`}>
                                     <button onClick={shuffleTeams} className={`snl-panel-secondary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3'}`}>
-                                        <Shuffle size={isMobileViewport ? 12 : 18} className="mr-2" /> Randomize
-                                    </button>
+                                        <Shuffle size={isMobileViewport ? 12 : 18} className="mr-2" /> {ui(" Randomize")}</button>
                                     <button onClick={() => setPhase('roll')} className={`snl-panel-primary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3 text-base sm:text-lg'}`}>
-                                        <Play size={isMobileViewport ? 12 : 18} className="mr-2" /> Start Game
-                                    </button>
+                                        <Play size={isMobileViewport ? 12 : 18} className="mr-2" /> {ui(" Start Game")}</button>
                                 </div>
                             </div>
                         )}
@@ -2481,12 +2482,12 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     className={`snl-dice-player-card ${isMobileViewport ? 'is-mobile flex-1' : ''}`}
                                     style={isMobileViewport && diceSize ? { minHeight: `${diceSize}px` } : undefined}
                                 >
-                                    <span className="snl-dice-player-label">Now playing</span>
+                                    <span className="snl-dice-player-label">{ui("Now playing")}</span>
                                     <div className="snl-dice-player-name">
                                         <span className="snl-dice-player-dot" style={{ backgroundColor: teamColors[currentTeamId % teamColors.length].solid }} aria-hidden="true" />
-                                        <h3 className="snl-dice-team-name">{teamNames[currentTeamId]}</h3>
+                                        <h3 className="snl-dice-team-name">{displayTeamName(teamNames[currentTeamId])}</h3>
                                     </div>
-                                    <div className="snl-dice-turn-copy">Your turn to roll</div>
+                                    <div className="snl-dice-turn-copy">{ui("Your turn to roll")}</div>
                                 </div>
                                 <div
                                     role="button"
@@ -2495,7 +2496,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     onKeyDown={(e) => { if (canRollDice && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); rollDice(); } }}
                                     className={`snl-dice ${isDiceRolling ? 'is-rolling' : 'is-landed'} ${isMobileViewport ? 'relative flex items-center justify-center' : 'w-full h-[clamp(150px,25vh,230px)]'} ${canRollDice ? 'cursor-pointer' : 'cursor-default'}`}
                                     style={isMobileViewport ? { width: `${diceSize ?? 96}px`, height: `${diceSize ?? 96}px` } : undefined}
-                                    aria-label={canRollDice ? 'Roll Dice' : 'Dice rolling'}
+                                    aria-label={canRollDice ? ui("Roll Dice") : ui("Dice rolling")}
                                 >
                                     {testMode ? (
                                         <div className="snl-test-dice" data-testid="snakes-test-dice" aria-hidden="true">
@@ -2527,11 +2528,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         onClick={rollDice}
                                         className="snl-roll-button w-full py-4 font-black flex items-center justify-center text-xl"
                                     >
-                                        <Play size={20} className="mr-2" /> Roll Dice
-                                    </button>
+                                        <Play size={20} className="mr-2" /> {ui(" Roll Dice")}</button>
                                 )}
                                 {!isMobileViewport && isDiceRolling && (
-                                    <div className="snl-roll-result font-bold animate-pulse mt-2">Rolling...</div>
+                                    <div className="snl-roll-result font-bold animate-pulse mt-2">{ui("Rolling...")}</div>
                                 )}
                             </div>
                         </div>
@@ -2539,11 +2539,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         {!showExpandedBonusCard && phase === 'question' && (
                             <div className="snl-question-panel animate-fade-in">
                                 <HelpCircle size={48} className="snl-question-panel-icon mx-auto mb-4 animate-bounce" />
-                                <h3 className="text-xl font-bold mb-2">Question Time!</h3>
+                                <h3 className="text-xl font-bold mb-2">{ui("Question Time!")}</h3>
                                 <div className="snl-question-roll px-4 py-2 rounded-lg font-black text-2xl mb-2">
-                                    You rolled a {diceValue}
+                                    {ui("You rolled a ")}{diceValue}
                                 </div>
-                                <p className="text-sm">Answer correctly to move.</p>
+                                <p className="text-sm">{ui("Answer correctly to move.")}</p>
                             </div>
                         )}
 
@@ -2551,23 +2551,23 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             <div className="snl-bonus-choice-state w-full animate-fade-in text-center">
                                 <Gift size={isMobileViewport ? 34 : 54} className="snl-bonus-choice-icon mx-auto mb-2 text-amber-500" />
                                 <h3 className={`snl-bonus-choice-title font-black ${isMobileViewport ? 'mb-2 text-sm' : 'mb-4 text-xl'}`}>
-                                    {pendingBonusChoice.effect.type === 'move-five' ? 'Choose your move' : 'Choose another player'}
+                                    {pendingBonusChoice.effect.type === 'move-five' ? ui("Choose your move") : ui("Choose another player")}
                                 </h3>
 
                                 {pendingBonusChoice.effect.type === 'move-five' ? (
                                     <div className="snl-bonus-board-instruction">
-                                        <strong>Select a glowing square on the board</strong>
-                                        <span>Choose anywhere from 1 to 5 spaces ahead or back.</span>
+                                        <strong>{ui("Select a glowing square on the board")}</strong>
+                                        <span>{ui("Choose anywhere from 1 to 5 spaces ahead or back.")}</span>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                         {teamNames.map((name, teamIndex) => {
                                             if (teamIndex === pendingBonusChoice.teamId) return null;
                                             const actionLabel = pendingBonusChoice.effect.type === 'swap-positions'
-                                                ? `Swap with ${name}`
+                                                ? ui("Swap with {name}", { "name": (name) })
                                                 : pendingBonusChoice.effect.type === 'move-rival-back'
-                                                    ? `${name} back 5`
-                                                    : `Send ${name} down`;
+                                                    ? ui("{name} back 5", { "name": (name) })
+                                                    : ui("Send {name} down", { "name": (name) });
                                             return (
                                                 <button
                                                     key={teamIndex}
@@ -2576,7 +2576,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                     className={`snl-bonus-opponent-button rounded-xl font-black ${isMobileViewport ? 'px-1.5 py-1.5 text-[10px]' : 'px-3 py-3 text-sm'}`}
                                                 >
                                                     <span className="block">{actionLabel}</span>
-                                                    <span className="snl-bonus-opponent-position mt-0.5 block text-[10px] font-bold">Square {positions[teamIndex] + 1}</span>
+                                                    <span className="snl-bonus-opponent-position mt-0.5 block text-[10px] font-bold">{ui("Square ")}{positions[teamIndex] + 1}</span>
                                                 </button>
                                             );
                                         })}
@@ -2599,9 +2599,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 <div className="snl-turn-complete-seal" aria-hidden="true">
                                     <CheckCircle size={isMobileViewport ? 28 : 46} />
                                 </div>
-                                <span className="snl-turn-complete-label">Move resolved</span>
+                                <span className="snl-turn-complete-label">{ui("Move resolved")}</span>
                                 <h3 className="snl-turn-complete-title">
-                                    {extraTurnTeamId !== null ? 'Bonus Turn!' : 'Turn Complete'}
+                                    {extraTurnTeamId !== null ? ui("Bonus Turn!") : ui("Turn Complete")}
                                 </h3>
                                 <p className="snl-turn-complete-copy">
                                     {turnCompleteCopy}
@@ -2624,9 +2624,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         className="snl-bonus-card-overlay animate-fade-in"
                         role="dialog"
                         aria-modal="true"
-                        aria-label={`${bonusCardDetails.title} bonus card`}
+                        aria-label={ui("{bonusCardDetails.title} bonus card", { "bonusCardDetails.title": (bonusCardDetails.title) })}
                     >
-                        <article className="snl-bonus-card" aria-label={`Bonus card: ${bonusCardDetails.title}`}>
+                        <article className="snl-bonus-card" aria-label={ui("Bonus card: {bonusCardDetails.title}", { "bonusCardDetails.title": (bonusCardDetails.title) })}>
                             <div className="snl-bonus-card-corners" aria-hidden="true" />
                             <div className="snl-bonus-card-label">{bonusCardDetails.label}</div>
                             <BonusCardOrbPreview reducedMotion={prefersReducedMotion} />
@@ -2638,8 +2638,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 onClick={useCollectedBonusCard}
                                 className="snl-bonus-card-use"
                             >
-                                Use card
-                            </button>
+                                {ui("Use card")}</button>
                         </article>
                     </div>
                 )}
@@ -2663,16 +2662,15 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             onClick={() => setIsQuestionVisible(false)}
                             className="snl-question-peek absolute -top-12 right-0 px-4 py-2 rounded-lg font-bold flex items-center z-[210] transition-colors"
                         >
-                            <Eye size={18} className="mr-2" /> Peek at Board
-                        </button>
+                            <Eye size={18} className="mr-2" /> {ui(" Peek at Board")}</button>
 
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
                             <div className={`snl-question-card absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl overflow-hidden flex flex-col h-full ${isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="snl-question-card-header p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
                                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                                        <div className="font-bold text-sm sm:text-xl opacity-90">Question for {teamNames[currentTeamId]}</div>
-                                        <div className="snl-question-roll px-3 py-1 rounded-full text-xs sm:text-sm font-bold">You rolled a {diceValue}</div>
+                                        <div className="font-bold text-sm sm:text-xl opacity-90">{ui("Question for ")}{displayTeamName(teamNames[currentTeamId])}</div>
+                                        <div className="snl-question-roll px-3 py-1 rounded-full text-xs sm:text-sm font-bold">{ui("You rolled a ")}{diceValue}</div>
                                     </div>
                                     <div className={`font-bold ${targetStatus.size} ${targetStatus.color}`}>
                                         {targetStatus.text}
@@ -2694,7 +2692,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                         onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                         role={isMobileViewport ? undefined : 'button'}
                                                         tabIndex={isMobileViewport ? -1 : 0}
-                                                        title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                        title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                         className={`snl-question-image h-full w-full rounded-xl object-contain ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                                     />
                                                 </div>
@@ -2769,7 +2767,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                                 role={isMobileViewport ? undefined : 'button'}
                                                 tabIndex={isMobileViewport ? -1 : 0}
-                                                title={isMobileViewport ? undefined : 'Click to zoom'}
+                                                title={isMobileViewport ? undefined : ui("Click to zoom")}
                                                 className={`snl-question-image h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                             />
                                             <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
@@ -2850,7 +2848,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 />
                                             )}
                                             <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black tracking-wider">
-                                                {isTimesUp ? "TIME'S UP!" : (
+                                                {isTimesUp ? ui("TIME'S UP!") : (
                                                     <><Clock size={18} className="mr-2" /> {timeLeft}</>
                                                 )}
                                             </div>
@@ -2862,8 +2860,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 onClick={(e) => { e.stopPropagation(); handleFlip(); }}
                                                 className="snl-question-primary px-10 py-3 rounded-full font-bold text-2xl hover:scale-105 transition-transform flex items-center relative z-50"
                                             >
-                                                Reveal Answer
-                                            </button>
+                                                {ui("Reveal Answer")}</button>
                                         </div>
                                     )}
                                 </div>
@@ -2872,15 +2869,15 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             {/* BACK */}
                             <div className={`snl-question-card snl-question-card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden flex flex-col h-full ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 <div className="snl-question-card-header p-4 flex justify-between items-center h-20 flex-shrink-0">
-                                    <div className="font-bold text-xl opacity-80">Answer</div>
+                                    <div className="font-bold text-xl opacity-80">{ui("Answer")}</div>
                                 </div>
                                 <div className="snl-question-card-body flex-1 flex flex-col items-center justify-center p-8 text-center">
                                     {currentQuestion.options && mcResult && (
                                         <div className="mb-6 animate-bounce">
                                             {mcResult === 'correct' ? (
-                                                <div className="flex flex-col items-center text-green-500"><CheckCircle size={64} className="mb-2" /><h2 className="text-4xl font-black">CORRECT!</h2></div>
+                                                <div className="flex flex-col items-center text-green-500"><CheckCircle size={64} className="mb-2" /><h2 className="text-4xl font-black">{ui("CORRECT!")}</h2></div>
                                             ) : (
-                                                <div className="flex flex-col items-center text-red-500"><XCircle size={64} className="mb-2" /><h2 className="text-4xl font-black">INCORRECT</h2></div>
+                                                <div className="flex flex-col items-center text-red-500"><XCircle size={64} className="mb-2" /><h2 className="text-4xl font-black">{ui("INCORRECT")}</h2></div>
                                             )}
                                         </div>
                                     )}
@@ -2895,8 +2892,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                             onClick={() => handleAnswer(mcResult === 'correct')} 
                                             className={`snl-question-continue ${mcResult === 'correct' ? 'is-correct' : 'is-incorrect'} flex-1 font-black text-3xl sm:text-4xl transition-colors ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
-                                            Continue
-                                        </button>
+                                            {ui("Continue")}</button>
                                     ) : (
                                         <>
                                             <button 
@@ -2904,15 +2900,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 onClick={() => handleAnswer(false)} 
                                                 className={`snl-question-judge is-wrong flex-1 font-bold text-2xl transition-colors ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
-                                                Wrong
-                                            </button>
+                                                {ui("Wrong")}</button>
                                             <button 
                                                 disabled={flipLock || isProcessing}
                                                 onClick={() => handleAnswer(true)} 
                                                 className={`snl-question-judge is-correct flex-1 font-bold text-2xl transition-colors ${flipLock ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
-                                                Correct
-                                            </button>
+                                                {ui("Correct")}</button>
                                         </>
                                     )}
                                 </div>
@@ -2934,7 +2928,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         <button
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
-                            title="Close"
+                            title={ui("Close")}
                         >
                             <X size={18} />
                         </button>
@@ -2950,7 +2944,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -2970,8 +2964,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         onClick={() => setIsQuestionVisible(true)}
                         className="snl-question-primary px-8 py-4 rounded-full font-bold shadow-2xl flex items-center text-xl"
                     >
-                        <EyeOff size={24} className="mr-3" /> Show Question
-                    </button>
+                        <EyeOff size={24} className="mr-3" /> {ui(" Show Question")}</button>
                 </div>
             )}
 
@@ -2993,58 +2986,52 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 <Info size={22} />
                             </div>
                             <div>
-                                <p>Behind the game</p>
-                                <h2 id="snl-credits-title">Asset Credits</h2>
+                                <p>{ui("Behind the game")}</p>
+                                <h2 id="snl-credits-title">{ui("Asset Credits")}</h2>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setShowCredits(false)}
                                 className="snl-credits-close"
-                                aria-label="Close asset credits"
+                                aria-label={ui("Close asset credits")}
                             >
                                 <X size={21} />
                             </button>
                         </div>
 
                         <p className="snl-credits-intro">
-                            This game uses the following Creative Commons 3D artwork.
-                        </p>
+                            {ui("This game uses the following Creative Commons 3D artwork.")}</p>
 
                         <div className="snl-credits-list">
                             <article className="snl-credit-entry">
-                                <span>3D room</span>
-                                <h3>Cozy room with chess table (XYZ school homework)</h3>
-                                <p>Created by <strong>dejarte</strong> | Modified for this game</p>
+                                <span>{ui("3D room")}</span>
+                                <h3>{ui("Cozy room with chess table (XYZ school homework)")}</h3>
+                                <p>{ui("Created by ")}<strong>dejarte</strong> {ui(" | Modified for this game")}</p>
                                 <div className="snl-credit-links">
                                     <a href="https://sketchfab.com/3d-models/cozy-room-with-chess-table-xyz-school-homework-2c53b9fb178f4b938d21b2bdfdc65268" target="_blank" rel="noopener noreferrer">
-                                        View original asset
-                                    </a>
+                                        {ui("View original asset")}</a>
                                     <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-                                        CC BY 4.0 licence
-                                    </a>
+                                        {ui("CC BY 4.0 licence")}</a>
                                 </div>
                             </article>
 
                             {options.enableBonuses && (
                                 <article className="snl-credit-entry">
-                                    <span>Bonus model</span>
-                                    <h3>Star orb</h3>
-                                    <p>Created by <strong>tamminen</strong> | Modified for this game</p>
+                                    <span>{ui("Bonus model")}</span>
+                                    <h3>{ui("Star orb")}</h3>
+                                    <p>{ui("Created by ")}<strong>{ui("tamminen")}</strong> {ui(" | Modified for this game")}</p>
                                     <div className="snl-credit-links">
                                         <a href="https://sketchfab.com/3d-models/star-orb-6328e644bd8f46eabc3d7332febab31d" target="_blank" rel="noopener noreferrer">
-                                            View original asset
-                                        </a>
+                                            {ui("View original asset")}</a>
                                         <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">
-                                            CC BY 4.0 licence
-                                        </a>
+                                            {ui("CC BY 4.0 licence")}</a>
                                     </div>
                                 </article>
                             )}
                         </div>
 
                         <button type="button" onClick={() => setShowCredits(false)} className="snl-credits-done">
-                            Back to game
-                        </button>
+                            {ui("Back to game")}</button>
                     </section>
                 </div>
             )}
@@ -3052,11 +3039,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <h2 className="text-2xl font-bold mb-2">Quit Game?</h2>
-                        <p className="text-slate-500 mb-6">Progress will be lost.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Quit Game?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Progress will be lost.")}</p>
                         <div className="flex space-x-4">
-                            <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200">Cancel</button>
-                            <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">Quit</button>
+                            <button onClick={() => setShowQuitConfirm(false)} className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200">{ui("Cancel")}</button>
+                            <button onClick={() => { setShowQuitConfirm(false); onBack(); }} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">{ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -3065,15 +3052,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
-                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
@@ -3081,8 +3067,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
                             >
-                                End game
-                            </button>
+                                {ui("End game")}</button>
                         </div>
                     </div>
                 </div>

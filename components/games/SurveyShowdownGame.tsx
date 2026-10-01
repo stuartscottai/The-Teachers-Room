@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import { SurveyTurnTimer } from './shared/SurveyTurnTimer';
 
@@ -122,6 +123,7 @@ const isMatch = (input: string, target: string): boolean => {
 };
 
 export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const initialTeamNames = options.teamNames && options.teamNames.length > 0 ? options.teamNames : ["Team 1", "Team 2"];
     const [teamNames, setTeamNames] = useState<string[]>(initialTeamNames);
     const [scores, setScores] = useState<number[]>(() => new Array(initialTeamNames.length).fill(0));
@@ -475,7 +477,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         setEditingTeamIndex(null);
     };
 
-    if (!currentQ) return <div className="p-8 text-center text-slate-500">Loading Game Data...</div>;
+    if (!currentQ) return <div className="p-8 text-center text-slate-500">{ui("Loading Game Data...")}</div>;
 
     // Check if round is "over"
     const allRevealed = answers.every((a, i) => revealedAnswers[i] || a.text === "---");
@@ -494,8 +496,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         const winnerScore = ranking.length ? ranking[0].score : 0;
         const winners = ranking.filter((team) => team.score === winnerScore);
         const winnerHeadline = winners.length > 1
-            ? `WINNERS: ${winners.map((team) => team.name).join(' & ')}`
-            : `WINNER: ${winners[0]?.name || 'No winner'}`;
+            ? ui("WINNERS: {names}", {names: winners.map((team) => displayTeamName(team.name)).join(' & ')})
+            : ui("WINNER: {name}", {name: displayTeamName(winners[0]?.name) || ui("No winner")});
 
         return (
             <div
@@ -503,7 +505,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}
-                    subtitle="Final standings"
+                    subtitle={ui("Final standings")}
                     ranking={ranking}
                     isMobileViewport={isMobileViewport}
                     musicEnabled={!isMuted}
@@ -531,33 +533,31 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 <div className={`flex w-full gap-3 sm:gap-4 ${mobileUsesTwoRowHeader ? 'items-start' : 'items-center'}`}>
                     <div className={`${mobileUsesButtonGrid ? 'grid grid-cols-2' : 'flex'} min-w-fit shrink-0 gap-1.5 sm:flex sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesButtonGrid ? '' : mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
                         <button onClick={() => setShowQuitConfirm(true)} className="hidden sm:flex w-[140px] justify-center bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-slate-300">
-                            <ArrowLeft size={16} className="mr-2" /> Quit
-                        </button>
+                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="hidden sm:flex w-[140px] justify-center bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors items-center text-sm font-bold text-white border border-rose-800"
-                            title="End game now"
+                            title={ui("End game now")}
                         >
-                            <Flag size={16} className="mr-2" /> End Game
-                        </button>
+                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
                         <button
                             onClick={() => setShowQuitConfirm(true)}
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
-                            title="Quit"
+                            title={ui("Quit")}
                         >
                             <X size={17} />
                         </button>
                         <button
                             onClick={() => setShowEndGameConfirm(true)}
                             className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors"
-                            title="End game now"
+                            title={ui("End game now")}
                         >
                             <Flag size={14} />
                         </button>
                         <button 
                             onClick={toggleHostMode} 
                             className={`sm:hidden w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                            title="Host Mode (Click to Preview)"
+                            title={ui("Host Mode (Click to Preview)")}
                         >
                             <Shield size={17} />
                         </button>
@@ -590,7 +590,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                         <Edit2 size={12} />
                                     </div>
                                     <span className={`text-[8px] ${isCrowdedDesktopHeader ? 'sm:text-xs' : 'sm:text-sm'} font-bold uppercase tracking-wider mb-0.5 truncate w-full text-center leading-none ${isActive ? 'text-brand-yellow' : 'text-slate-400'}`}>
-                                        {name}
+                                        {displayTeamName(name)}
                                     </span>
                                     <div className={`font-black text-white font-mono leading-none ${mobileUsesTwoRowHeader ? 'text-base mb-0.5' : 'text-xl mb-1'} ${isCrowdedDesktopHeader ? 'sm:text-3xl' : 'sm:text-4xl'}`}>{teamScore}</div>
                                     <div className="flex gap-0.5">
@@ -607,7 +607,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                         <button 
                             onClick={toggleHostMode} 
                             className={`p-3 rounded-lg transition-colors ${hostMode ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}`}
-                            title="Host Mode (Click to Preview)"
+                            title={ui("Host Mode (Click to Preview)")}
                         >
                             <Shield size={20} />
                         </button>
@@ -685,7 +685,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                     role={isMobileViewport ? undefined : 'button'}
                                     tabIndex={isMobileViewport ? -1 : 0}
-                                    title={isMobileViewport ? undefined : 'Click to zoom'}
+                                    title={isMobileViewport ? undefined : ui("Click to zoom")}
                                     className={`h-full w-full object-contain drop-shadow-lg ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                 />
                             </div>
@@ -713,7 +713,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                         className="relative flex min-h-0 w-full items-center gap-1.5 overflow-hidden rounded-md border border-sky-100/70 bg-gradient-to-b from-sky-300 via-blue-600 to-blue-950 px-1.5 py-0.5"
                                     >
                                         {hostMode && (
-                                            <span className={`absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full ${isCardRevealed ? 'bg-green-400' : 'bg-red-400'} border border-white`} title="Click to Toggle" />
+                                            <span className={`absolute right-1 top-1 z-20 h-1.5 w-1.5 rounded-full ${isCardRevealed ? 'bg-green-400' : 'bg-red-400'} border border-white`} title={ui("Click to Toggle")} />
                                         )}
                                         <span className="flex h-[min(1.65rem,calc(100%-2px))] min-w-[1.55rem] flex-none items-center justify-center rounded-full border-2 border-blue-900 bg-gradient-to-b from-white via-slate-100 to-blue-100 px-1 text-[clamp(0.62rem,2.8vw,0.86rem)] font-black leading-none text-blue-900 shadow-inner">
                                             {i + 1}
@@ -759,7 +759,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                         }}
                                     >
                                         {hostMode && (
-                                            <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${isCardRevealed ? 'bg-green-500' : 'bg-red-500'} border border-white`} title="Click to Toggle" />
+                                            <div className={`absolute top-1 right-1 z-50 w-2 h-2 rounded-full ${isCardRevealed ? 'bg-green-500' : 'bg-red-500'} border border-white`} title={ui("Click to Toggle")} />
                                         )}
 
                                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isCardRevealed ? '[transform:rotateX(180deg)]' : ''}`}>
@@ -767,7 +767,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                             <div className="w-9 h-9 md:w-12 md:h-12 rounded-full bg-gradient-to-b from-white via-slate-200 to-blue-200 flex items-center justify-center border-2 border-blue-900 shadow-inner group-hover:scale-110 transition-transform">
                                                 <span className="text-xl md:text-3xl font-black text-blue-900 drop-shadow-sm">{i + 1}</span>
                                             </div>
-                                            {ans.text === "---" && <div className="absolute inset-0 bg-black/60 rounded-lg backdrop-blur-sm flex items-center justify-center text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Empty</div>}
+                                            {ans.text === "---" && <div className="absolute inset-0 bg-black/60 rounded-lg backdrop-blur-sm flex items-center justify-center text-slate-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{ui("Empty")}</div>}
                                         </div>
 
                                         <div className="absolute inset-0 [backface-visibility:hidden] [transform:rotateX(180deg)] bg-gradient-to-b from-cyan-200 via-blue-500 to-blue-900 border-2 border-white rounded-md shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_3px_0_rgba(15,23,42,0.9)] flex items-center justify-between px-3 md:px-4 overflow-hidden">
@@ -814,7 +814,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                         <button
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
-                            title="Close"
+                            title={ui("Close")}
                         >
                             <span className="text-lg font-bold leading-none">X</span>
                         </button>
@@ -830,7 +830,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -859,7 +859,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             <button
                                 onClick={() => setZoomedAnswer(null)}
                                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-black text-slate-900 shadow-lg"
-                                title="Close answer"
+                                title={ui("Close answer")}
                             >
                                 X
                             </button>
@@ -889,8 +889,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             <form onSubmit={handleInputSubmit} className={`flex-1 min-w-0 relative ${shakeInput ? 'animate-shake' : ''}`}>
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <span className="text-slate-500 font-bold uppercase text-xs tracking-wider hidden md:block">
-                                        {activeTeamName} Guess:
-                                    </span>
+                                        {activeTeamName} {ui(" Guess:")}</span>
                                 </div>
                                 <input 
                                     disabled={showStrikeOverlay}
@@ -898,7 +897,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                     type="text" 
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
-                                    placeholder="TYPE ANSWER..."
+                                    placeholder={ui("TYPE ANSWER...")}
                                     className={`w-full p-3 pl-4 sm:p-4 md:pl-32 pr-14 sm:pr-16 rounded-full bg-slate-100 text-slate-900 text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wider focus:ring-4 outline-none transition-all placeholder:text-slate-400 shadow-inner border-4 ${activeRingClass} border-slate-300`}
                                     autoFocus
                                 />
@@ -918,28 +917,27 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 className="w-11 h-11 sm:w-auto sm:h-auto sm:px-6 sm:py-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase tracking-wider shadow-[0_4px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center shrink-0"
                             >
                                 <X size={20} />
-                                <span className="hidden sm:inline ml-2">Strike</span>
+                                <span className="hidden sm:inline ml-2">{ui("Strike")}</span>
                             </button>
                         </div>
                     ) : (
                         <div className="grid w-full grid-cols-[1fr_auto] items-center gap-3 md:grid-cols-[1fr_auto_1fr]">
                             <div className="hidden md:block" />
-                            <h3 className="min-w-0 text-left text-base font-bold uppercase tracking-wider text-white md:text-center md:text-xl">Round Over!</h3>
+                            <h3 className="min-w-0 text-left text-base font-bold uppercase tracking-wider text-white md:text-center md:text-xl">{ui("Round Over!")}</h3>
                             <div className="flex items-center justify-end gap-2 sm:gap-3">
                                 {!allRevealed && (
                                     <button
                                         onClick={() => setRevealedAnswers(new Array(SURVEY_ANSWER_COUNT).fill(true))}
                                         className="inline-flex whitespace-nowrap rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-md transition-transform hover:scale-105 hover:bg-blue-500 sm:px-6 sm:py-3 sm:text-base md:rounded-full"
                                     >
-                                        Reveal All
-                                    </button>
+                                        {ui("Reveal All")}</button>
                                 )}
 
                                 <button 
                                     onClick={nextRound}
                                     className="whitespace-nowrap rounded-lg bg-brand-yellow px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-900 shadow-md transition-transform animate-pulse hover:scale-105 sm:px-8 sm:py-3 sm:text-base md:rounded-full md:px-10 md:text-lg"
                                 >
-                                    {isLastRound ? "Finish Game" : "Start Next Round"}
+                                    {isLastRound ? ui("Finish Game") : ui("Start Next Round")}
                                 </button>
                             </div>
                         </div>
@@ -950,7 +948,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             {/* FULL SCREEN STRIKE OVERLAY */}
             {showStrikeOverlay && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-red-900/60 backdrop-blur-sm animate-pulse pointer-events-none">
-                    {timedOut && <div role="alert" className="absolute top-8 left-0 right-0 text-center text-3xl sm:text-5xl font-black text-white">Time?s up!</div>}
+                    {timedOut && <div role="alert" className="absolute top-8 left-0 right-0 text-center text-3xl sm:text-5xl font-black text-white">{ui("Time?s up!")}</div>}
                     <div className="text-[15rem] md:text-[25rem] font-black text-red-500 drop-shadow-[0_0_100px_rgba(255,0,0,1)] animate-bounce-slow transform scale-150 border-8 border-red-500 w-[250px] h-[250px] md:w-[400px] md:h-[400px] rounded-full flex items-center justify-center leading-none">
                         X
                     </div>
@@ -962,13 +960,13 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl border-4 border-slate-200">
                         <div className="flex justify-between items-center mb-4 sm:mb-6">
-                            <h3 className="text-lg sm:text-xl font-bold text-slate-800">Edit {teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}</h3>
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-800">{ui("Edit ")}{teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}</h3>
                             <button onClick={() => setEditingTeamIndex(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
                         </div>
                         
                         <div className="space-y-4 sm:space-y-6">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Team Name</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">{ui("Team Name")}</label>
                                 <input 
                                     type="text" 
                                     value={editName}
@@ -978,7 +976,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Score Adjustment</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">{ui("Score Adjustment")}</label>
                                 <div className="flex items-center gap-2 justify-center">
                                     <button onClick={() => setEditScore(s => s - 10)} className="px-3 py-2 bg-slate-100 rounded-lg hover:bg-slate-200 text-slate-600 text-sm font-bold">-10</button>
                                     <input 
@@ -992,7 +990,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Strikes</label>
+                                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">{ui("Strikes")}</label>
                                 <div className="flex gap-2">
                                     {[0, 1, 2, 3].map(count => (
                                         <button 
@@ -1007,7 +1005,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                         </button>
                                     ))}
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-2 italic">Reducing strikes from 3 will resume the team's turn if round not over.</p>
+                                <p className="text-[10px] text-slate-400 mt-2 italic">{ui("Reducing strikes from 3 will resume the team's turn if round not over.")}</p>
                             </div>
                         </div>
 
@@ -1016,14 +1014,12 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 onClick={() => setEditingTeamIndex(null)}
                                 className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg transition-colors"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button 
                                 onClick={saveTeamEdit}
                                 className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600 transition-colors shadow-md"
                             >
-                                Save Changes
-                            </button>
+                                {ui("Save Changes")}</button>
                         </div>
                     </div>
                 </div>
@@ -1034,21 +1030,19 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
-                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
                         <div className="flex space-x-4">
                             <button 
                                 onClick={() => setShowQuitConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button 
                                 onClick={() => { setShowQuitConfirm(false); onBack(); }}
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
-                                Quit
-                            </button>
+                                {ui("Quit")}</button>
                         </div>
                     </div>
                 </div>
@@ -1057,15 +1051,14 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
-                        <h2 className="text-2xl font-bold mb-2">End game now?</h2>
-                        <p className="text-slate-500 mb-6">The game will stop and move to the winners screen.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowEndGameConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => {
                                     setShowEndGameConfirm(false);
@@ -1073,8 +1066,7 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
                                 }}
                                 className="flex-1 py-3 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-colors"
                             >
-                                End game
-                            </button>
+                                {ui("End game")}</button>
                         </div>
                     </div>
                 </div>

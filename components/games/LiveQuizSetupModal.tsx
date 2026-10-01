@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useMemo, useState } from 'react';
 import { Radio, Shuffle, Timer, X } from 'lucide-react';
 import { GeneratedGame } from '../../types';
@@ -18,6 +19,7 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
   onClose,
   onStart,
 }) => {
+  useUiLanguage();
   const [timerSeconds, setTimerSeconds] = useState(20);
   const [randomize, setRandomize] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -46,19 +48,18 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-brand-yellow px-3 py-1 text-xs font-black uppercase text-slate-900">
               <Radio size={14} />
-              Live Quiz Challenge
-            </div>
+              {ui("Live Quiz Challenge")}</div>
             <h2 className="mt-3 text-2xl font-black text-slate-900">{game.title}</h2>
             <p className="mt-1 text-sm font-semibold text-slate-500">
-              {compatibleCount} playable multiple-choice question{compatibleCount === 1 ? '' : 's'}
-              {skippedCount > 0 ? `, ${skippedCount} skipped` : ''}
+              {compatibleCount} {ui(" playable multiple-choice question")}{compatibleCount === 1 ? '' : 's'}
+              {skippedCount > 0 ? ui(", {skippedCount} skipped", { "skippedCount": (skippedCount) }) : ''}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200"
-            aria-label="Close"
+            aria-label={ui("Close")}
           >
             <X size={18} />
           </button>
@@ -66,16 +67,14 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
 
         {skippedCount > 0 && (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">
-            Live Quiz currently uses auto-scored multiple-choice questions. Open-ended or incomplete questions will be left out.
-          </div>
+            {ui("Live Quiz currently uses auto-scored multiple-choice questions. Open-ended or incomplete questions will be left out.")}</div>
         )}
 
         <div className="mt-5 grid gap-4">
           <div>
             <label className="mb-2 flex items-center gap-2 text-sm font-black text-slate-700">
               <Timer size={16} className="text-brand-blue" />
-              Time per question
-            </label>
+              {ui("Time per question")}</label>
             <div className="grid grid-cols-4 gap-2">
               {[10, 15, 20, 30].map((seconds) => (
                 <button
@@ -104,9 +103,8 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
             <div>
               <div className="flex items-center gap-2 text-sm font-black text-slate-800">
                 <Shuffle size={16} className="text-brand-blue" />
-                Randomize question order
-              </div>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Shuffle selected questions for this live session.</p>
+                {ui("Randomize question order")}</div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">{ui("Shuffle selected questions for this live session.")}</p>
             </div>
             <div className={`h-6 w-11 rounded-full p-1 transition ${randomize ? 'bg-brand-blue' : 'bg-slate-300'}`}>
               <div className={`h-4 w-4 rounded-full bg-white transition ${randomize ? 'translate-x-5' : ''}`} />
@@ -120,7 +118,7 @@ export const LiveQuizSetupModal: React.FC<LiveQuizSetupModalProps> = ({
           disabled={starting || compatibleCount === 0}
           className="mt-5 w-full rounded-2xl bg-brand-yellow px-6 py-4 text-xl font-black text-slate-900 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {starting ? 'Creating lobby...' : 'Create Live Lobby'}
+          {starting ? ui("Creating lobby...") : ui("Create Live Lobby")}
         </button>
       </div>
     </div>

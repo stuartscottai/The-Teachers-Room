@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { CheckCircle, Copy, Download, Link2, QrCode, X } from 'lucide-react';
@@ -10,6 +11,7 @@ interface StudentShareModalProps {
 }
 
 export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, url, title, onClose }) => {
+  useUiLanguage();
   const qrWrapRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -21,7 +23,7 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch (error) {
-      alert(`Copy failed. Share this link:\n${url}`);
+      alert(ui("Copy failed. Share this link: {url}", { "url": (url) }));
     }
   };
 
@@ -43,15 +45,14 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-black uppercase text-sky-700">
               <QrCode size={14} />
-              Student Practice
-            </div>
+              {ui("Student Practice")}</div>
             <h2 className="mt-3 text-2xl font-black text-slate-900">{title}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
-            aria-label="Close"
+            aria-label={ui("Close")}
           >
             <X size={18} />
           </button>
@@ -64,8 +65,7 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
           <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase text-slate-500">
             <Link2 size={13} />
-            Student link
-          </div>
+            {ui("Student link")}</div>
           <div className="break-all text-sm font-semibold text-slate-700">{url}</div>
         </div>
 
@@ -76,7 +76,7 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-4 py-3 font-black text-white hover:brightness-110"
           >
             {copied ? <CheckCircle size={17} /> : <Copy size={17} />}
-            {copied ? 'Copied' : 'Copy link'}
+            {copied ? ui("Copied") : ui("Copy link")}
           </button>
           <button
             type="button"
@@ -84,8 +84,7 @@ export const StudentShareModal: React.FC<StudentShareModalProps> = ({ isOpen, ur
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-black text-slate-700 hover:bg-slate-50"
           >
             <Download size={17} />
-            QR PNG
-          </button>
+            {ui("QR PNG")}</button>
         </div>
       </div>
     </div>

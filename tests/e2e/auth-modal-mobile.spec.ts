@@ -2,24 +2,20 @@ import { expect, test } from '@playwright/test';
 
 test('signup dialog remains usable on a short phone with a school code', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
+  // This check covers the signup form, not the unrelated homepage tour prompt.
+  await page.addInitScript(() => localStorage.setItem('teachersRoomTourPromptDisabled', '1'));
   await page.goto('/');
+  const openMenu = page.getByRole('button', { name: 'Open menu', exact: true });
+  await expect(openMenu).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 250));
-  let pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
-
-  const desktopLogin = page.getByRole('button', { name: /^Login$/i });
-  if (await desktopLogin.isVisible().catch(() => false)) {
-    pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
-    await desktopLogin.click();
-  } else {
-    await page.locator('nav button:visible').first().click();
-    const mobileLogin = page.getByRole('button', { name: /Login \/ Sign Up/i });
-    await expect(mobileLogin).toBeVisible();
-    // Playwright may scroll the expanded mobile-menu action into view. Capture
-    // the page position immediately before the modal opens so this assertion
-    // checks the modal's scroll lock rather than the navigation interaction.
-    pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
-    await mobileLogin.click();
-  }
+  await openMenu.click();
+  const mobileLogin = page.getByRole('button', { name: /Login \/ Sign Up/i });
+  await expect(mobileLogin).toBeVisible();
+  // Capture the page position immediately before opening the modal, after
+  // Playwright has scrolled the expanded mobile-menu action into view.
+  await mobileLogin.scrollIntoViewIfNeeded();
+  const pageScrollBeforeOpening = await page.evaluate(() => window.scrollY);
+  await mobileLogin.click();
 
   await page.getByRole('button', { name: /Sign Up/i }).click();
 

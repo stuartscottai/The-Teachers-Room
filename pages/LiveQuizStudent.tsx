@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, CheckCircle2, Clock, Crown, Home, Pencil, Trophy, WifiOff, XCircle } from 'lucide-react';
@@ -149,6 +150,7 @@ const LiveQuizStudentAnswerGrid: React.FC<{
 };
 
 const StudentExitScreen: React.FC<{ icon: React.ReactNode; title: string; message: string }> = ({ icon, title, message }) => {
+  useUiLanguage();
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white">
@@ -164,14 +166,14 @@ const StudentExitScreen: React.FC<{ icon: React.ReactNode; title: string; messag
           className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
         >
           <Home size={18} />
-          Go to homepage
-        </button>
+          {ui("Go to homepage")}</button>
       </div>
     </div>
   );
 };
 
 export const LiveQuizStudent: React.FC = () => {
+  useUiLanguage();
   const { sessionId = '', participantId = '' } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState<LiveQuizSession | null>(null);
@@ -313,8 +315,8 @@ export const LiveQuizStudent: React.FC = () => {
     return (
       <StudentExitScreen
         icon={<WifiOff size={24} />}
-        title="Live quiz unavailable"
-        message="The live quiz is no longer available. Your teacher may have closed the session."
+        title={ui("Live quiz unavailable")}
+        message={ui("The live quiz is no longer available. Your teacher may have closed the session.")}
       />
     );
   }
@@ -331,8 +333,8 @@ export const LiveQuizStudent: React.FC = () => {
     return (
       <StudentExitScreen
         icon={<WifiOff size={24} />}
-        title="Teacher disconnected"
-        message="The host screen is no longer connected, so this live quiz has paused or ended."
+        title={ui("Teacher disconnected")}
+        message={ui("The host screen is no longer connected, so this live quiz has paused or ended.")}
       />
     );
   }
@@ -341,8 +343,8 @@ export const LiveQuizStudent: React.FC = () => {
     return (
       <StudentExitScreen
         icon={<XCircle size={24} />}
-        title="You have been removed"
-        message="Ask your teacher for the join code if you need to rejoin."
+        title={ui("You have been removed")}
+        message={ui("Ask your teacher for the join code if you need to rejoin.")}
       />
     );
   }
@@ -355,8 +357,8 @@ export const LiveQuizStudent: React.FC = () => {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-brand-yellow text-slate-900">
             <Clock size={28} />
           </div>
-          <h1 className="text-3xl font-black">You are in</h1>
-          <p className="mt-2 text-lg font-bold text-white/70">Waiting for the teacher to start...</p>
+          <h1 className="text-3xl font-black">{ui("You are in")}</h1>
+          <p className="mt-2 text-lg font-bold text-white/70">{ui("Waiting for the teacher to start...")}</p>
           {me && (
             <div className="mt-6 flex items-center justify-center gap-4 rounded-xl bg-white/10 p-5 font-black">
               <button
@@ -367,7 +369,7 @@ export const LiveQuizStudent: React.FC = () => {
                   setAvatarError('');
                 }}
                 className="group relative shrink-0 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-brand-yellow/70"
-                aria-label="Change avatar"
+                aria-label={ui("Change avatar")}
               >
                 <LiveQuizAvatarIcon avatarId={parsedMe?.avatarId} className="h-16 w-16" iconSize={28} />
                 <span className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/55 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
@@ -381,7 +383,7 @@ export const LiveQuizStudent: React.FC = () => {
           )}
           {me && showAvatarPicker && (
             <div className="mt-4 rounded-2xl border border-white/10 bg-white p-4 text-slate-900 shadow-2xl">
-              <div className="mb-3 text-left text-sm font-black text-slate-700">{avatarSaving ? 'Saving avatar...' : 'Choose a new avatar'}</div>
+              <div className="mb-3 text-left text-sm font-black text-slate-700">{avatarSaving ? ui("Saving avatar...") : ui("Choose a new avatar")}</div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {LIVE_QUIZ_AVATAR_OPTIONS.map((avatar) => (
                   <button
@@ -397,7 +399,7 @@ export const LiveQuizStudent: React.FC = () => {
                         ? 'border-brand-yellow bg-yellow-50 ring-2 ring-brand-yellow'
                         : 'border-slate-200 bg-white hover:bg-slate-50'
                     } disabled:cursor-not-allowed disabled:opacity-70`}
-                    aria-label="Choose avatar"
+                    aria-label={ui("Choose avatar")}
                   >
                     <LiveQuizAvatarIcon avatarId={avatar.id} className="h-11 w-11" iconSize={23} />
                   </button>
@@ -454,26 +456,26 @@ export const LiveQuizStudent: React.FC = () => {
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-brand-yellow text-slate-950 shadow-xl shadow-yellow-950/30">
               <Trophy size={42} />
             </div>
-            <h1 className="font-display text-4xl font-black sm:text-5xl">Final standings</h1>
+            <h1 className="font-display text-4xl font-black sm:text-5xl">{ui("Final standings")}</h1>
             <p className="mt-2 text-lg font-bold text-white/75">
-              {winner ? `${parseLiveQuizDisplayName(winner.displayName).name} wins with ${winner.score.toLocaleString()} points` : 'Final scores are in.'}
+              {winner ? ui("{parseLiveQuizDisplayName(winner.displayName).name} wins with {winner.score.toLocaleString()} points", { "parseLiveQuizDisplayName(winner.displayName).name": (parseLiveQuizDisplayName(winner.displayName).name), "winner.score.toLocaleString()": (winner.score.toLocaleString()) }) : ui("Final scores are in.")}
             </p>
           </div>
 
           {myRank > 0 && me && (
             <div className="mb-5 rounded-3xl border border-yellow-300/35 bg-yellow-300 p-5 text-center text-slate-950 shadow-2xl shadow-yellow-950/25">
-              <div className="text-sm font-black uppercase tracking-wide text-slate-700">Your result</div>
-              <div className="mt-1 font-display text-4xl font-black">Rank #{myRank}</div>
+              <div className="text-sm font-black uppercase tracking-wide text-slate-700">{ui("Your result")}</div>
+              <div className="mt-1 font-display text-4xl font-black">{ui("Rank #")}{myRank}</div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-lg font-black">
                 <LiveQuizPlayerName displayName={me.displayName} avatarClassName="h-12 w-12" iconSize={22} nameClassName="text-2xl" />
-                <span className="text-2xl">{me.score.toLocaleString()} points</span>
+                <span className="text-2xl">{me.score.toLocaleString()} {ui(" points")}</span>
               </div>
             </div>
           )}
 
           <div className="rounded-3xl border border-white/10 bg-white/10 p-3 shadow-2xl backdrop-blur sm:p-4">
             <div className="mb-3 flex items-center justify-between px-2">
-              <h2 className="text-xl font-black">All participants</h2>
+              <h2 className="text-xl font-black">{ui("All participants")}</h2>
               <Crown className="text-brand-yellow" size={24} />
             </div>
             <div className="grid gap-2">
@@ -495,7 +497,7 @@ export const LiveQuizStudent: React.FC = () => {
                     <div className="min-w-0">
                       <LiveQuizPlayerName displayName={participant.displayName} nameClassName="text-xl font-black" avatarClassName="h-10 w-10" iconSize={18} />
                     </div>
-                    <div className="text-right text-lg font-black">{participant.score.toLocaleString()} pts</div>
+                    <div className="text-right text-lg font-black">{participant.score.toLocaleString()} {ui(" pts")}</div>
                   </div>
                 );
               })}
@@ -508,8 +510,7 @@ export const LiveQuizStudent: React.FC = () => {
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-yellow px-6 py-4 text-lg font-black text-slate-950 shadow-xl shadow-yellow-950/25 hover:bg-yellow-300 sm:mx-auto sm:w-auto"
           >
             <Home size={18} />
-            Go to homepage
-          </button>
+            {ui("Go to homepage")}</button>
         </div>
       </div>
     );
@@ -522,11 +523,11 @@ export const LiveQuizStudent: React.FC = () => {
         participants={participants}
         submissions={submissions}
         questionIndex={session.currentQuestionIndex}
-        title={myRank > 0 ? `You are #${myRank}` : 'Leaderboard'}
-        subtitle="Round result"
+        title={myRank > 0 ? ui("You are #{myRank}", { "myRank": (myRank) }) : ui("Leaderboard")}
+        subtitle={ui("Round result")}
         currentParticipantId={participantId}
         maxRows={8}
-        controls={<p className="text-center text-sm font-bold text-white/70">Waiting for the next question...</p>}
+        controls={<p className="text-center text-sm font-bold text-white/70">{ui("Waiting for the next question...")}</p>}
       />
     );
   }
@@ -534,7 +535,7 @@ export const LiveQuizStudent: React.FC = () => {
   if (!question) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-white">
-        <div className="text-center text-xl font-black">Waiting for the next question...</div>
+        <div className="text-center text-xl font-black">{ui("Waiting for the next question...")}</div>
       </div>
     );
   }
@@ -544,9 +545,9 @@ export const LiveQuizStudent: React.FC = () => {
       <div className="mx-auto flex min-h-[calc(100vh-4rem-1.5rem)] max-w-6xl flex-col md:h-full md:min-h-0 md:max-w-none">
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 md:mx-auto md:w-[clamp(720px,64vw,1240px)]">
           <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-black">
-            Question {question.questionIndex + 1}
+            {ui("Question {number}", { number: question.questionIndex + 1 })}
           </div>
-          {me && ['leaderboard', 'ended'].includes(session.status) && <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">{me.score} pts</div>}
+          {me && ['leaderboard', 'ended'].includes(session.status) && <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">{me.score} {ui(" pts")}</div>}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 p-4 text-slate-950 shadow-[0_18px_45px_rgba(2,6,23,0.26)] md:mx-auto md:h-[calc(100dvh-11rem)] md:max-h-[760px] md:min-h-[560px] md:w-[clamp(720px,64vw,1240px)] md:flex-none md:p-5">
@@ -587,12 +588,11 @@ export const LiveQuizStudent: React.FC = () => {
             {hasSubmitted && !revealVisible && (
               <div className="flex items-center justify-center gap-2 rounded-xl bg-slate-100/95 p-3 text-center font-black text-slate-700 shadow-[0_10px_24px_rgba(2,6,23,0.18)]">
                 <CheckCircle size={18} className="text-emerald-600" />
-                Submitted
-              </div>
+                {ui("Submitted")}</div>
             )}
             {revealVisible && (
               <div className={`rounded-xl p-3 text-center font-black shadow-[0_10px_24px_rgba(2,6,23,0.18)] ${isOwnAnswerCorrect ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
-                {didSubmitAnswer ? (isOwnAnswerCorrect ? 'Correct' : 'Incorrect') : 'No answer submitted'}
+                {didSubmitAnswer ? (isOwnAnswerCorrect ? ui("Correct") : ui("Incorrect")) : ui("No answer submitted")}
               </div>
             )}
             {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}

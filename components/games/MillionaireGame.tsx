@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -25,6 +26,7 @@ const MONEY_LADDER = [
 const SAFETY_NETS = [4, 9]; // Indices for 1000 and 32000
 
 export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+  useUiLanguage();
     const [currentLevel, setCurrentLevel] = useState(0);
     const [isGameOver, setIsGameOver] = useState(false);
     const [winnings, setWinnings] = useState(0);
@@ -475,7 +477,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 <div className="absolute inset-0 flex items-center justify-center p-4 bg-gradient-to-b from-indigo-950 to-black z-30">
                     <div className="absolute top-4 left-4 z-40 pointer-events-auto">
                         <button onClick={() => setShowQuitConfirm(true)} className="text-slate-400 hover:text-white transition-colors bg-white/10 p-2 rounded-full hover:bg-white/20 flex items-center gap-2 px-4">
-                            <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">Back</span>
+                            <ArrowLeft size={24} /> <span className="font-bold hidden md:inline">{ui("Back")}</span>
                         </button>
                     </div>
                     {!isMobileViewport && (
@@ -492,15 +494,13 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             <Trophy size={160} className="text-yellow-400 mx-auto drop-shadow-[0_0_30px_rgba(250,204,21,0.6)] relative z-10" />
                         </div>
                         <h1 className="text-[clamp(2.4rem,8vw,4.5rem)] sm:text-6xl md:text-8xl font-display font-black text-white mb-6 tracking-wider uppercase text-shadow leading-tight break-words">
-                            Millionaire Maker
-                        </h1>
-                        <p className="text-indigo-200 text-2xl md:text-3xl mb-16 font-light">15 Questions. 3 Lifelines. One Million Dollars.</p>
+                            {ui("Millionaire Maker")}</h1>
+                        <p className="text-indigo-200 text-2xl md:text-3xl mb-16 font-light">{ui("15 Questions. 3 Lifelines. One Million Dollars.")}</p>
                         <button 
                             onClick={() => setGameState('question')}
                             className="bg-indigo-600 hover:bg-indigo-500 text-white text-3xl font-bold py-6 px-16 rounded-full shadow-[0_0_40px_rgba(79,70,229,0.6)] transition-all hover:scale-105 active:scale-95 border-4 border-indigo-400"
                         >
-                            Let's Play
-                        </button>
+                            {ui("Let's Play")}</button>
                     </div>
                 </div>
             )}
@@ -532,10 +532,10 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
 
                     <div className="bg-slate-800/90 backdrop-blur-xl p-16 rounded-[3rem] border-2 border-indigo-500/50 shadow-2xl max-w-4xl w-full animate-slide-up relative z-10">
                         <h2 className="text-5xl md:text-6xl font-bold text-white mb-4 tracking-tight">
-                            {winnings === (ladder[lastLevelIndex] || 1000000) ? "ULTIMATE CHAMPION!" : "GAME OVER"}
+                            {winnings === (ladder[lastLevelIndex] || 1000000) ? ui("ULTIMATE CHAMPION!") : ui("GAME OVER")}
                         </h2>
                         <p className="text-indigo-300 text-xl md:text-2xl mb-12 uppercase tracking-widest font-bold">
-                            {gameState === 'walkaway' ? "You walked away with" : "You go home with"}
+                            {gameState === 'walkaway' ? ui("You walked away with") : ui("You go home with")}
                         </p>
                         
                         <div
@@ -550,14 +550,12 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                 onClick={onReplay}
                                 className="bg-indigo-600 text-white px-10 py-5 rounded-2xl font-bold text-2xl hover:bg-indigo-500 transition-colors shadow-lg hover:shadow-indigo-500/30"
                             >
-                                Play Again
-                            </button>
+                                {ui("Play Again")}</button>
                             <button 
                                 onClick={onFinish}
                                 className="bg-slate-700 text-white px-10 py-5 rounded-2xl font-bold text-2xl hover:bg-slate-600 transition-colors shadow-lg"
                             >
-                                Exit
-                            </button>
+                                {ui("Exit")}</button>
                         </div>
                     </div>
                 </div>
@@ -578,7 +576,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     {/* Back Button */}
                     <div className="flex items-center gap-4 w-auto shrink-0 order-1">
                         <button onClick={() => setShowQuitConfirm(true)} className={`text-slate-400 hover:text-white transition-colors bg-white/10 rounded-full hover:bg-white/20 flex items-center gap-2 ${isMobileViewport ? 'p-2' : 'p-2 px-4'}`}>
-                            <ArrowLeft size={isMobileViewport ? 18 : 24} /> <span className="font-bold hidden md:inline">Back</span>
+                            <ArrowLeft size={isMobileViewport ? 18 : 24} /> <span className="font-bold hidden md:inline">{ui("Back")}</span>
                         </button>
                     </div>
                     
@@ -600,7 +598,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             disabled={usedPhone || isProcessing}
                             className={`${isMobileViewport ? 'w-12 h-9 text-xs' : 'w-20 h-12 md:w-28 md:h-16'} rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
                                 ${usedPhone ? 'border-slate-800 text-slate-700 bg-slate-900 cursor-not-allowed' : 'border-indigo-400 text-indigo-300 hover:bg-indigo-600 hover:text-white hover:border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] bg-black'}`}
-                            title="Phone a Friend"
+                            title={ui("Phone a Friend")}
                         >
                             <Phone size={20} className="md:w-8 md:h-8" />
                             {usedPhone && <div className="absolute inset-0 flex items-center justify-center text-red-600 text-4xl font-black bg-black/80">X</div>}
@@ -611,7 +609,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             disabled={usedAudience || isProcessing}
                             className={`${isMobileViewport ? 'w-12 h-9 text-xs' : 'w-20 h-12 md:w-28 md:h-16'} rounded-full flex items-center justify-center font-bold border-2 transition-all relative overflow-hidden
                                 ${usedAudience ? 'border-slate-800 text-slate-700 bg-slate-900 cursor-not-allowed' : 'border-indigo-400 text-indigo-300 hover:bg-indigo-600 hover:text-white hover:border-white shadow-[0_0_15px_rgba(99,102,241,0.6)] bg-black'}`}
-                            title="Ask the Audience"
+                            title={ui("Ask the Audience")}
                         >
                             <Users size={20} className="md:w-8 md:h-8" />
                             {usedAudience && <div className="absolute inset-0 flex items-center justify-center text-red-600 text-4xl font-black bg-black/80">X</div>}
@@ -658,7 +656,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                             onKeyDown={isMobileViewport ? undefined : handleImageKeyDown}
                                             role={isMobileViewport ? undefined : 'button'}
                                             tabIndex={isMobileViewport ? -1 : 0}
-                                            title={isMobileViewport ? undefined : 'Click to zoom'}
+                                            title={isMobileViewport ? undefined : ui("Click to zoom")}
                                             className={`h-full w-full rounded-xl object-contain border border-indigo-300/40 bg-black/60 shadow-sm ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                         />
                                     </div>
@@ -720,7 +718,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     onClick={handleWalkAway}
                                     className={`text-slate-400 hover:text-white font-bold uppercase tracking-widest border-2 border-slate-700 rounded-full hover:bg-slate-800 transition-colors bg-black/50 backdrop-blur-md ${isMobileViewport ? 'text-xs px-4 py-2' : 'text-lg px-8 py-3'}`}
                                 >
-                                    Walk Away: ${(ladder[currentLevel-1] || 0).toLocaleString()}
+                                    {ui("Walk Away: $")}{(ladder[currentLevel-1] || 0).toLocaleString()}
                                 </button>
                             </div>
                         )}
@@ -756,7 +754,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 {isMobileViewport && (
                     <div className="sm:hidden w-full shrink-0 px-3 pb-3">
                         <div className="mx-auto w-full max-w-sm bg-slate-950/90 border border-indigo-400/60 rounded-xl px-3 py-2 shadow-[0_0_28px_rgba(15,23,42,0.9)] backdrop-blur-sm">
-                            <div className="text-[10px] uppercase tracking-widest text-slate-200 font-bold text-center mb-2">Money Ladder</div>
+                            <div className="text-[10px] uppercase tracking-widest text-slate-200 font-bold text-center mb-2">{ui("Money Ladder")}</div>
                             <div className="grid grid-cols-5 gap-2 transition-all duration-300 ease-out">
                                 {mobileLadderWindow.map((amount, i) => {
                                     const globalIndex = mobileLadderWindowStart + i;
@@ -799,7 +797,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         <button
                             onClick={() => setIsImageZoomOpen(false)}
                             className="absolute -top-4 -right-4 bg-white text-slate-900 rounded-full w-9 h-9 flex items-center justify-center shadow-lg"
-                            title="Close"
+                            title={ui("Close")}
                         >
                             <span className="text-lg font-bold leading-none">X</span>
                         </button>
@@ -815,7 +813,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                             }}
                             role="button"
                             tabIndex={0}
-                            title="Click to close"
+                            title={ui("Click to close")}
                             style={{
                                 transform: 'scale(2)',
                                 transformOrigin: 'center',
@@ -835,25 +833,23 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 <div className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-16'} z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-3 sm:p-4`}>
                     <div className={`bg-slate-900 border-4 border-indigo-500 w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative ${isMobileViewport ? 'rounded-2xl p-4 w-[90vw] max-w-[90vw] h-[50vh] max-h-[50vh] overflow-hidden flex items-center justify-center pt-8' : 'rounded-[3rem] p-12 max-w-4xl'}`}>
                         <div className={`absolute left-1/2 -translate-x-1/2 bg-indigo-600 text-white font-bold uppercase tracking-widest border-4 border-slate-900 ${isMobileViewport ? 'top-2 px-4 py-1 rounded-full text-xs' : '-top-10 px-8 py-2 rounded-full text-xl'}`}>
-                            Phone-A-Friend
-                        </div>
+                            {ui("Phone-A-Friend")}</div>
                         
                         {isCalling ? (
                             <div className={`flex flex-col items-center w-full ${isMobileViewport ? 'h-[75%] justify-center' : 'py-10'}`}>
                                 <Phone size={isMobileViewport ? 48 : 80} className="text-white mb-6 animate-bounce" />
-                                <h3 className={`font-display font-bold text-white animate-pulse ${isMobileViewport ? 'text-3xl' : 'text-6xl'}`}>Dialing...</h3>
+                                <h3 className={`font-display font-bold text-white animate-pulse ${isMobileViewport ? 'text-3xl' : 'text-6xl'}`}>{ui("Dialing...")}</h3>
                             </div>
                         ) : (
                             <div className={`animate-slide-up w-full ${isMobileViewport ? 'h-[75%] flex flex-col justify-center' : ''}`}>
                                 <div className={`text-left bg-slate-800 rounded-3xl relative mt-3 border border-slate-700 ${isMobileViewport ? 'p-4' : 'p-10'}`}>
-                                    <div className={`absolute bg-yellow-500 text-black font-bold transform -rotate-2 ${isMobileViewport ? 'left-3 -top-3 px-3 py-1 rounded-md text-xs' : '-left-4 -top-4 px-6 py-2 rounded-lg text-lg'}`}>FRIEND SAYS:</div>
+                                    <div className={`absolute bg-yellow-500 text-black font-bold transform -rotate-2 ${isMobileViewport ? 'left-3 -top-3 px-3 py-1 rounded-md text-xs' : '-left-4 -top-4 px-6 py-2 rounded-lg text-lg'}`}>{ui("FRIEND SAYS:")}</div>
                                     <p className={`font-medium text-white leading-snug font-display ${isMobileViewport ? 'text-[clamp(1rem,4vw,1.3rem)]' : 'text-3xl md:text-5xl'}`}>
                                         "{phoneHint}"
                                     </p>
                                 </div>
                                 <button onClick={() => setPhoneHint(null)} className={`bg-white text-slate-900 rounded-full font-bold hover:bg-slate-200 transition-colors ${isMobileViewport ? 'mt-5 w-full px-5 py-3 text-sm' : 'mt-10 px-10 py-4 text-xl'}`}>
-                                    Thanks, hang up
-                                </button>
+                                    {ui("Thanks, hang up")}</button>
                             </div>
                         )}
                     </div>
@@ -865,13 +861,12 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 <div className={`${isFullscreen ? 'fixed inset-0' : 'fixed inset-x-0 bottom-0 top-16'} z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-fade-in p-3 sm:p-4`}>
                     <div className={`bg-slate-900 border-4 border-indigo-500 w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] relative ${isMobileViewport ? 'rounded-2xl p-4 w-[90vw] max-w-[90vw] h-[50vh] max-h-[50vh] overflow-hidden flex items-center justify-center pt-8' : 'rounded-[3rem] p-8 md:p-12 max-w-5xl'}`}>
                         <div className={`absolute left-1/2 -translate-x-1/2 bg-indigo-600 text-white font-bold uppercase tracking-widest border-4 border-slate-900 ${isMobileViewport ? 'top-2 px-4 py-1 rounded-full text-xs' : '-top-10 px-8 py-2 rounded-full text-xl'}`}>
-                            Audience Vote
-                        </div>
+                            {ui("Audience Vote")}</div>
 
                         {isPolling ? (
                             <div className={`flex flex-col items-center w-full ${isMobileViewport ? 'h-[75%] justify-center' : 'py-20'}`}>
                                 <Users size={isMobileViewport ? 60 : 100} className="text-white mb-6 animate-pulse" />
-                                <h3 className={`font-bold text-white mb-3 ${isMobileViewport ? 'text-xl' : 'text-5xl'}`}>Polling Audience...</h3>
+                                <h3 className={`font-bold text-white mb-3 ${isMobileViewport ? 'text-xl' : 'text-5xl'}`}>{ui("Polling Audience...")}</h3>
                                 <div className={`w-full max-w-md h-3 ${isMobileViewport ? 'max-w-[200px]' : ''} bg-slate-700 rounded-full overflow-hidden`}>
                                     <div className="h-full bg-indigo-500 animate-[width_3s_ease-in-out] w-full"></div>
                                 </div>
@@ -895,8 +890,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                                     ))}
                                 </div>
                                 <button onClick={() => setAudienceStats(null)} className={`mx-auto bg-white text-slate-900 rounded-full font-bold hover:bg-slate-200 transition-colors shadow-lg ${isMobileViewport ? 'mt-4 px-5 py-2.5 text-sm' : 'mt-8 px-12 py-4 text-xl'}`}>
-                                    Close Results
-                                </button>
+                                    {ui("Close Results")}</button>
                             </div>
                         )}
                     </div>
@@ -908,21 +902,19 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                     <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold mb-2">Quit current game?</h2>
-                        <p className="text-slate-500 mb-6">Your progress will be lost if you haven't saved.</p>
+                        <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
+                        <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowQuitConfirm(false)}
                                 className="flex-1 py-3 bg-slate-100 font-bold rounded-lg hover:bg-slate-200 transition-colors text-slate-700"
                             >
-                                Cancel
-                            </button>
+                                {ui("Cancel")}</button>
                             <button
                                 onClick={() => { setShowQuitConfirm(false); onBack(); }}
                                 className="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition-colors"
                             >
-                                Quit
-                            </button>
+                                {ui("Quit")}</button>
                         </div>
                     </div>
                 </div>

@@ -7,14 +7,14 @@ const expectOriginalLanguage = async (content: Locator) => {
   expect(await content.evaluateAll(elements => elements.every(element => !(element as HTMLElement).translate))).toBe(true);
 };
 
-test('every classroom game protects its content while site navigation remains translatable', async ({ page }) => {
+test('every classroom game protects its content and uses the managed interface language', async ({ page }) => {
   test.setTimeout(90_000);
   for (const mode of ['trivia', 'jeopardy', 'pubquiz', 'darts', 'snakes', 'millionaire', 'timebomb', 'survey', 'stopfire', 'wordwheel', 'blockbeaters']) {
     await page.goto(`/test/game-smoke?mode=${mode}&lightweight=1`);
     const arena = page.locator('.gameplay-appearance');
     await expect(arena).toHaveAttribute('translate', 'no');
     await expect(arena).toHaveClass(/notranslate/);
-    expect(await page.locator('nav').first().evaluate(element => (element as HTMLElement).translate)).toBe(true);
+    expect(await page.locator('nav').first().evaluate(element => (element as HTMLElement).translate)).toBe(false);
   }
 });
 
@@ -61,5 +61,5 @@ test('live student questions and answers preserve Valencian on a Spanish browser
   await expectOriginalLanguage(page.getByRole('heading', { name: 'Quin dia és hui?' }));
   await expectOriginalLanguage(page.getByRole('button', { name: /Dilluns/ }));
   await expectOriginalLanguage(page.getByText('Valencià', { exact: true }));
-  expect(await page.locator('nav').first().evaluate(element => (element as HTMLElement).translate)).toBe(true);
+  expect(await page.locator('nav').first().evaluate(element => (element as HTMLElement).translate)).toBe(false);
 });

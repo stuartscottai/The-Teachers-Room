@@ -115,6 +115,12 @@ html[data-theme='dark'] .bg-sky-50.text-brand-dark .text-sky-800 { color: #82d4f
 html[data-theme='dark'] .bg-sky-50.text-brand-dark .bg-brand-yellow.text-brand-dark { color: #17202b; }
 
 /* Preserve the site's energy without using daytime cyan as a whole-page surface. */
+html[data-theme='dark'] .seo-landing { background: var(--night-bg); color: var(--night-text); }
+html[data-theme='dark'] .seo-landing-hero { background: #16465e; color: #fff; }
+html[data-theme='dark'] .seo-landing-example { background: #1b3545; border-color: #31566b; color: #c8efff; }
+html[data-theme='dark'] .seo-landing-hub { background: #0369a1; color: #fff; }
+html[data-theme='dark'] .seo-landing-hub:hover { background: #075985; }
+
 html[data-theme='dark'] .site-home-hero {
   background: radial-gradient(circle at 50% 24%, #1c607f 0%, #153b51 43%, #112936 100%);
 }
@@ -315,7 +321,6 @@ html[data-theme='dark'] .game-workspace .workspace-answer-option > input { borde
 html[data-theme='dark'] .theme-article-hero { background: linear-gradient(120deg, #1b3545, #22272e 52%, #393225); }
 html[data-theme='dark'] .theme-article-hero > [class*='from-white'] { background: linear-gradient(90deg, rgb(34 39 46 / 94%), rgb(34 39 46 / 70%), transparent); }
 
-.profile-appearance { margin-bottom: 24px; }
 .profile-theme-options { display: flex; flex-wrap: wrap; gap: 10px; }
 .profile-theme-choice { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-width: 128px; min-height: 44px; padding: 9px 18px; border: 1px solid #cbd5e1; border-radius: 9px; font-size: 14px; font-weight: 700; color: #334155; background: #fff; }
 .profile-theme-choice[aria-pressed='true'] { border-color: #0284c7; background: #e0f2fe; color: #075985; box-shadow: inset 0 0 0 1px #0284c7; }

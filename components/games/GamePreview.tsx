@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, useWorkspaceDialog } from './GameWorkspace';
 import { GameCover, CoverCredit } from '../shared/GameCover';
 import { GameWebSources } from './GameWebSources';
@@ -28,6 +29,7 @@ const PreviewQuestionImage: React.FC<{
   image?: GeneratedQuestion['image'];
   refreshQuery?: string;
 }> = ({ sources, label, image, refreshQuery }) => {
+  useUiLanguage();
   const initialUrls = useMemo(() => sources.map((src) => String(src || '').trim()).filter(Boolean), [sources]);
   const [urls, setUrls] = useState<string[]>(initialUrls);
   const [sourceIndex, setSourceIndex] = useState(0);
@@ -48,7 +50,7 @@ const PreviewQuestionImage: React.FC<{
     <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
       <img
         src={src}
-        alt={`Preview image for ${label}`}
+        alt={ui("Preview image for {label}", { "label": (label) })}
         className="h-24 w-full object-cover"
         onError={async () => {
           if (sourceIndex < urls.length - 1) {
@@ -244,7 +246,7 @@ const buildStopTheFireItems = (game: GeneratedGame): PreviewItem[] => {
   if (manualCategories.length > 0) {
     return manualCategories.map((category, index) => ({
       id: `stf-${index}`,
-      title: `Category ${index + 1}`,
+      get title() { return ui("Category {index + 1}", { "index + 1": (index + 1) }); },
       prompt: category,
       answer: '',
     }));
@@ -256,7 +258,7 @@ const buildStopTheFireItems = (game: GeneratedGame): PreviewItem[] => {
       .filter(Boolean)
       .map((category, categoryIndex) => ({
         id: `stf-round-${roundIndex}-${categoryIndex}`,
-        title: `Round ${roundIndex + 1}`,
+        get title() { return ui("Round {roundIndex + 1}", { "roundIndex + 1": (roundIndex + 1) }); },
         prompt: category,
         answer: `Letter ${round.letter} - ${round.difficulty}`,
       }))
@@ -386,26 +388,25 @@ interface PreviewCardProps {
   onToggleFlip: () => void;
 }
 
-const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, onToggleSelect, onToggleFlip }) => (
+const PreviewCard: React.FC<PreviewCardProps> = ({ item, isSelected, isFlipped, onToggleSelect, onToggleFlip }) => { useUiLanguage(); return ((
   <article className="flex flex-col rounded-xl border border-slate-200 bg-white p-5">
     <div className="mb-3 flex items-start justify-between gap-3">
       <div><h3 className="text-sm font-bold text-slate-700">{item.title}</h3>{item.group && <p className="mt-1 text-xs text-slate-500">{item.group}</p>}</div>
       <label className="flex min-h-8 items-start gap-2 text-xs font-semibold text-slate-600 cursor-pointer">
-        <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="h-5 w-5 rounded border-slate-300 text-sky-700" aria-label={`Select ${item.title.toLowerCase()}`} /> Include
-      </label>
+        <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="h-5 w-5 rounded border-slate-300 text-sky-700" aria-label={ui("Select {item.title.toLowerCase()}", { "item.title.toLowerCase()": (item.title.toLowerCase()) })} /> {ui(" Include")}</label>
     </div>
     <p className="whitespace-pre-wrap break-words text-[15px] font-medium leading-6 text-slate-800">{item.prompt}</p>
     {!!item.options?.length && <div className="mt-3 space-y-2 text-sm text-slate-600">
       {item.options.map((option, index) => <p key={index} className="break-words"><strong className="mr-2">{String.fromCharCode(65 + index)}</strong>{option}</p>)}
     </div>}
     {item.imageUrl && <PreviewQuestionImage sources={item.imageUrls?.length ? item.imageUrls : [item.imageUrl]} label={item.title} image={item.image} refreshQuery={item.refreshQuery || item.prompt} />}
-    {isFlipped && <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-3" role="status"><p className="text-xs font-bold text-green-800 mb-1">ANSWER</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-green-900">{item.answer}</p></div>}
+    {isFlipped && <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-3" role="status"><p className="text-xs font-bold text-green-800 mb-1">{ui("ANSWER")}</p><p className="whitespace-pre-wrap break-words text-sm leading-6 text-green-900">{item.answer}</p></div>}
     <div className="mt-auto flex items-center justify-between gap-3 pt-4">
-      <button type="button" onClick={onToggleFlip} aria-expanded={isFlipped} className="workspace-button">{isFlipped ? 'Hide answer' : 'Reveal answer'}</button>
-      {item.points != null && <span className="text-xs text-slate-500">{item.points} pts</span>}
+      <button type="button" onClick={onToggleFlip} aria-expanded={isFlipped} className="workspace-button">{isFlipped ? ui("Hide answer") : ui("Reveal answer")}</button>
+      {item.points != null && <span className="text-xs text-slate-500">{item.points} {ui(" pts")}</span>}
     </div>
   </article>
-);
+)); };
 
 interface QuickViewTableProps {
   items: PreviewItem[];
@@ -413,18 +414,18 @@ interface QuickViewTableProps {
   onToggleSelect: (itemId: string) => void;
 }
 
-const QuickViewTable: React.FC<QuickViewTableProps> = ({ items, selectedIds, onToggleSelect }) => (
+const QuickViewTable: React.FC<QuickViewTableProps> = ({ items, selectedIds, onToggleSelect }) => { useUiLanguage(); return ((
   <div className="workspace-preview-list">
-    <div className="workspace-preview-columns"><span aria-hidden="true" /><span>QUESTION</span><span>ANSWERS</span></div>
+    <div className="workspace-preview-columns"><span aria-hidden="true" /><span>{ui("QUESTION")}</span><span>{ui("ANSWERS")}</span></div>
     {items.map(item => {
       const hasMatchingOption = item.options?.some(option => option.trim() === item.answer.trim());
       return <div key={item.id} className="workspace-preview-row">
         <label className="workspace-preview-pick">
-          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleSelect(item.id)} aria-label={`Select ${item.title.toLowerCase()}`} />
+          <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => onToggleSelect(item.id)} aria-label={ui("Select {item.title.toLowerCase()}", { "item.title.toLowerCase()": (item.title.toLowerCase()) })} />
         </label>
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-            <span>{item.title}</span>{item.group && <span>· {item.group}</span>}{item.points != null && <span>· {item.points} pts</span>}
+            <span>{item.title}</span>{item.group && <span>· {item.group}</span>}{item.points != null && <span>· {item.points} {ui(" pts")}</span>}
           </div>
           <p className="text-[15px] leading-6 font-medium text-slate-800 whitespace-pre-wrap break-words">{item.prompt}</p>
           {item.imageUrl && <PreviewQuestionImage sources={item.imageUrls || [item.imageUrl]} label={item.prompt} image={item.image} refreshQuery={item.refreshQuery} />}
@@ -434,15 +435,15 @@ const QuickViewTable: React.FC<QuickViewTableProps> = ({ items, selectedIds, onT
             const correct = option.trim() === item.answer.trim();
             return <div key={index} className={`workspace-preview-option ${correct ? 'is-correct' : ''}`}>
               <span className="font-bold shrink-0">{String.fromCharCode(65 + index)}</span><span className="flex-1">{option}</span>
-              {correct && <span className="inline-flex items-center gap-1 text-xs font-bold shrink-0"><Check size={14} /><span className="hidden lg:inline">Correct</span><span className="sr-only lg:hidden">Correct</span></span>}
+              {correct && <span className="inline-flex items-center gap-1 text-xs font-bold shrink-0"><Check size={14} /><span className="hidden lg:inline">{ui("Correct")}</span><span className="sr-only lg:hidden">{ui("Correct")}</span></span>}
             </div>;
-          }) : <p className="text-[15px] leading-6 text-slate-700 whitespace-pre-wrap break-words">{item.answer || 'No answer provided'}</p>}
-          {!!item.options?.length && !hasMatchingOption && <p className="mt-2 px-2 text-sm text-slate-700 whitespace-pre-wrap break-words"><strong>Answer:</strong> {item.answer || 'Not set'}</p>}
+          }) : <p className="text-[15px] leading-6 text-slate-700 whitespace-pre-wrap break-words">{item.answer || ui("No answer provided")}</p>}
+          {!!item.options?.length && !hasMatchingOption && <p className="mt-2 px-2 text-sm text-slate-700 whitespace-pre-wrap break-words"><strong>{ui("Answer:")}</strong> {item.answer || ui("Not set")}</p>}
         </div>
       </div>;
     })}
   </div>
-);
+)); };
 
 interface StopTheFireOverviewProps {
   items: PreviewItem[];
@@ -451,14 +452,15 @@ interface StopTheFireOverviewProps {
 }
 
 const StopTheFireOverview: React.FC<StopTheFireOverviewProps> = ({ items, selectedIds, onToggleSelect }) => {
+  useUiLanguage();
   const splitIndex = Math.ceil(items.length / 2);
   const itemColumns = [items.slice(0, splitIndex), items.slice(splitIndex)].filter((column) => column.length > 0);
 
   const renderTableColumn = (columnItems: PreviewItem[], columnIndex: number) => (
     <div key={`stop-the-fire-column-${columnIndex}`} className="overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white">
       <div className="hidden grid-cols-[44px_minmax(0,1fr)] items-center gap-x-3 bg-slate-50 px-4 py-2.5 lg:grid">
-        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Pick</div>
-        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Category</div>
+        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{ui("Pick")}</div>
+        <div className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{ui("Category")}</div>
       </div>
 
       {columnItems.map((item, index) => {
@@ -483,7 +485,7 @@ const StopTheFireOverview: React.FC<StopTheFireOverviewProps> = ({ items, select
                     ? 'border-slate-700 bg-slate-100 text-slate-700'
                     : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600'
                 }`}
-                aria-label={isSelected ? 'Deselect category' : 'Select category'}
+                aria-label={isSelected ? ui("Deselect category") : ui("Select category")}
               >
                 {isSelected ? <CheckSquare size={14} className="lg:h-4 lg:w-4" /> : <Square size={14} className="lg:h-4 lg:w-4" />}
               </button>
@@ -501,8 +503,7 @@ const StopTheFireOverview: React.FC<StopTheFireOverviewProps> = ({ items, select
   return (
     <div className="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        Choose all the categories you want to include in the game. You can customise the categories for each round on the next screen.
-      </div>
+        {ui("Choose all the categories you want to include in the game. You can customise the categories for each round on the next screen.")}</div>
       <div className="p-3 sm:p-4 lg:grid lg:grid-cols-2 lg:gap-4">
         {itemColumns.map((columnItems, columnIndex) => renderTableColumn(columnItems, columnIndex))}
       </div>
@@ -525,6 +526,7 @@ interface GamePreviewProps {
 }
 
 export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onPlayAsDifferent, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, saveLabel }) => {
+  useUiLanguage();
   const items = useMemo(() => buildPreviewItems(game), [game]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
@@ -594,19 +596,19 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
     setSelectedIds(new Set(shuffled.slice(0, targetCount).map((item) => item.id)));
   };
 
-  const sourceLabel = source === 'community' ? 'Community' : 'My Library';
+  const sourceLabel = source === 'community' ? ui("Community") : ui("My Library");
   const createdByName = game.config.originalCreatorName || game.authorName || 'Teacher';
   const createdDate = formatCreatedDate(game.createdAt);
   const aiPrompt = game.config.customInstructions?.trim();
-  const creationLabel = game.config.isAI ? 'Created using AI' : 'Created manually';
+  const creationLabel = game.config.isAI ? ui("Created using AI") : ui("Created manually");
   const isStopTheFireOverview = game.config.type === GameType.STOP_THE_FIRE;
   const backgroundImage = PREVIEW_BACKGROUND_IMAGES[game.config.type];
-  const previewSaveLabel = saveLabel || (source === 'community' ? 'Save a copy' : 'Save game');
+  const previewSaveLabel = (saveLabel ? ui(saveLabel) : undefined) || (source === 'community' ? ui("Save a copy") : ui("Save game"));
 
   return (
     <div className="game-workspace relative min-h-screen">
       <div className="workspace-shell">
-        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> Back to {sourceLabel}</button>
+        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(" Back to ")}{sourceLabel}</button>
         <header className="workspace-preview-header">
           <div className="shrink-0">
             <GameCover cover={game.config.coverImage} title={game.title} publicGameId={source === 'community' ? game.id : undefined} fallbackImage={backgroundImage} className="workspace-preview-cover" />
@@ -616,55 +618,55 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             <p className="workspace-eyebrow mb-2">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
             <h1 translate="no" className="notranslate workspace-heading">{game.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-              <span>By <strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? 'categories' : 'questions'}</span>
+              <span>{ui("By ")}<strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? ui("categories") : ui("questions")}</span>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button type="button" onClick={onEdit} className="workspace-button"><Edit3 size={16} /> Edit game</button>
+              <button type="button" onClick={onEdit} className="workspace-button"><Edit3 size={16} /> {ui(" Edit game")}</button>
               {onSave && <button type="button" onClick={() => void onSave()} className="workspace-button"><Save size={16} /> {previewSaveLabel}</button>}
-              {(onShare || onStudentShare) && <WorkspaceMenu label="Share">
-                {onShare && <button type="button" onClick={() => void onShare()}><Share2 size={16} /> Teacher share</button>}
-                {onStudentShare && <button type="button" disabled={!selectedCount} onClick={() => void onStudentShare(Array.from(selectedIds))}><QrCode size={16} /> Student share</button>}
+              {(onShare || onStudentShare) && <WorkspaceMenu label={ui("Share")}>
+                {onShare && <button type="button" onClick={() => void onShare()}><Share2 size={16} /> {ui(" Teacher share")}</button>}
+                {onStudentShare && <button type="button" disabled={!selectedCount} onClick={() => void onStudentShare(Array.from(selectedIds))}><QrCode size={16} /> {ui(" Student share")}</button>}
               </WorkspaceMenu>}
-              {aiPrompt && <WorkspaceMenu label="Details">
+              {aiPrompt && <WorkspaceMenu label={ui("Details")}>
                 <p className="px-3 py-2 text-sm text-slate-600">{creationLabel}</p>
-                <button type="button" onClick={() => setIsPromptOpen(true)}><Sparkles size={16} /> View instructions</button>
+                <button type="button" onClick={() => setIsPromptOpen(true)}><Sparkles size={16} /> {ui(" View instructions")}</button>
               </WorkspaceMenu>}
             </div>
           </div>
         </header>
         <GameWebSources config={game.config} />
-        <section className="workspace-toolbar" aria-label="Question selection">
+        <section className="workspace-toolbar" aria-label={ui("Question selection")}>
           <div className="workspace-toolbar-row justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg font-bold">{isStopTheFireOverview ? 'Categories' : 'Questions'}</h2>
-              <span className="text-sm text-slate-600" role="status">{selectedCount} of {items.length} selected</span>
+              <h2 className="text-lg font-bold">{isStopTheFireOverview ? ui("Categories") : ui("Questions")}</h2>
+              <span className="text-sm text-slate-600" role="status">{selectedCount} {ui(" of ")}{items.length} {ui(" selected")}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {onLiveQuiz && <button type="button" onClick={() => void onLiveQuiz(Array.from(selectedIds))} disabled={!selectedCount}
-                className={`workspace-button ${game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 'workspace-button-primary' : ''}`}><Radio size={16} /> Live quiz</button>}
-              <button type="button" onClick={handlePlay} disabled={!selectedCount} className="workspace-button workspace-button-play" aria-label="Play selected">
-                <Play size={16} fill="currentColor" /> Play {selectedCount} {isStopTheFireOverview ? 'categories' : 'questions'}
+                className={`workspace-button ${game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 'workspace-button-primary' : ''}`}><Radio size={16} /> {ui(" Live quiz")}</button>}
+              <button type="button" onClick={handlePlay} disabled={!selectedCount} className="workspace-button workspace-button-play" aria-label={ui("Play selected")}>
+                <Play size={16} fill="currentColor" /> {ui(" Play ")}{selectedCount} {isStopTheFireOverview ? ui("categories") : ui("questions")}
               </button>
             </div>
           </div>
           <div className="workspace-toolbar-row mt-3 border-t border-slate-100 pt-3">
-            {!isStopTheFireOverview && <div className="workspace-view-switch" aria-label="Question view">
-              <button type="button" onClick={() => setViewMode('quick')} aria-pressed={viewMode === 'quick'}><List size={16} /> List</button>
-              <button type="button" onClick={() => setViewMode('study')} aria-pressed={viewMode === 'study'}><Layers size={16} /> Study cards</button>
+            {!isStopTheFireOverview && <div className="workspace-view-switch" aria-label={ui("Question view")}>
+              <button type="button" onClick={() => setViewMode('quick')} aria-pressed={viewMode === 'quick'}><List size={16} /> {ui(" List")}</button>
+              <button type="button" onClick={() => setViewMode('study')} aria-pressed={viewMode === 'study'}><Layers size={16} /> {ui(" Study cards")}</button>
             </div>}
-            <button type="button" onClick={() => setSelectedIds(new Set(items.map(item => item.id)))} disabled={!items.length || allSelected} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Select all</button>
-            <button type="button" onClick={() => setSelectedIds(new Set())} disabled={!selectedCount} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">Clear selection</button>
-            <button type="button" onClick={() => setShowRandomSelection(!showRandomSelection)} aria-expanded={showRandomSelection} className="workspace-button ml-auto"><Shuffle size={16} /> Random selection</button>
+            <button type="button" onClick={() => setSelectedIds(new Set(items.map(item => item.id)))} disabled={!items.length || allSelected} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">{ui("Select all")}</button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} disabled={!selectedCount} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">{ui("Clear selection")}</button>
+            <button type="button" onClick={() => setShowRandomSelection(!showRandomSelection)} aria-expanded={showRandomSelection} className="workspace-button ml-auto"><Shuffle size={16} /> {ui(" Random selection")}</button>
           </div>
           {showRandomSelection && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3">
-            <label htmlFor="random-question-count" className="text-sm font-semibold text-slate-700">Choose at random</label>
+            <label htmlFor="random-question-count" className="text-sm font-semibold text-slate-700">{ui("Choose at random")}</label>
             <input id="random-question-count" type="number" min={1} max={Math.max(1, items.length)} value={randomSelectionCount}
               onChange={event => setRandomSelectionCount(Math.max(1, Math.min(items.length || 1, Number(event.target.value) || 1)))}
-              className="w-20 rounded-lg border-slate-300 text-sm" aria-label="Random question count" />
-            <span className="text-sm text-slate-600">{isStopTheFireOverview ? 'categories' : 'questions'}</span>
-            <button type="button" disabled={!items.length} className="workspace-button" onClick={() => { selectRandomItems(); setShowRandomSelection(false); }}>Apply selection</button>
+              className="w-20 rounded-lg border-slate-300 text-sm" aria-label={ui("Random question count")} />
+            <span className="text-sm text-slate-600">{isStopTheFireOverview ? ui("categories") : ui("questions")}</span>
+            <button type="button" disabled={!items.length} className="workspace-button" onClick={() => { selectRandomItems(); setShowRandomSelection(false); }}>{ui("Apply selection")}</button>
           </div>}
-          {!selectedCount && <p className="mt-3 text-sm text-slate-600">Select at least one {isStopTheFireOverview ? 'category' : 'question'} to play.</p>}
+          {!selectedCount && <p className="mt-3 text-sm text-slate-600">{ui("Select at least one ")}{isStopTheFireOverview ? ui("category") : ui("question")} {ui(" to play.")}</p>}
         </section>
 
         {items.length === 0 ? (
@@ -672,10 +674,9 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <Layers size={24} />
             </div>
-            <h2 className="text-xl font-bold text-slate-700">Nothing to preview yet</h2>
+            <h2 className="text-xl font-bold text-slate-700">{ui("Nothing to preview yet")}</h2>
             <p className="mx-auto mt-2 max-w-lg text-slate-500">
-              This game does not have saved question cards to preview. Open the editor if you want to check or build the content directly.
-            </p>
+              {ui("This game does not have saved question cards to preview. Open the editor if you want to check or build the content directly.")}</p>
           </div>
         ) : (
           <div translate="no" className="notranslate mt-4">
@@ -702,7 +703,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
 
         {isPromptOpen && aiPrompt && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div ref={promptDialogRef} role="dialog" aria-modal="true" aria-label="Generation instructions" tabIndex={-1}
+            <div ref={promptDialogRef} role="dialog" aria-modal="true" aria-label={ui("Generation instructions")} tabIndex={-1}
               className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/75 bg-white/90 shadow-[0_24px_48px_rgba(15,23,42,0.16)] backdrop-blur-xl"
               style={{ maxHeight: AI_PROMPT_MODAL_MAX_HEIGHT }}
             >
@@ -710,16 +711,15 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 type="button"
                 onClick={() => setIsPromptOpen(false)}
                 className="absolute right-4 top-4 rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close AI prompt"
+                aria-label={ui("Close AI prompt")}
               >
                 <X size={18} />
               </button>
               <div className="shrink-0 px-6 pt-6 sm:px-8 sm:pt-8">
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-600">
                   <Sparkles size={13} />
-                  AI Prompt
-                </div>
-                <h2 className="pr-10 font-display text-2xl font-bold text-slate-800">Prompt used to create this game</h2>
+                  {ui("AI Prompt")}</div>
+                <h2 className="pr-10 font-display text-2xl font-bold text-slate-800">{ui("Prompt used to create this game")}</h2>
               </div>
               <div className="min-h-0 overflow-y-auto px-6 pb-6 pt-4 sm:px-8 sm:pb-8">
                 <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
@@ -737,14 +737,13 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 type="button"
                 onClick={() => setPlayChoiceGame(null)}
                 className="absolute right-4 top-4 rounded-full border border-sky-100 bg-white/80 p-2 text-slate-400 transition-colors hover:bg-sky-50 hover:text-brand-blue"
-                aria-label="Close play menu"
+                aria-label={ui("Close play menu")}
               >
                 <X size={18} />
               </button>
-              <h2 className="pr-10 font-display text-2xl font-bold text-slate-900">Choose how to play</h2>
+              <h2 className="pr-10 font-display text-2xl font-bold text-slate-900">{ui("Choose how to play")}</h2>
               <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-                Use the selected questions in this game, or try the same question set in another compatible game.
-              </p>
+                {ui("Use the selected questions in this game, or try the same question set in another compatible game.")}</p>
               <div className="mt-6 grid gap-3">
                 <button
                   type="button"
@@ -752,8 +751,8 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
                 >
                   <span>
-                    <span className="block font-bold text-slate-800">Play {playChoiceGame.config.type}</span>
-                    <span className="block text-sm font-semibold text-slate-600">Use the original game format.</span>
+                    <span className="block font-bold text-slate-800">{ui("Play ")}{playChoiceGame.config.type}</span>
+                    <span className="block text-sm font-semibold text-slate-600">{ui("Use the original game format.")}</span>
                   </span>
                   <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-brand-blue">
                     <Play size={18} fill="currentColor" />
@@ -765,8 +764,8 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
                 >
                   <span>
-                    <span className="block font-bold text-slate-800">Play question set with a different game</span>
-                    <span className="block text-sm font-semibold text-slate-600">Choose from compatible games next.</span>
+                    <span className="block font-bold text-slate-800">{ui("Play question set with a different game")}</span>
+                    <span className="block text-sm font-semibold text-slate-600">{ui("Choose from compatible games next.")}</span>
                   </span>
                   <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-yellow/55 text-slate-900">
                     <Layers size={18} />

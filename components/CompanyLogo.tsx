@@ -1,3 +1,4 @@
+import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React from 'react';
 
 interface CompanyLogoProps {
@@ -13,17 +14,17 @@ export const CompanyLogo: React.FC<CompanyLogoProps> = ({
   showName = false,
   nameClassName
 }) => {
+  useUiLanguage();
   return (
     <div className={className}>
       <img
         src="/favicon.svg"
-        alt="The Teachers' Room logo"
+        alt={ui("The Teachers' Room logo")}
         className={imageClassName || 'w-16 h-16 object-contain'}
       />
       {showName && (
         <p className={nameClassName || 'mt-2 text-sm font-bold text-slate-700'}>
-          The Teachers&apos; Room
-        </p>
+          {ui("The Teachers' Room")}</p>
       )}
     </div>
   );
