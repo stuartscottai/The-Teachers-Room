@@ -103,7 +103,7 @@ export const PracticeReviewSummary: React.FC<PracticeReviewSummaryProps> = ({
         </div>
 
         {showReview && (
-          <div className="mt-5 space-y-4 pb-8">
+          <div translate="no" className="notranslate mt-5 space-y-4 pb-8">
             {missedItems.map((item, index) => (
               <div key={`${item.id}-${index}`} className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-2 flex items-center gap-2 text-sm font-black uppercase text-rose-600">

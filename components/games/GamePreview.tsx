@@ -614,7 +614,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
           </div>
           <div className="min-w-0 flex-1">
             <p className="workspace-eyebrow mb-2">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
-            <h1 className="workspace-heading">{game.title}</h1>
+            <h1 translate="no" className="notranslate workspace-heading">{game.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
               <span>By <strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? 'categories' : 'questions'}</span>
             </div>
@@ -678,7 +678,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             </p>
           </div>
         ) : (
-          <div className="mt-4">
+          <div translate="no" className="notranslate mt-4">
             {isStopTheFireOverview ? (
               <StopTheFireOverview items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
             ) : viewMode === 'study' ? (

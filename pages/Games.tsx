@@ -501,10 +501,10 @@ const CategoryFormatSetup: React.FC<{
                                                 {questionIndex + 1}
                                             </label>
                                             <div className="min-w-0">
-                                                <p className="break-words text-sm font-semibold leading-6 text-slate-700">
+                                                <p translate="no" className="notranslate break-words text-sm font-semibold leading-6 text-slate-700">
                                                     {question.question || 'Untitled question'}
                                                 </p>
-                                                <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-400">
+                                                <p translate="no" className="notranslate mt-1 line-clamp-1 text-xs font-semibold text-slate-400">
                                                     Answer: {question.answer || 'No answer saved'}
                                                 </p>
                                             </div>

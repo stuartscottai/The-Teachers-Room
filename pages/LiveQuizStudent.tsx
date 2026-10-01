@@ -115,7 +115,7 @@ const LiveQuizStudentAnswerGrid: React.FC<{
   const sharedFontSize = getSharedLiveQuizOptionFontSize(options, revealVisible);
 
   return (
-    <div className="mt-4 grid min-h-0 flex-[2] auto-rows-fr gap-4 sm:grid-cols-2">
+    <div translate="no" className="notranslate mt-4 grid min-h-0 flex-[2] auto-rows-fr gap-4 sm:grid-cols-2">
       {options.map((option, index) => {
         const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
         const hasSelection = Boolean(effectiveSelectedAnswer);
@@ -563,7 +563,7 @@ export const LiveQuizStudent: React.FC = () => {
                 <img src={imageUrl} alt="" className="h-full w-full object-contain" />
               </div>
             )}
-            <div className="flex min-w-0 flex-1 flex-col justify-center">
+            <div translate="no" className="notranslate flex min-w-0 flex-1 flex-col justify-center">
               {question.category && <div className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{question.category}</div>}
               <h1 className={`min-h-0 max-h-full ${imageUrl ? 'w-full md:max-w-[19ch]' : 'w-full'} shrink overflow-hidden break-normal text-[clamp(1.45rem,min(2.15vw,3.55vh),2.95rem)] font-black leading-[1.08] tracking-normal text-slate-950`}>{question.question}</h1>
             </div>

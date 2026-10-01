@@ -155,7 +155,7 @@ export const StudentGame: React.FC = () => {
         <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
           <div className="mb-5">
             <div className="text-xs font-black uppercase tracking-wide text-brand-blue">Student Practice</div>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-slate-900">{game.title}</h1>
+            <h1 translate="no" className="notranslate mt-2 text-3xl font-black leading-tight text-slate-900">{game.title}</h1>
             <p className="mt-2 text-sm font-semibold text-slate-500">
               {game.config.type} | {questionCount} question{questionCount === 1 ? '' : 's'}
             </p>

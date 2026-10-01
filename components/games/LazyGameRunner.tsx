@@ -69,7 +69,9 @@ const LazyGameRunnerInner: React.FC<GameRunnerProps> = (props) => {
 
 export const LazyGameRunner: React.FC<GameRunnerProps> = (props) => {
   const { gameAppearance } = useUnsavedChanges();
-  return <div className="gameplay-viewport"><div className="gameplay-appearance" data-game-appearance={gameAppearance}>
+  // Preserve teacher-authored content throughout play, reveal, and game-specific
+  // reviews. Site navigation stays outside this translation boundary.
+  return <div className="gameplay-viewport"><div translate="no" className="gameplay-appearance notranslate" data-game-appearance={gameAppearance}>
     <Suspense fallback={<GameLoading />}>
       <LazyGameRunnerInner {...props} />
     </Suspense>

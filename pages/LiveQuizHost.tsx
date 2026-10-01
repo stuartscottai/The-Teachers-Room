@@ -220,7 +220,7 @@ const LiveQuizAnswerGrid: React.FC<{
   const sharedFontSize = getSharedLiveQuizOptionFontSize(options, showRevealState);
 
   return (
-    <div className="mt-4 grid min-h-0 flex-[3] auto-rows-fr gap-4 sm:grid-cols-2">
+    <div translate="no" className="notranslate mt-4 grid min-h-0 flex-[3] auto-rows-fr gap-4 sm:grid-cols-2">
       {options.map((option, index) => {
         const optionKey = getLiveQuizOptionLabel(option);
         const isAnswer = optionKey === getLiveQuizOptionLabel(String(answer || ''));
@@ -866,7 +866,7 @@ export const LiveQuizHost: React.FC = () => {
                         <img src={imageUrl} alt="" className="h-full w-full object-contain" />
                       </div>
                     )}
-                    <div ref={questionPanelRef} className="flex min-w-0 flex-1 flex-col justify-center">
+                    <div ref={questionPanelRef} translate="no" className="notranslate flex min-w-0 flex-1 flex-col justify-center">
                       {currentQuestion.category && <div ref={questionCategoryRef} className="mb-2 text-xs font-black uppercase tracking-wide text-brand-blue">{currentQuestion.category}</div>}
                       <h1
                         ref={questionTextRef}
