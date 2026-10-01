@@ -355,6 +355,18 @@ export const resolveMeta = (pathname: string): RouteMeta => {
   const exact = routeMeta[normalizedPath] ?? blogMetaByPath.get(normalizedPath);
   if (exact) return exact;
 
+  if (normalizedPath === '/student/game' || normalizedPath.startsWith('/student/game/')) {
+    return {
+      title: "Play Your Teacher's Game | The Teachers' Room",
+      description: "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.",
+      path: normalizedPath,
+      image: DEFAULT_SOCIAL_IMAGE,
+      structuredData: 'webpage',
+      noindex: true,
+      includeInSitemap: false
+    };
+  }
+
   const isKnownPrivatePath = noindexPrefixes.some(
     (prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
   );

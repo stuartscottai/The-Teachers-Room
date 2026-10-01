@@ -170,6 +170,31 @@ if (!fs.existsSync(noindexPath)) {
 }
 
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+const studentShellPath = path.join(dist, 'student-game.html');
+if (!fs.existsSync(studentShellPath)) {
+  fail('The student game sharing shell is missing.');
+} else {
+  const html = fs.readFileSync(studentShellPath, 'utf8');
+  const title = "Play Your Teacher's Game | The Teachers' Room";
+  const description = "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.";
+  for (const property of ['og:title', 'og:description']) {
+    const expected = property === 'og:title' ? title : description;
+    if (capture(html, new RegExp(`<meta property="${property}" content="([^"]*)"`, 'i')) !== expected) {
+      fail(`The student game preview has an incorrect ${property}.`);
+    }
+  }
+  if (!html.includes('content="noindex,nofollow"')) fail('Student game links must remain noindex,nofollow.');
+  if (html.includes('Private App Page') || html.includes('This functional page')) {
+    fail('The student game preview still contains the generic private-page message.');
+  }
+  if (!/<script[^>]*src=/.test(html)) fail('The student game shell must load the interactive app.');
+}
+const studentRewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
+  rule.source === '/student/game/:path*' && rule.destination === '/student-game.html'
+);
+if (!(studentRewriteIndex >= 0 && studentRewriteIndex < vercelConfig.rewrites.length - 1)) {
+  fail('Student game links must use their sharing shell before the private-route fallback.');
+}
 const fallback = vercelConfig.rewrites?.at(-1);
 if (fallback?.destination !== '/noindex.html') {
   fail('The Vercel fallback must use /noindex.html so functional routes are not indexable.');
