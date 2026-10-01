@@ -7,6 +7,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { RouteSEO } from './components/RouteSEO';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { classBooklets } from './data/classBooklets';
+
+const ClassBooklet = lazy(() => import('./pages/ClassBooklet'));
 
 const SurveyShowdownPage = lazy(() => import('./pages/SurveyShowdownPage').then(m => ({ default: m.SurveyShowdownPage })));
 const StopTheFirePage = lazy(() => import('./pages/StopTheFirePage').then(m => ({ default: m.StopTheFirePage })));
@@ -136,7 +139,6 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <UnsavedChangesProvider>
-        <Router>
           <LegacyHashRouteRedirect />
           <RouteSEO />
           <AccountTierOnboardingRedirect />
@@ -187,10 +189,25 @@ const App: React.FC = () => {
               <Route path="/live/play/:sessionId/:participantId" element={<GuardedRoute title="The live quiz player screen could not be loaded"><LazyRoute><LiveQuizStudent /></LazyRoute></GuardedRoute>} />
             </Routes>
           </Layout>
-        </Router>
       </UnsavedChangesProvider>
     </AuthProvider>
   );
 };
 
-export default App;
+// Disposable public section: never mount account providers, onboarding or site navigation.
+const AppRoutes: React.FC = () => {
+  const { pathname } = useLocation();
+  if (pathname === '/class' || pathname.startsWith('/class/')) {
+    return <><RouteSEO /><Routes>
+      {classBooklets.map(booklet => <Route key={booklet.slug} path={`/class/${booklet.slug}`} element={
+        <ErrorBoundary fallbackTitle="The booklet could not be loaded" fallbackMessage="Please reload this page to try again.">
+          <LazyRoute><ClassBooklet key={booklet.slug} booklet={booklet} /></LazyRoute>
+        </ErrorBoundary>
+      } />)}
+      <Route path="*" element={<main className="min-h-screen p-8 text-center"><h1 className="font-display text-2xl">Booklet not found</h1><p>Please use the full link supplied by your teacher.</p></main>} />
+    </Routes></>;
+  }
+  return <App />;
+};
+
+export default function RootApp() { return <Router><AppRoutes /></Router>; }

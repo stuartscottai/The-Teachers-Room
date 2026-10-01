@@ -1,4 +1,5 @@
 import { publicBlogPosts } from '../data/blogPosts';
+import { classBooklets } from '../data/classBooklets';
 
 export type SitemapChangeFrequency = 'weekly' | 'monthly' | 'yearly';
 export type StructuredDataKind = 'home' | 'webpage' | 'blog' | 'article';
@@ -323,6 +324,7 @@ export const blogRouteMeta: RouteMeta[] = publicBlogPosts.map((post) => ({
 const blogMetaByPath = new Map(blogRouteMeta.map((meta) => [meta.path, meta]));
 
 export const noindexPrefixes = [
+  '/class',
   '/profile',
   '/reset-password',
   '/choose-plan',
@@ -343,6 +345,13 @@ const normalizePathname = (pathname: string) => {
 
 export const resolveMeta = (pathname: string): RouteMeta => {
   const normalizedPath = normalizePathname(pathname);
+  const booklet = classBooklets.find(item => normalizedPath === `/class/${item.slug}`);
+  if (booklet) return {
+    title: `${booklet.level} Online Class Workbook | The Teachers' Room`,
+    description: 'Temporary workbook for an online lesson.',
+    path: normalizedPath, image: DEFAULT_SOCIAL_IMAGE, structuredData: 'webpage',
+    noindex: true, includeInSitemap: false
+  };
   const exact = routeMeta[normalizedPath] ?? blogMetaByPath.get(normalizedPath);
   if (exact) return exact;
 

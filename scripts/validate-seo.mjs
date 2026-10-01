@@ -53,6 +53,7 @@ for (const route of expectedGameTypeRoutes) {
 }
 
 const privatePrefixes = [
+  '/class',
   '/profile',
   '/reset-password',
   '/choose-plan',
