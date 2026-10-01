@@ -145,6 +145,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://www.theteachersroom.app/blog/7</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://www.theteachersroom.app/blog/6</loc>
     <lastmod>2026-04-06</lastmod>
     <changefreq>monthly</changefreq>

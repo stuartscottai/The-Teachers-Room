@@ -305,7 +305,8 @@ const blogPublicationDates: Record<number, string> = {
   2: '2024-10-28',
   3: '2024-11-05',
   5: '2024-12-01',
-  6: '2026-04-06'
+  6: '2026-04-06',
+  7: '2026-10-01'
 };
 
 export const blogRouteMeta: RouteMeta[] = publicBlogPosts.map((post) => ({

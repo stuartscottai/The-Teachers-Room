@@ -1,6 +1,8 @@
 import { BlogPost } from '../types';
+import { valenciaRainBlogPost } from './blogRainOnlineLearning';
 
 export const blogPosts: BlogPost[] = [
+    valenciaRainBlogPost,
     {
         id: 6,
         title: "Using AI to Write Student Reports With Custom Templates",

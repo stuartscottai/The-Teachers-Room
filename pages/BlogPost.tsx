@@ -63,16 +63,16 @@ export const BlogPostPage: React.FC = () => {
                     </div>
                 </div>
             ) : (
-                <div className="relative h-[50vh] min-h-[400px]">
+                <div className="relative min-h-[max(50vh,400px)] flex flex-col justify-end">
                     <img
                         src={heroImage}
                         alt={post.title}
                         crossOrigin="anonymous"
-                        className="w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
                     
-                    <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
+                    <div className="relative pt-24 pb-12 md:pt-32 md:pb-20">
                         <div className="max-w-4xl mx-auto px-4 w-full">
                             <Link
                                 to="/blog"
@@ -80,7 +80,7 @@ export const BlogPostPage: React.FC = () => {
                             >
                                 <ArrowLeft size={18} className="mr-2" /> Back to Blog
                             </Link>
-                            <div className="flex items-center space-x-6 text-white/90 mb-4 text-sm md:text-base font-medium">
+                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-white/90 mb-4 text-sm md:text-base font-medium">
                                 <span className="flex items-center"><Calendar size={16} className="mr-2 text-brand-yellow" /> {post.date}</span>
                                 <span className="flex items-center"><User size={16} className="mr-2 text-brand-yellow" /> <BrandName /> Team</span>
                             </div>
