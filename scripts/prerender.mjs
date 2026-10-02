@@ -68,6 +68,11 @@ const main = async () => {
       injectIntoTemplate(template, { path: '/student/game', bodyHtml: '' }),
       'utf8'
     );
+    fs.writeFileSync(
+      path.join(dist, 'teacher-game.html'),
+      injectIntoTemplate(template, { path: '/share/game', bodyHtml: '' }),
+      'utf8'
+    );
     console.log(`Prerendered ${prerenderRoutes.length} public routes with visible HTML.`);
   } finally {
     await vite.close();

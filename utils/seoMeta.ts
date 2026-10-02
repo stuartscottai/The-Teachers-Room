@@ -356,6 +356,18 @@ export const resolveMeta = (pathname: string): RouteMeta => {
   const exact = routeMeta[normalizedPath] ?? blogMetaByPath.get(normalizedPath);
   if (exact) return exact;
 
+  if (normalizedPath === '/share/game' || normalizedPath.startsWith('/share/game/')) {
+    return {
+      title: "A Classroom Game Shared With You | The Teachers' Room",
+      description: "A fellow teacher has shared a game with you. Sign in to preview it, play it with your class, or save a copy to adapt for your lessons.",
+      path: normalizedPath,
+      image: DEFAULT_SOCIAL_IMAGE,
+      structuredData: 'webpage',
+      noindex: true,
+      includeInSitemap: false
+    };
+  }
+
   if (['/student/game', '/student/share'].some(
     prefix => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
   )) {

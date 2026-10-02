@@ -170,31 +170,49 @@ if (!fs.existsSync(noindexPath)) {
 }
 
 const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
-const studentShellPath = path.join(dist, 'student-game.html');
-if (!fs.existsSync(studentShellPath)) {
-  fail('The student game sharing shell is missing.');
-} else {
-  const html = fs.readFileSync(studentShellPath, 'utf8');
-  const title = "Play Your Teacher's Game | The Teachers' Room";
-  const description = "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.";
-  for (const property of ['og:title', 'og:description']) {
-    const expected = property === 'og:title' ? title : description;
-    if (capture(html, new RegExp(`<meta property="${property}" content="([^"]*)"`, 'i')) !== expected) {
-      fail(`The student game preview has an incorrect ${property}.`);
+const sharingPreviews = [
+  {
+    name: 'Student game', file: 'student-game.html',
+    title: "Play Your Teacher's Game | The Teachers' Room",
+    description: "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.",
+    sources: ['/student/game/:path*', '/student/share/:path*']
+  },
+  {
+    name: 'Teacher game', file: 'teacher-game.html',
+    title: "A Classroom Game Shared With You | The Teachers' Room",
+    description: "A fellow teacher has shared a game with you. Sign in to preview it, play it with your class, or save a copy to adapt for your lessons.",
+    sources: ['/share/game/:path*']
+  }
+];
+for (const preview of sharingPreviews) {
+  const shellPath = path.join(dist, preview.file);
+  if (!fs.existsSync(shellPath)) {
+    fail(`${preview.name} sharing shell is missing.`);
+    continue;
+  }
+  const html = fs.readFileSync(shellPath, 'utf8');
+  if (capture(html, /<title[^>]*>([^<]*)<\/title>/i) !== preview.title) {
+    fail(`${preview.name} preview has an incorrect page title.`);
+  }
+  for (const property of ['og:title', 'og:description', 'twitter:title', 'twitter:description']) {
+    const expected = property.endsWith('title') ? preview.title : preview.description;
+    const attribute = property.startsWith('og:') ? 'property' : 'name';
+    if (capture(html, new RegExp(`<meta ${attribute}="${property}" content="([^"]*)"`, 'i')) !== expected) {
+      fail(`${preview.name} preview has an incorrect ${property}.`);
     }
   }
-  if (!html.includes('content="noindex,nofollow"')) fail('Student game links must remain noindex,nofollow.');
+  if (!html.includes('content="noindex,nofollow"')) fail(`${preview.name} links must remain noindex,nofollow.`);
   if (html.includes('Private App Page') || html.includes('This functional page')) {
-    fail('The student game preview still contains the generic private-page message.');
+    fail(`${preview.name} preview still contains the generic private-page message.`);
   }
-  if (!/<script[^>]*src=/.test(html)) fail('The student game shell must load the interactive app.');
-}
-for (const source of ['/student/game/:path*', '/student/share/:path*']) {
-  const studentRewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
-    rule.source === source && rule.destination === '/student-game.html'
-  );
-  if (!(studentRewriteIndex >= 0 && studentRewriteIndex < vercelConfig.rewrites.length - 1)) {
-    fail(`${source} must use the student sharing shell before the private-route fallback.`);
+  if (!/<script[^>]*src=/.test(html)) fail(`${preview.name} shell must load the interactive app.`);
+  for (const source of preview.sources) {
+    const rewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
+      rule.source === source && rule.destination === `/${preview.file}`
+    );
+    if (!(rewriteIndex >= 0 && rewriteIndex < vercelConfig.rewrites.length - 1)) {
+      fail(`${source} must use its sharing preview before the private-route fallback.`);
+    }
   }
 }
 const fallback = vercelConfig.rewrites?.at(-1);

@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/share/game/:path*", "destination": "/teacher-game.html" },
     { "source": "/student/game/:path*", "destination": "/student-game.html" },
     { "source": "/student/share/:path*", "destination": "/student-game.html" },
     { "source": "/(.*)", "destination": "/noindex.html" }
