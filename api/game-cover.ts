@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { downloadPublicGameUpload } from '../server/publicGameCover';
 
 // Only expose the cover of a currently public game. The asset bucket stays private.
 export default async function handler(req: any, res: any) {
@@ -13,29 +14,12 @@ export default async function handler(req: any, res: any) {
   try {
     const { data: game, error } = await client.from('saved_games').select('config,user_id').eq('id', id).eq('is_public', true).maybeSingle();
     if (error) return res.status(502).json({ error: 'Cover temporarily unavailable' });
-    const cover = game?.config?.coverImage;
-    const path = cover?.storagePath;
-    const pathMatch = typeof path === 'string' ? path.match(/^games\/([^/]+)\/[^/]+\/game-cover-[^/]+\.(png|jpe?g|webp)$/i) : null;
-    if (cover?.source !== 'upload' || !pathMatch || path.includes('..')) {
-      return res.status(404).json({ error: 'Cover not found' });
-    }
-    // A copied game may refer to its original public cover. Never let a
-    // creator's editable config turn this endpoint into access to another
-    // teacher's private files.
-    if (pathMatch[1] !== game.user_id) {
-      const { data: original, error: originalError } = await client.from('saved_games').select('id')
-        .eq('user_id', pathMatch[1]).eq('is_public', true).eq('config->coverImage->>storagePath', path).limit(1);
-      if (originalError || !original?.length) return res.status(404).json({ error: 'Cover not found' });
-    }
-    const { data, error: downloadError } = await client.storage.from('worksheet-assets').download(path);
-    if (downloadError || !data) return res.status(404).json({ error: 'Cover not found' });
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(data.type) || data.size > 10 * 1024 * 1024) {
-      return res.status(415).json({ error: 'Unsupported cover image' });
-    }
-    res.setHeader('Content-Type', data.type);
+    const cover = await downloadPublicGameUpload(client, game);
+    if ('status' in cover) return res.status(cover.status).json({ error: cover.status === 415 ? 'Unsupported cover image' : 'Cover not found' });
+    res.setHeader('Content-Type', cover.contentType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');
-    return res.status(200).send(Buffer.from(await data.arrayBuffer()));
+    return res.status(200).send(cover.bytes);
   } catch { return res.status(502).json({ error: 'Cover temporarily unavailable' }); }
 }

@@ -1,5 +1,6 @@
 import { publicBlogPosts } from '../data/blogPosts';
 import { classBooklets } from '../data/classBooklets';
+import { getSharePreviewImage } from './sharePreview';
 
 export type SitemapChangeFrequency = 'weekly' | 'monthly' | 'yearly';
 export type StructuredDataKind = 'home' | 'webpage' | 'blog' | 'article';
@@ -361,7 +362,7 @@ export const resolveMeta = (pathname: string): RouteMeta => {
       title: "A Classroom Game Shared With You | The Teachers' Room",
       description: "A fellow teacher has shared a game with you. Sign in to preview it, play it with your class, or save a copy to adapt for your lessons.",
       path: normalizedPath,
-      image: DEFAULT_SOCIAL_IMAGE,
+      image: getSharePreviewImage(normalizedPath),
       structuredData: 'webpage',
       noindex: true,
       includeInSitemap: false
@@ -375,7 +376,7 @@ export const resolveMeta = (pathname: string): RouteMeta => {
       title: "Play Your Teacher's Game | The Teachers' Room",
       description: "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.",
       path: normalizedPath,
-      image: DEFAULT_SOCIAL_IMAGE,
+      image: getSharePreviewImage(normalizedPath),
       structuredData: 'webpage',
       noindex: true,
       includeInSitemap: false

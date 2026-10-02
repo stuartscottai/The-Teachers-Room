@@ -1,11 +1,16 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/share/game/:path*", "destination": "/teacher-game.html" },
-    { "source": "/student/game/:path*", "destination": "/student-game.html" },
-    { "source": "/student/share/:path*", "destination": "/student-game.html" },
+    { "source": "/share/game/:id", "destination": "/api/share-preview?kind=teacher&id=:id" },
+    { "source": "/student/game/:id", "destination": "/api/share-preview?kind=student&id=:id" },
+    { "source": "/student/share/:id", "destination": "/api/share-preview?kind=student-share&id=:id" },
     { "source": "/(.*)", "destination": "/noindex.html" }
   ],
+  "functions": {
+    "api/share-preview.ts": {
+      "includeFiles": "{dist/teacher-game.html,dist/student-game.html,public/assets/share-logo.png}"
+    }
+  },
   "headers": [
     {
       "source": "/class/:path*",

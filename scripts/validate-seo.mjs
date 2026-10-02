@@ -175,13 +175,16 @@ const sharingPreviews = [
     name: 'Student game', file: 'student-game.html',
     title: "Play Your Teacher's Game | The Teachers' Room",
     description: "Your teacher has shared a practice game with you. Open the link to play and test what you've learned.",
-    sources: ['/student/game/:path*', '/student/share/:path*']
+    rewrites: [
+      ['/student/game/:id', '/api/share-preview?kind=student&id=:id'],
+      ['/student/share/:id', '/api/share-preview?kind=student-share&id=:id']
+    ]
   },
   {
     name: 'Teacher game', file: 'teacher-game.html',
     title: "A Classroom Game Shared With You | The Teachers' Room",
     description: "A fellow teacher has shared a game with you. Sign in to preview it, play it with your class, or save a copy to adapt for your lessons.",
-    sources: ['/share/game/:path*']
+    rewrites: [['/share/game/:id', '/api/share-preview?kind=teacher&id=:id']]
   }
 ];
 for (const preview of sharingPreviews) {
@@ -206,14 +209,24 @@ for (const preview of sharingPreviews) {
     fail(`${preview.name} preview still contains the generic private-page message.`);
   }
   if (!/<script[^>]*src=/.test(html)) fail(`${preview.name} shell must load the interactive app.`);
-  for (const source of preview.sources) {
+  for (const property of ['og:image', 'twitter:image']) {
+    const attribute = property.startsWith('og:') ? 'property' : 'name';
+    if (capture(html, new RegExp(`<meta ${attribute}="${property}" content="([^"]*)"`, 'i')) !== 'https://www.theteachersroom.app/assets/share-logo.png') {
+      fail(`${preview.name} must use the yellow website logo as its fallback image.`);
+    }
+  }
+  for (const [source, destination] of preview.rewrites) {
     const rewriteIndex = vercelConfig.rewrites?.findIndex(rule =>
-      rule.source === source && rule.destination === `/${preview.file}`
+      rule.source === source && rule.destination === destination
     );
     if (!(rewriteIndex >= 0 && rewriteIndex < vercelConfig.rewrites.length - 1)) {
       fail(`${source} must use its sharing preview before the private-route fallback.`);
     }
   }
+}
+const previewFiles = vercelConfig.functions?.['api/share-preview.ts']?.includeFiles || '';
+for (const file of ['dist/teacher-game.html', 'dist/student-game.html', 'public/assets/share-logo.png']) {
+  if (!previewFiles.includes(file) || !fs.existsSync(path.join(root, file))) fail(`The share preview function must bundle ${file}.`);
 }
 const fallback = vercelConfig.rewrites?.at(-1);
 if (fallback?.destination !== '/noindex.html') {

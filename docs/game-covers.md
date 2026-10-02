@@ -30,6 +30,18 @@ temporary signed URLs. It requires the existing server-only
 owner, or is a cover made public by its original owner. No database schema change
 or public storage bucket is needed. Stock covers use the existing image proxy.
 
+Teacher and student share links are served by `/api/share-preview`, using the
+built app shell so the normal sign-in and game screens still work. Social crawlers
+receive the original game title and an image address specific to that link before
+JavaScript runs. Selected student links use their saved share title and respect
+expiry and revocation. The image endpoint reads only public game cover data,
+reuses upload ownership checks, and allows stock images only from Pexels/Pixabay.
+Missing or unavailable covers use `/assets/share-logo.png`, the yellow website
+logo. The endpoint requires the same existing server-only
+`SUPABASE_SERVICE_ROLE_KEY`; without it, links still load with generic wording and
+the logo. Previews are not indexed and do not expose quiz questions or answers.
+`npm run share:validate` checks this behaviour as part of every build.
+
 ## Existing games
 
 Run `node scripts/backfill-game-covers.mjs --refresh-automatic` to list missing and

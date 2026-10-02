@@ -20,6 +20,7 @@ const apiModules = {
   '/api/delete-account': '/api/delete-account.ts',
   '/api/stock-images': '/api/stock-images.ts',
   '/api/game-cover': '/api/game-cover.ts',
+  '/api/share-preview': '/api/share-preview.ts',
   '/api/stock-image-proxy': '/api/stock-image-proxy.ts',
 };
 
