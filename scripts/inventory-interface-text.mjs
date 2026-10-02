@@ -24,13 +24,14 @@ const previous = new Map(fs.existsSync(reviewPath)
   ? parseCsv(fs.readFileSync(reviewPath, 'utf8').replace(/^\uFEFF/, '')).slice(1).map(row => [row[1], row]) : []);
 const rows = new Map(Object.entries(spanish).map(([en, es]) => [normalize(en), { en, es, sources: new Set() }]));
 const contextFor = file => file.includes('/games/') ? 'Game controls, settings or feedback'
-  : file.includes('/class/') || file.includes('ClassBooklet') ? 'Workbook controls; authored lesson content stays in its original language'
   : file.includes('/school/') || file.includes('SchoolAdmin') ? 'School administration'
   : file.includes('SeoLandingPages') ? 'Footer landing page: public information for teachers'
   : file.includes('InfoPages') ? 'Help, contact or legal information'
   : file.includes('Profile') || file.includes('Plan') ? 'Account and profile'
   : file.includes('Page.tsx') ? 'Game format information' : 'Website interface';
 function scan(file) {
+  // Entire online-class workbooks are English-only, including their controls.
+  if (file === 'pages/ClassBooklet.tsx' || file.startsWith('components/class/')) return;
   const sf = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   function visit(node) {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -91,5 +92,5 @@ for (const row of [...rows.values()].sort((a, b) => a.en.localeCompare(b.en, 'en
 }
 const quote = value => '"' + String(value).replace(/"/g, '""') + '"';
 fs.mkdirSync('docs/translations', { recursive: true });
-fs.writeFileSync(reviewPath, '\uFEFF' + output.map(row => row.map(quote).join(',')).join('\r\n') + '\r\n');
+fs.writeFileSync(reviewPath, '\uFEFF' + output.map(row => row.map(quote).join(',')).join('\n') + '\n');
 console.log(`Exported ${output.length - 1} contextual Spanish drafts with source locations.`);

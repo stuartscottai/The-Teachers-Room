@@ -12,7 +12,7 @@ Home-page play counts, all ten testimonial cards, plan descriptions, FAQ questio
 
 All four public landing pages under “More for teachers” / “Más para docentes” also use Spanish for their badges, headings, introductions, benefits, examples and action links. Their content lists are explicitly checked during translation validation.
 
-Workbook navigation, answer placeholders, reading tools and save/print controls also follow the selected interface language. The workbook's actual lesson content, reading passages, exercise prompts, options and typed answers stay in their original language.
+The temporary online-class workbooks under `/class/` are entirely English-only, regardless of the site language preference. This includes B1, B2, C1 and C2, their navigation, answer placeholders, reading tools, notices and saved/printed copies. The whole workbook document requests no browser translation; future lessons added to these levels inherit the same protection. Visiting a workbook does not change the saved website language, and leaving it restores the normal site's translation settings. Workbook-only wording is excluded from the Spanish dictionary and review export; shared phrases remain translated where used elsewhere on the website.
 
 Translations remain a **contextual draft**, not a claim of independent human approval. Unexpected errors supplied by outside services and text embedded in existing images or audio are outside this dictionary. AI-generated teaching content follows the language requested when creating it.
 

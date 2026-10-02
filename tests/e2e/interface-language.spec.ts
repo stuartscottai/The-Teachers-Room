@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { classBooklets } from '../../data/classBooklets';
 
 test('Profile language selector updates the header and persists across reloads and tabs', async ({ page, context, isMobile }) => {
   await page.goto('/profile');
@@ -79,16 +80,62 @@ test('Spanish public information includes reviews, plan benefits and searchable 
   await expect(page.getByRole('button', { name: /¿Se pueden dictar las instrucciones para la IA\? Preguntas frecuentes/ })).toBeVisible();
 });
 
-test('Spanish workbook controls preserve original lesson text and answers', async ({ page }) => {
+test('workbook controls remain English with a Spanish website preference', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('teachers-room-language', 'es'));
   await page.goto('/class/v9k2fp');
-  await expect(page.getByRole('heading', { name: 'Cuaderno de trabajo B2', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Guardar una copia', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Página 3: Reading · Emojis', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Resaltar', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'B2 Workbook', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Page 3: Reading · Emojis', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Highlight', exact: true })).toBeVisible();
   await expect(page.getByTestId('reading-passage')).toContainText('Initially, I was a bit sceptical.');
   await expect(page.getByRole('radio', { name: '2. There are a lot of benefits to using emojis.', exact: true })).toBeVisible();
   await expect(page.locator('.class-workbook')).toHaveAttribute('translate', 'no');
+});
+
+test.describe('English-only online-class workbooks on Spanish devices', () => {
+  test.use({ locale: 'es-ES' });
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('teachers-room-language', 'es'));
+  });
+  for (const booklet of classBooklets) test(`${booklet.level} protects every lesson, reference and saved copy`, async ({ page }) => {
+    await page.goto(`/class/${booklet.slug}`);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('html')).toHaveAttribute('translate', 'no');
+    await expect(page.locator('meta[name="google"][content="notranslate"]')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: `${booklet.level} Workbook`, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reset booklet', exact: true })).toBeVisible();
+    for (const lesson of booklet.pages) {
+      if (lesson.reference) await page.getByRole('button', { name: `Reference ${lesson.sourcePage} · ${lesson.title}`, exact: true }).click();
+      else {
+        const number = booklet.pages.filter(item => !item.reference).indexOf(lesson) + 1;
+        await page.getByRole('button', { name: `Page ${number}: ${lesson.title}`, exact: true }).click();
+      }
+      await expect(page.locator('.class-instructions p')).toHaveText(lesson.instructions);
+      expect(await page.locator('.class-workbook, .class-workbook *').evaluateAll(elements =>
+        elements.every(element => !(element as HTMLElement).translate))).toBe(true);
+    }
+    await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+    const copy = page.getByTestId('saved-booklet');
+    await expect(copy).toHaveAttribute('lang', 'en');
+    await expect(copy).toHaveAttribute('translate', 'no');
+    await expect(copy).toContainText(`${booklet.level} answers`);
+    await expect(copy).toContainText('Only entered answers are included.');
+    expect(await page.evaluate(() => localStorage.getItem('teachers-room-language'))).toBe('es');
+  });
+
+  test('leaving a workbook restores normal website settings without changing Spanish preference', async ({ page }) => {
+    await page.goto('/class/v9k2fp');
+    await expect(page.locator('html')).toHaveAttribute('translate', 'no');
+    // Exercise a client-side route change: the document is not reloaded.
+    await page.evaluate(() => {
+      window.history.pushState(null, '', '/profile');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await expect(page.getByRole('heading', { name: 'Ajustes del sitio web', exact: true })).toBeVisible();
+    expect(await page.locator('html').evaluate(element => (element as HTMLElement).translate)).toBe(true);
+    await expect(page.locator('meta[name="google"][content="notranslate"]')).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem('teachers-room-language'))).toBe('es');
+  });
 });
 
 test('Spanish blog cards and complete articles use editorial translations', async ({ page }) => {

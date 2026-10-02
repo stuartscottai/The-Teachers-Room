@@ -50,6 +50,8 @@ html[data-theme='dark'] .class-workbook .class-exercise :is(input, textarea)::pl
 @media (max-width: 480px) { .class-shell { padding: 1.5rem .85rem; } .class-heading-row { align-items: flex-start; } .class-heading-row .class-reset { padding: .6rem; } .class-passage { padding: .9rem; } .class-tools button { padding: .5rem .7rem; } }
 .class-source-page { color: #526479; font-size: .85rem; margin-top: .5rem; }
 .class-workbook :is(h2, h3) { scroll-margin-top: 5rem; }
+/* Leave the page indicator and textbook number visible below the sticky navigation. */
+.class-workbook .class-page-heading h2 { scroll-margin-top: 10rem; }
 .class-reference-nav { display: flex; gap: .5rem; flex-wrap: wrap; margin: 0 0 1.5rem; }
 .class-reference-nav button { text-align: left; font-size: .8rem; }
 .class-reference-nav button[aria-current='page'] { border-color: #075985; background: #eef7fc; }
@@ -73,6 +75,7 @@ html[data-theme='dark'] .class-workbook .class-exercise :is(input, textarea)::pl
 .class-content-card:nth-child(3n) { background: #f2faf2; }
 .class-content-card p { white-space: pre-wrap; line-height: 1.8; margin-top: .5rem; overflow-wrap: anywhere; }
 .class-card-label { color: #075985; font-weight: 700; }
+.class-photo { display: block; width: 100%; height: auto; max-height: 280px; margin-top: .75rem; border-radius: .5rem; overflow: hidden; }
 .class-emoji-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .class-emoji-cards p { font-size: 3rem; text-align: center; }
 .class-gap-sentence { white-space: pre-wrap; line-height: 2.8; }
@@ -88,40 +91,23 @@ html[data-theme='dark'] .class-workbook .class-exercise :is(input, textarea)::pl
 .class-saved-options li span { font-family: monospace; }
 .class-saved-gap { font-weight: 700; text-decoration: underline; padding: 0 .3rem; }
 @media (max-width: 600px) { .class-heading-row { flex-direction: column; align-items: flex-start; } }
-@page class-booklet { size: A4; margin: 14mm; }
+@page class-booklet { size: A4; margin: 12mm; }
 @media print {
+  /* The browser also uses the document color scheme for the PDF's page margins. */
+  html:has(.class-workbook) { color-scheme: light !important; }
   html:has(.class-workbook), body:has(.class-workbook), #root:has(.class-workbook) { background: white !important; color: #17202b !important; min-height: 0 !important; height: auto !important; }
-  .class-workbook { min-height: 0; background: white; color: #17202b; font-family: Arial, sans-serif; font-size: 10pt; }
+  .class-workbook { min-height: 0; background: white; color: #17202b; font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.3; }
   html[data-theme] .class-workbook main.class-shell { background: white; color: #17202b; max-width: none; padding: 0; margin: 0; }
   .class-workbook .class-brand, .class-shell > :not(.class-saved-copy) { display: none !important; }
-  .class-saved-copy { display: block; }
-  .class-saved-page { page: class-booklet; break-before: page; }
-  .class-saved-page:first-child { break-before: auto; }
-  .class-saved-page header { border-bottom: 1px solid #b8c9db; padding-bottom: 3mm; }
-  .class-saved-page :is(h2, h3) { font-family: Arial, sans-serif; font-weight: 700; break-after: avoid; }
-  .class-saved-page h2 { font-size: 18pt; margin: 2mm 0; }
-  .class-saved-page h3 { font-size: 12pt; margin: 0 0 2mm; }
-  .class-saved-page :is(.class-help, .class-source-page, .class-eyebrow) { font-size: 9pt; }
-  .class-saved-page .class-unit-section { margin-top: 5mm; padding-top: 4mm; }
-  .class-saved-page .class-section-title { display: block; margin-bottom: 2mm; }
-  .class-saved-page .class-task { display: block; padding: 2mm; margin-bottom: 3mm; background: #f1f5f9; break-inside: avoid; line-height: 1.5; }
-  .class-saved-page .class-task-number { display: inline-block; margin-bottom: 1mm; color: #075985; background: transparent; padding: 0; }
-  .class-saved-page .class-answers { display: block; }
-  .class-saved-exercise { margin: 3mm 0; break-inside: avoid; }
-  .class-saved-long-answer { break-inside: auto; }
-  .class-saved-page .class-passage { font-size: 11pt; line-height: 1.6; padding: 2mm; border-radius: 0; background: white; }
-  .class-saved-page .class-reading { margin-bottom: 4mm; }
-  .class-saved-page .class-section-copy, .class-saved-page .class-bullets { line-height: 1.6; margin: 2mm 0; }
-  .class-saved-page .class-table-scroll { overflow: visible; margin: 3mm 0; }
-  .class-saved-page table { font-size: 9pt; line-height: 1.5; }
-  .class-saved-page :is(th, td) { min-width: 0; padding: 2mm; overflow-wrap: anywhere; }
-  .class-saved-page tr { break-inside: avoid; }
-  .class-saved-page thead { display: table-header-group; }
-  .class-saved-page .class-content-cards { display: block; margin: 3mm 0; }
-  .class-saved-page .class-content-card { margin: 2mm 0; padding: 2mm; break-inside: avoid; }
-  .class-saved-page .class-emoji-cards p { font-size: 20pt; text-align: left; }
-  .class-saved-page .class-content-card p { margin-top: 1mm; line-height: 1.5; }
-  .class-saved-page .class-highlight { background: #fde68a !important; color: #17202b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .class-saved-page .class-underline { text-decoration-color: #0369a1; }
-  .class-saved-page p { orphans: 3; widows: 3; }
+  .class-saved-copy { display: block; page: class-booklet; background: white; }
+  .class-saved-copy :is(h1, h2, h3) { font-family: Arial, sans-serif; font-weight: 700; break-after: avoid; }
+  .class-answer-header { border-bottom: 1px solid #b8c9db; padding-bottom: 2mm; margin-bottom: 3mm; }
+  .class-saved-copy h1 { font-size: 15pt; margin: 0 0 1mm; }
+  .class-answer-header p { font-size: 9pt; }
+  .class-answer-pages { columns: 2; column-gap: 8mm; font-size: 9.5pt; }
+  .class-saved-copy h2 { font-size: 12pt; margin: 3mm 0 1mm; }
+  .class-saved-copy h3 { font-size: 10pt; margin: 2mm 0 1mm; }
+  .class-answer-row { display: flex; gap: 2mm; margin: .6mm 0; break-inside: avoid; }
+  .class-answer-row dt { flex: 0 0 13mm; font-weight: 700; }
+  .class-answer-row dd { flex: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; orphans: 3; widows: 3; }
 }

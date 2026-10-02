@@ -52,6 +52,14 @@ function walk(dir) {
 }
 ['components', 'pages', 'contexts'].forEach(walk); scan('App.tsx');
 
+// Entire temporary teaching workbooks, including their controls, must stay English.
+for (const file of ['pages/ClassBooklet.tsx', 'components/class/ReadingPassage.tsx',
+  'components/class/WorkbookExercise.tsx', 'components/class/WorkbookSection.tsx', 'components/class/PrintableBooklet.tsx']) {
+  if (/\b(?:translateInterfaceText|useInterfaceLanguage)\b/.test(fs.readFileSync(file, 'utf8'))) {
+    failures.push(`English-only workbook must not use website translations: ${file}`);
+  }
+}
+
 // These website-owned content lists need translations even though the render
 // calls use variables. Checking literal ui() calls alone misses these sections.
 function checkContentList(file, variable, properties) {

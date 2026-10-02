@@ -1,32 +1,49 @@
-import { translateInterfaceText as ui, useInterfaceLanguage } from '../../utils/interfaceLanguage';
+import { workbookText } from '../../utils/workbookText';
 import React from 'react';
-import type { ClassBookletData } from '../../data/classBooklets';
-import type { TextMark } from './ReadingPassage';
-import { ReadingPassage } from './ReadingPassage';
-import { WorkbookExercise } from './WorkbookExercise';
-import { WorkbookSection } from './WorkbookSection';
+import type { ClassBookletData, WorkbookExercise } from '../../data/classBooklets';
 
-const noChange = () => {};
+// Keep only entered answers, retaining gap positions when a sentence is unfinished.
+function answerText(exercise: WorkbookExercise, value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value.flatMap((answer, index) => answer.trim()
+      ? [exercise.kind === 'gaps' ? `Gap ${index + 1}: ${answer.trim()}` : answer.trim()]
+      : []).join('; ');
+  }
+  return value?.trim() || '';
+}
 
-// Render answers as ordinary text: print engines can clip textareas and omit selections.
-export function PrintableBooklet({ booklet, answers, marks }: {
-  booklet: ClassBookletData; answers: Record<string, string | string[]>; marks: Record<string, TextMark[]>;
+export function PrintableBooklet({ booklet, answers }: {
+  booklet: ClassBookletData; answers: Record<string, string | string[]>;
 }) {
-  useInterfaceLanguage();
-  const lessons = booklet.pages.filter(page => !page.reference);
-  const references = booklet.pages.filter(page => page.reference);
-  return <div className="class-saved-copy" data-testid="saved-booklet">
-    {booklet.pages.map(page => <article className="class-saved-page" key={page.id}>
-      <header><p className="class-eyebrow">{ui("The Teachers' Room · {level} Workbook", { level: booklet.level })}</p>
-        {booklet.title && <p>{booklet.title}</p>}
-        <p className="class-source-page">{ui(page.reference ? "Grammar reference {number} of {total}" : "Lesson page {number} of {total}", { number: page.reference ? references.indexOf(page) + 1 : lessons.indexOf(page) + 1, total: page.reference ? references.length : lessons.length })}{page.sourcePage ? ui(" · Textbook page {number}", { number: page.sourcePage }) : ''}</p>
-        <h2>{page.title}</h2>
-        <p className="class-help">{ui("Saved copy of your answers and reading marks. Blank answers are marked “Not answered” or left as gaps.")}</p>
-      </header>
-      <p className="class-section-copy">{page.instructions}</p>
-      {page.reading && <ReadingPassage title={page.reading.title} text={page.reading.text} marks={marks[page.reading.id] || []} onChange={noChange} readOnly />}
-      <div className="class-answers">{page.exercises.map(exercise => <WorkbookExercise key={exercise.id} exercise={exercise} value={answers[exercise.id] || ''} onChange={noChange} readOnly />)}</div>
-      {page.sections?.map(section => <WorkbookSection key={section.id} section={section} answers={answers} marks={marks} onAnswer={noChange} onMarks={noChange} onReference={noChange} readOnly />)}
-    </article>)}
+  const pages = booklet.pages.map((page, index) => {
+    const groups = [
+      { id: page.id, title: '', number: undefined, exercises: page.exercises },
+      ...(page.sections || [])
+    ].map(group => ({
+      ...group,
+      rows: (group.exercises || []).flatMap(exercise => {
+        const answer = answerText(exercise, answers[exercise.id]);
+        return answer ? [{ id: exercise.id, number: exercise.number, answer }] : [];
+      })
+    })).filter(group => group.rows.length > 0);
+    return { ...page, pageNumber: page.sourcePage || index + 1, groups };
+  }).filter(page => page.groups.length > 0);
+
+  return <div className="class-saved-copy notranslate" translate="no" lang="en" data-testid="saved-booklet">
+    <header className="class-answer-header">
+      <h1>{workbookText("The Teachers' Room - {level} answers", { level: booklet.level })}</h1>
+      <p>Only entered answers are included.</p>
+    </header>
+    {pages.length === 0 && <p>No answers entered yet.</p>}
+    <div className="class-answer-pages">{pages.map(page => <article className="class-saved-page" key={page.id}>
+      <h2>{workbookText('Page {number}', { number: page.pageNumber })}</h2>
+      {page.groups.map(group => <section key={group.id} className="class-answer-group">
+        {group.title && <h3>{group.number ? `Exercise ${group.number.split('\u00b7')[0].trim()} - ` : ''}{group.title}</h3>}
+        <dl>{group.rows.map(row => <div className="class-answer-row" key={row.id}>
+          <dt>{group.title ? `${row.number}.` : `Exercise ${row.number}`}</dt>
+          <dd>{row.answer}</dd>
+        </div>)}</dl>
+      </section>)}
+    </article>)}</div>
   </div>;
 }

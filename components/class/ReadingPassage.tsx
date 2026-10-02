@@ -1,13 +1,11 @@
-import { translateInterfaceText as ui, useInterfaceLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useRef, useState, useId } from 'react';
 
 export type TextMark = { start: number; end: number; highlight: boolean; underline: boolean };
 
 // Store text offsets, never editable HTML, so overlapping marks remain predictable.
-export function ReadingPassage({ title, text, marks, onChange, emphasis, readOnly = false }: {
-  title: string; text: string; marks: TextMark[]; onChange: (marks: TextMark[]) => void; emphasis?: { start: number; end: number }[]; readOnly?: boolean;
+export function ReadingPassage({ title, text, marks, onChange, emphasis, sourceUnderlines, readOnly = false }: {
+  title: string; text: string; marks: TextMark[]; onChange: (marks: TextMark[]) => void; emphasis?: { start: number; end: number }[]; sourceUnderlines?: { start: number; end: number }[]; readOnly?: boolean;
 }) {
-  useInterfaceLanguage();
   const helpId = useId();
   const passage = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<{ start: number; end: number } | null>(null);
@@ -55,23 +53,25 @@ export function ReadingPassage({ title, text, marks, onChange, emphasis, readOnl
   };
 
   const sourceHighlights = emphasis || [];
-  const boundaries = [...new Set([0, text.length, ...[...marks, ...sourceHighlights].flatMap(mark => [mark.start, mark.end])])].sort((a, b) => a - b);
+  const fixedUnderlines = sourceUnderlines || [];
+  const boundaries = [...new Set([0, text.length, ...[...marks, ...sourceHighlights, ...fixedUnderlines].flatMap(mark => [mark.start, mark.end])])].sort((a, b) => a - b);
   return <section className="class-reading" aria-label={title}>
     <h3>{title}</h3>
-    {!readOnly && <><p className="class-help" id={helpId}>{ui("Select text below, then choose a tool. Remove marks clears your highlighting and underlining.")}{emphasis && ui(" Yellow words supplied by the exercise stay highlighted.")}</p>
-    <div className="class-tools" role="group" aria-label={ui("Reading annotation tools")}>
+    {!readOnly && <><p className="class-help" id={helpId}>{"Select text below, then choose a tool. Remove marks clears your highlighting and underlining."}{emphasis && " Yellow words supplied by the exercise stay highlighted."}{sourceUnderlines && " Underlined words supplied by the exercise stay underlined."}</p>
+    <div className="class-tools" role="group" aria-label={"Reading annotation tools"}>
       {(['highlight', 'underline', 'remove'] as const).map(action => <button key={action} type="button" disabled={!selected}
         onPointerDown={event => event.preventDefault()} onClick={() => apply(action)}>
-        {ui(action === 'remove' ? "Remove marks" : action === 'highlight' ? "Highlight" : "Underline")}
+        {action === 'remove' ? "Remove marks" : action === 'highlight' ? "Highlight" : "Underline"}
       </button>)}
     </div></>}
     <div ref={passage} className="class-passage" tabIndex={readOnly ? undefined : 0} aria-describedby={readOnly ? undefined : helpId} data-testid={readOnly ? undefined : 'reading-passage'}>
       {boundaries.slice(0, -1).map((start, i) => {
         const mark = marks.find(item => item.start <= start && item.end > start);
         const sourceHighlight = sourceHighlights.some(item => item.start <= start && item.end > start);
-        return <span key={start} className={`${mark?.highlight || sourceHighlight ? 'class-highlight' : ''} ${mark?.underline ? 'class-underline' : ''}`}>{text.slice(start, boundaries[i + 1])}</span>;
+        const sourceUnderline = fixedUnderlines.some(item => item.start <= start && item.end > start);
+        return <span key={start} className={`${mark?.highlight || sourceHighlight ? 'class-highlight' : ''} ${mark?.underline || sourceUnderline ? 'class-underline' : ''}`}>{text.slice(start, boundaries[i + 1])}</span>;
       })}
     </div>
-    {!readOnly && <p className="class-help class-announcement" role="status">{ui(notice)}</p>}
+    {!readOnly && <p className="class-help class-announcement" role="status">{notice}</p>}
   </section>;
 }
