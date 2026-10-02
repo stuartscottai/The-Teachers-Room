@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { downloadPublicGameUpload } from '../server/publicGameCover';
+import { downloadPublicGameUpload } from '../server/publicGameCover.js';
 
 // Only expose the cover of a currently public game. The asset bucket stays private.
 export default async function handler(req: any, res: any) {

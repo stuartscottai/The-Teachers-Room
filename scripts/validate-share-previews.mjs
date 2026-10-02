@@ -1,9 +1,29 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { createServer } from 'vite';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import ts from 'typescript';
 
 // Exercise the actual server response seen by WhatsApp, without network or database writes.
-const vite = await createServer({ server: { middlewareMode: true, hmr: false, watch: null }, appType: 'custom', logLevel: 'error' });
+// Compile and load with native Node, rather than Vite's more permissive import
+// resolver. This reproduces the production function's file-extension rules.
+const root = process.cwd();
+const validationDirectory = path.join(root, 'output/playwright');
+mkdirSync(validationDirectory, { recursive: true });
+const runtimeDirectory = mkdtempSync(path.join(validationDirectory, 'share-runtime-'));
+for (const source of ['api/share-preview.ts', 'api/game-cover.ts', 'server/publicGameCover.ts', 'utils/sharePreview.ts', 'utils/stockImageUrl.ts']) {
+  const destination = path.join(runtimeDirectory, source.replace(/\.ts$/, '.js'));
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, ts.transpileModule(readFileSync(path.join(root, source), 'utf8'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText);
+}
+writeFileSync(path.join(runtimeDirectory, 'package.json'), '{"type":"module"}');
+for (const file of ['dist/teacher-game.html', 'dist/student-game.html', 'public/assets/share-logo.png']) {
+  const destination = path.join(runtimeDirectory, file);
+  mkdirSync(path.dirname(destination), { recursive: true });
+  copyFileSync(path.join(root, file), destination);
+}
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const id = '00000000-0000-4000-8000-000000000001';
@@ -16,8 +36,9 @@ let imageResponse = () => new Response(new Uint8Array([1, 2, 3]), { headers: { '
 const jsonResponse = body => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
 
 try {
-  const { default: handler } = await vite.ssrLoadModule('/api/share-preview.ts');
-  const { default: uploadHandler } = await vite.ssrLoadModule('/api/game-cover.ts');
+  const { default: handler } = await import(pathToFileURL(path.join(runtimeDirectory, 'api/share-preview.js')).href);
+  const { default: uploadHandler } = await import(pathToFileURL(path.join(runtimeDirectory, 'api/game-cover.js')).href);
+  process.chdir(runtimeDirectory);
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
   globalThis.fetch = async input => {
     const url = new URL(String(input));
@@ -130,5 +151,7 @@ try {
   globalThis.fetch = originalFetch;
   if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
-  await vite.close();
+  process.chdir(root);
+  const relative = path.relative(validationDirectory, runtimeDirectory);
+  if (!relative.startsWith('..') && !path.isAbsolute(relative)) rmSync(runtimeDirectory, { recursive: true, force: true });
 }

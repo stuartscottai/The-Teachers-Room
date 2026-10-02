@@ -41,6 +41,9 @@ logo. The endpoint requires the same existing server-only
 `SUPABASE_SERVICE_ROLE_KEY`; without it, links still load with generic wording and
 the logo. Previews are not indexed and do not expose quiz questions or answers.
 `npm run share:validate` checks this behaviour as part of every build.
+It compiles the handlers and loads them using native Node, with only the bundled
+HTML and logo files available. This also catches missing `.js` extensions in
+server imports, which Vite's local resolver accepts but deployed Node rejects.
 
 ## Existing games
 

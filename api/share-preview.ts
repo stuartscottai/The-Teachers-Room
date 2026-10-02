@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { downloadPublicGameUpload } from '../server/publicGameCover';
-import { extractPixabaySourceUrl } from '../utils/stockImageUrl';
-import { getSharePreviewImage, SHARE_ID_PATTERN, SHARE_LOGO_IMAGE, SHARE_ORIGIN, SHARE_PATHS, type ShareKind } from '../utils/sharePreview';
+import { downloadPublicGameUpload } from '../server/publicGameCover.js';
+import { extractPixabaySourceUrl } from '../utils/stockImageUrl.js';
+import { getSharePreviewImage, SHARE_ID_PATTERN, SHARE_LOGO_IMAGE, SHARE_ORIGIN, SHARE_PATHS, type ShareKind } from '../utils/sharePreview.js';
 
 const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const queryValue = (value: unknown) => typeof value === 'string' ? value : '';
