@@ -1,11 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
 import { translateInterfaceText as ui, useInterfaceLanguage } from '../utils/interfaceLanguage';
 import { getSiteTheme, setSiteTheme, SiteTheme } from '../utils/theme';
 
-export const ProfileWebsiteSettings: React.FC = () => {
+interface ProfileWebsiteSettingsProps {
+  onLogoutAllDevices?: () => Promise<{ error: unknown }>;
+}
+
+export const ProfileWebsiteSettings: React.FC<ProfileWebsiteSettingsProps> = ({ onLogoutAllDevices }) => {
   const { language, setLanguage, t } = useInterfaceLanguage();
   const [siteTheme, updateSiteTheme] = useState<SiteTheme>(getSiteTheme);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+
+  const handleLogoutAllDevices = async () => {
+    if (!onLogoutAllDevices || isLoggingOut) return;
+    if (!window.confirm(ui('Log out of all devices? This includes this device and anyone else using this account.'))) return;
+
+    setLogoutError(false);
+    setIsLoggingOut(true);
+    try {
+      const { error } = await onLogoutAllDevices();
+      setLogoutError(Boolean(error));
+    } catch {
+      setLogoutError(true);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   useEffect(() => {
     const syncTheme = () => updateSiteTheme(getSiteTheme());
@@ -37,6 +59,15 @@ export const ProfileWebsiteSettings: React.FC = () => {
           ))}
         </div>
       </div>
+      {onLogoutAllDevices && (
+        <div className="profile-session-actions">
+          {logoutError && <p role="alert" className="text-sm text-slate-600">{ui('Could not log out of all devices. Please try again.')}</p>}
+          <button type="button" className="workspace-button" disabled={isLoggingOut} onClick={handleLogoutAllDevices}>
+            <LogOut size={18} aria-hidden="true" />
+            <span>{isLoggingOut ? ui('Logging out...') : ui('Log out of all devices')}</span>
+          </button>
+        </div>
+      )}
     </section>
   );
 };

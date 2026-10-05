@@ -27,6 +27,7 @@ interface AuthContextType {
   isPasswordRecovery: boolean;
   clearPasswordRecovery: () => void;
   logout: () => Promise<void>;
+  logoutAllDevices: () => Promise<{ error: unknown }>;
   updateUserProfile: (updates: { name?: string; avatarUrl?: string | null }) => Promise<{ error: any }>;
   refreshUserAccess: () => Promise<void>;
   needsPlanSelection: boolean;
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           if (isMounted) {
             setUser(null);
             setNeedsPlanSelection(false);
@@ -150,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await hydrateUserAccess(session.user);
         }
       } catch (authError) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         if (isMounted) {
           setUser(null);
           setNeedsPlanSelection(false);
@@ -296,12 +297,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      // Leave the account's sessions on other devices signed in.
+      await supabase.auth.signOut({ scope: 'local' });
     } finally {
       setUser(null);
       setNeedsPlanSelection(false);
       setIsPasswordRecovery(false);
       redirectToHome();
+    }
+  };
+
+  const logoutAllDevices = async () => {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) return { error };
+
+      setUser(null);
+      setNeedsPlanSelection(false);
+      setIsPasswordRecovery(false);
+      redirectToHome();
+      return { error: null };
+    } catch (error) {
+      return { error };
     }
   };
 
@@ -378,6 +395,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPasswordRecovery,
         clearPasswordRecovery,
         logout,
+        logoutAllDevices,
         updateUserProfile,
         refreshUserAccess,
         needsPlanSelection,

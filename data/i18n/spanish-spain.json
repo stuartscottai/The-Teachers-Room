@@ -2436,5 +2436,9 @@
   "Grammar review": "Repaso de gramática",
   "Speaking prompts": "Propuestas para practicar la expresión oral",
   "Topic recap": "Repaso del tema",
-  "Create an ESL game": "Crear un juego de inglés"
+  "Create an ESL game": "Crear un juego de inglés",
+  "Log out of all devices": "Cerrar sesión en todos los dispositivos",
+  "Log out of all devices? This includes this device and anyone else using this account.": "¿Cerrar sesión en todos los dispositivos? Esto incluye este dispositivo y a cualquier otra persona que utilice esta cuenta.",
+  "Logging out...": "Cerrando sesión...",
+  "Could not log out of all devices. Please try again.": "No se ha podido cerrar sesión en todos los dispositivos. Inténtalo de nuevo."
 }

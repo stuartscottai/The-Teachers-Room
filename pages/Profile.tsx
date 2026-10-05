@@ -16,7 +16,7 @@ const AVATAR_OPTIONS: Array<string | null> = [null, ...ALOHE_AVATAR_URLS];
 
 export const Profile: React.FC = () => {
   useUiLanguage();
-    const { user, updateUserProfile, refreshUserAccess, logout } = useAuth();
+    const { user, updateUserProfile, refreshUserAccess, logout, logoutAllDevices } = useAuth();
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState(user?.name || '');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -441,7 +441,7 @@ export const Profile: React.FC = () => {
                     ].map(([label, value]) => <div key={label}><dt>{ui(String(label))}</dt><dd>{value}</dd></div>)}
                   </dl>}
                 </section>
-                <ProfileWebsiteSettings />
+                <ProfileWebsiteSettings onLogoutAllDevices={logoutAllDevices} />
                 {message && <div role={message.type === 'error' ? 'alert' : 'status'} className={`mb-5 flex items-start gap-2 rounded-lg p-3 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
                   {message.type === 'success' ? <CheckCircle size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}<span>{message.text}</span>
                 </div>}
