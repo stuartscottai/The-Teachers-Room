@@ -2360,7 +2360,7 @@ export const Games: React.FC = () => {
         setStep('setup');
     };
 
-    const handleEditorLiveQuiz = (updatedGame: GeneratedGame) => {
+    const handleEditorLiveQuiz = (updatedGame: GeneratedGame, selectedItemIds: string[] = []) => {
         setGeneratedGame(updatedGame);
         setSessionGame(updatedGame);
         setIsDirty(false);
@@ -2375,7 +2375,7 @@ export const Games: React.FC = () => {
             return;
         }
 
-        setLiveQuizSelectedItems([]);
+        setLiveQuizSelectedItems(selectedItemIds);
     };
 
     const handleGameStart = (options: GameRunOptions) => {

@@ -1,6 +1,8 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, QuestionEditorPanel, AnswerOptions, useWorkspaceDialog } from './GameWorkspace';
 import { GameWebSources } from './GameWebSources';
+import { GameCategoryTabs } from './GameCategoryTabs';
+import { GamePreview } from './GamePreview';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -15,7 +17,7 @@ import { getGameImageQuery } from '../../utils/gameAutoImages';
 import { buildLiveQuizQuestionsFromGame } from '../../utils/liveQuizUtils';
 import { StockImagePicker, StockImageSelection } from '../shared/StockImagePicker';
 import { Avatar } from '../Avatar';
-import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Radio } from 'lucide-react';
+import { Save, Play, Check, AlertCircle, Plus, Trash2, Coins, ArrowLeft, List, Globe, Lock, Sparkles, X, FileText, Copy, CheckCircle, ChevronLeft, ChevronRight, Share2, QrCode, Radio, Info, Eye } from 'lucide-react';
 import { promptSignupForFree } from '../../services/accountAccess';
 import { StudentShareModal } from './StudentShareModal';
 import { getPublicAppUrl } from '../../utils/appUrl';
@@ -25,7 +27,7 @@ interface GameEditorProps {
     game: GeneratedGame;
     onSave: (g: GeneratedGame) => void;
     onPlay: (g: GeneratedGame) => void;
-    onLiveQuiz?: (g: GeneratedGame) => void;
+    onLiveQuiz?: (g: GeneratedGame, selectedItemIds?: string[]) => void;
     onBack: () => void;
     imageRepairKeys?: string[];
 }
@@ -86,6 +88,7 @@ const getWordWheelRuleHint = (rule: 'starts-with' | 'contains-hard', letter: str
 export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, onLiveQuiz, onBack, imageRepairKeys = [] }) => {
   useUiLanguage();
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
+    const [showPreview, setShowPreview] = useState(false);
     const [coverUploading, setCoverUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<number>(0);
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
@@ -95,7 +98,6 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     const [showShareToast, setShowShareToast] = useState(false);
     const [studentShareUrl, setStudentShareUrl] = useState('');
     const [hasEdits, setHasEdits] = useState(false);
-    const tabsScrollRef = useRef<HTMLDivElement>(null);
     const optionCountDraftsRef = useRef(new Map<string, { options: string[]; removedAnswer: string }>());
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(getSavedEditorPageSize);
@@ -368,13 +370,6 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         navigator.clipboard.writeText(editedGame.config.customInstructions || "");
         setShowCopyToast(true);
         setTimeout(() => setShowCopyToast(false), 2000);
-    };
-
-    const handleTabsScroll = (direction: 'left' | 'right') => {
-        const el = tabsScrollRef.current;
-        if (!el) return;
-        const amount = Math.round(el.clientWidth * 0.6);
-        el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
     };
 
     const getShareUrl = (id: string) => {
@@ -851,11 +846,22 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setCurrentPage(Math.floor(questionIndex / itemsPerPage) + 1);
     }, [imageRepairKeys, itemsPerPage]);
 
+    if (showPreview) return <div className="fixed inset-0 top-16 z-50 overflow-y-auto">
+        <GamePreview game={editedGame} source="library" backLabel="Back to Editor" onBack={() => setShowPreview(false)} onEdit={() => setShowPreview(false)}
+            onPlay={onPlay} onSave={() => { void handleSave(); }} onShare={handleShare}
+            onLiveQuiz={canPlayLiveQuiz ? selectedItemIds => onLiveQuiz?.(editedGame, selectedItemIds) : undefined}
+            liveQuizDisabledReason={liveQuizNeedsSave ? 'Save this game before starting a live quiz' : undefined} />
+        {showShareToast && <div role="status" className="fixed top-24 right-6 bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 z-[120]">
+            <CheckCircle size={14} className="text-green-400" />{ui(" Share link copied!")}
+        </div>}
+    </div>;
+
     return (
         <div className="game-workspace fixed inset-0 top-16 z-50 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
                 <div className="workspace-shell relative z-20">
                         <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(" Back")}</button>
+                        <div className="workspace-editor-intro">
                         <header className="workspace-editor-top">
                           <div className="workspace-editor-title">
                             <h1 className="sr-only">{ui("Edit game")}</h1><div className="workspace-eyebrow mb-1">{ui("Edit game ")}<span className="px-1 text-slate-300">/</span> {editedGame.config.type}</div>
@@ -866,36 +872,45 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                               {createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{isPublic ? ui("Public") : ui("Private")}</span>
                             </div>
                           </div>
-                          <div className="flex flex-col gap-2 lg:items-end">
+                          <div className="workspace-editor-action-block flex flex-col gap-2 lg:items-end">
                             <div className="workspace-editor-actions">
-                              <WorkspaceMenu label={ui("Game details")}>
+                              <div className="workspace-editor-secondary-actions">
+                              <WorkspaceMenu label={ui("Game details")} mobileIcon={<Info size={20} />}>
                                 <button type="button" onClick={handleVisibilityToggle} disabled={!user || publicToggleLocked} title={publicToggleLocked ? ui("Make an edit before making this copy public.") : undefined}>
                                   {isPublic ? <Lock size={16} /> : <Globe size={16} />}
                                   <span><strong className="block">{isPublic ? ui("Make game private") : ui("Make game public")}</strong><small className="block font-normal text-slate-500">{ui("Currently ")}{isPublic ? ui("public") : ui("private")}</small></span>
                                 </button>
                                 {editedGame.config.isAI && <button type="button" onClick={() => setShowAiPrompt(true)}><Sparkles size={16} /> {ui(" Generation instructions")}</button>}
                               </WorkspaceMenu>
-                              <WorkspaceMenu label={ui("Share")}>
+                              <WorkspaceMenu label={ui("Share")} mobileIcon={<Share2 size={20} />}>
                                 <button type="button" onClick={handleShare} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank}><Share2 size={16} /> {ui(" Teacher share")}</button>
                                 <button type="button" onClick={handleStudentShare} disabled={coverUploading || saveStatus === 'saving' || [GameType.STOP_THE_FIRE, GameType.SURVEY_SHOWDOWN].includes(editedGame.config.type)}><QrCode size={16} /> {ui(" Student share")}</button>
                               </WorkspaceMenu>
-                              <button type="button" onClick={() => void handleSave()} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank} className="workspace-button workspace-button-primary">
-                                {saveStatus === 'saved' ? <Check size={16} /> : <Save size={16} />}{saveStatus === 'saving' ? ui("Saving...") : ui("Save changes")}
+                              <button type="button" onClick={() => void handleSave()} disabled={coverUploading || saveStatus === 'saving' || isStopTheFireBank} className="workspace-button workspace-button-primary"
+                                aria-label={saveStatus === 'saving' ? ui("Saving...") : ui("Save changes")} title={saveStatus === 'saving' ? ui("Saving...") : ui("Save changes")}>
+                                {saveStatus === 'saved' ? <Check size={20} aria-hidden="true" /> : <Save size={20} aria-hidden="true" />}<span className="workspace-action-label">{saveStatus === 'saving' ? ui("Saving...") : ui("Save changes")}</span>
                               </button>
-                              {canPlayLiveQuiz && <button type="button" onClick={() => onLiveQuiz?.(editedGame)} disabled={liveQuizNeedsSave} className="workspace-button" title={liveQuizNeedsSave ? ui("Save this game before starting a live quiz") : ui("Play live quiz")}><Radio size={16} /> {ui(" Live quiz")}</button>}
-                              {!isLiveQuiz && <button type="button" onClick={handlePlay} className="workspace-button workspace-button-play"><Play size={16} fill="currentColor" /> {ui(" Play")}</button>}
+                              <button type="button" onClick={() => setShowPreview(true)} disabled={coverUploading || saveStatus === 'saving'} className="workspace-button" aria-label={ui("Preview")} title={ui("Preview")}><Eye size={20} aria-hidden="true" /><span className="workspace-action-label">{ui("Preview")}</span></button>
+                              </div>
+                              <div className="workspace-editor-play-actions">
+                              {canPlayLiveQuiz && <button type="button" onClick={() => onLiveQuiz?.(editedGame)} disabled={liveQuizNeedsSave} className="workspace-button" title={liveQuizNeedsSave ? ui("Save this game before starting a live quiz") : ui("Play live quiz")}><Radio size={16} /><span>{ui("Live quiz")}</span></button>}
+                              {!isLiveQuiz && <button type="button" onClick={handlePlay} className="workspace-button workspace-button-play"><Play size={16} fill="currentColor" /><span>{ui("Play")}</span></button>}
+                              </div>
                             </div>
                             <p className="text-xs text-slate-600" role="status">{isStopTheFireBank ? ui("Built-in bank · saving is unavailable") : saveStatus === 'saving' ? ui("Saving your game...") : isDirty ? ui("Unsaved changes") : saveStatus === 'saved' ? ui("Saved") : ui("Save when ready")}{liveQuizNeedsSave && ' · Save before hosting a live quiz'}</p>
                           </div>
                         </header>
-                        {imageRepairCount > 0 && <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle size={18} className="shrink-0" /> {imageRepairCount} {imageRepairCount === 1 ? ui("image needs") : ui("images need")} {ui(" replacing. Open the marked questions to choose replacements.")}</div>}
-
-                        <GameWebSources config={editedGame.config} />
+                        <div className="workspace-editor-cover">
                         <GameCoverEditor compact game={editedGame} userId={user?.id} disabled={coverUploading || saveStatus === 'saving'} onBusyChange={setCoverUploading}
                             onChange={(coverImage, automatic) => {
                                 setEditedGame(prev => ({ ...prev, config: { ...prev.config, coverImage } }));
                                 if (!automatic) { setIsDirty(true); setSaveStatus('idle'); }
                             }} />
+                        </div>
+                        </div>
+                        {imageRepairCount > 0 && <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><AlertCircle size={18} className="shrink-0" /> {imageRepairCount} {imageRepairCount === 1 ? ui("image needs") : ui("images need")} {ui(" replacing. Open the marked questions to choose replacements.")}</div>}
+
+                        <GameWebSources config={editedGame.config} />
 
                         {!user && (
                         <div className="mb-4 bg-sky-50 p-3 rounded-lg flex items-center text-sky-800 text-sm border border-sky-100">
@@ -1011,38 +1026,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         isGrouped && groups ? (
                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                 {/* Tabs */}
-                            <div className="relative">
-                                <div ref={tabsScrollRef} className="flex overflow-x-auto bg-slate-100 border-b border-slate-200 no-scrollbar">
-                                    {groups.map((cat, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setActiveTab(idx)}
-                                            className={`px-4 py-3 sm:px-6 sm:py-4 font-bold text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center sm:text-left leading-tight break-words transition-colors min-w-[110px] sm:min-w-[120px] max-w-[140px] sm:max-w-none border-r border-slate-200 sm:border-r-0 cursor-pointer last:border-r-0
-                                                ${activeTab === idx
-                                                    ? 'bg-white text-sky-600 border-t-2 border-t-sky-600 shadow-sm relative z-10'
-                                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
-                                        >
-                                            {cat.name || `${groupLabel} ${idx + 1}`}
-                                        </button>
-                                    ))}
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => handleTabsScroll('left')}
-                                    className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
-                                    aria-label={ui("Scroll tabs left")}
-                                >
-                                    <ChevronLeft size={16} className="mx-auto" />
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleTabsScroll('right')}
-                                    className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-white/90 border border-slate-200 text-slate-400 shadow-sm hover:text-slate-600 transition-colors"
-                                    aria-label={ui("Scroll tabs right")}
-                                >
-                                    <ChevronRight size={16} className="mx-auto" />
-                                </button>
-                            </div>
+                                <GameCategoryTabs groups={groups} activeIndex={activeTab} onChange={setActiveTab} groupLabel={groupLabel} />
 
                                 <div className="p-3 sm:p-4">
                                     <div className="mb-4">

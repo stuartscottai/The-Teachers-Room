@@ -85,8 +85,8 @@ export const GameCoverEditor: React.FC<{
   return <section className={compact ? 'mb-4' : 'mb-6 rounded-2xl border border-slate-200 bg-white'} aria-label={ui("Game cover")}>
     {compact ? <details className="workspace-cover-compact rounded-xl border border-slate-200 bg-white">
       <summary>
-        <GameCover cover={cover} title={game.title} className="h-10 w-16 rounded-md" />
-        <span>{ui("Game cover")}</span><span className="font-normal text-slate-500 hidden sm:inline">{ui("The image teachers see in the library")}</span>
+        <GameCover cover={cover} title={game.title} className="workspace-cover-thumbnail h-10 w-16 rounded-md" />
+        <span>{ui("Game cover")}</span><span className="workspace-cover-description font-normal text-slate-500 hidden sm:inline">{ui("The image teachers see in the library")}</span>
         <span className="ml-auto text-sky-700">{ui("Change cover")}</span>
       </summary>
       {controls}

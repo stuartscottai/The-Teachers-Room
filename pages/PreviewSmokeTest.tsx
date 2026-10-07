@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GamePreview } from '../components/games/GamePreview';
+import { GameEditor } from '../components/games/GameEditor';
 import { GameType, GeneratedGame } from '../types';
 
 const smokeImage =
@@ -49,12 +50,40 @@ const game: GeneratedGame = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-export const PreviewSmokeTest: React.FC = () => (
+export const PreviewSmokeTest: React.FC = () => {
+  const params = new URLSearchParams(window.location.search);
+  const [liveQuizSelection, setLiveQuizSelection] = useState<string[] | null>(null);
+  const mode = params.get('mode');
+  const groupedType = mode === 'jeopardy' ? GameType.JEOPARDY : mode === 'pubquiz' ? GameType.PUB_QUIZ : undefined;
+  const groups = [
+    { name: 'Present Perfect Simple/Continuous', questions: [game.questions[0]] },
+    { name: 'Vocabulary and expressions', questions: [game.questions[1]] },
+    { name: 'Present Perfect Simple/Continuous', questions: [{ ...game.questions[0], question: 'A question in a separate category with the same name.' }] },
+  ];
+  const previewGame: GeneratedGame = groupedType ? {
+    ...game,
+    title: 'Open World B2 First Starter Unit Review',
+    config: { ...game.config, type: groupedType, questionCount: 3, customInstructions: 'Review the starter unit.' },
+    ...(groupedType === GameType.JEOPARDY ? { jeopardyBoard: groups } : { pubQuizRounds: groups }),
+  } : game;
+  if (params.get('saved') === '1') {
+    previewGame.id = '00000000-0000-4000-8000-000000000001';
+    previewGame.config = { ...previewGame.config, coverImage: { url: smokeImage, source: 'upload', selection: 'creator' } };
+  }
+  if (liveQuizSelection) return <pre role="status">{JSON.stringify(liveQuizSelection)}</pre>;
+  if (params.get('view') === 'editor') {
+    return <GameEditor game={previewGame} onBack={() => undefined} onSave={() => undefined} onPlay={() => undefined} onLiveQuiz={(_game, selectedItemIds = []) => setLiveQuizSelection(selectedItemIds)} />;
+  }
+  return (
   <GamePreview
-    game={game}
+    game={previewGame}
     source="library"
     onBack={() => undefined}
     onPlay={() => undefined}
     onEdit={() => undefined}
+    onSave={() => undefined}
+    onShare={() => undefined}
+    onLiveQuiz={() => undefined}
   />
-);
+  );
+};

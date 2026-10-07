@@ -471,10 +471,10 @@ export const ShareGame: React.FC = () => {
             setStep('setup');
           }
         }}
-        onLiveQuiz={(updated) => {
+        onLiveQuiz={(updated, selectedItemIds = []) => {
           setGame(updated);
           setSessionGame(updated);
-          setLiveQuizSelectedItems([]);
+          setLiveQuizSelectedItems(selectedItemIds);
         }}
         onBack={() => setStep('preview')}
       />

@@ -2,8 +2,9 @@ import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } f
 import { WorkspaceMenu, useWorkspaceDialog } from './GameWorkspace';
 import { GameCover, CoverCredit } from '../shared/GameCover';
 import { GameWebSources } from './GameWebSources';
+import { GameCategoryTabs } from './GameCategoryTabs';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, CheckSquare, Edit3, Layers, List, Play, QrCode, Radio, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckSquare, Edit3, Info, Layers, List, Play, QrCode, Radio, Save, Share2, Shuffle, Sparkles, Square, X } from 'lucide-react';
 import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '../../types';
 import { resolveGameImageUrl, resolveGameImageUrls, resolveGameQuestionImageUrl, resolveGameQuestionImageUrls } from '../../utils/gameImage';
 import { refreshStockImage } from '../../services/stockImageService';
@@ -17,6 +18,7 @@ type PreviewItem = {
   answer: string;
   options?: string[];
   group?: string;
+  groupIndex?: number;
   imageUrl?: string | null;
   imageUrls?: string[];
   image?: GeneratedQuestion['image'];
@@ -229,6 +231,7 @@ const buildGroupedItems = (
       title: titleBuilder(question, groupIndex, questionIndex),
       points: question.points,
       group: group.name || (prefix === 'jeopardy' ? `Category ${groupIndex + 1}` : `Round ${groupIndex + 1}`),
+      groupIndex,
       prompt: question.question?.trim() || 'No prompt saved yet.',
       answer: buildAnswerSummary(question, prefix === 'pubquiz' ? GameType.PUB_QUIZ : GameType.JEOPARDY),
       options: (question.options || []).map((option) => stripPreviewScoreTag(option.trim())).filter(Boolean),
@@ -522,10 +525,12 @@ interface GamePreviewProps {
   onShare?: () => void | Promise<void>;
   onStudentShare?: (selectedItemIds: string[]) => void | Promise<void>;
   onLiveQuiz?: (selectedItemIds: string[]) => void | Promise<void>;
+  liveQuizDisabledReason?: string;
   saveLabel?: string;
+  backLabel?: string;
 }
 
-export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onPlayAsDifferent, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, saveLabel }) => {
+export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, onPlay, onPlayAsDifferent, onEdit, onSave, onShare, onStudentShare, onLiveQuiz, liveQuizDisabledReason, saveLabel, backLabel }) => {
   useUiLanguage();
   const items = useMemo(() => buildPreviewItems(game), [game]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -536,10 +541,16 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
   const [randomSelectionCount, setRandomSelectionCount] = useState(20);
   const [showRandomSelection, setShowRandomSelection] = useState(false);
+  const [activeGroup, setActiveGroup] = useState(0);
+  const groups = game.config.type === GameType.JEOPARDY ? game.jeopardyBoard
+    : game.config.type === GameType.PUB_QUIZ ? game.pubQuizRounds : undefined;
+  const currentGroup = groups?.[activeGroup] ? activeGroup : 0;
+  const visibleItems = groups?.length ? items.filter(item => item.groupIndex === currentGroup) : items;
 
   useEffect(() => {
     setSelectedIds(new Set(items.map((item) => item.id)));
     setFlippedIds(new Set());
+    setActiveGroup(0);
     setRandomSelectionCount(Math.min(20, Math.max(1, items.length)));
   }, [items]);
 
@@ -608,26 +619,28 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   return (
     <div className="game-workspace relative min-h-screen">
       <div className="workspace-shell">
-        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(" Back to ")}{sourceLabel}</button>
+        <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {backLabel ? ui(backLabel) : <>{ui(" Back to ")}{sourceLabel}</>}</button>
         <header className="workspace-preview-header">
-          <div className="shrink-0">
+          <div className="workspace-preview-photo min-w-0">
             <GameCover cover={game.config.coverImage} title={game.title} publicGameId={source === 'community' ? game.id : undefined} fallbackImage={backgroundImage} className="workspace-preview-cover" />
             <CoverCredit cover={game.config.coverImage} />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="workspace-eyebrow mb-2">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
+          <div className="workspace-preview-details">
+          <div className="workspace-preview-info min-w-0">
             <h1 translate="no" className="notranslate workspace-heading">{game.title}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+            <div className="workspace-preview-metadata mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
               <span>{ui("By ")}<strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? ui("categories") : ui("questions")}</span>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button type="button" onClick={onEdit} className="workspace-button"><Edit3 size={16} /> {ui(" Edit game")}</button>
-              {onSave && <button type="button" onClick={() => void onSave()} className="workspace-button"><Save size={16} /> {previewSaveLabel}</button>}
-              {(onShare || onStudentShare) && <WorkspaceMenu label={ui("Share")}>
+            <p className="workspace-eyebrow">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
+          </div>
+            <div className="workspace-preview-actions">
+              <button type="button" onClick={onEdit} className="workspace-button" aria-label={ui("Edit game")} title={ui("Edit game")}><Edit3 size={16} aria-hidden="true" /><span className="workspace-action-label">{ui(" Edit game")}</span></button>
+              {onSave && <button type="button" onClick={() => void onSave()} className="workspace-button" aria-label={previewSaveLabel} title={previewSaveLabel}><Save size={16} aria-hidden="true" /><span className="workspace-action-label">{previewSaveLabel}</span></button>}
+              {(onShare || onStudentShare) && <WorkspaceMenu label={ui("Share")} mobileIcon={<Share2 size={20} />}>
                 {onShare && <button type="button" onClick={() => void onShare()}><Share2 size={16} /> {ui(" Teacher share")}</button>}
                 {onStudentShare && <button type="button" disabled={!selectedCount} onClick={() => void onStudentShare(Array.from(selectedIds))}><QrCode size={16} /> {ui(" Student share")}</button>}
               </WorkspaceMenu>}
-              {aiPrompt && <WorkspaceMenu label={ui("Details")}>
+              {aiPrompt && <WorkspaceMenu label={ui("Details")} mobileIcon={<Info size={20} />}>
                 <p className="px-3 py-2 text-sm text-slate-600">{creationLabel}</p>
                 <button type="button" onClick={() => setIsPromptOpen(true)}><Sparkles size={16} /> {ui(" View instructions")}</button>
               </WorkspaceMenu>}
@@ -641,21 +654,23 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               <h2 className="text-lg font-bold">{isStopTheFireOverview ? ui("Categories") : ui("Questions")}</h2>
               <span className="text-sm text-slate-600" role="status">{selectedCount} {ui(" of ")}{items.length} {ui(" selected")}</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {onLiveQuiz && <button type="button" onClick={() => void onLiveQuiz(Array.from(selectedIds))} disabled={!selectedCount}
-                className={`workspace-button ${game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 'workspace-button-primary' : ''}`}><Radio size={16} /> {ui(" Live quiz")}</button>}
+            <div className="workspace-preview-play-actions">
+              {onLiveQuiz && <button type="button" onClick={() => void onLiveQuiz(Array.from(selectedIds))} disabled={!selectedCount || Boolean(liveQuizDisabledReason)} title={liveQuizDisabledReason ? ui(liveQuizDisabledReason) : undefined}
+                className={`workspace-button ${game.config.type === GameType.LIVE_QUIZ_CHALLENGE ? 'workspace-button-primary' : ''}`}><Radio size={16} /><span>{ui("Live quiz")}</span></button>}
               <button type="button" onClick={handlePlay} disabled={!selectedCount} className="workspace-button workspace-button-play" aria-label={ui("Play selected")}>
-                <Play size={16} fill="currentColor" /> {ui(" Play ")}{selectedCount} {isStopTheFireOverview ? ui("categories") : ui("questions")}
+                <Play size={16} fill="currentColor" /><span>{ui("Play ")}{selectedCount} {isStopTheFireOverview ? ui("categories") : ui("questions")}</span>
               </button>
             </div>
           </div>
-          <div className="workspace-toolbar-row mt-3 border-t border-slate-100 pt-3">
+          <div className="workspace-toolbar-row workspace-preview-selection mt-3 border-t border-slate-100 pt-3">
             {!isStopTheFireOverview && <div className="workspace-view-switch" aria-label={ui("Question view")}>
               <button type="button" onClick={() => setViewMode('quick')} aria-pressed={viewMode === 'quick'}><List size={16} /> {ui(" List")}</button>
               <button type="button" onClick={() => setViewMode('study')} aria-pressed={viewMode === 'study'}><Layers size={16} /> {ui(" Study cards")}</button>
             </div>}
+            <div className="workspace-preview-select-all">
             <button type="button" onClick={() => setSelectedIds(new Set(items.map(item => item.id)))} disabled={!items.length || allSelected} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">{ui("Select all")}</button>
             <button type="button" onClick={() => setSelectedIds(new Set())} disabled={!selectedCount} className="px-2 py-2 text-sm font-semibold text-slate-600 disabled:opacity-40">{ui("Clear selection")}</button>
+            </div>
             <button type="button" onClick={() => setShowRandomSelection(!showRandomSelection)} aria-expanded={showRandomSelection} className="workspace-button ml-auto"><Shuffle size={16} /> {ui(" Random selection")}</button>
           </div>
           {showRandomSelection && <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3">
@@ -669,7 +684,14 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
           {!selectedCount && <p className="mt-3 text-sm text-slate-600">{ui("Select at least one ")}{isStopTheFireOverview ? ui("category") : ui("question")} {ui(" to play.")}</p>}
         </section>
 
-        {items.length === 0 ? (
+        <div className={groups?.length ? 'bg-white rounded-xl border border-slate-200 overflow-hidden' : undefined}>
+        {!!groups?.length && <GameCategoryTabs groups={groups} activeIndex={currentGroup} onChange={setActiveGroup}
+          groupLabel={game.config.type === GameType.PUB_QUIZ ? ui("Round") : ui("Category")}
+          panelId="preview-group-panel" tabIdPrefix="preview-group-tab" />}
+
+        <div className={groups?.length ? 'p-3 sm:p-4' : undefined} id={groups?.length ? 'preview-group-panel' : undefined} role={groups?.length ? 'tabpanel' : undefined}
+          aria-labelledby={groups?.length ? `preview-group-tab-${currentGroup}` : undefined} tabIndex={groups?.length ? 0 : undefined}>
+        {visibleItems.length === 0 ? (
           <div className="mt-8 rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <Layers size={24} />
@@ -684,7 +706,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
               <StopTheFireOverview items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
             ) : viewMode === 'study' ? (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {items.map((item) => (
+                {visibleItems.map((item) => (
                   <PreviewCard
                     key={item.id}
                     item={item}
@@ -696,10 +718,12 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                 ))}
               </div>
             ) : (
-              <QuickViewTable items={items} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
+              <QuickViewTable items={visibleItems} selectedIds={selectedIds} onToggleSelect={toggleSelected} />
             )}
           </div>
         )}
+        </div>
+        </div>
 
         {isPromptOpen && aiPrompt && (
           <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">

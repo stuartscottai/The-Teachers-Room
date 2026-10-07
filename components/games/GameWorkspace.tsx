@@ -29,7 +29,7 @@ export const useWorkspaceDialog = (open: boolean, onClose: () => void) => {
 };
 
 /** Shared, keyboard-accessible disclosure for secondary workspace actions. */
-export const WorkspaceMenu: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
+export const WorkspaceMenu: React.FC<{ label: string; children: React.ReactNode; mobileIcon?: React.ReactNode }> = ({ label, children, mobileIcon }) => {
   const [open, setOpen] = useState(false);
   const [alignStart, setAlignStart] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -47,11 +47,12 @@ export const WorkspaceMenu: React.FC<{ label: string; children: React.ReactNode 
   }} onKeyDown={event => {
     if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); }
   }}>
-    <button ref={trigger} type="button" className="workspace-button" aria-expanded={open} onClick={() => {
+    <button ref={trigger} type="button" className={`workspace-button${mobileIcon ? ' workspace-mobile-icon-menu' : ''}`} aria-label={label} title={mobileIcon ? label : undefined} aria-expanded={open} onClick={() => {
       setAlignStart((root.current?.getBoundingClientRect().right || 0) < 226);
       setOpen(!open);
     }}>
-      {label}<ChevronDown size={16} />
+      {mobileIcon && <span className="workspace-mobile-action-icon" aria-hidden="true">{mobileIcon}</span>}
+      <span className="workspace-action-label">{label}</span><ChevronDown size={16} className="workspace-menu-chevron" />
     </button>
     {open && <div className="workspace-menu-panel" style={alignStart ? { left: 0, right: 'auto' } : undefined} onClick={event => {
       if ((event.target as HTMLElement).closest('button')) { setOpen(false); trigger.current?.focus(); }
