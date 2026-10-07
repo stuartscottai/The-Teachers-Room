@@ -526,7 +526,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-[#102b2d] text-white`}
+                className={`game-winner-screen z-[300] bg-[#102b2d] text-white`}
                 style={pubQuizBackgroundStyle}
             >
                 <WinnerCeremonyHero

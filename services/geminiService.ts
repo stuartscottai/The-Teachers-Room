@@ -6,6 +6,7 @@ import { ACTIVE_GEMINI_MODEL, getGameGenerationThinkingConfig } from "../utils/a
 import { autoPickImagesForQuestions } from "../utils/gameAutoImages";
 import { supabase } from "./supabase";
 import { getMyEntitlements } from "./accountAccess";
+import { sanitizeReplacementRequest, validateReplacement, type QuestionReplacementRequest } from '../utils/questionReplacement';
 
 export type WizardSuggestion = Partial<GameConfig> & {
   type: GameType;
@@ -58,13 +59,14 @@ const getClientEnv = () => {
   return 'browser';
 };
 
-const tryExternalApi = async <T>(body: Record<string, any>): Promise<T> => {
+const tryExternalApi = async <T>(body: Record<string, any>, signal?: AbortSignal): Promise<T> => {
   const apiUrl = getGenerationApiUrl();
   const accessToken = await getRequiredAccessToken();
 
   try {
       const response = await fetch(apiUrl, {
           method: 'POST',
+          signal,
           headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${accessToken}`
@@ -1169,6 +1171,12 @@ const hydrateGameAutoImages = async (
   }
 
   return { questions, jeopardyBoard, pubQuizRounds };
+};
+
+export const replaceGameQuestion = async (input: QuestionReplacementRequest, signal?: AbortSignal): Promise<GeneratedQuestion> => {
+  const request = sanitizeReplacementRequest(input);
+  const result = await tryExternalApi<{ question: GeneratedQuestion }>({ action: 'question-replacement', ...request }, signal);
+  return validateReplacement(result.question, request);
 };
 
 export const generateGameContent = async (config: GameConfig): Promise<GeneratedGame> => {

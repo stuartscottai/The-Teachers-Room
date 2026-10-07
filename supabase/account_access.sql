@@ -1373,6 +1373,7 @@ begin
        from public.generation_usage
       where user_id = $1
         and status = ''success''
+        and action = ''game''
         and ($2 is null or created_at >= $2)'
   using p_user_id, p_since;
 end;
@@ -1403,7 +1404,8 @@ begin
     'select count(*)::bigint, max(created_at)
        from public.generation_usage
       where user_id = $1
-        and status = ''success'''
+        and status = ''success''
+        and action = ''game'''
   using auth.uid();
 end;
 $$;

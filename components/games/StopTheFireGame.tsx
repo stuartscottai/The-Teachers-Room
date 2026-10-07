@@ -841,7 +841,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
         return (
             <div
-                className={`${isFullscreen ? 'fixed inset-0 overflow-y-auto overflow-x-hidden' : 'relative min-h-[calc(100vh-4rem)]'} z-[300] bg-gradient-to-br from-[#1d0d08] via-[#2a1108] to-[#0f0a08] text-white`}
+                className={`game-winner-screen z-[300] bg-gradient-to-br from-[#1d0d08] via-[#2a1108] to-[#0f0a08] text-white`}
             >
                 <WinnerCeremonyHero
                     winnerHeadline={winnerHeadline}

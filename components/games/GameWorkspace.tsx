@@ -1,6 +1,6 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 import './game-workspace.css';
 
 /** Keep keyboard focus inside a workspace dialog and restore it on close. */
@@ -62,12 +62,13 @@ export const WorkspaceMenu: React.FC<{ label: string; children: React.ReactNode;
 
 export const QuestionEditorPanel: React.FC<{
   number: number; question: string; answer: string; format: string; warning?: string;
-  initiallyOpen?: boolean; children: React.ReactNode;
-}> = ({ number, question, answer, format, warning, initiallyOpen, children }) => {
+  initiallyOpen?: boolean; children: React.ReactNode; onReplace?: () => void;
+}> = ({ number, question, answer, format, warning, initiallyOpen, children, onReplace }) => {
   useUiLanguage();
   const [open, setOpen] = useState(Boolean(initiallyOpen || !question));
   return <section className={`workspace-question ${warning ? 'workspace-question-warning' : ''}`}>
-    <button type="button" className="workspace-question-summary" aria-expanded={open} onClick={() => setOpen(!open)}>
+    <div className="flex items-center">
+    <button type="button" className="workspace-question-summary min-w-0 flex-1" aria-expanded={open} onClick={() => setOpen(!open)}>
       <span className="workspace-question-number">{String(number).padStart(2, '0')}</span>
       <span className="min-w-0 flex-1 text-left">
         <span className="block font-semibold text-slate-800 break-words">{question || 'New question'}</span>
@@ -76,6 +77,11 @@ export const QuestionEditorPanel: React.FC<{
       <span className="workspace-edit-label">{open ? ui("Close") : ui("Edit")}</span>
       <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
     </button>
+    {onReplace && <button type="button" onClick={onReplace} className="workspace-button mr-3 shrink-0"
+      aria-label={ui('Replace question {number}', { number })} title={ui('Replace question')}>
+      <RefreshCw size={16} aria-hidden="true" /><span className="hidden sm:inline">{ui('Replace')}</span>
+    </button>}
+    </div>
     <div hidden={!open} className="workspace-question-body">{children}</div>
   </section>;
 };

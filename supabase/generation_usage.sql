@@ -38,8 +38,8 @@ create or replace view public.generation_usage_daily as
 select
   created_at::date as day,
   coalesce(client_env, 'unknown') as client_env,
-  count(*) filter (where status = 'success') as successful_generations,
-  count(*) filter (where status = 'error') as failed_generations,
+  count(*) filter (where status = 'success' and action = 'game') as successful_generations,
+  count(*) filter (where status = 'error' and action = 'game') as failed_generations,
   count(*) as total_requests,
   coalesce(sum(prompt_tokens), 0) as prompt_tokens,
   coalesce(sum(output_tokens), 0) as output_tokens,
@@ -54,8 +54,8 @@ create or replace view public.generation_usage_monthly as
 select
   date_trunc('month', created_at)::date as month,
   coalesce(client_env, 'unknown') as client_env,
-  count(*) filter (where status = 'success') as successful_generations,
-  count(*) filter (where status = 'error') as failed_generations,
+  count(*) filter (where status = 'success' and action = 'game') as successful_generations,
+  count(*) filter (where status = 'error' and action = 'game') as failed_generations,
   count(*) as total_requests,
   coalesce(sum(prompt_tokens), 0) as prompt_tokens,
   coalesce(sum(output_tokens), 0) as output_tokens,
@@ -68,8 +68,8 @@ order by month desc, client_env;
 
 create or replace view public.generation_usage_totals as
 select
-  count(*) filter (where status = 'success') as successful_generations,
-  count(*) filter (where status = 'error') as failed_generations,
+  count(*) filter (where status = 'success' and action = 'game') as successful_generations,
+  count(*) filter (where status = 'error' and action = 'game') as failed_generations,
   count(*) as total_requests,
   coalesce(sum(prompt_tokens), 0) as prompt_tokens,
   coalesce(sum(output_tokens), 0) as output_tokens,
@@ -84,8 +84,8 @@ create or replace view public.generation_usage_by_user as
 select
   user_id,
   max(user_email) as user_email,
-  count(*) filter (where status = 'success') as successful_generations,
-  count(*) filter (where status = 'error') as failed_generations,
+  count(*) filter (where status = 'success' and action = 'game') as successful_generations,
+  count(*) filter (where status = 'error' and action = 'game') as failed_generations,
   count(*) as total_requests,
   coalesce(sum(prompt_tokens), 0) as prompt_tokens,
   coalesce(sum(output_tokens), 0) as output_tokens,

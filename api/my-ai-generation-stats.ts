@@ -21,9 +21,9 @@ export default async function handler(req: any, res: any) {
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const [countResult, latestResult] = await Promise.all([
     admin.from('generation_usage').select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id).eq('status', 'success'),
+      .eq('user_id', user.id).eq('status', 'success').eq('action', 'game'),
     admin.from('generation_usage').select('created_at')
-      .eq('user_id', user.id).eq('status', 'success')
+      .eq('user_id', user.id).eq('status', 'success').eq('action', 'game')
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (countResult.error || latestResult.error) {

@@ -3,6 +3,8 @@ import { WorkspaceMenu, QuestionEditorPanel, AnswerOptions, useWorkspaceDialog }
 import { GameWebSources } from './GameWebSources';
 import { GameCategoryTabs } from './GameCategoryTabs';
 import { GamePreview } from './GamePreview';
+import { QuestionReplacementDialog } from './QuestionReplacementDialog';
+import { applyQuestionReplacement } from '../../utils/questionReplacement';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -89,6 +91,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
   useUiLanguage();
     const [editedGame, setEditedGame] = useState<GeneratedGame>(game);
     const [showPreview, setShowPreview] = useState(false);
+    const [replacementTarget, setReplacementTarget] = useState<QuestionImageTarget | null>(null);
     const [coverUploading, setCoverUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<number>(0);
     const [isPublic, setIsPublic] = useState(game.config.isPublic || false); // New Local State for Visibility
@@ -846,6 +849,30 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
         setCurrentPage(Math.floor(questionIndex / itemsPerPage) + 1);
     }, [imageRepairKeys, itemsPerPage]);
 
+    const replacementQuestion = replacementTarget?.scope === 'standard' ? editedGame.questions?.[replacementTarget.index]
+        : replacementTarget?.scope === 'grouped' ? groups?.[replacementTarget.groupIndex]?.questions[replacementTarget.questionIndex] : undefined;
+    const replacementCategory = replacementTarget?.scope === 'grouped' ? groups?.[replacementTarget.groupIndex]?.name : replacementQuestion?.category;
+    const existingQuestions = isGrouped ? groups?.flatMap(group => group.questions) || [] : baseQuestions;
+    const acceptReplacement = (replacement: GeneratedQuestion, chooseImage = false) => {
+        const target = replacementTarget;
+        if (!target) return;
+        handleChange(previous => {
+            if (target.scope === 'standard') {
+                const questions = [...(previous.questions || [])];
+                if (!questions[target.index]) return previous;
+                questions[target.index] = applyQuestionReplacement(questions[target.index], replacement);
+                return { ...previous, questions };
+            }
+            const key = previous.config.type === GameType.JEOPARDY ? 'jeopardyBoard' : 'pubQuizRounds';
+            const nextGroups = (previous[key] || []).map((group, groupIndex) => groupIndex !== target.groupIndex ? group : {
+                ...group, questions: group.questions.map((question, questionIndex) => questionIndex !== target.questionIndex ? question : applyQuestionReplacement(question, replacement)),
+            });
+            return { ...previous, [key]: nextGroups };
+        });
+        setReplacementTarget(null);
+        if (chooseImage) openImagePicker(target, replacement);
+    };
+
     if (showPreview) return <div className="fixed inset-0 top-16 z-50 overflow-y-auto">
         <GamePreview game={editedGame} source="library" backLabel="Back to Editor" onBack={() => setShowPreview(false)} onEdit={() => setShowPreview(false)}
             onPlay={onPlay} onSave={() => { void handleSave(); }} onShare={handleShare}
@@ -1083,7 +1110,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             const imageUrl = resolveGameQuestionImageUrl(q.image);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
-                                            <QuestionEditorPanel key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? ui("{count} options · {points} pts", {count: q.options.length, points: q.points}) : ui("Open answer · {points} pts", {points: q.points})} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
+                                            <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx })} key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? ui("{count} options · {points} pts", {count: q.options.length, points: q.points}) : ui("Open answer · {points} pts", {points: q.points})} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
@@ -1327,7 +1354,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const wordWheelRuleHint = getWordWheelRuleHint(activeLetterRule, wordWheelLetter);
                                         const answerFitsWordWheelRule = !isLetterAnswerGame || answerMatchesWordWheelRule(q.answer, wordWheelLetter, activeLetterRule);
                                         return (
-                                        <QuestionEditorPanel key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? ui("Survey answers") : isLetterAnswerGame ? ui("Letter {letter}", {letter: wordWheelLetter}) : q.options?.length ? ui("{count} answer options", {count: q.options.length}) : ui("Open answer")} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
+                                        <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'standard', index: questionIndex })} key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? ui("Survey answers") : isLetterAnswerGame ? ui("Letter {letter}", {letter: wordWheelLetter}) : q.options?.length ? ui("{count} answer options", {count: q.options.length}) : ui("Open answer")} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                             {!isWordWheel && (
                                                 <button
                                                     onClick={() => removeQuestion(questionIndex)}
@@ -1776,6 +1803,14 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                 onConfirm={handleImagePickerConfirm}
                 onUpload={handleImagePickerUpload}
             />
+            {replacementTarget && replacementQuestion && <QuestionReplacementDialog
+                game={editedGame}
+                question={{ ...replacementQuestion, ...((isWordWheel || (isBlockBeatersLetters && replacementTarget.scope === 'standard')) ? {
+                    letter: replacementQuestion.letter || WORD_WHEEL_LETTERS[replacementTarget.scope === 'standard' ? replacementTarget.index % WORD_WHEEL_LETTERS.length : 0],
+                } : {}) }}
+                category={replacementCategory}
+                otherPrompts={existingQuestions.filter(question => question !== replacementQuestion).map(question => question.question)}
+                onClose={() => setReplacementTarget(null)} onAccept={acceptReplacement} />}
             <StudentShareModal
                 isOpen={Boolean(studentShareUrl)}
                 url={studentShareUrl}

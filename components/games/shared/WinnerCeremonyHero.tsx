@@ -1,5 +1,6 @@
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../../utils/interfaceLanguage';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import './winner-ceremony.css';
 import { RefreshCw } from 'lucide-react';
 import { LiveQuizAvatarIcon } from '../liveQuizAvatars';
 
@@ -518,6 +519,30 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
     children,
 }) => {
   useUiLanguage();
+    const ceremonyRef = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        let frame = 0;
+        const resetScroll = () => {
+            // Clear the fullscreen scroll position before returning to document
+            // scrolling, so the heading remains visible below the navigation.
+            let element: HTMLElement | null = ceremonyRef.current;
+            while (element) {
+                element.scrollTop = 0;
+                element = element.parentElement;
+            }
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        };
+        const onFullscreenChange = () => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(resetScroll);
+        };
+        resetScroll();
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => {
+            cancelAnimationFrame(frame);
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+        };
+    }, []);
     const [winnerAnimationStage, setWinnerAnimationStage] = useState<AnimationStage>('idle');
     const [winnerCelebrationEffect, setWinnerCelebrationEffect] = useState<WinnerCeremonyEffect>('confetti');
     const winnerStageTimeoutsRef = useRef<number[]>([]);
@@ -659,6 +684,7 @@ export const WinnerCeremonyHero: React.FC<WinnerCeremonyHeroProps> = ({
 
     return (
         <div
+            ref={ceremonyRef}
             className="relative min-h-[calc(100vh-4rem)] bg-slate-950 text-white [background:radial-gradient(circle_at_18%_14%,rgba(14,165,233,0.24),transparent_34%),radial-gradient(circle_at_82%_20%,rgba(34,197,94,0.16),transparent_32%),radial-gradient(circle_at_50%_82%,rgba(250,204,21,0.16),transparent_38%),#020617]"
             style={{ overflowX: 'clip', overflowY: 'visible' }}
         >
