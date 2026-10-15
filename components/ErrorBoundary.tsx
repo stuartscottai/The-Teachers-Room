@@ -7,7 +7,6 @@ interface ErrorBoundaryProps {
   fallbackTitle?: string;
   fallbackMessage?: string;
   onBack?: () => void;
-  disableTranslation?: boolean;
 }
 
 interface ErrorBoundaryState {
@@ -41,7 +40,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (!this.state.error) return this.props.children;
-    const text = this.props.disableTranslation ? (english: string) => english : ui;
 
     return (
       <div className="min-h-[calc(100vh-4rem)] bg-slate-50 p-6 flex items-center justify-center">
@@ -50,10 +48,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <AlertTriangle size={28} />
           </div>
           <h1 className="text-2xl font-black text-slate-900">
-            {text(this.props.fallbackTitle || 'Something went wrong')}
+            {ui(this.props.fallbackTitle || 'Something went wrong')}
           </h1>
           <p className="mt-2 text-sm font-semibold text-slate-500">
-            {text(this.props.fallbackMessage || 'This screen could not be loaded. You can retry or return to the previous page.')}
+            {ui(this.props.fallbackMessage || 'This screen could not be loaded. You can retry or return to the previous page.')}
           </p>
           {import.meta.env.DEV && (
             <pre className="mt-4 max-h-36 overflow-auto rounded-xl bg-slate-950 p-3 text-left text-xs text-slate-100">
@@ -67,7 +65,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900 hover:bg-yellow-300"
             >
               <RefreshCw size={18} />
-              {isDynamicImportError(this.state.error) ? 'Reload latest version' : text("Try again")}
+              {isDynamicImportError(this.state.error) ? 'Reload latest version' : ui("Try again")}
             </button>
             <button
               type="button"
@@ -75,7 +73,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-black text-slate-700 hover:bg-slate-50"
             >
               <ArrowLeft size={18} />
-              {text("Go back")}</button>
+              {ui("Go back")}</button>
           </div>
         </div>
       </div>

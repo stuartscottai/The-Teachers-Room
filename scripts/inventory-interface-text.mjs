@@ -30,8 +30,6 @@ const contextFor = file => file.includes('/games/') ? 'Game controls, settings o
   : file.includes('Profile') || file.includes('Plan') ? 'Account and profile'
   : file.includes('Page.tsx') ? 'Game format information' : 'Website interface';
 function scan(file) {
-  // Entire online-class workbooks are English-only, including their controls.
-  if (file === 'pages/ClassBooklet.tsx' || file.startsWith('components/class/')) return;
   const sf = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   function visit(node) {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {

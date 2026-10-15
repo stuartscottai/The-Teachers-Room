@@ -1,6 +1,6 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from './utils/interfaceLanguage';
 
-import React, { Suspense, lazy, useEffect, useLayoutEffect } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -8,9 +8,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UnsavedChangesProvider } from './contexts/UnsavedChangesContext';
 import { RouteSEO } from './components/RouteSEO';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { classBooklets } from './data/classBooklets';
-
-const ClassBooklet = lazy(() => import('./pages/ClassBooklet'));
 
 const SurveyShowdownPage = lazy(() => import('./pages/SurveyShowdownPage').then(m => ({ default: m.SurveyShowdownPage })));
 const StopTheFirePage = lazy(() => import('./pages/StopTheFirePage').then(m => ({ default: m.StopTheFirePage })));
@@ -98,14 +95,14 @@ const LegacyHashRouteRedirect: React.FC = () => {
   return null;
 };
 
-const RouteLoading: React.FC<{ preserveEnglish?: boolean }> = ({ preserveEnglish }) => { useUiLanguage(); return ((
+const RouteLoading: React.FC = () => { useUiLanguage(); return ((
   <div className="min-h-[40vh] flex items-center justify-center px-6 text-center">
-    <p className="text-sm font-semibold text-slate-500">{preserveEnglish ? 'Loading...' : ui("Loading...")}</p>
+    <p className="text-sm font-semibold text-slate-500">{ui("Loading...")}</p>
   </div>
 )); };
 
-const LazyRoute: React.FC<{ children: React.ReactNode; preserveEnglish?: boolean }> = ({ children, preserveEnglish }) => (
-  <Suspense fallback={<RouteLoading preserveEnglish={preserveEnglish} />}>{children}</Suspense>
+const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Suspense fallback={<RouteLoading />}>{children}</Suspense>
 );
 
 const GuardedRoute: React.FC<{ children: React.ReactNode; title?: string; message?: string }> = ({
@@ -195,48 +192,4 @@ const App: React.FC = () => {
   );
 };
 
-// Disposable public section: never mount account providers, onboarding or site navigation.
-const AppRoutes: React.FC = () => {
-  useUiLanguage();
-  const { pathname } = useLocation();
-  const isWorkbookRoute = pathname === '/class' || pathname.startsWith('/class/');
-  useLayoutEffect(() => {
-    if (!isWorkbookRoute) return;
-    const root = document.documentElement;
-    const previousLanguage = root.getAttribute('lang');
-    const previousTranslate = root.getAttribute('translate');
-    const hadNoTranslateClass = root.classList.contains('notranslate');
-    root.setAttribute('lang', 'en');
-    root.setAttribute('translate', 'no');
-    root.classList.add('notranslate');
-    // Ask browser translation services to leave the whole workbook document alone.
-    const existingMeta = document.head.querySelector('meta[name="google"][content="notranslate"]');
-    const translationMeta = existingMeta ? null : document.createElement('meta');
-    if (translationMeta) {
-      translationMeta.name = 'google';
-      translationMeta.content = 'notranslate';
-      document.head.appendChild(translationMeta);
-    }
-    return () => {
-      if (previousLanguage === null) root.removeAttribute('lang');
-      else root.setAttribute('lang', previousLanguage);
-      if (previousTranslate === null) root.removeAttribute('translate');
-      else root.setAttribute('translate', previousTranslate);
-      if (!hadNoTranslateClass) root.classList.remove('notranslate');
-      translationMeta?.remove();
-    };
-  }, [isWorkbookRoute]);
-  if (isWorkbookRoute) {
-    return <div translate="no" lang="en" className="notranslate"><RouteSEO /><Routes>
-      {classBooklets.map(booklet => <Route key={booklet.slug} path={`/class/${booklet.slug}`} element={
-        <ErrorBoundary disableTranslation fallbackTitle="The booklet could not be loaded" fallbackMessage="Please reload this page to try again.">
-          <LazyRoute preserveEnglish><ClassBooklet key={booklet.slug} booklet={booklet} /></LazyRoute>
-        </ErrorBoundary>
-      } />)}
-      <Route path="*" element={<main className="min-h-screen p-8 text-center"><h1 className="font-display text-2xl">Booklet not found</h1><p>Please use the full link supplied by your teacher.</p></main>} />
-    </Routes></div>;
-  }
-  return <App />;
-};
-
-export default function RootApp() { return <Router><AppRoutes /></Router>; }
+export default function RootApp() { return <Router><App /></Router>; }

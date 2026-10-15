@@ -6,13 +6,11 @@ The English/Spanish (Spain) selector in **Profile → Website settings → Langu
 
 ## What stays in its original language
 
-Teacher-written questions, answers, options, categories, titles, custom team names, uploaded teaching materials and saved games are never sent through the translation helper. Generated default names such as “Team 1” display as “Equipo 1”; custom names are retained. Built-in learning material and authored workbook lessons also keep their source language. Website controls use explicit translations and are protected from a second browser translation. The website name, The Teachers' Room, always stays in English, including the home-page hero.
+Teacher-written questions, answers, options, categories, titles, custom team names, uploaded teaching materials and saved games are never sent through the translation helper. Generated default names such as “Team 1” display as “Equipo 1”; custom names are retained. Built-in learning material also keep their source language. Website controls use explicit translations and are protected from a second browser translation. The website name, The Teachers' Room, always stays in English, including the home-page hero.
 
 Home-page play counts, all ten testimonial cards, plan descriptions, FAQ questions and answers (including search), and all six public blog articles now have Spanish versions. Blog titles, summaries, dates and complete article text are included in the review CSV. Their routes, images, article IDs and external links are unchanged.
 
 All four public landing pages under “More for teachers” / “Más para docentes” also use Spanish for their badges, headings, introductions, benefits, examples and action links. Their content lists are explicitly checked during translation validation.
-
-The temporary online-class workbooks under `/class/` are entirely English-only, regardless of the site language preference. This includes B1, B2, C1 and C2, their navigation, answer placeholders, reading tools, notices and saved/printed copies. The whole workbook document requests no browser translation; future lessons added to these levels inherit the same protection. Visiting a workbook does not change the saved website language, and leaving it restores the normal site's translation settings. Workbook-only wording is excluded from the Spanish dictionary and review export; shared phrases remain translated where used elsewhere on the website.
 
 Translations remain a **contextual draft**, not a claim of independent human approval. Unexpected errors supplied by outside services and text embedded in existing images or audio are outside this dictionary. AI-generated teaching content follows the language requested when creating it.
 
