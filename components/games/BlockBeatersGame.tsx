@@ -1,3 +1,5 @@
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -235,7 +237,6 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const [activeIsSteal, setActiveIsSteal] = useState(false);
     const [usedQuestionIndices, setUsedQuestionIndices] = useState<Set<number>>(() => new Set());
     const [isFlipped, setIsFlipped] = useState(false);
-    const [typedAnswer, setTypedAnswer] = useState('');
     const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     const [isGameOver, setIsGameOver] = useState(false);
@@ -283,6 +284,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const showBonusIntro = bonusIntroTileId !== null && activeTileId !== null && !isFlipped && !awardedBonus;
     const showBonusAward = awardedBonus !== null;
     const hasOptions = mode === 'numbers' && Array.isArray(shownQuestion?.options) && shownQuestion.options.length > 0;
+    const writtenAnswer = useWrittenAnswer(shownQuestion, game.config, options, `${activeTileId}-${pendingFinal}-${questionCardKey}`, hasOptions);
     const questionImageUrl = resolveGameQuestionImageUrl(shownQuestion?.image);
     const questionImageAlt = shownQuestion?.image?.alt || '';
     const timerProgress = options.timerSeconds > 0 ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds)) : 0;
@@ -364,6 +366,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         }
     }, [isMobileViewport, isImageZoomOpen]);
 
+    useMobileQuestionViewport(containerRef, (activeTileId !== null || pendingFinal !== null) && !isGameOver);
+
     useEffect(() => {
         const shouldLock = !isGameOver && (
             activeTileId !== null ||
@@ -415,7 +419,6 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         setActiveQuestionIndex(nextQuestionIndex);
         setActiveIsSteal(isStealAttempt);
         setIsFlipped(false);
-        setTypedAnswer('');
         setSelectedMcAnswer('');
         setMcResult(null);
         setBonusIntroTileId(tile.bonus && !tile.bonusUsed ? tile.id : null);
@@ -436,27 +439,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         return fallback ?? 0;
     };
 
-    const checkTypedAnswer = () => {
-        const guess = normalizeAnswer(typedAnswer);
-        const candidates = [shownQuestion.answer, ...(shownQuestion.answerAliases || [])].map(normalizeAnswer);
-        if (!guess) return false;
-        const answerMatches = candidates.includes(guess);
-        if (mode !== 'letters') return answerMatches;
-        const required = (shownQuestion.letter || shownQuestion.answer || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
-        if (!required) return answerMatches;
-        return answerMatches && normalizeAnswer(shownQuestion.answer).toUpperCase().startsWith(required);
-    };
-
     const chooseMc = (answer: string) => {
         setSelectedMcAnswer(answer);
         const correct = normalizeAnswer(answer) === normalizeAnswer(shownQuestion.answer);
-        setMcResult(correct ? 'correct' : 'incorrect');
-        playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
-        setIsFlipped(true);
-    };
-
-    const checkAndRevealTypedAnswer = () => {
-        const correct = checkTypedAnswer();
         setMcResult(correct ? 'correct' : 'incorrect');
         playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
         setIsFlipped(true);
@@ -473,7 +458,6 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         setActiveIsSteal(false);
         setBonusIntroTileId(null);
         setAwardedBonus(null);
-        setTypedAnswer('');
         setSelectedMcAnswer(null);
         setMcResult(null);
         setTimeLeft(options.timerSeconds || 0);
@@ -781,7 +765,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             textEl.style.fontSize = `${fontSize}px`;
         }
         setQuestionFontSize(fontSize);
-    }, [shownQuestion?.question, shownQuestion?.options?.length, hasOptions, isFlipped, isMobileViewport, resizeTick, mode]);
+    }, [shownQuestion?.question, shownQuestion?.options?.length, hasOptions, isFlipped, isMobileViewport, resizeTick, mode, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!shownQuestion || !isFlipped) {
@@ -791,7 +775,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         const availableWidth = textEl.clientWidth;
         if (availableHeight === 0 || availableWidth === 0) return;
         const maxSize = Math.min(72, Math.max(22, Math.floor(window.innerWidth / 8)));
@@ -804,7 +788,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             textEl.style.fontSize = `${fontSize}px`;
         }
         setAnswerFontSize(fontSize);
-    }, [shownQuestion?.answer, isFlipped, isMobileViewport, resizeTick]);
+    }, [shownQuestion?.answer, isFlipped, isMobileViewport, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !shownQuestion?.options || isFlipped) {
@@ -1327,7 +1311,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             </main>
 
             {(activeTileId !== null || pendingFinal !== null) && shownQuestion && (
-                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center ${pendingFinal !== null ? 'bg-slate-950/88' : 'bg-slate-900/50'} backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div data-written-question-overlay className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center ${pendingFinal !== null ? 'bg-slate-950/88' : 'bg-slate-900/50'} backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     {pendingFinal !== null && (
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.32)_0%,rgba(250,204,21,0.14)_28%,rgba(2,6,23,0.92)_68%)]" />
                     )}
@@ -1393,7 +1377,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             </div>
                         ) : (
                         <div key={questionCardKey} className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 <div className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-[#0f766e] text-white'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 font-bold text-sm sm:text-xl opacity-85 truncate">
@@ -1457,7 +1441,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                     className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                     style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                 >
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme={pendingFinal !== null ? 'gold' : 'blockbeaters'} className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {shownQuestion.options!.map((option, index) => {
                                                             const optionLabel = String.fromCharCode(65 + index);
                                                             const displayOption = stripOptionPrefix(option);
@@ -1535,7 +1519,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
 
                                                 {hasOptions ? (
                                                     <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
-                                                <div ref={optionGridRef} className="grid grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                <div ref={optionGridRef} data-mcq-theme={pendingFinal !== null ? 'gold' : 'blockbeaters'} className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                     {shownQuestion.options!.map((option, index) => {
                                                         const optionLabel = String.fromCharCode(65 + index);
                                                         const displayOption = stripOptionPrefix(option);
@@ -1557,26 +1541,14 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                 </div>
                                                 <div ref={optionMeasureRef} aria-hidden="true" className="absolute -left-[9999px] -top-[9999px] invisible" />
                                             </div>
-                                                ) : (
-                                                    <div className="w-full flex-none px-4 sm:px-6 md:px-8 pb-2 sm:pb-4">
-                                                        <input
-                                                            value={typedAnswer}
-                                                            onChange={(event) => setTypedAnswer(event.target.value)}
-                                                            onKeyDown={(event) => {
-                                                                if (event.key === 'Enter' && typedAnswer.trim()) checkAndRevealTypedAnswer();
-                                                            }}
-                                                            className={`mx-auto block w-full max-w-2xl rounded-xl border bg-white p-4 text-center text-xl sm:text-2xl font-bold text-slate-900 placeholder:text-slate-400 caret-slate-900 outline-none ${pendingFinal !== null ? 'border-amber-400 focus:ring-2 focus:ring-amber-400' : 'border-slate-300 focus:ring-2 focus:ring-[#0f766e]'}`}
-                                                            placeholder={ui("Type answer")}
-                                                            autoFocus
-                                                        />
-                                                    </div>
-                                                )}
+                                                ) : null}
                                             </>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col relative flex-shrink-0 z-50 ${pendingFinal !== null ? 'bg-amber-50' : 'bg-white'} ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
+                                <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 ${pendingFinal !== null ? 'bg-amber-50' : 'bg-white'} ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                     {options.timerSeconds > 0 && (
                                         <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
                                             <div className={`absolute inset-y-0 left-0 ${pendingFinal !== null ? 'bg-amber-400' : 'bg-[#0f766e]'} transition-all duration-1000`} style={{ width: `${timerProgress * 100}%` }} />
@@ -1586,8 +1558,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         </div>
                                     )}
                                     {!hasOptions && (
-                                        <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
-                                            <button onClick={(event) => { event.stopPropagation(); checkAndRevealTypedAnswer(); }} className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:from-amber-400 hover:to-yellow-300' : 'bg-[#0f766e] text-white hover:bg-[#0d9488]'} px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform relative z-50`}>
+                                        <div data-written-reveal className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                            <button onClick={(event) => { event.stopPropagation(); setIsFlipped(true); }} className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:from-amber-400 hover:to-yellow-300' : 'bg-[#0f766e] text-white hover:bg-[#0d9488]'} px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform relative z-50`}>
                                                 {ui("Check")}</button>
                                         </div>
                                     )}
@@ -1602,8 +1574,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     </button>
                                 </div>
 
-                                <div className={`${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 text-center overflow-hidden w-full relative z-0`}>
-                                    <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                <div className={`written-answer-result-body ${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 text-center overflow-hidden w-full relative z-0`}>
+                                    <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                        <WrittenAnswerReview state={writtenAnswer} />
                                         {mcResult && (
                                             <div className="mb-3 sm:mb-6">
                                                 {mcResult === 'correct' ? (
@@ -1631,7 +1604,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 </div>
 
                                 <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
-                                    {hasOptions ? (
+                                    {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={false} onContinue={() => finishAnswer(writtenAnswer.matches)} />) : hasOptions ? (
                                         <button onClick={(event) => { event.stopPropagation(); finishAnswer(mcResult === 'correct', false); }} className={`flex-1 text-white font-black text-2xl sm:text-4xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50 ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600 border-green-700' : 'bg-red-500 hover:bg-red-600 border-red-700'}`}>
                                             {ui("Continue")}</button>
                                     ) : (

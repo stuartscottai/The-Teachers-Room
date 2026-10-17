@@ -1,3 +1,5 @@
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
@@ -482,6 +484,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         ? totalTurnsHighscore 
         : (game.config.questionCount || (questions.length - 10 > 0 ? questions.length - 10 : questions.length));
 
+    useMobileQuestionViewport(containerRef, phase === 'question');
+
     // SCROLL LOCK EFFECT
     useEffect(() => {
         const shouldLock = phase === 'question' || editingTeamIndex !== null;
@@ -716,7 +720,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                         id: String(currentQuestion.id),
                         question: currentQuestion.question,
                         correctAnswer: currentQuestion.answer,
-                        studentAnswer: selectedMcAnswer || undefined,
+                        studentAnswer: writtenAnswer.submitted ? writtenAnswer.text : selectedMcAnswer || undefined,
                         context: lockedTarget ? `${lockedTarget.sector} x${lockedTarget.multiplier}` : undefined,
                     },
                 ]);
@@ -819,6 +823,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
     const stripOptionPrefix = (value: string) => value.replace(/^[A-D]\)\s*/i, '').trim();
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+    const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'question' ? `${currentQuestion?.id}-${currentTeam}` : null);
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -904,7 +909,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, hasOptions, phase, isFlipped, currentQuestion?.question, currentQuestion?.options?.length, resizeTick]);
+    }, [isMobileViewport, hasOptions, phase, isFlipped, currentQuestion?.question, currentQuestion?.options?.length, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || phase !== 'question' || !isFlipped) {
@@ -914,7 +919,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         if (availableHeight === 0) return;
         const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
         const minSize = 16;
@@ -926,7 +931,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick]);
+    }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !currentQuestion?.options || phase !== 'question' || isFlipped) {
@@ -1279,12 +1284,12 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
             </div>
 
             {phase === 'question' && currentQuestion && (
-                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-[#120a07]/75 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div data-written-question-overlay className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-[#120a07]/75 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col h-full bg-[#101a14] border border-amber-200/30 ring-1 ring-black/60 ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 <div className="bg-gradient-to-r from-[#32170f] via-[#6b351f] to-[#32170f] text-amber-50 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-amber-500/45 shadow-[inset_0_-8px_18px_rgba(0,0,0,0.3)]">
                                     <div className="font-bold text-sm sm:text-xl text-amber-100/90 truncate max-w-[40%]">{ui("{team}’s Turn", {team: displayTeamName(teamNames[currentTeam])})}</div>
                                     <div className="bg-black/35 border border-amber-300/45 px-3 py-1 rounded-full font-black text-sm sm:text-xl text-amber-200 shadow-inner">{ui("Target: ")}{lockedTarget?.label}</div>
@@ -1330,7 +1335,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                                     className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                     style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                 >
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme="darts" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1418,7 +1423,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                             </div>
                                             {hasOptions && !isFlipped && (
                                                 <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme="darts" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1470,7 +1475,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                     )}
                                 </div>
 
-                                <div className={`flex flex-col relative flex-shrink-0 z-50 bg-[#26150f] border-t border-amber-500/35 ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
+                                <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 bg-[#26150f] border-t border-amber-500/35 ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                     {options.timerSeconds > 0 && (
                                         <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-black/35 overflow-hidden flex items-center justify-start pointer-events-none`}>
                                             {!isTimesUp && (
@@ -1484,7 +1490,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                         </div>
                                     )}
                                     {!hasOptions && (
-                                        <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                        <div data-written-reveal className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                             <button
                                                 onClick={() => setIsFlipped(true)}
                                                 className="bg-gradient-to-b from-amber-300 to-amber-500 text-[#24120b] border border-amber-100/70 px-6 sm:px-12 py-2 rounded-full font-black text-base sm:text-xl shadow-[0_8px_20px_rgba(0,0,0,0.4)] hover:from-amber-200 hover:to-amber-400 hover:scale-105 transition-transform relative z-50 flex items-center"
@@ -1501,8 +1507,9 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                     <button onClick={() => setIsFlipped(false)} className="p-2 bg-black/30 border border-amber-200/30 rounded-full hover:bg-amber-300/20 text-amber-100" title={ui("Flip Back")}><RotateCcw size={18} className="sm:w-6 sm:h-6" /></button>
                                 </div>
 
-                                <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[#0f1b14] text-center overflow-hidden w-full relative z-0" style={chalkboardStyle}>
-                                    <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 bg-[#0f1b14] text-center overflow-hidden w-full relative z-0" style={chalkboardStyle}>
+                                    <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                        <WrittenAnswerReview state={writtenAnswer} />
                                         {hasOptions && mcResult && (
                                             <div className="animate-bounce mb-4 sm:mb-8">
                                                 {mcResult === 'correct' ? <div className="text-3xl sm:text-6xl font-black text-green-500 uppercase">{ui("Correct!")}</div> : <div className="text-3xl sm:text-6xl font-black text-red-500 uppercase">{ui("Incorrect")}</div>}
@@ -1519,7 +1526,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 </div>
 
                                 <div className="h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex gap-0 flex-shrink-0 relative z-50">
-                                    {hasOptions ? (
+                                    {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={false} onContinue={() => handleThrow(writtenAnswer.matches)} />) : hasOptions ? (
                                         <button onClick={() => handleThrow(mcResult === 'correct')} className={`flex-1 text-white font-bold text-base sm:text-2xl transition-colors flex items-center justify-center ${mcResult === 'correct' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}>{ui("Throw Dart")}</button>
                                     ) : (
                                         <>

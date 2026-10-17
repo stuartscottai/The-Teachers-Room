@@ -1,3 +1,4 @@
+import { getWrittenQuestionType, supportsWrittenAnswers, getAnswerEditorText, getAnswerEditorPatch } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, QuestionEditorPanel, AnswerOptions, useWorkspaceDialog } from './GameWorkspace';
 import { GameWebSources } from './GameWebSources';
@@ -946,6 +947,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         </div>
                         )}
 
+
+
                         {isStopTheFire ? (
                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="p-4 sm:p-5">
@@ -1110,7 +1113,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             const imageUrl = resolveGameQuestionImageUrl(q.image);
                                             const imageAlt = q.image?.alt || 'Question image';
                                             return (
-                                            <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx })} key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? ui("{count} options · {points} pts", {count: q.options.length, points: q.points}) : ui("Open answer · {points} pts", {points: q.points})} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
+                                            <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'grouped', groupIndex: activeTab, questionIndex: qIdx })} key={`${activeTab}-${q.id ?? qIdx}`} number={qIdx + 1} question={q.question} answer={q.answer} format={q.options?.length ? ui("{count} options · {points} pts", {count: q.options.length, points: q.points}) : getWrittenQuestionType(q, editedGame.config) === 'gap-fill' ? ui("Gap Fill · {points} pts", {points: q.points}) : ui("Open answer · {points} pts", {points: q.points})} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <span className="font-bold text-sky-700 bg-sky-100 px-3 py-1 rounded-full text-sm">
@@ -1153,6 +1156,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         </div>
                                                     </div>
                                                 </div>
+
+
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div>
@@ -1203,7 +1208,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     {!q.options?.length && <div>
                                                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Answer")}</label>
                                                         <textarea
-                                                            value={q.answer}
+                                                            value={getAnswerEditorText(q, editedGame.config)}
                                                             onChange={(e) => handleChange(prev => {
                                                                 const newGroups = editedGame.config.type === GameType.JEOPARDY ? [...prev.jeopardyBoard!] : [...prev.pubQuizRounds!];
                                                                 newGroups[activeTab] = {
@@ -1212,13 +1217,15 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 };
                                                                 newGroups[activeTab].questions[qIdx] = {
                                                                     ...newGroups[activeTab].questions[qIdx],
-                                                                    answer: e.target.value
+                                                                    ...getAnswerEditorPatch(e.target.value, q, prev.config)
                                                                 };
                                                                 return editedGame.config.type === GameType.JEOPARDY ? {...prev, jeopardyBoard: newGroups} : {...prev, pubQuizRounds: newGroups};
                                                             })}
                                                             className="w-full p-3 rounded-lg border border-slate-300 text-sm h-28 resize-none focus:ring-2 focus:ring-green-200 outline-none transition-all"
-                                                            placeholder={ui("Enter the answer here...")}
+                                                            placeholder={supportsWrittenAnswers(editedGame.config.type) ? ui("Enter correct answers, one answer per line.") : ui("Enter the answer here...")}
                                                         />
+                                                        {supportsWrittenAnswers(editedGame.config.type) && <p className="mt-1 text-xs text-slate-500">{ui("You can enter multiple correct answers, one answer per line.")}</p>}
+
                                                     </div>}
                                                 </div>
 
@@ -1354,7 +1361,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         const wordWheelRuleHint = getWordWheelRuleHint(activeLetterRule, wordWheelLetter);
                                         const answerFitsWordWheelRule = !isLetterAnswerGame || answerMatchesWordWheelRule(q.answer, wordWheelLetter, activeLetterRule);
                                         return (
-                                        <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'standard', index: questionIndex })} key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? ui("Survey answers") : isLetterAnswerGame ? ui("Letter {letter}", {letter: wordWheelLetter}) : q.options?.length ? ui("{count} answer options", {count: q.options.length}) : ui("Open answer")} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
+                                        <QuestionEditorPanel onReplace={() => setReplacementTarget({ scope: 'standard', index: questionIndex })} key={q.id ?? questionIndex} number={questionIndex + 1} question={q.question} answer={isSurvey ? (q.surveyAnswers?.[0]?.text || '') : q.answer} format={isSurvey ? ui("Survey answers") : isLetterAnswerGame ? ui("Letter {letter}", {letter: wordWheelLetter}) : q.options?.length ? ui("{count} answer options", {count: q.options.length}) : ui(getWrittenQuestionType(q, editedGame.config) === 'gap-fill' ? "Gap Fill" : "Open answer")} warning={needsImageRepair ? ui("Replace image") : q.options?.length && !q.options.some(option => option.trim() && option.trim() === q.answer.trim()) ? ui("Choose a correct answer") : undefined} initiallyOpen={index === 0}>
                                             {!isWordWheel && (
                                                 <button
                                                     onClick={() => removeQuestion(questionIndex)}
@@ -1477,6 +1484,8 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 </div>
                                             )}
 
+
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Question / Prompt")}</label>
@@ -1503,15 +1512,17 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase">{ui("Answer ")}{isMillionaire && <span className="text-red-500">{ui("(Must match option text)")}</span>}</label>
                                                     <textarea
-                                                        value={q.answer}
+                                                        value={getAnswerEditorText(q, editedGame.config)}
                                                         onChange={(e) => handleChange(prev => {
                                                             const newQuestions = [...prev.questions];
-                                                            newQuestions[questionIndex].answer = e.target.value;
+                                                            newQuestions[questionIndex] = { ...newQuestions[questionIndex], ...getAnswerEditorPatch(e.target.value, q, prev.config) };
                                                             return {...prev, questions: newQuestions};
                                                         })}
                                                         className="w-full p-3 rounded-lg border border-slate-300 text-sm h-24 resize-none focus:ring-2 focus:ring-green-200 outline-none"
-                                                            placeholder={ui("Type answer here...")}
+                                                            placeholder={supportsWrittenAnswers(editedGame.config.type) ? ui("Enter correct answers, one answer per line.") : ui("Type answer here...")}
                                                         />
+                                                        {supportsWrittenAnswers(editedGame.config.type) && <p className="mt-1 text-xs text-slate-500">{ui("You can enter multiple correct answers, one answer per line.")}</p>}
+
                                                         {isLetterAnswerGame && wordWheelLetter && (
                                                             <p className={`mt-2 text-xs font-semibold ${answerFitsWordWheelRule ? 'text-teal-700' : 'text-red-600'}`}>
                                                                 {ui("Rule for ")}{wordWheelLetter}: {wordWheelRuleHint}

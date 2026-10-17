@@ -1,3 +1,4 @@
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
@@ -78,6 +79,8 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
         const correctText = currentQuestion.answer.toLowerCase().trim();
         return optionsList.findIndex(opt => opt.toLowerCase().trim() === correctText);
     };
+
+    useMobileQuestionViewport(containerRef, gameState !== 'intro' && !isGameOver);
 
     // Lock body scroll to prevent footer access
     useEffect(() => {
@@ -634,14 +637,14 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                     {/* CENTER STAGE */}
                     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative overflow-hidden">
 
-                        <div className="millionaire-question-zoom w-full max-w-6xl flex flex-col gap-3 md:gap-6">
+                        <div data-mcq-theme="millionaire" className="millionaire-question-zoom w-full max-w-6xl flex flex-col gap-3 md:gap-6">
+                        <QuestionCardZoomButton targetSelector=".millionaire-question-zoom" resetKey={currentLevel} />
                         <div className="w-full flex flex-col gap-3 md:gap-6">
                         {/* QUESTION BOX - Adjusted for no scrolling */}
                         <div
                             className={`millionaire-question-panel w-full bg-black/90 border-2 border-indigo-400 rounded-[2rem] ${isMobileViewport ? 'p-4 min-h-[18vh]' : 'p-6 md:p-8 min-h-[20vh]'} text-center relative shadow-[0_0_50px_rgba(79,70,229,0.3)] z-20 flex items-center justify-center overflow-hidden`}
                             style={isMobileViewport && questionImageUrl ? { flex: '2 1 0%' } : undefined}
                         >
-                            <QuestionCardZoomButton targetSelector=".millionaire-question-zoom" resetKey={currentLevel} />
                             {/* Decorative side bars */}
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-r-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
                             <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 md:w-4 h-24 bg-indigo-500 rounded-l-lg shadow-[0_0_15px_rgba(99,102,241,0.8)]"></div>
@@ -690,6 +693,7 @@ export const MillionaireGame: React.FC<MillionaireGameProps> = ({ game, options,
                         >
                             {optionsList.map((opt, idx) => (
                                 <button 
+                                    data-mcq-option="true"
                                     key={idx}
                                     disabled={hiddenOptions.includes(idx) || selectedOption !== null || isProcessing}
                                     onClick={() => handleAnswer(idx)}

@@ -1278,6 +1278,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
       id: { type: Type.INTEGER },
       question: { type: Type.STRING },
       answer: { type: Type.STRING },
+      questionType: { type: Type.STRING, description: 'For questions without options: gap-fill for a missing word or phrase, open for an open-ended answer. Omit for multiple-choice questions.' },
       options: { type: Type.ARRAY, items: { type: Type.STRING } },
       points: { type: Type.INTEGER },
       isBonus: { type: Type.BOOLEAN },
@@ -1601,6 +1602,10 @@ if (isSurvey) {
         },
         required: ["title", "questions"]
       };
+  }
+
+  if ([GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.DARTS, GameType.SNAKES_LADDERS, GameType.TIME_BOMB, GameType.BLOCK_BEATERS].includes(config.type)) {
+    prompt += '\nFor each question without multiple-choice options, include questionType: "gap-fill" for a missing word or phrase, or "open" for an open-ended response. For gap-fill questions use ____ in the prompt and include answerAliases with up to 5 other valid answers when useful. Never include incorrect alternatives in answerAliases.\n';
   }
 
   if (config.includeImages) {

@@ -13,7 +13,7 @@ export interface GameTypePageContent {
 const Screenshot = ({ slug, shot }: { slug: string; shot: GameTypePageContent['screenshots'][number] }) => {
   useUiLanguage();
   const dialog = useRef<HTMLDialogElement>(null);
-  const src = `/assets/game-types/${slug}/${shot.name}.jpg`;
+  const src = `/assets/game-types/${slug}/${shot.name}.jpg${['snakes-and-ladders', 'stop-the-fire'].includes(slug) ? '?v=20261017' : ''}`;
   return <figure className="min-w-0">
     <button type="button" onClick={() => dialog.current?.showModal()} aria-label={ui("Enlarge screenshot: {shot.alt}", { "shot.alt": ui(shot.alt) })} className="group relative block w-full border border-slate-200 bg-white text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-700">
       <img src={src} alt={ui(shot.alt)} width="1440" height="900" loading="lazy" decoding="async" className="h-auto w-full" />
@@ -40,7 +40,7 @@ export const GameTypeLandingPage = ({ content: c }: { content: GameTypePageConte
           <p className="mt-4 max-w-sm text-sm text-slate-600">{ui(c.note)}</p>
         </div>
         <figure className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px]">
-          <img src={`/assets/game-types/${c.slug}/hero-transparent.webp`} alt={c.heroAlt} width="1536" height="1024" loading="eager" decoding="async" className="h-full min-h-0 w-full object-contain" />
+          <img src={`/assets/game-types/${c.slug}/hero-transparent.webp${c.slug === 'stop-the-fire' ? '?v=20261017' : ''}`} alt={c.heroAlt} width="1536" height="1024" loading="eager" decoding="async" className="h-full min-h-0 w-full object-contain" />
           <figcaption className="mt-3 text-center text-xs text-slate-500">{ui("3D illustration based on the real {game} game.", {game: c.name})}</figcaption>
         </figure>
       </div>

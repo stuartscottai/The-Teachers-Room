@@ -25,10 +25,9 @@ test('enlarged trivia card keeps its answers interactive', async ({ page, isMobi
   const zoomButton = page.getByRole('button', { name: 'Enlarge question card' });
   const restingButton = await zoomButton.boundingBox();
   const restingCard = await zoomButton.locator('..').locator(':scope > div').first().boundingBox();
-  expect(restingButton!.x).toBeGreaterThanOrEqual(restingCard!.x);
-  expect(restingButton!.x + restingButton!.width).toBeLessThanOrEqual(restingCard!.x + restingCard!.width);
-  expect(restingButton!.y + restingButton!.height).toBeLessThanOrEqual(restingCard!.y + restingCard!.height);
   const restingFrame = await zoomButton.locator('..').boundingBox();
+  expect(restingButton!.x).toBeGreaterThanOrEqual(restingFrame!.x + restingFrame!.width);
+  expect(restingButton!.y + restingButton!.height).toBeLessThanOrEqual(restingFrame!.y + restingFrame!.height);
   expect(Math.abs(restingFrame!.height - restingCard!.height)).toBeLessThan(2);
   const firstLetterHeight = () => question.evaluate(element => {
     const text = element.firstChild;
@@ -285,20 +284,17 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
 
   const controlPanel = page.locator('.snl-control-panel');
   await expect(controlPanel).toBeVisible({ timeout: 20_000 });
-  await expect(controlPanel).toHaveCSS('background-color', 'rgb(23, 23, 19)');
-  await expect(page.getByRole('button', { name: /Start Game/i })).toHaveCSS('background-color', 'rgb(217, 183, 86)');
+  await expect(controlPanel).toHaveCSS('background-color', 'rgb(231, 217, 191)');
+  await expect(page.getByRole('button', { name: /Start Game/i })).toHaveCSS('background-color', 'rgb(38, 41, 43)');
   await startSnakesLaddersGame(page);
 
-  if ((page.viewportSize()?.width ?? 1280) < 640) {
-    await expect(page.locator('.snl-panel-label')).toHaveCount(0);
-  } else {
-    await expect(page.locator('.snl-panel-label')).toHaveCSS('background-color', 'rgb(34, 35, 30)');
-  }
+  await expect(page.getByRole('dialog', { name: 'Roll Dice', exact: true })).toBeVisible();
+  await expect(page.locator('.snl-panel-label')).toHaveCount(0);
 
   await rollSnakesLaddersDice(page);
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator('.snl-question-card-header').first()).toHaveCSS('background-color', 'rgb(31, 32, 27)');
-  await expect(page.locator('.snl-question-card-body').first()).toHaveCSS('background-color', 'rgb(233, 218, 178)');
+  await expect(page.locator('.snl-question-card-header').first()).toHaveCSS('background-color', 'rgb(221, 203, 170)');
+  await expect(page.locator('.snl-question-card-body').first()).toHaveCSS('background-color', 'rgb(244, 234, 215)');
   await expectLoadedSmokeImage(page);
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await expect(page.getByText(/^Correct$/i).first()).toBeVisible();
@@ -306,74 +302,34 @@ test('snakes and ladders starts, rolls, and shows a question image', async ({ pa
   expectNoBrowserErrors(errors);
 });
 
-test('six-player snakes and ladders controls fit without overlapping', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium', 'The desktop panel layout only needs the desktop project.');
+test('six-player snakes and ladders uses a shared scoreboard and goes straight to the next dice popup', async ({ page }) => {
   test.setTimeout(90_000);
   const errors = installErrorGuards(page);
-  await page.setViewportSize({ width: 1366, height: 768 });
-
   await page.goto('/test/game-smoke?mode=snakes&players=6&lightweight=1');
+  await expect(page.getByRole('dialog', { name: 'Turn Order', exact: true })).toBeVisible();
   await startSnakesLaddersGame(page);
-  await expect(page.locator('.snl-score-row')).toHaveCount(6);
-  await expect(page.locator('.snl-control-panel')).toHaveClass(/snl-control-panel--many-players/);
-  await expect.poll(async () => page.locator('.snl-control-panel').evaluate((panel) => {
-    const scoreboard = panel.querySelector('.snl-scoreboard')?.getBoundingClientRect();
-    const playerLabel = panel.querySelector('.snl-dice-player-label')?.getBoundingClientRect();
-    return scoreboard && playerLabel ? playerLabel.top - scoreboard.bottom : -1;
-  }), { timeout: 8_000 }).toBeGreaterThanOrEqual(10);
-
-  const layout = await page.locator('.snl-control-panel').evaluate((panel) => {
-    const scoreboard = panel.querySelector('.snl-scoreboard');
-    const playerCard = panel.querySelector('.snl-dice-player-card');
-    const playerLabel = panel.querySelector('.snl-dice-player-label');
-    const dice = panel.querySelector('.snl-dice');
-    const rollButton = panel.querySelector('.snl-roll-button');
-    if (!scoreboard || !playerCard || !playerLabel || !dice || !rollButton) return null;
-
-    const panelBox = panel.getBoundingClientRect();
-    const scoreboardBox = scoreboard.getBoundingClientRect();
-    const playerCardBox = playerCard.getBoundingClientRect();
-    const playerLabelBox = playerLabel.getBoundingClientRect();
-    const diceBox = dice.getBoundingClientRect();
-    const rollButtonBox = rollButton.getBoundingClientRect();
-    return {
-      scoreToPlayer: playerLabelBox.top - scoreboardBox.bottom,
-      playerToDice: diceBox.top - playerCardBox.bottom,
-      diceToButton: rollButtonBox.top - diceBox.bottom,
-      panelTop: panelBox.top,
-      playerTop: playerLabelBox.top,
-      panelBottom: panelBox.bottom,
-      buttonBottom: rollButtonBox.bottom,
-    };
+  const dialog = page.getByRole('dialog', { name: 'Roll Dice', exact: true });
+  await expect(dialog).toBeVisible();
+  const layout = await dialog.evaluate(element => {
+    const popup = element.getBoundingClientRect();
+    const overlay = element.parentElement!.getBoundingClientRect();
+    const board = document.querySelector('.snl-board-stage')!.getBoundingClientRect();
+    const boardArea = document.querySelector('.snl-layout')!.getBoundingClientRect();
+    return { centred: Math.abs(popup.x + popup.width / 2 - overlay.x - overlay.width / 2) < 2,
+      fits: popup.top >= overlay.top && popup.bottom <= overlay.bottom,
+      boardUsesWidth: Math.abs(board.width - boardArea.width) < 2 };
   });
-
-  expect(layout).not.toBeNull();
-  expect(layout!.scoreToPlayer).toBeGreaterThanOrEqual(10);
-  // Browser layout calculations can land a fraction of a pixel either side
-  // of zero even when the elements meet cleanly on screen.
-  expect(layout!.playerToDice).toBeGreaterThanOrEqual(-0.5);
-  expect(layout!.diceToButton).toBeGreaterThanOrEqual(0);
-  expect(layout!.playerTop).toBeGreaterThanOrEqual(layout!.panelTop);
-  expect(layout!.buttonBottom).toBeLessThanOrEqual(layout!.panelBottom - 8);
-
+  expect(layout).toEqual({ centred: true, fits: true, boardUsesWidth: true });
   await rollSnakesLaddersDice(page);
   await expect(page.getByText(/Question for/i).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.snl-turn-overlay')).toBeHidden();
   await page.getByRole('button', { name: /Correct/i }).first().click();
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 20_000 });
-  const completedLayoutFits = await page.locator('.snl-control-panel').evaluate((panel) => {
-    const scoreboard = panel.querySelector('.snl-scoreboard')?.getBoundingClientRect();
-    const completedState = panel.querySelector('.snl-turn-complete-state')?.getBoundingClientRect();
-    const action = panel.querySelector('.snl-turn-complete-action')?.getBoundingClientRect();
-    const panelBox = panel.getBoundingClientRect();
-    return Boolean(
-      scoreboard && completedState && action &&
-      completedState.top - scoreboard.bottom >= 10 &&
-      action.bottom <= panelBox.bottom - 8
-    );
-  });
-  expect(completedLayoutFits).toBe(true);
-
+  await expect(page.getByRole('dialog', { name: 'Roll Dice', exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.snl-board-webgl')).toHaveAttribute('data-current-team-id', '1');
+  await expect(page.locator('[data-scoreboard-card]')).toHaveCount(6);
+  await expect(page.locator('.snl-score-row')).toHaveCount(0);
+  await expect(page.getByText('Turn Complete', { exact: true })).toHaveCount(0);
   expectNoBrowserErrors(errors);
 });
 
@@ -422,7 +378,7 @@ test('snakes and ladders bonus movement can trigger a ladder after an up-to-five
   await page.getByRole('button', { name: 'Move to square 4', exact: true }).click();
   await expect(page.getByText(/Climbing/i)).toBeVisible({ timeout: 8_000 });
   await expect(board).toHaveAttribute('data-team-positions', '24,1', { timeout: 15_000 });
-  await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole('dialog', { name: 'Roll Dice', exact: true })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(/^Bonus!/)).toHaveCount(0);
 
   expectNoBrowserErrors(errors);
@@ -447,11 +403,8 @@ test('snakes and ladders miss-a-turn bonus skips the next team', async ({ page }
 
   await expect(page.getByRole('article', { name: /Bonus card: Miss A Turn/i })).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Use card', exact: true }).click();
-  await expect(page.getByText('Turn Complete', { exact: true })).toBeVisible({ timeout: 8_000 });
-  await expect(page.getByText(/Team 2 misses this turn\. Team 1 plays next\./i)).toBeVisible();
-  await expect(board).toHaveAttribute('data-skip-turn-counts', '0,1');
-
-  await page.getByRole('button', { name: 'Continue with Team 1', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Roll Dice', exact: true })).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByText('Team 1', { exact: true }).last()).toBeVisible();
   await expect(board).toHaveAttribute('data-current-team-id', '0');
   await expect(board).toHaveAttribute('data-skip-turn-counts', '0,0');
   await expect(board).toHaveAttribute('data-game-phase', 'roll');

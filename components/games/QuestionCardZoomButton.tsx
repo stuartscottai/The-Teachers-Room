@@ -72,7 +72,8 @@ export const QuestionCardZoomButton: React.FC<{ targetSelector?: string; resetKe
     const margin = 16;
     const top = navBottom + margin;
     const availableHeight = window.innerHeight - top - margin;
-    const scale = Math.min(1.4, (window.innerWidth - margin * 2) / rect.width, availableHeight / rect.height);
+    const controlGutter = Math.max(0, (buttonRef.current?.getBoundingClientRect().right ?? rect.right) - rect.right);
+    const scale = Math.min(1.4, (window.innerWidth - margin * 2) / (rect.width + controlGutter * 2), availableHeight / rect.height);
     const localX = rect.left + rect.width / 2 - sceneRect.left;
     const localY = rect.top + rect.height / 2 - sceneRect.top;
     const shiftX = window.innerWidth / 2 - sceneRect.left - scale * localX;

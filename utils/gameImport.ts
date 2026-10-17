@@ -1,3 +1,4 @@
+import { supportsWrittenAnswers } from './writtenAnswers';
 import { getSurveyGenerationRules } from './surveyGeneration';
 import { jsonrepair } from 'jsonrepair';
 import { GameConfig, GameType, GeneratedGame, GeneratedQuestion, JeopardyCategory, SurveyAnswer } from '../types';
@@ -161,14 +162,13 @@ const normalizeQuestion = (
   const imageKeywords = normalizeQuestionImageKeywords(record.imageKeywords);
   const visualSearch = normalizeQuestionVisualSearch(record.visualSearch);
   const answerAliases =
-    config.type === GameType.WORD_WHEEL
-      ? normalizeStringArray(record.answerAliases ?? record.aliases ?? record.acceptedAnswers, 8)
-      : [];
+    normalizeStringArray(record.answerAliases ?? record.aliases ?? record.acceptedAnswers, 8);
 
   const normalized: GeneratedQuestion = {
     id: Number.isFinite(Number(record.id)) ? Math.max(0, Math.round(Number(record.id))) : index,
     question,
     answer,
+    ...(['gap-fill', 'open'].includes(String(record.questionType)) ? { questionType: record.questionType as GeneratedQuestion['questionType'] } : {}),
     points: clampPositiveInteger(record.points, getDefaultQuestionPoints(config, index, scope)),
     isBonus: Boolean(record.isBonus),
     ...(groupName ? { category: groupName } : {}),
@@ -1043,6 +1043,9 @@ export const buildExternalLlmGamePrompt = (
     }
   }
 
+  if (supportsWrittenAnswers(config.type)) {
+    lines.push('For every question without options, include questionType: "gap-fill" for a missing word or phrase, or "open" for an open-ended answer. For gap-fill questions use ____ in the prompt and optionally include answerAliases with other correct answers.');
+  }
   lines.push('Use integer ids and integer points.');
   lines.push('Keep field names exactly as shown in the schema below.');
   lines.push('If a field is not relevant, omit it rather than inventing a new field.');

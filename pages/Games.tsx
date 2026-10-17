@@ -95,7 +95,7 @@ const getGameStatTooltip = (stat: { kind: string; label: string; value: string |
 };
 
 const gamePageScreenshots = (slug: string, ...names: string[]) =>
-    names.map(name => `/assets/game-types/${slug}/${name}.jpg`);
+    names.map(name => `/assets/game-types/${slug}/${name}.jpg${['snakes-and-ladders', 'stop-the-fire'].includes(slug) ? '?v=20261017' : ''}`);
 
 const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
     [GameType.SNAKES_LADDERS]: [

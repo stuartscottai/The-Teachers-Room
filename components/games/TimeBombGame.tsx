@@ -1,3 +1,5 @@
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
@@ -249,6 +251,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     // Questions
     const [questions] = useState<GeneratedQuestion[]>(game.questions || []);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [writtenQuestionTurn, setWrittenQuestionTurn] = useState(0);
     const [usedQuestionIds, setUsedQuestionIds] = useState<number[]>(() => {
         const firstId = game.questions?.[0]?.id;
         return typeof firstId === 'number' ? [firstId] : [];
@@ -301,6 +304,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     // Initial Question Setup
     const currentQuestion = questions[currentQuestionIndex];
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
+    const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, gameState === 'play' ? `${currentQuestionIndex}-${writtenQuestionTurn}` : null);
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -363,6 +367,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     // Scroll Lock
+    useMobileQuestionViewport(containerRef, gameState === 'play');
+
     useEffect(() => {
         document.body.style.overflow = gameState === 'gameover' ? '' : 'hidden';
         return () => { document.body.style.overflow = ''; };
@@ -534,7 +540,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
 
     // Timer Logic
     useEffect(() => {
-        if (isTicking && !isPaused && bombTime > 0) {
+        if (isTicking && !isPaused && !writtenAnswer.submitted && bombTime > 0) {
             timerRef.current = setInterval(() => {
                 setBombTime(prev => {
                     if (prev <= 0.1) { // Precision check
@@ -549,7 +555,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             clearInterval(timerRef.current);
         }
         return () => clearInterval(timerRef.current);
-    }, [isTicking, isPaused]);
+    }, [isTicking, isPaused, writtenAnswer.submitted]);
 
     useEffect(() => {
         return () => {
@@ -664,6 +670,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
     };
 
     const nextQuestion = () => {
+        setWrittenQuestionTurn(turn => turn + 1);
         setIsFlipped(false);
         setDisabledOptions([]); // Reset MC state
         setMcFeedback(null);
@@ -716,6 +723,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                     id: String(currentQuestion.id),
                     question: currentQuestion.question,
                     correctAnswer: currentQuestion.answer,
+                    studentAnswer: writtenAnswer.submitted ? writtenAnswer.text : undefined,
                 },
             ]);
         }
@@ -852,7 +860,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, hasOptions, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, gameState, resizeTick]);
+    }, [isMobileViewport, hasOptions, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, gameState, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || !currentQuestion || !isFlipped || gameState !== 'play') {
@@ -862,7 +870,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         if (availableHeight === 0) return;
         const maxSize = Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2)));
         const minSize = 12;
@@ -874,7 +882,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, currentQuestion?.answer, isFlipped, gameState, resizeTick]);
+    }, [isMobileViewport, currentQuestion?.answer, isFlipped, gameState, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !currentQuestion?.options || gameState !== 'play') {
@@ -1872,7 +1880,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                 ) : (
                     <>
                         {/* MAIN CONTENT */}
-                        <div className="flex-1 min-h-0 p-3 sm:p-4 flex flex-col items-center justify-center relative z-10">
+                        <div data-written-question-overlay data-written-inline className="flex-1 min-h-0 p-3 sm:p-4 flex flex-col items-center justify-center relative z-10">
                             <div className="w-full min-h-0 flex-1 flex flex-col items-center justify-center">
                                 {!isExploded && gameState === 'play' && (
                                     <div
@@ -1883,7 +1891,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                         <div className="relative w-full h-full">
                                         
                                         {/* FRONT: QUESTION & CONTROLS */}
-                                        <div className={`absolute inset-0 rounded-2xl shadow-2xl overflow-hidden flex-col bg-white border-4 border-yellow-400 ${isFlipped ? 'hidden pointer-events-none' : 'flex'}`}>
+                                        <div className={`absolute inset-0 rounded-2xl shadow-2xl overflow-hidden flex-col bg-white border-4 border-yellow-400 ${isFlipped ? 'hidden pointer-events-none' : 'flex'} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                             <div className="relative z-10 h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] flex-shrink-0 overflow-visible bg-lime-950 shadow-[inset_0_-6px_12px_rgba(0,0,0,0.28)]">
                                                 <RadioactiveSlimeTimer
                                                     isPaused={isPaused || !isTicking}
@@ -1936,7 +1944,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                             className="w-full flex-1 min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
                                                             style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                         >
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="timebomb" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = currentQuestion.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -2039,7 +2047,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                                 className="w-full flex-1 md:flex-[3] min-h-0 mt-2 sm:mt-3 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
                                                                 style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                             >
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="timebomb" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = currentQuestion.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -2098,7 +2106,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                             </div>
                                             
                                             {/* FOOTER */}
-                                            <div className={`flex flex-wrap items-center justify-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-8 bg-white border-t border-slate-200 shrink-0 ${hasOptions ? 'py-2 sm:py-2.5' : 'py-3 sm:py-4'}`}>
+                                            <WrittenAnswerInput state={writtenAnswer} onReveal={() => { setIsFlipped(true); }} disabled={isPaused || isExploded || isFlipped} />
+                                            <div data-written-footer className={`flex flex-wrap items-center justify-center gap-2 sm:gap-4 px-3 sm:px-4 md:px-8 bg-white border-t border-slate-200 shrink-0 ${hasOptions ? 'py-2 sm:py-2.5' : 'py-3 sm:py-4'}`}>
                                                 <button
                                                     type="button"
                                                     onClick={() => setIsPaused(!isPaused)}
@@ -2115,7 +2124,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     <SkipForward size={14} className="mr-2" /> {ui(" Skip (-5s)")}</button>
                                                 
                                                 {!hasOptions && (
-                                                    <button 
+                                                    <button data-written-reveal
                                                         onClick={() => setIsFlipped(true)}
                                                         disabled={isPaused}
                                                         className="bg-brand-blue text-white px-6 sm:px-10 py-1.5 sm:py-2.5 rounded-full font-bold text-base sm:text-xl shadow-lg hover:scale-105 transition-transform flex items-center border-b-4 border-sky-800 active:border-b-0 active:translate-y-1 disabled:opacity-50"
@@ -2134,7 +2143,8 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 </button>
                                             </div>
                                             
-                                            <div ref={answerWrapRef} className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 md:p-8 text-center overflow-hidden bg-white">
+                                            <div ref={answerWrapRef} className="written-answer-result-content flex-1 min-h-0 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 text-center overflow-hidden bg-white">
+                                                <WrittenAnswerReview state={writtenAnswer} />
                                                 <h3
                                                     ref={answerTextRef}
                                                     style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -2144,7 +2154,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                 </h3>
                                             </div>
                                             
-                                            <div className="p-3 sm:p-4 md:p-6 bg-white border-t border-slate-200 grid grid-cols-[auto_1fr_1fr] gap-2 sm:gap-4">
+                                            {writtenAnswer.writing ? (<div className="flex shrink-0 min-h-16"><WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={isPaused} onContinue={() => { writtenAnswer.matches ? handleCorrect() : handleIncorrect(); }} /></div>) : (<div className="p-3 sm:p-4 md:p-6 bg-white border-t border-slate-200 grid grid-cols-[auto_1fr_1fr] gap-2 sm:gap-4">
                                                 <button
                                                     type="button"
                                                     onClick={() => setIsPaused(!isPaused)}
@@ -2170,7 +2180,7 @@ export const TimeBombGame: React.FC<TimeBombGameProps> = ({ game, options, onBac
                                                     <CheckCircle size={20} className="md:mr-2 mb-1 md:mb-0 group-hover:scale-110 transition-transform" />
                                                     <span>{ui("Correct ")}<span className="text-green-200 text-sm block md:inline">{ui("(Pass)")}</span></span>
                                                 </button>
-                                            </div>
+                                            </div>)}
                                         </div>
                                     </div>
                                 </div>

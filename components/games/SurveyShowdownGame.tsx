@@ -1,3 +1,4 @@
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import { SurveyTurnTimer } from './shared/SurveyTurnTimer';
@@ -237,6 +238,8 @@ export const SurveyShowdownGame: React.FC<SurveyShowdownGameProps> = ({ game, op
         setActiveTeamIndex(startingIndex);
         if(inputRef.current) inputRef.current.focus();
     }, [currentRound, teamCount]);
+
+    useMobileQuestionViewport(containerRef, phase === 'play');
 
     // SCROLL LOCK EFFECT
     useEffect(() => {

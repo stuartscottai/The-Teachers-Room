@@ -1,3 +1,6 @@
+import { matchesWrittenAnswer } from '../../utils/writtenAnswers';
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -77,6 +80,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     // Edit Team State
     const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
+    const [writtenTeamIndex, setWrittenTeamIndex] = useState(0);
     const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
     const [editName, setEditName] = useState('');
     const [editScore, setEditScore] = useState(0);
@@ -112,6 +116,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestion = currentRound ? currentRound.questions[currentQuestionIndex] : null;
     const hasOptions = !!currentQuestion?.options && currentQuestion.options.length > 0;
     const currentQuestionKey = currentRoundIndex !== null ? `${currentRoundIndex}-${currentQuestionIndex}` : '';
+    const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'play' ? currentQuestionKey : null);
     const selectedStudentAnswer = currentQuestionKey ? selectedStudentAnswers[currentQuestionKey] : undefined;
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
@@ -218,7 +223,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, hasOptions, phase, currentQuestion?.question, currentQuestion?.options?.length, resizeTick]);
+    }, [isMobileViewport, hasOptions, phase, currentQuestion?.question, currentQuestion?.options?.length, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || phase !== 'play' || !isFlipped) {
@@ -228,7 +233,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         if (availableHeight === 0) return;
         const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
         const minSize = 16;
@@ -240,7 +245,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick]);
+    }, [isMobileViewport, phase, isFlipped, currentQuestion?.answer, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !currentQuestion?.options || phase !== 'play' || isFlipped) {
@@ -296,6 +301,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         }
         setOptionFontSize(size);
     }, [hasOptions, optionKey, phase, isFlipped, isMobileViewport, resizeTick]);
+
+    useMobileQuestionViewport(containerRef, phase === 'play');
 
     // Body Scroll Lock
     useEffect(() => {
@@ -411,6 +418,18 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
         if (delta > 0) playSound('correct', isMuted, 'Retro');
     };
 
+    const handleWrittenContinue = () => {
+        if (!writtenAnswer.submitted) return;
+        const team = options.studentPractice ? 0 : writtenTeamIndex;
+        if (options.studentPractice && currentQuestionKey) {
+            setSelectedStudentAnswers(prev => ({ ...prev, [currentQuestionKey]: writtenAnswer.text }));
+        }
+        if (writtenAnswer.matches) handleScoreUpdate(team, 1);
+        else playSound('incorrect', isMuted, options.soundConfig?.incorrect);
+        setWrittenTeamIndex(index => (index + 1) % Math.max(1, scores.length));
+        handleNextQuestion();
+    };
+
     const handleStudentOptionSelect = (option: string) => {
         if (!options.studentPractice || !currentQuestion || !currentQuestionKey || selectedStudentAnswer) return;
 
@@ -495,14 +514,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                     correctAnswer: question.answer,
                     studentAnswer: selectedStudentAnswers[`${roundIndex}-${questionIndex}`],
                     context: round.name,
+                    correct: Boolean(selectedStudentAnswers[`${roundIndex}-${questionIndex}`]) && (question.options?.length
+                        ? normalizeAnswerValue(selectedStudentAnswers[`${roundIndex}-${questionIndex}`]) === normalizeAnswerValue(question.answer)
+                        : matchesWrittenAnswer(selectedStudentAnswers[`${roundIndex}-${questionIndex}`], question)),
                 }))
             );
-            const correctCount = allQuestions.filter((item) =>
-                item.studentAnswer && normalizeAnswerValue(item.studentAnswer) === normalizeAnswerValue(item.correctAnswer)
-            ).length;
-            const missedItems = allQuestions.filter((item) =>
-                !item.studentAnswer || normalizeAnswerValue(item.studentAnswer) !== normalizeAnswerValue(item.correctAnswer)
-            );
+            const correctCount = allQuestions.filter(item => item.correct).length;
+            const missedItems = allQuestions.filter(item => !item.correct);
             return (
                 <PracticeReviewSummary
                     playerName={displayTeamName(teamNames[0])}
@@ -867,13 +885,13 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div data-written-question-overlay data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(4,28,31,0.6)] overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${isFlipped ? 'pointer-events-none' : ''}`}>
+                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(4,28,31,0.6)] overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 {/* Header */}
                                 <div className="bg-[#126c68] text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-90 truncate max-w-[55%]">{currentRound?.name}</div>
@@ -921,7 +939,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                     className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden"
                                                     style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                 >
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme="pubquiz" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -950,6 +968,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                         key={i}
                                                                         onClick={() => handleStudentOptionSelect(opt)}
                                                                         disabled={!options.studentPractice || Boolean(selectedStudentAnswer)}
+                                                                        data-mcq-preview={!options.studentPractice}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
                                                                         className={`relative p-3 sm:p-4 md:p-5 border-2 rounded-none font-bold text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none transition-colors disabled:cursor-default ${studentOptionClass} ${uniformSize}`}
                                                                     >
@@ -1019,7 +1038,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                             {/* Options */}
                                             {hasOptions && !isFlipped && (
                                                 <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 md:mt-6 flex-shrink-0 relative z-10 overflow-hidden">
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme="pubquiz" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1048,6 +1067,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                                         key={i}
                                                                         onClick={() => handleStudentOptionSelect(opt)}
                                                                         disabled={!options.studentPractice || Boolean(selectedStudentAnswer)}
+                                                                        data-mcq-preview={!options.studentPractice}
                                                                         style={optionFontSize ? { fontSize: `${optionFontSize}px`, lineHeight: '1.2' } : undefined}
                                                                         className={`relative p-3 sm:p-4 md:p-5 border-2 rounded-none font-bold text-center flex items-center justify-center w-full h-full whitespace-normal break-normal hyphens-none transition-colors disabled:cursor-default ${studentOptionClass} ${uniformSize}`}
                                                                     >
@@ -1081,10 +1101,11 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex flex-col relative flex-shrink-0 z-50 bg-[#f8fbfa] px-0 border-t border-[#b9d2cf]">
+                                <WrittenAnswerInput teamName={displayTeamName(teamNames[options.studentPractice ? 0 : writtenTeamIndex])} state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
+                                <div data-written-footer className="flex flex-col relative flex-shrink-0 z-50 bg-[#f8fbfa] px-0 border-t border-[#b9d2cf]">
                                     <div className="w-full flex-1 flex items-center justify-between gap-3 px-3 sm:px-4 md:px-8 py-2 sm:py-3">
                                         {!(options.studentPractice && hasOptions) ? (
-                                            <button
+                                            <button data-written-reveal
                                                 onClick={() => setIsFlipped(true)}
                                                 className="bg-[#e05245] text-white px-4 sm:px-6 py-2 rounded-full font-bold text-sm sm:text-lg md:text-2xl shadow-lg hover:bg-[#ef6759] hover:scale-105 transition-transform flex items-center relative z-50 border-2 border-[#ad3c34]"
                                             >
@@ -1094,14 +1115,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                 {ui("Choose an option to check your answer")}</div>
                                         )}
 
-                                        <button 
+                                        {!writtenAnswer.writing && <button
                                             onClick={handleNextQuestion}
                                             className="text-[#29464d] font-bold text-xs sm:text-base md:text-xl hover:bg-[#e1efed] px-3 sm:px-4 py-2 rounded-lg transition-colors flex items-center relative z-50"
                                         >
                                             <span className="sm:hidden">{ui("Next")}</span>
                                             <span className="hidden sm:inline">{ui("Go to next question")}</span>
                                             <ArrowRight size={16} className="ml-2 md:w-6 md:h-6" />
-                                        </button>
+                                        </button>}
                                     </div>
 
                                     {options.timerSeconds > 0 && (
@@ -1126,8 +1147,9 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-[#e1efed] text-[#29464d]" title={ui("Flip Back")}><RotateCcw size={20} className="md:w-6 md:h-6" /></button>
                                 </div>
 
-                                <div className="flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8fbfa] text-center overflow-hidden w-full relative z-0">
-                                    <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8fbfa] text-center overflow-hidden w-full relative z-0">
+                                    <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
+                                        <WrittenAnswerReview state={writtenAnswer} />
                                         <div
                                             ref={answerTextRef}
                                             style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
@@ -1138,7 +1160,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     </div>
                                     
                                     {/* IMMEDIATE SCORING PANEL */}
-                                    {!options.studentPractice && (
+                                    {!options.studentPractice && !writtenAnswer.writing && (
                                     <div className="mt-3 w-full bg-[#e6f0ee] rounded-2xl p-3 md:p-4 border-2 border-[#b9d2cf] flex-shrink-0 relative z-10">
                                         <h4 className="text-xs md:text-sm font-bold text-[#61767b] uppercase mb-2 md:mb-3 tracking-widest">{ui("Quick Score (+1 Point)")}</h4>
                                         <div className="flex flex-wrap justify-center gap-2 md:gap-3">
@@ -1156,14 +1178,14 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     )}
                                 </div>
 
-                                <div className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
+                                {writtenAnswer.writing ? (<div className="flex shrink-0 min-h-16"><WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={false} onContinue={() => { handleWrittenContinue(); }} /></div>) : (<div className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
                                     <button 
                                         onClick={handleNextQuestion}
                                         className="flex-1 bg-[#e05245] text-white font-bold text-base sm:text-lg md:text-2xl hover:bg-[#ef6759] transition-colors flex items-center justify-center"
                                     >
                                         {ui("Go to next question ")}<ArrowRight size={18} className="ml-2 md:w-6 md:h-6" />
                                     </button>
-                                </div>
+                                </div>)}
                             </div>
                         </div>
                     </div>

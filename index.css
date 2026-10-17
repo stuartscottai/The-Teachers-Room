@@ -2,18 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Snakes & Ladders: warm digital tabletop skin. Kept here so the game can
+/* Snakes & Ladders: charcoal tabletop skin. Kept here so the game can
    share the existing Tailwind setup without adding a second styling system. */
 .snl-game {
-  --snl-ink: #102a35;
-  --snl-cream: #eef8f5;
+  --snl-ink: #ededeb;
+  --snl-cream: #f4f2ed;
   --snl-wood: #244a55;
   --snl-wood-dark: #0c2731;
   --snl-gold: #e0b552;
-  --snl-panel-onyx: #171713;
-  --snl-panel-raised: #24231d;
-  --snl-panel-cream: #f2e6c4;
-  --snl-panel-muted: #b9aa82;
+  --snl-panel-onyx: #232526;
+  --snl-panel-raised: #2e3133;
+  --snl-panel-cream: #f4f2ed;
+  --snl-panel-muted: #a7adb1;
   --snl-panel-gold: #cda84f;
   --snl-space-1: 0.5rem;
   --snl-space-2: 0.75rem;
@@ -23,39 +23,15 @@
   --snl-shadow-board: 0 22px 35px rgba(2, 18, 26, 0.28), 0 5px 9px rgba(2, 18, 26, 0.22);
   --snl-shadow-panel: 0 15px 30px rgba(2, 18, 26, 0.24);
   color: var(--snl-ink);
-  font-family: "Nunito", "Arial Rounded MT Bold", system-ui, sans-serif;
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 
-.snl-topbar {
-  color: var(--snl-cream);
-  background-color: #091f2a;
-  background-image:
-    linear-gradient(90deg, rgba(82,202,189,.035), transparent 26%, rgba(224,181,82,.045) 50%, transparent 74%, rgba(82,202,189,.035)),
-    repeating-linear-gradient(92deg, rgba(255,255,255,.014) 0 1px, transparent 1px 13px);
-  border-bottom: 4px solid #2c7880;
-  box-shadow: inset 0 -1px rgba(137,226,216,.16), 0 5px 15px rgba(2, 17, 24, 0.34);
-}
-
-.snl-turn-banner {
-  border-radius: 999px;
-  color: var(--snl-cream);
-  background: linear-gradient(180deg, #163c47, #0d2c36);
-  border: 1px solid rgba(132, 222, 211, 0.38);
-  box-shadow: inset 0 1px rgba(255,255,255,.11), inset 0 -2px rgba(2,17,24,.3), 0 0 20px rgba(55,187,176,.14);
-}
-
-.snl-turn-banner > span:first-child { color: #9edbd4; }
-
-.snl-table {
-  background-color: #0b2029;
-  background-image:
-    radial-gradient(ellipse at 38% 30%, rgba(46, 110, 116, .28), transparent 46%),
-    linear-gradient(180deg, #102d36, #071a22);
-  background-size: 100% 100%, 100% 100%;
-  background-position: center, center;
-  background-repeat: no-repeat;
-  box-shadow: inset 0 0 90px rgba(0, 10, 14, .42);
-}
+.snl-game .font-display,
+.snl-game button, .snl-game input, .snl-game textarea { font-family: "Segoe UI", Arial, sans-serif; }
+.snl-topbar { color: #f4f2ed; background: #1c1e1f; border-bottom: 1px solid #3a3d3f; box-shadow: none; }
+.snl-turn-banner { border-radius: 8px; color: #f4f2ed; background: #303335; border: 1px solid #4a4e50; box-shadow: none; }
+.snl-turn-banner > span:first-child { color: #b5b9bc; }
+.snl-table { background: radial-gradient(ellipse at 35% 35%, #303334, #17191a 75%); box-shadow: inset 0 0 70px #0003; }
 
 .snl-layout {
   display: grid;
@@ -341,7 +317,7 @@
   border: 1px solid #f7dd91;
   border-bottom: 4px solid #916b25;
   border-radius: 11px;
-  font-weight: 950;
+  font-weight: 600;
   box-shadow: 0 5px 12px rgba(0,0,0,.22);
 }
 
@@ -352,27 +328,46 @@
   justify-content: flex-start;
   border-radius: var(--snl-radius);
   color: var(--snl-panel-cream);
-  background-color: var(--snl-panel-onyx);
-  background-image:
-    radial-gradient(circle at 50% 0%, rgba(194,151,64,.14), transparent 38%),
-    repeating-linear-gradient(135deg, rgba(255,242,194,.018) 0 1px, transparent 1px 10px);
-  border: 3px solid #987536;
-  box-shadow:
-    var(--snl-shadow-panel),
-    inset 0 0 0 2px #080906,
-    inset 0 0 0 4px rgba(229,194,108,.16),
-    inset 0 0 34px rgba(0,0,0,.42);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
+.snl-control-panel::before { display: none; }
 
-.snl-control-panel::before {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  z-index: 0;
-  pointer-events: none;
-  border: 1px solid rgba(218, 180, 91, .42);
-  border-radius: 10px;
-  box-shadow: inset 0 0 16px rgba(210,165,70,.035);
+.snl-control-panel { padding: 0 !important; gap: 14px; font-family: "Segoe UI", Arial, sans-serif; }
+.snl-scoreboard { flex: 0 0 auto; width: 100%; margin: 0; padding: 18px; background: #e7d9bf; border: 1px solid #cebc99; border-radius: 14px; }
+.snl-panel-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; color: #655b4b; font-size: 14px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
+.snl-player-count { padding: 3px 9px; border-radius: 6px; background: #d3c3a5; color: #40392f; font-size: 14px; letter-spacing: 0; }
+.snl-score-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.snl-score-row { min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid #d5c7ac; border-radius: 10px; color: #332f28; background: #f7efdf; text-align: left; }
+.snl-score-row.is-active { border-color: #555b5f; background: #fff8e9; box-shadow: inset 0 3px #393e41; }
+.snl-score-player { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; }
+.snl-score-token { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; background: var(--snl-player-color); }
+.snl-score-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 600; }
+.snl-score-position { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 6px; }
+.snl-score-position strong { color: #332f28; font-size: 44px; line-height: 1; font-weight: 600; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.snl-score-position > span { color: #746650; font-size: 14px; }
+.snl-score-track { width: 100%; height: 4px; overflow: hidden; background: #ded3bf; border-radius: 2px; }
+.snl-score-track > span { display: block; height: 100%; min-width: 4px; background: var(--snl-player-color); border-radius: inherit; transition: width .4s ease; }
+.snl-turn-complete-state { width: 100%; margin: 0; flex: 1 1 auto; min-height: 0; padding: 24px; display: flex; flex-direction: column; justify-content: center; border: 1px solid #cebc99; border-radius: 14px; background: #e7d9bf; text-align: center; }
+.snl-turn-complete-heading { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.snl-turn-complete-seal { flex: 0 0 42px; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: #393e41; color: #f4f2ed; }
+.snl-control-panel .snl-turn-complete-title { margin: 0; color: #332f28; font: 600 26px/1.15 "Segoe UI", Arial, sans-serif; letter-spacing: -.03em; }
+.snl-turn-complete-copy { margin: 16px 0 24px; color: #675a45; font-size: 18px; line-height: 1.5; font-weight: 400; }
+.snl-turn-complete-action { position: relative; width: 100%; min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 44px; border-radius: 9px; font-size: 18px; font-weight: 600; }
+.snl-turn-complete-action svg { position: absolute; right: 16px; }
+.snl-control-panel--many-players .snl-scoreboard { padding: 12px; }
+.snl-control-panel--many-players .snl-score-row { gap: 6px; padding: 9px; }
+.snl-control-panel--many-players .snl-score-name { font-size: 15px; }
+.snl-control-panel--many-players .snl-score-position strong { font-size: 29px; }
+.snl-control-panel--many-players .snl-score-position > span { font-size: 12px; }
+.snl-control-panel--many-players .snl-turn-complete-state { padding: 18px; }
+@media (max-width: 639px) {
+  .snl-turn-complete-state { height: 100%; padding: 16px; }
+  .snl-control-panel .snl-turn-complete-title { font-size: 23px; }
+  .snl-turn-complete-seal { width: 34px; height: 34px; flex-basis: 34px; }
+  .snl-turn-complete-copy { margin: 8px 0 14px; font-size: 16px; }
+  .snl-turn-complete-action { min-height: 46px; padding: 10px 40px; font-size: 17px; }
 }
 
 .snl-control-panel > * {
@@ -383,54 +378,7 @@
 .snl-control-panel h3 {
   color: var(--snl-panel-cream);
   letter-spacing: -.01em;
-  text-shadow: 0 2px 4px rgba(0,0,0,.6);
-}
-
-.snl-scoreboard {
-  flex: 0 0 auto;
-  padding: .35rem .35rem .8rem;
-  margin-bottom: clamp(.85rem, 2vh, 1.35rem);
-  border-bottom: 1px solid rgba(205, 168, 79, .3);
-}
-
-.snl-panel-label {
-  min-height: 38px;
-  display: flex;
-  align-items: center;
-  margin-bottom: .55rem;
-  padding: .45rem .75rem;
-  border: 1px solid #9b7839;
-  border-radius: 10px;
-  color: #f2e1af;
-  background-color: #22231e;
-  background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.018) 0 1px, transparent 1px 8px);
-  box-shadow: inset 0 1px rgba(255,239,188,.12), 0 4px 8px rgba(45,31,13,.2);
-  font-size: .72rem;
-  font-weight: 900;
-  letter-spacing: .14em;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.snl-score-row {
-  display: grid;
-  grid-template-columns: 28px minmax(0,1fr) auto;
-  align-items: center;
-  gap: .5rem;
-  min-height: 38px;
-  margin-bottom: .3rem;
-  padding: .3rem .55rem;
-  border: 1px solid rgba(205, 168, 79, .22);
-  color: #eee1bd;
-  background: rgba(43, 42, 34, .82);
-  border-radius: var(--snl-radius-sm);
-  font-size: .75rem;
-  text-align: left;
-}
-
-.snl-score-row.is-active {
-  color: #fff2c9;
-  background: rgba(139, 105, 39, .42);
+  text-shadow: none;
 }
 
 .sound-lab-play {
@@ -439,37 +387,23 @@
   border: 1px solid #0278ac;
 }
 .sound-lab-play:hover { background: #027eb6; }
-
-.snl-score-token {
-  width: 24px;
-  height: 24px;
-  display: grid;
-  place-items: center;
-  border: 2px solid #fff0c2;
-  border-radius: 50%;
-  color: white;
-  font-weight: 900;
-  box-shadow: 0 2px 4px rgba(44,25,14,.35);
-}
-
-.snl-score-name { overflow: hidden; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
-.snl-score-row strong { color: #d9bb70; white-space: nowrap; }
 .snl-dice-region {
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;
-  padding: clamp(.15rem, 1vh, .65rem) .2rem clamp(.6rem, 1.5vh, 1rem);
+  padding: 20px;
+  background: #e7d9bf; border: 1px solid #cebc99; border-radius: 14px;
 }
 
 .snl-dice-zone {
   min-height: 0;
-  gap: clamp(.45rem, 1.2vh, .85rem);
+  gap: 16px;
 }
 .snl-dice { filter: drop-shadow(0 12px 10px rgba(0,0,0,.42)); }
 .snl-dice.is-rolling { animation: snl-dice-shake .16s linear infinite; }
 .snl-dice.is-landed { animation: snl-dice-land .48s cubic-bezier(.2,.8,.2,1); }
-.snl-roll-result { color: #dfc16f; }
+.snl-roll-result { color: #d3d8da; }
 
 .snl-setup-title,
 .snl-bonus-choice-title,
@@ -486,10 +420,10 @@
 
 .snl-dice-player-label,
 .snl-turn-complete-label {
-  color: #c9aa5d;
+  color: #746650;
   font-size: .64rem;
-  font-weight: 950;
-  letter-spacing: .17em;
+  font-weight: 600;
+  letter-spacing: .1em;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -499,21 +433,22 @@
   align-items: center;
   justify-content: center;
   gap: .48rem;
-  margin-top: .48rem;
+  margin-top: 0;
 }
 
 .snl-dice-player-dot {
   width: 9px;
   height: 9px;
   flex: 0 0 auto;
-  border: 1px solid rgba(255,244,207,.78);
+  border: 1px solid #ffffff80;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(223,188,101,.09), 0 0 10px currentColor;
+  box-shadow: 0 0 0 3px #26292b0d;
 }
 
-.snl-dice-team-name {
+.snl-control-panel .snl-dice-team-name {
+  color: #332f28;
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: inherit;
   font-size: clamp(1.15rem, 1.8vw, 1.55rem);
   font-weight: 700;
   line-height: 1.05;
@@ -521,44 +456,20 @@
 
 .snl-dice-turn-copy {
   margin-top: .4rem;
-  color: var(--snl-panel-muted);
-  font-size: .78rem;
+  color: #675a45;
+  font-size: 18px;
   font-weight: 750;
   letter-spacing: .025em;
 }
 
-.snl-turn-order-row {
-  color: #eee1bd;
-  background: rgba(43, 42, 34, .82);
-  border: 1px solid rgba(205, 168, 79, .24);
-  box-shadow: inset 0 1px rgba(255,242,194,.05);
-}
-
-.snl-turn-order-index { color: #b99851; }
-.snl-turn-order-name { color: #eee1bd; }
-
-.snl-panel-primary,
-.snl-panel-secondary {
-  border: 2px solid #8d6924;
-  box-shadow: inset 0 2px rgba(255,255,255,.4), 0 6px 12px rgba(55,35,12,.22);
-}
-
-.snl-panel-primary {
-  color: #241a0d;
-  background: #d9b756;
-  border-bottom-width: 6px;
-}
-
-.snl-panel-primary:hover { background: #ebca70; transform: translateY(-1px); }
-.snl-panel-primary:active { border-bottom-width: 3px; transform: translateY(3px); }
-
-.snl-panel-secondary {
-  color: #f1dfa9;
-  background: #24251f;
-  border-color: #8f7137;
-}
-
-.snl-panel-secondary:hover { color: #21190d; background: #d8b35c; }
+.snl-turn-order-row { color: #e4e6e7; background: #2c2f31; border: 1px solid #44484b; box-shadow: none; }
+.snl-turn-order-index { color: #9da4a8; }
+.snl-turn-order-name { color: #e4e6e7; }
+.snl-panel-primary, .snl-panel-secondary { border: 1px solid transparent; box-shadow: none; font-weight: 600; transition: background .15s ease; }
+.snl-panel-primary { color: #fff8e9; background: #26292b; }
+.snl-panel-primary:hover { background: #393e41; }
+.snl-panel-secondary { color: #e2e5e6; background: #363a3c; border-color: #4a5053; }
+.snl-panel-secondary:hover { background: #454b4e; }
 
 .snl-bonus-opponent-button {
   color: #302519;
@@ -577,17 +488,9 @@
 
 .snl-bonus-opponent-position { color: #826633; }
 
-.snl-roll-button {
-  border-radius: 14px;
-  color: #241a0d;
-  background: var(--snl-gold);
-  border: 2px solid #8d6b1c;
-  border-bottom-width: 7px;
-  box-shadow: 0 7px 13px rgba(83,48,18,.28), inset 0 2px rgba(255,255,255,.48);
-  transition: transform .15s ease, filter .15s ease, border-bottom-width .08s ease;
-}
-.snl-roll-button:hover { filter: brightness(1.06); transform: translateY(-2px); }
-.snl-roll-button:active { transform: translateY(4px); border-bottom-width: 3px; }
+.snl-roll-button { min-height: 54px; border-radius: 9px; color: #fff8e9; background: #26292b; border: 0; box-shadow: none; font-size: 15px; font-weight: 600; transition: background .15s ease; }
+.snl-roll-button:hover { background: #393e41; }
+.snl-roll-button:disabled { cursor: default; opacity: .7; }
 
 .snl-bonus-card-overlay {
   position: absolute;
@@ -708,7 +611,7 @@
   border-block: 1px solid rgba(225, 195, 111, .42);
   color: #fff4ce;
   font-size: clamp(1.18rem, 1.75vw, 1.55rem);
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -788,212 +691,98 @@
 
 .snl-question-panel p { color: var(--snl-panel-muted); }
 
-.snl-turn-complete-state {
-  width: min(100%, 310px);
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(.2rem, 1.2vh, .8rem) 0 clamp(.65rem, 1.6vh, 1rem);
-  text-align: center;
-}
-
-.snl-turn-complete-seal {
-  width: 66px;
-  height: 66px;
-  display: grid;
-  place-items: center;
-  margin-bottom: .75rem;
-  border: 1px solid rgba(219, 181, 91, .62);
-  border-radius: 50%;
-  color: #e1c36f;
-  background: #25251f;
-  box-shadow:
-    0 0 0 5px rgba(198, 153, 61, .09),
-    inset 0 1px rgba(255,242,195,.1),
-    0 10px 20px rgba(0,0,0,.3);
-}
-
-.snl-turn-complete-title {
-  margin: .48rem 0 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.45rem, 2vw, 1.9rem);
-  font-weight: 700;
-}
-
-.snl-turn-complete-copy {
-  margin: .3rem 0 1.05rem;
-  color: var(--snl-panel-muted);
-  font-size: .78rem;
-  font-weight: 700;
-}
-
-.snl-turn-complete-action {
-  width: 100%;
-  min-height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: .7rem 1rem;
-  border-radius: 11px;
-  font-size: .96rem;
-  font-weight: 950;
-  letter-spacing: .015em;
-  transition: transform .15s ease, filter .15s ease, border-bottom-width .1s ease;
-}
-
 .snl-question-overlay {
-  background-color: rgba(12, 10, 8, .76) !important;
-  background-image: radial-gradient(circle at 50% 45%, rgba(164,126,54,.12), transparent 48%);
+  background: rgba(12, 14, 15, .72) !important;
 }
-
-.snl-question-peek {
-  color: #f7e5ad;
-  background: rgba(29, 27, 22, .9);
-  border: 1px solid rgba(208, 172, 91, .72);
-  box-shadow: 0 6px 16px rgba(0,0,0,.25);
-}
-
-.snl-question-peek:hover { color: #1d1810; background: #d4ae5b; }
 
 .snl-question-card {
-  color: #2d2519;
-  background: #e8d8af;
-  border: clamp(3px, .35vw, 6px) solid #b18a40;
-  box-shadow:
-    0 24px 55px rgba(0,0,0,.52),
-    inset 0 0 0 2px #292720,
-    inset 0 0 0 4px rgba(237,207,133,.5);
-}
-
-.snl-question-card::after {
-  content: "";
-  position: absolute;
-  inset: 10px;
-  z-index: 20;
-  pointer-events: none;
-  border: 1px solid rgba(151, 113, 48, .55);
-  border-radius: 9px;
-  box-shadow: inset 0 0 18px rgba(48,35,18,.08);
+  color: #332f28;
+  background: #f4ead7;
+  border: 1px solid #cebc99;
+  border-radius: 20px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .4);
+  font-family: "Segoe UI", Arial, sans-serif;
 }
 
 .snl-question-card-header {
-  position: relative;
-  z-index: 2;
-  color: #f5e6b8;
-  background-color: #1f201b;
-  background-image:
-    radial-gradient(circle at 8% 50%, rgba(201,159,73,.15), transparent 20%),
-    repeating-linear-gradient(135deg, rgba(255,255,255,.018) 0 1px, transparent 1px 9px);
-  border-bottom: 3px solid #a7833f;
-  box-shadow: inset 0 -1px rgba(255,235,177,.18);
-  text-shadow: 0 2px 4px rgba(0,0,0,.55);
+  flex-shrink: 0;
+  color: #332f28;
+  background-color: #ddcbaa;
+  background-image: linear-gradient(120deg, #ddcbaa, #d1bc95);
+  border-bottom: 1px solid rgba(255,255,255,.12);
 }
 
+.snl-question-front-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .35rem 1rem;
+  min-height: 88px;
+  padding: 1rem 1.5rem;
+}
+.snl-question-team { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; font-weight: 800; }
 .snl-question-card-header .snl-question-roll {
-  color: #271e10;
-  background: #d9b55f;
-  border: 1px solid #f2d98c;
-  box-shadow: inset 0 1px rgba(255,255,255,.45), 0 2px 5px rgba(0,0,0,.32);
-  text-shadow: none;
+  padding: .4rem .75rem;
+  border: 1px solid #ffffff30;
+  border-radius: 10px;
+  color: #4f4433;
+  background: rgba(255,255,255,.1);
+  font-size: .875rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
+.snl-question-target { grid-column: 1 / -1; font-size: .875rem; font-weight: 600; line-height: 1.3; }
+.snl-question-answer-header { display: flex; align-items: center; min-height: 72px; padding: 1rem 1.5rem; }
 
-.snl-question-card-body {
-  color: #2d2519;
-  background-color: #e9dab2;
-  background-image:
-    radial-gradient(circle at 50% 18%, rgba(255,250,222,.7), transparent 45%),
-    repeating-linear-gradient(115deg, rgba(66,47,20,.022) 0 1px, transparent 1px 10px);
-}
-
-.snl-question-text {
-  color: #2c2418;
-  text-shadow: 0 1px rgba(255,250,225,.72);
-}
-
-.snl-question-image {
-  padding: 3px;
-  background: #f3e8ca;
-  border: 3px solid #98743a;
-  box-shadow: 0 8px 18px rgba(45,31,14,.2), inset 0 0 0 1px #2e2a21;
-}
-
-.snl-question-option {
-  color: #2c2418;
-  background: #eadbb4;
-  border-color: #8e6d34;
-  box-shadow: inset 0 0 0 1px rgba(255,247,216,.3);
-}
-
+.snl-question-card-body { min-height: 0; color: #332f28; background: #f4ead7; }
+.snl-question-text { color: #332f28; font-family: "Segoe UI", Arial, sans-serif; font-weight: 750; letter-spacing: -.025em; text-shadow: none; }
+.snl-question-image { padding: 4px; background: #ddcbaa; border: 1px solid #d0bc96; box-shadow: none; }
+.game-mcq-options,
+.snl-question-options { gap: 6px; padding: 6px; }
+.game-mcq-options > button,
+.snl-question-options .snl-question-option { border-radius: 10px; }
+.snl-question-option { color: #332f28; background: #f0e3ca; border-color: #d1bd96; box-shadow: none; }
 .snl-question-option:nth-child(4n + 1),
-.snl-question-option:nth-child(4n + 4) {
-  color: #f5e6bd;
-  background: #25261f;
-  text-shadow: 0 1px 3px rgba(0,0,0,.6);
-}
+.snl-question-option:nth-child(4n + 4) { color: #332f28; background: #e9d9b9; }
+.snl-question-option:focus-visible { z-index: 2; outline: 2px solid #b49b6c; outline-offset: -3px; }
+.snl-question-option-label { color: #26292b; background: #deded8; border: 1px solid #a6aaac; box-shadow: none; }
 
-.snl-question-option:hover,
-.snl-question-option:focus-visible {
-  z-index: 2;
-  color: #211a0f;
-  background: #d9b55f;
-  border-color: #f0d487;
-  box-shadow: inset 0 0 0 2px rgba(65,45,16,.28), 0 0 0 3px rgba(214,177,91,.32);
-  outline: none;
-}
+.snl-game .written-answer-entry { background: #e9dbc0; border-color: #d0bc96; }
+.snl-game .written-answer-controls textarea { background: #fffaf0; border-color: #b9a37d; color: #332f28; }
+.snl-game .written-answer-controls textarea::placeholder { color: #7a6d59; }
+.snl-game .written-answer-controls textarea:focus { outline-color: #555b5f; }
+.snl-game .written-answer-controls button { background: #26292b; color: #fff8e9; }
 
-.snl-question-option-label {
-  color: #241b0e;
-  background: #d9b55f;
-  border: 2px solid #f2dc98;
-  box-shadow: 0 5px 11px rgba(0,0,0,.3), inset 0 -2px rgba(79,53,14,.2);
-}
-
-.snl-question-footer {
-  color: #f4e4b5;
-  background: #1f201b;
-  border-top: 3px solid #a7833f;
-}
-
-.snl-question-timer { color: #f7e8bc; background: #2b2a22; }
-.snl-question-timer-fill { background: #c49b47; }
-
-.snl-question-primary {
-  color: #21180d;
-  background: #ddb95f;
-  border: 2px solid #f0d58b;
-  border-bottom: 6px solid #80601f;
-  box-shadow: inset 0 2px rgba(255,255,255,.45), 0 8px 16px rgba(0,0,0,.3);
-}
-
-.snl-question-primary:hover { filter: brightness(1.08); }
-
-.snl-question-card-back .snl-question-card-body {
-  background-color: #eadcb9;
-  background-image:
-    radial-gradient(circle at 50% 45%, rgba(255,250,225,.85), transparent 58%),
-    repeating-linear-gradient(45deg, rgba(72,50,20,.022) 0 1px, transparent 1px 11px);
-}
-
+.snl-question-footer { color: #332f28; background: #e9dbc0; border-top: 1px solid #d0bc96; }
+.snl-question-timer { flex: 0 0 44px; height: 44px; min-height: 44px; color: #fff; background: #17334d; }
+.snl-question-timer-fill { background: #2b6ea3; }
+.snl-question-timer-label { min-height: 44px; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.snl-question-reveal { padding: .75rem 1rem; }
+.snl-question-primary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; padding: .75rem 1rem; border-radius: 12px; color: #fff8e9; background: #26292b; font-size: 1.25rem; font-weight: 800; transition: background .15s; }
+.snl-question-primary:hover { background: #393e41; }
+.snl-question-primary:focus-visible { outline: 3px solid #555b5f; outline-offset: 3px; }
+.snl-question-actions { min-height: 76px; }
 .snl-question-continue,
-.snl-question-judge {
-  color: #fff1c6;
-  border-top: 4px solid #b58d40;
-  box-shadow: inset 0 1px rgba(255,238,187,.16);
-  text-shadow: 0 2px 3px rgba(0,0,0,.5);
-}
-
+.snl-question-judge { min-width: 0; min-height: 64px; color: #fff; border: 0; box-shadow: none; text-shadow: none; font-size: clamp(1.125rem, 2vw, 1.75rem); }
 .snl-question-continue.is-correct,
-.snl-question-judge.is-correct { background: #285f48; }
+.snl-question-judge.is-correct { background: #168456; }
 .snl-question-continue.is-correct:hover,
-.snl-question-judge.is-correct:hover { background: #34765a; }
+.snl-question-judge.is-correct:hover { background: #116b45; }
 .snl-question-continue.is-incorrect,
-.snl-question-judge.is-wrong { background: #73372f; }
+.snl-question-judge.is-wrong { background: #d34d53; }
 .snl-question-continue.is-incorrect:hover,
-.snl-question-judge.is-wrong:hover { background: #8b463b; }
+.snl-question-judge.is-wrong:hover { background: #b63c43; }
+
+@media (max-width: 639px) {
+  .snl-question-front-header { min-height: 80px; padding: .75rem 1rem; gap: .35rem .5rem; }
+  .snl-question-team { font-size: .875rem; }
+  .snl-question-card-header .snl-question-roll { font-size: .75rem; padding: .35rem .5rem; }
+  .snl-question-target { font-size: .8rem; }
+  .snl-question-card.written-answer-card > .snl-question-front-header { max-height: none !important; min-height: 80px !important; }
+  .snl-question-answer-header { min-height: 64px; padding: .75rem 1rem; }
+  .snl-question-actions { min-height: 72px; }
+  .snl-topbar .snl-turn-banner { max-width: 100%; }
+}
 
 .snl-token-active { animation: snl-token-pulse 1.6s ease-in-out infinite; }
 .snl-token-moving { animation: snl-token-hop .5s ease-in-out infinite; }
@@ -1031,7 +820,6 @@
 
 @media (max-width: 900px) {
   .snl-layout { grid-template-columns: minmax(0,1fr) clamp(235px, 31vw, 285px); gap: 8px; }
-  .snl-score-row { min-height: 29px; padding-block: .15rem; }
   .snl-control-panel { padding: .5rem; }
   .snl-bonus-card { width: min(92vw, calc((100vh - 125px) * 2)); grid-template-columns: minmax(155px, .68fr) 1.32fr; }
   .snl-bonus-card-orb { width: min(25vw, 225px); height: min(23vw, 205px); }
@@ -1041,74 +829,12 @@
 }
 
 @media (min-width: 901px) {
-  .snl-scoreboard {
-    padding: .45rem .4rem 1rem;
-    margin-bottom: clamp(1rem, 2.2vh, 1.5rem);
-  }
-  .snl-panel-label {
-    min-height: 46px;
-    padding: .6rem .9rem;
-    font-size: .88rem;
-  }
-  .snl-score-row {
-    grid-template-columns: 34px minmax(0, 1fr) auto;
-    gap: .65rem;
-    min-height: 48px;
-    padding: .42rem .7rem;
-    font-size: .9rem;
-  }
-  .snl-score-token {
-    width: 30px;
-    height: 30px;
-    font-size: .92rem;
-  }
   .snl-dice-player-label,
-  .snl-turn-complete-label { font-size: .76rem; }
-  .snl-dice-player-name { gap: .6rem; margin-top: .62rem; }
+  .snl-turn-complete-label { font-size: 14px; }
+  .snl-dice-player-name { gap: .6rem; margin-top: 0; }
   .snl-dice-player-dot { width: 11px; height: 11px; }
-  .snl-dice-team-name { font-size: clamp(1.55rem, 2vw, 1.95rem); }
-  .snl-dice-turn-copy { margin-top: .5rem; font-size: .94rem; }
-  .snl-turn-complete-state { width: min(100%, 340px); }
-  .snl-turn-complete-seal { width: 78px; height: 78px; margin-bottom: .95rem; }
-  .snl-turn-complete-title {
-    margin-top: .6rem;
-    font-size: clamp(1.85rem, 2.25vw, 2.35rem);
-    line-height: 1.05;
-  }
-  .snl-turn-complete-copy {
-    max-width: 32ch;
-    margin: .48rem 0 1.25rem;
-    font-size: .94rem;
-    line-height: 1.35;
-  }
-  .snl-turn-complete-action {
-    min-height: 58px;
-    padding: .82rem 1.1rem;
-    font-size: 1.05rem;
-  }
-  .snl-control-panel--many-players .snl-scoreboard {
-    padding: .35rem .35rem .75rem;
-    margin-bottom: clamp(.85rem, 1.8vh, 1.15rem);
-  }
-  .snl-control-panel--many-players .snl-panel-label {
-    min-height: 42px;
-    margin-bottom: .45rem;
-    padding: .5rem .75rem;
-    font-size: .82rem;
-  }
-  .snl-control-panel--many-players .snl-score-row {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
-    gap: .55rem;
-    min-height: 40px;
-    margin-bottom: .22rem;
-    padding: .3rem .6rem;
-    font-size: .84rem;
-  }
-  .snl-control-panel--many-players .snl-score-token {
-    width: 27px;
-    height: 27px;
-    font-size: .82rem;
-  }
+  .snl-dice-team-name { font-size: clamp(2rem, 2.6vw, 2.5rem); }
+  .snl-dice-turn-copy { margin-top: .6rem; font-size: 18px; }
   .snl-control-panel--many-players .snl-dice-region {
     padding-top: .35rem;
   }
@@ -1116,7 +842,7 @@
     gap: clamp(.4rem, .9vh, .65rem);
   }
   .snl-control-panel--many-players .snl-dice-player-label { font-size: .7rem; }
-  .snl-control-panel--many-players .snl-dice-player-name { margin-top: .45rem; }
+  .snl-control-panel--many-players .snl-dice-player-name { margin-top: 0; }
   .snl-control-panel--many-players .snl-dice-team-name { font-size: clamp(1.4rem, 1.7vw, 1.7rem); }
   .snl-control-panel--many-players .snl-dice-turn-copy { margin-top: .38rem; font-size: .84rem; }
   .snl-control-panel--many-players .snl-dice { height: clamp(108px, 16vh, 164px); }
@@ -1128,32 +854,10 @@
 }
 
 @media (min-width: 901px) and (max-height: 800px) {
-  .snl-control-panel--many-players .snl-scoreboard {
-    padding: .25rem .3rem .5rem;
-    margin-bottom: .65rem;
-  }
-  .snl-control-panel--many-players .snl-panel-label {
-    min-height: 36px;
-    margin-bottom: .35rem;
-    padding: .38rem .65rem;
-    font-size: .78rem;
-  }
-  .snl-control-panel--many-players .snl-score-row {
-    grid-template-columns: 27px minmax(0, 1fr) auto;
-    min-height: 36px;
-    margin-bottom: .16rem;
-    padding: .2rem .5rem;
-    font-size: .8rem;
-  }
-  .snl-control-panel--many-players .snl-score-token {
-    width: 24px;
-    height: 24px;
-    font-size: .76rem;
-  }
-  .snl-control-panel--many-players .snl-dice-region { padding: .15rem .15rem .45rem; }
+  .snl-control-panel--many-players .snl-dice-region { padding: 14px; }
   .snl-control-panel--many-players .snl-dice-zone { gap: .32rem; }
   .snl-control-panel--many-players .snl-dice-player-label { font-size: .66rem; }
-  .snl-control-panel--many-players .snl-dice-player-name { margin-top: .32rem; }
+  .snl-control-panel--many-players .snl-dice-player-name { margin-top: 0; }
   .snl-control-panel--many-players .snl-dice-team-name { font-size: 1.35rem; }
   .snl-control-panel--many-players .snl-dice-turn-copy { margin-top: .25rem; font-size: .78rem; }
   .snl-control-panel--many-players .snl-dice { height: clamp(92px, 14vh, 112px); }
@@ -1162,29 +866,7 @@
     border-bottom-width: 5px;
     font-size: 1rem;
   }
-  .snl-control-panel--many-players .snl-turn-complete-state {
-    padding-block: .2rem .35rem;
-  }
-  .snl-control-panel--many-players .snl-turn-complete-seal {
-    width: 58px;
-    height: 58px;
-    margin-bottom: .55rem;
-  }
   .snl-control-panel--many-players .snl-turn-complete-label { font-size: .66rem; }
-  .snl-control-panel--many-players .snl-turn-complete-title {
-    margin-top: .35rem;
-    font-size: 1.6rem;
-  }
-  .snl-control-panel--many-players .snl-turn-complete-copy {
-    margin: .25rem 0 .65rem;
-    font-size: .8rem;
-    line-height: 1.25;
-  }
-  .snl-control-panel--many-players .snl-turn-complete-action {
-    min-height: 46px;
-    padding: .55rem .8rem;
-    font-size: .92rem;
-  }
   .snl-control-panel--many-players .snl-bonus-choice-icon {
     width: 38px;
     height: 38px;
@@ -1203,68 +885,32 @@
 
 @media (max-width: 639px) {
   .snl-layout { display: flex; flex-direction: column; gap: 6px; }
-  .snl-board-stage { flex: 1; }
-  .snl-controls { flex: 0 0 auto; }
+  .snl-board-stage { flex: 0 1 auto; width: 100%; aspect-ratio: 1; }
+  .snl-table { padding: 4px; }
+  .snl-controls { flex: 1 1 0; min-height: 216px; }
   .snl-board { border-width: 8px; }
   .snl-board-stage.is-following-piece .snl-board { transform: rotateX(0deg) scale(1.3) translateZ(18px); }
   .snl-control-panel-mobile {
-    height: clamp(150px, 22dvh, 220px);
+    height: 100%;
     min-height: 0;
   }
   .snl-control-panel-mobile--turn-complete {
-    height: clamp(174px, 24dvh, 214px);
+    height: 100%;
   }
   .snl-control-panel-mobile .snl-dice-region {
     height: 100%;
     flex: 1 1 100%;
-    padding: 0;
+    padding: 16px;
   }
-  .snl-control-panel-mobile .snl-dice-zone { gap: clamp(.3rem, 1.8vw, .55rem); }
-  .snl-dice-player-card.is-mobile {
-    min-width: 0;
-    align-items: flex-start;
-    margin-right: .2rem;
-    padding: .7rem .72rem;
-    border: 1px solid rgba(205,168,79,.32);
-    border-left: 3px solid #cda84f;
-    border-radius: 10px;
-    background: rgba(37,37,31,.72);
-    box-shadow: inset 0 1px rgba(255,242,194,.055), 0 6px 15px rgba(0,0,0,.18);
-    text-align: left;
-  }
-  .snl-dice-player-card.is-mobile .snl-dice-player-label { font-size: clamp(.52rem, 2.25vw, .64rem); }
-  .snl-dice-player-card.is-mobile .snl-dice-player-name { justify-content: flex-start; margin-top: .42rem; }
-  .snl-dice-player-card.is-mobile .snl-dice-team-name { max-width: 28vw; overflow: hidden; font-size: clamp(1rem, 5vw, 1.35rem); text-overflow: ellipsis; white-space: nowrap; }
-  .snl-dice-player-card.is-mobile .snl-dice-turn-copy { margin-top: .3rem; font-size: clamp(.62rem, 2.7vw, .75rem); }
-  .snl-turn-complete-state {
-    width: min(100%, 330px);
-    height: 100%;
-    flex: 1 1 100%;
-    justify-content: center;
-    padding: clamp(.25rem, 1dvh, .55rem) clamp(.15rem, 1.5vw, .4rem) clamp(.2rem, .7dvh, .4rem);
-  }
-  .snl-turn-complete-seal {
-    width: clamp(40px, min(12vw, 7dvh), 50px);
-    height: clamp(40px, min(12vw, 7dvh), 50px);
-    margin-bottom: clamp(.28rem, .8dvh, .45rem);
-  }
+  .snl-control-panel-mobile .snl-dice-zone { flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; }
+  .snl-control-panel-mobile .snl-dice { flex: 0 0 auto; }
+  .snl-control-panel-mobile .snl-roll-button { flex: 0 0 auto; padding: 12px; font-size: 18px; }
+  .snl-dice-player-card.is-mobile { flex: 0 0 auto; width: 100%; min-width: 0; align-items: center; text-align: center; }
+  .snl-dice-player-card.is-mobile .snl-dice-player-label { font-size: 14px; }
+  .snl-dice-player-card.is-mobile .snl-dice-player-name { justify-content: center; margin-top: 0; }
+  .snl-dice-player-card.is-mobile .snl-dice-team-name { max-width: 100%; overflow: hidden; font-size: clamp(1.75rem, 8vw, 2.125rem); text-overflow: ellipsis; white-space: nowrap; }
+  .snl-dice-player-card.is-mobile .snl-dice-turn-copy { margin-top: 8px; font-size: 18px; line-height: 1.35; font-weight: 500; }
   .snl-turn-complete-label { font-size: clamp(.5rem, min(2.2vw, 1.3dvh), .61rem); }
-  .snl-turn-complete-title {
-    margin-top: clamp(.22rem, .7dvh, .38rem);
-    font-size: clamp(1.06rem, min(5.2vw, 2.8dvh), 1.38rem);
-    line-height: 1.05;
-  }
-  .snl-turn-complete-copy {
-    margin: clamp(.1rem, .4dvh, .22rem) 0 clamp(.38rem, 1dvh, .65rem);
-    font-size: clamp(.61rem, min(2.8vw, 1.6dvh), .75rem);
-    line-height: 1.25;
-  }
-  .snl-turn-complete-action {
-    min-height: clamp(40px, 6.2dvh, 48px);
-    padding: clamp(.45rem, 1.1dvh, .65rem) clamp(.7rem, 3vw, 1rem);
-    border-bottom-width: 4px;
-    font-size: clamp(.78rem, min(3.7vw, 2dvh), .94rem);
-  }
   .snl-bonus-card-overlay { padding: 8px; backdrop-filter: blur(2px); }
   .snl-bonus-card {
     width: auto;
@@ -1294,6 +940,47 @@
   .snl-credits-close { width: 36px; height: 36px; }
   .snl-credit-links { display: grid; grid-template-columns: 1fr 1fr; }
   .snl-credit-links a { justify-content: center; text-align: center; }
+}
+
+/* Turn information is presented over the board, with no reserved sidebar. */
+.snl-game .snl-layout { display: block; }
+.snl-game .snl-board-stage { width: 100%; height: 100%; aspect-ratio: auto; }
+.snl-turn-overlay { position: absolute; inset: 0; z-index: 110; align-items: center; justify-content: center; padding: 16px; background: #1114168c; backdrop-filter: blur(2px); }
+.snl-game .snl-turn-dialog { display: flex; flex-direction: column; align-items: stretch; gap: 18px; width: min(100%, 500px); max-height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 24px !important; border: 1px solid #cebc99; border-radius: 20px; background: #e7d9bf; color: #332f28; box-shadow: 0 24px 70px #0006; }
+.snl-turn-dialog .snl-scoreboard { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.snl-turn-dialog .snl-turn-complete-state { flex: 0 0 auto; padding: 0; border: 0; background: transparent; }
+.snl-turn-dialog .snl-dice-region { height: auto; flex: 0 0 auto; padding: 0; border: 0; background: transparent; }
+.snl-turn-dialog .snl-dice-zone { display: flex; flex: 0 0 auto; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; height: auto; gap: 14px; }
+.snl-turn-dialog .snl-dice-player-card { width: 100%; flex: 0 0 auto; }
+.snl-turn-dialog .snl-dice-player-name { max-width: 100%; margin: 0; }
+.snl-turn-dialog .snl-dice-team-name { max-width: 100%; font-size: 32px; }
+.snl-turn-overlay { container-type: size; }
+.snl-turn-dialog .snl-dice { --snl-dice-size: clamp(100px, calc(100cqh - 210px), 240px); flex: 0 0 auto; width: var(--snl-dice-size); height: var(--snl-dice-size); }
+.snl-turn-dialog .snl-roll-button { min-height: 54px; flex: 0 0 auto; padding: 14px; font-size: 19px; }
+.snl-turn-dialog .snl-setup-title { margin-bottom: 20px; color: #332f28; font-size: 26px; }
+.snl-turn-order-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
+.snl-turn-dialog .snl-turn-order-row { min-width: 0; padding: 12px; color: #332f28; background: #f7efdf; border-color: #d5c7ac; }
+.snl-turn-dialog .snl-turn-order-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #332f28; font-size: 16px; }
+.snl-turn-dialog .snl-turn-order-index { color: #706858; font-size: 14px; }
+.snl-turn-setup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.snl-turn-setup-actions button { min-height: 50px; padding: 12px 8px; font-size: 16px; }
+.snl-turn-dialog .snl-bonus-choice-title { color: #332f28; font-size: 24px; }
+.snl-turn-dialog .snl-bonus-opponent-button { padding: 12px; font-size: 16px; }
+.snl-turn-overlay.is-board-notice { align-items: flex-end; background: none; backdrop-filter: none; pointer-events: none; }
+.snl-game .is-board-notice .snl-turn-dialog { width: auto; max-width: min(100%, 540px); padding: 14px 20px !important; }
+.is-board-notice .snl-bonus-choice-icon, .is-board-notice .snl-status-title + svg { display: none; }
+.is-board-notice .snl-status-title { color: #332f28; font-size: 22px; letter-spacing: 0; text-shadow: none; }
+@media (max-width: 639px) {
+  .snl-turn-overlay { padding: 12px; }
+  .snl-game .snl-turn-dialog { padding: 18px !important; border-radius: 16px; }
+  .snl-turn-dialog .snl-dice { --snl-dice-size: clamp(100px, calc(100cqh - 210px), 220px); }
+  .snl-turn-dialog .snl-dice-team-name { font-size: 30px; }
+  .snl-turn-dialog .snl-turn-order-name { font-size: 14px; }
+  .snl-turn-dialog .snl-turn-order-row { padding: 10px 8px; }
+  .snl-turn-dialog .snl-score-row { padding: 8px; gap: 4px; }
+  .snl-turn-dialog .snl-score-name { font-size: 14px; }
+  .snl-turn-dialog .snl-score-position strong { font-size: 26px; }
+  .snl-turn-dialog .snl-score-position > span { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,26 +3,36 @@
 .question-card-zoom-button {
   position: absolute;
   z-index: 900;
-  right: .5rem;
-  bottom: .5rem;
-  width: 1.9rem;
-  height: 1.9rem;
+  right: -2.5rem;
+  bottom: 0;
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 0;
   background: transparent !important;
-  box-shadow: none !important;
-  color: #334155;
-  opacity: .8;
+  box-shadow: none;
+  color: #f8fafc !important;
+  filter: drop-shadow(0 1px 2px #0f172acc) drop-shadow(0 0 1px #0f172a);
+  opacity: .85;
   transition: opacity 150ms;
 }
 .question-card-zoom-button:hover { opacity: 1; }
-html[data-theme='dark'] .question-card-zoom-button,
-.gameplay-appearance[data-game-appearance='dark'] .question-card-zoom-button { color: #dce5f0; }
-.gameplay-appearance[data-game-appearance='light'] .question-card-zoom-button { color: #334155; }
 .question-card-zoom-button:focus-visible { outline: 2px solid #facc15; outline-offset: 2px; opacity: 1; }
+
+@media (min-width: 640px) {
+  /* Keep the zoom symbol beside the bottom edge, using the surrounding gutter. */
+  .gameplay-appearance :has(> .question-card-zoom-button) {
+    min-height: 0;
+    margin-inline: auto;
+    max-width: min(35rem, calc(100vw - 6rem));
+  }
+}
+@media (min-width: 768px) {
+  .gameplay-appearance :has(> .question-card-zoom-button) { max-width: min(72rem, calc(100vw - 6rem)); }
+}
 
 .game-view-camera {
   position: relative;

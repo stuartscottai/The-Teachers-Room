@@ -1,3 +1,5 @@
+import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
+import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import './game-workspace.css';
 
@@ -322,6 +324,12 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     const updateMcOptionCount = (mcOptionCount: 2 | 3 | 4) => {
         setConfig(prev => ({ ...prev, mcOptionStrategy: 'fixed', mcOptionCount }));
     };
+
+    const renderAnswerMethodControls = () => supportsWrittenAnswers(type) && config.questionType !== 'multiple-choice' ? (
+        <div className="mt-3">
+            <AnswerMethodSelect value={config.answerMethod || (type === GameType.BLOCK_BEATERS && config.blockBeatersMode === 'letters' ? 'write' : 'say')} onChange={answerMethod => setConfig({ ...config, answerMethod })} />
+        </div>
+    ) : null;
 
     const renderMcOptionControls = (selectClassName: string) => {
         if (type === GameType.MILLIONAIRE || type === GameType.LIVE_QUIZ_CHALLENGE) return null;
@@ -1148,6 +1156,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="multiple-choice">{ui("Multiple Choice")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
+                                                {renderAnswerMethodControls()}
                                                 <p className="text-xs text-slate-500 mt-1">{ui("Time Bomb works best with quick-answer formats.")}</p>
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1350,6 +1359,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="open">{ui("Open Ended")}</option>
                                                 </select>
+                                                {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
@@ -1394,6 +1404,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
+                                                {renderAnswerMethodControls()}
                                             </div>
 
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1460,6 +1471,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
+                                                {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
@@ -1525,6 +1537,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <option value="open">{ui("Open Ended")}</option>
                                                 <option value="mixed">{ui("Mixed Format")}</option>
                                             </select>
+                                            {renderAnswerMethodControls()}
                                         </div>
                                         {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                     </>
@@ -1560,6 +1573,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
                                                 </select>
+                                                {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
                                         </>
@@ -1630,6 +1644,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             <option value="gap-fill">{ui("Gap Fill")}</option>
                                                             <option value="open">{ui("Open Ended")}</option>
                                                         </select>
+                                                        {renderAnswerMethodControls()}
                                                     </div>
                                                 )}
 

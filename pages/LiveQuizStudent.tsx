@@ -78,6 +78,7 @@ const LiveQuizStudentAnswerButton: React.FC<{
     <button
       key={`${questionIndex}-${meta.option}`}
       type="button"
+      data-mcq-option="true"
       disabled={!canAnswer}
       onClick={() => onAnswer(meta.option)}
       className={`relative flex min-h-[70px] origin-center items-center overflow-hidden rounded-xl border p-4 pr-12 text-left font-black leading-tight transition-[transform,filter,box-shadow,opacity] hover:-translate-y-0.5 disabled:cursor-not-allowed md:min-h-0 ${meta.optionClass}`}
@@ -116,7 +117,7 @@ const LiveQuizStudentAnswerGrid: React.FC<{
   const sharedFontSize = getSharedLiveQuizOptionFontSize(options, revealVisible);
 
   return (
-    <div translate="no" className="notranslate mt-4 grid min-h-0 flex-[2] auto-rows-fr gap-4 sm:grid-cols-2">
+    <div translate="no" data-mcq-theme="livequiz" className="notranslate mt-4 grid min-h-0 flex-[2] auto-rows-fr gap-4 sm:grid-cols-2">
       {options.map((option, index) => {
         const isSelected = normalizeAnswer(effectiveSelectedAnswer) === normalizeAnswer(option);
         const hasSelection = Boolean(effectiveSelectedAnswer);

@@ -141,6 +141,39 @@ export const GameSmokeTest: React.FC = () => {
   }, [isPlayingFixture, setIsPlaying]);
   const type = modes[mode] || GameType.TRIVIA;
   const baseGame = makeGame(type);
+  const isSnakesPreview = type === GameType.SNAKES_LADDERS && params.get('preview') === '1';
+  if (isSnakesPreview) {
+    baseGame.title = 'Animal adventures';
+    baseGame.questions = baseGame.questions.map(question => ({
+      ...question,
+      question: 'Which of these animals is a mammal?',
+      answer: 'Dolphin',
+      options: ['Dolphin', 'Shark', 'Octopus', 'Penguin'],
+      image: undefined,
+    }));
+  }
+  const answerMethod = params.get('answerMethod');
+  const answerFormat = params.get('answerFormat');
+  if (['say', 'write'].includes(answerMethod || '')) baseGame.config.answerMethod = answerMethod as 'say' | 'write';
+  if (answerFormat === 'gap-fill' || answerFormat === 'open') {
+    baseGame.config.questionType = answerFormat;
+    const convert = (question: GeneratedQuestion): GeneratedQuestion => ({ ...question, options: undefined, questionType: answerFormat,
+      question: answerFormat === 'gap-fill' ? 'The correct answer is ____.' : 'Explain which answer is correct.',
+      answer: 'Correct', answerAliases: ['Right'],
+    });
+    baseGame.questions = baseGame.questions.map(convert);
+    baseGame.jeopardyBoard = baseGame.jeopardyBoard?.map(group => ({ ...group, questions: group.questions.map(convert) }));
+    baseGame.pubQuizRounds = baseGame.pubQuizRounds?.map(group => ({ ...group, questions: group.questions.map(convert) }));
+  }
+  if (type === GameType.SNAKES_LADDERS && params.get('image') === 'none') {
+    baseGame.questions = baseGame.questions.map(question => ({ ...question, image: undefined }));
+  }
+  if (useLongContent && type === GameType.SNAKES_LADDERS) {
+    baseGame.questions = baseGame.questions.map(question => ({ ...question,
+      question: 'My brother ____ got PE on Wednesday.',
+      answer: 'has', answerAliases: [],
+    }));
+  }
   if (useFullWordWheel && type === GameType.WORD_WHEEL) {
     baseGame.questions = Array.from({ length: 26 }, (_, index) => {
       const letter = String.fromCharCode(65 + index);
@@ -183,8 +216,9 @@ export const GameSmokeTest: React.FC = () => {
     game: preparedGame || game,
     options: {
       ...options,
+      ...(params.has('timer') ? { timerSeconds: Math.max(0, Number(params.get('timer')) || 0) } : {}),
       players: playerCount,
-      teamNames: Array.from({ length: playerCount }, (_, index) => `Team ${index + 1}`),
+      teamNames: Array.from({ length: playerCount }, (_, index) => params.get('preview') === '1' ? ['Foxes', 'Owls', 'Bears', 'Lions', 'Otters', 'Eagles'][index] : `Team ${index + 1}`),
       enableBonuses: bonusesEnabled,
       blockBeatersStealLimit: Number(params.get('stealLimit')) || 3,
       blockBeatersMode: params.get('blockMode') === 'numbers' ? 'numbers' as const : undefined,

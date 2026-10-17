@@ -1,3 +1,6 @@
+import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
@@ -120,6 +123,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const activeQ = activeQuestionIndex !== null ? gameQuestions[activeQuestionIndex] : null;
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const writtenAnswer = useWrittenAnswer(activeQ, game.config, options, activeQuestionIndex);
     const optionKey = activeQ?.options?.join('|') || '';
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
     const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
@@ -144,6 +148,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const timerProgress = options.timerSeconds > 0
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
+
+    useMobileQuestionViewport(containerRef, activeQuestionIndex !== null && !isGameOver);
 
     // BODY SCROLL LOCK
     useEffect(() => {
@@ -440,7 +446,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                         id: String(q.id ?? activeQuestionIndex),
                         question: q.question,
                         correctAnswer: q.answer,
-                        studentAnswer: selectedMcAnswer || undefined,
+                        studentAnswer: writtenAnswer.submitted ? writtenAnswer.text : selectedMcAnswer || undefined,
                         context: q.category,
                     },
                 ]);
@@ -617,7 +623,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, hasOptions, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick]);
+    }, [isMobileViewport, hasOptions, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || !activeQ || isBonus || !isFlipped) {
@@ -627,7 +633,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         if (availableHeight === 0) return;
         const maxSize = Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2)));
         const minSize = 12;
@@ -639,7 +645,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick]);
+    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !activeQ?.options || isBonus || isFlipped) {
@@ -741,7 +747,6 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     }
 
     const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
-    const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
     const questionOverlayTopClass = isFullscreen
         ? `${mobileUsesTwoRowHeader ? 'top-[calc(7rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
         : `${mobileUsesTwoRowHeader ? 'top-[calc(11rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
@@ -783,88 +788,11 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                 `}
             </style>
             
-            {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
-                <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
-                        <button 
-                            onClick={() => setShowQuitConfirm(true)} 
-                            className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
-                        >
-                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
-                            title={ui("End game now")}
-                        >
-                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
-                            title={ui("Quit")}
-                        >
-                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title={ui("End game now")}
-                        >
-                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
-                        </button>
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors`}
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
-                        </button>
-                    </div>
-                    
-                    {/* Scoreboard Cards */}
-                    <div
-                        className={isMobileViewport
-                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
-                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
-                    >
-                        {scores.map((score, idx) => (
-                            <button data-scoreboard-card="true"
-                                key={idx} 
-                                onClick={() => openEditTeam(idx)}
-                                className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm
-                                    ${currentTeam === idx 
-                                        ? 'bg-brand-blue border-sky-600 text-white'
-                                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
-                            >
-                                <div className="text-[10px] sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
-                                    {displayTeamName(teamNames[idx])}
-                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
-                                </div>
-                                <AnimatedScore score={score} className={`${mobileUsesTwoRowHeader ? 'text-base' : 'text-lg'} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
-                                
-                                {/* Hover Edit Icon */}
-                                <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Edit2 size={12} />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="hidden sm:flex flex-col items-end justify-center min-w-[72px] gap-2">
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                        </button>
-                        <button aria-label={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")} onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <TeamScoreboardHeader scores={scores} teamNames={teamNames} currentTeam={currentTeam}
+                isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted}
+                onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}
+                onToggleMute={() => setIsMuted(!isMuted)} onToggleFullscreen={toggleFullscreen} onEditTeam={openEditTeam}
+                renderScore={score => <AnimatedScore score={score} className={`${mobileUsesTwoRowHeader ? 'text-base' : 'text-lg'} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />} />
 
             {/* 2. MAIN GRID AREA */}
             <div ref={gridWrapperRef} className="flex-grow w-full h-full relative p-2 overflow-hidden flex flex-col items-center justify-center z-10">
@@ -955,7 +883,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
-                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div data-written-question-overlay className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div 
@@ -964,7 +892,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                         >
                             {/* FRONT (QUESTION) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
-                                ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 
                                 {isBonus ? (
                                     <div
@@ -1025,7 +953,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                                             className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                             style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                         >
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="trivia" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = activeQ.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1111,7 +1039,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
                                                     {hasOptions && !isFlipped && (
                                                         <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="trivia" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = activeQ.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1158,7 +1086,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         </div>
                                         
                                         {/* FOOTER BAR */}
-                                        <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                        <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
+                                        <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                             
                                             {options.timerSeconds > 0 && (
                                                 <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
@@ -1177,7 +1106,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                             )}
 
                                             {!hasOptions && (
-                                                <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                                <div data-written-reveal className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
                                                         className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
@@ -1227,8 +1156,9 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         </div>
 
                                         {/* CONTENT (White) */}
-                                        <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
-                                            <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                        <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
+                                            <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                                <WrittenAnswerReview state={writtenAnswer} />
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
                                                     <div className="animate-bounce mb-4 sm:mb-8">
@@ -1258,7 +1188,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                                         
                                         {/* FOOTER (Buttons) */}
                                         <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
-                                            {hasOptions ? (
+                                            {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : hasOptions ? (
                                                 // Multiple Choice Footer
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}

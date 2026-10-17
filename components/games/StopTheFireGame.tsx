@@ -1,3 +1,4 @@
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
@@ -467,6 +468,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     }, [difficulty, manualCategoryPool]);
 
     const letterPool = useMemo(() => buildLetterPool(), []);
+
+    useMobileQuestionViewport(containerRef, (isFlipped || showReview) && !showWinner);
 
     useEffect(() => {
         const shouldLock = !showWinner && (isFlipped || showReview || showRoundSummary || showTieBreakerResolve);
@@ -1332,8 +1335,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             isCompactHeight ? 'h-auto max-h-none min-h-[380px]' : ''
                                         }`}
                                     >
+                                        <QuestionCardZoomButton />
                                         <div className="relative h-full rounded-2xl border border-[#4f4540]/80 shadow-[0_24px_60px_rgba(15,23,42,0.22)] overflow-hidden flex flex-col bg-[#14110f]">
-                                            <QuestionCardZoomButton />
                                             <div
                                                 className="relative p-4 sm:p-6 border-b border-[#4f4540]/70 flex items-center justify-between overflow-hidden"
                                                 style={{ backgroundColor: 'var(--stop-heading)' }}

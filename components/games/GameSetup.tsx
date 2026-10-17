@@ -1,3 +1,5 @@
+import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
+import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { useWorkspaceDialog } from './GameWorkspace';
 
@@ -32,6 +34,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
   useUiLanguage();
   // Default settings
   const [options, setOptions] = useState<GameRunOptions>({
+    answerMethod: game.config.answerMethod,
     players: 2,
     timerSeconds: game.config.type === GameType.TIME_BOMB ? 60 : 30, // Default for time bomb
     enableBonuses: false,
@@ -319,6 +322,12 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <option value={60}>{ui("60 Seconds")}</option>
                         </select>
                         {game.config.type === GameType.SURVEY_SHOWDOWN && <p className="mt-2 text-sm text-slate-500">{ui("Time for each team’s guess. Running out of time adds a strike and passes the turn. You can pause during play.")}</p>}
+                    </div>
+                )}
+
+                {supportsWrittenAnswers(game.config.type) && [...game.questions, ...(game.jeopardyBoard || []).flatMap(group => group.questions), ...(game.pubQuizRounds || []).flatMap(group => group.questions)].some(question => (!question.options?.length || (game.config.type === GameType.BLOCK_BEATERS && options.blockBeatersMode === 'letters')) && !question.isBonus) && (
+                    <div className="workspace-setup-field-group">
+                        <AnswerMethodSelect value={options.answerMethod || game.config.answerMethod || (game.config.type === GameType.BLOCK_BEATERS && options.blockBeatersMode === 'letters' ? 'write' : 'say')} onChange={answerMethod => setOptions({ ...options, answerMethod })} />
                     </div>
                 )}
 

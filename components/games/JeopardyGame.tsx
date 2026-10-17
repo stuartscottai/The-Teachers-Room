@@ -1,3 +1,5 @@
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
@@ -114,6 +116,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const activeQ = selectedQuestion && gameBoard ? gameBoard[selectedQuestion.categoryIndex].questions[selectedQuestion.questionIndex] : null;
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
+    const writtenAnswer = useWrittenAnswer(activeQ, game.config, options, selectedQuestion ? `${selectedQuestion.categoryIndex}-${selectedQuestion.questionIndex}` : null);
     const optionKey = activeQ?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(activeQ?.image);
     const questionImageAlt = activeQ?.image?.alt || '';
@@ -142,6 +145,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
     const mobileScoreTextClass = scores.length >= 5 ? 'text-base' : 'text-lg';
     const mobileTeamNameClass = scores.length >= 5 ? 'text-[9px]' : 'text-[10px]';
+
+    useMobileQuestionViewport(containerRef, selectedQuestion !== null && !isGameOver);
 
     // BODY SCROLL LOCK
     useEffect(() => {
@@ -342,7 +347,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         id: `${categoryIndex}-${questionIndex}`,
                         question: q.question,
                         correctAnswer: q.answer,
-                        studentAnswer: selectedMcAnswer || undefined,
+                        studentAnswer: writtenAnswer.submitted ? writtenAnswer.text : selectedMcAnswer || undefined,
                         context: gameBoard[categoryIndex]?.name,
                     },
                 ]);
@@ -567,7 +572,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             textEl.style.fontSize = `${size}px`;
         }
         setQuestionFontSize(size);
-    }, [isMobileViewport, hasOptions, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick]);
+    }, [isMobileViewport, hasOptions, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!isMobileViewport || !activeQ || isBonus || !isFlipped) {
@@ -577,7 +582,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight;
+        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
         if (availableHeight === 0) return;
         const maxSize = Math.min(50, Math.max(28, Math.floor(window.innerWidth / 7.5)));
         const minSize = 16;
@@ -589,7 +594,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick]);
+    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !activeQ?.options || isBonus || isFlipped) {
@@ -906,7 +911,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
             {/* Active Card Modal - Z-Index 200 */}
             {activeQ && (
-                <div className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div data-written-question-overlay className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div 
@@ -915,7 +920,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                         >
                             {/* Front (Clue or Bonus Alert) */}
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
-                                ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 
                                 {isBonus ? (
                                     <div
@@ -981,7 +986,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                             className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                             style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                         >
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="jeopardy" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = activeQ.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1077,7 +1082,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
                                                     {hasOptions && !isFlipped && (
                                                         <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
-                                                            <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                            <div ref={optionGridRef} data-mcq-theme="jeopardy" className="game-mcq-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                                 {(() => {
                                                                     const longestText = activeQ.options!.reduce(
                                                                         (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -1124,7 +1129,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         </div>
                                         
                                         {/* FOOTER BAR (Blue/Gradient/Red) */}
-                                        <div className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                        <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
+                                        <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                             
                                             {options.timerSeconds > 0 && (
                                                 <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
@@ -1142,7 +1148,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                 </div>
                                             )}
                                             {!hasOptions && (
-                                                <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
+                                                <div data-written-reveal className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
                                                     <button 
                                                         onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
                                                         className="bg-brand-blue text-white px-6 sm:px-12 py-2 rounded-full font-bold text-base sm:text-xl shadow-lg hover:bg-brand-blue/90 hover:scale-105 transition-transform relative z-50 flex items-center cursor-pointer"
@@ -1192,8 +1198,9 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         </div>
 
                                         {/* CONTENT (White) */}
-                                        <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
-                                             <div ref={answerWrapRef} className="flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                        <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
+                                             <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
+                                                 <WrittenAnswerReview state={writtenAnswer} />
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
                                                     <div className="animate-bounce mb-4 sm:mb-8">
@@ -1223,7 +1230,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         
                                         {/* FOOTER (Buttons) */}
                                         <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
-                                            {hasOptions ? (
+                                            {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : hasOptions ? (
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
                                                     className={`flex-1 text-white font-black text-2xl sm:text-4xl transition-colors flex items-center justify-center border-t-4 active:border-t-0 cursor-pointer relative z-50

@@ -1,3 +1,4 @@
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -550,6 +551,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
 
     const winnerScore = ranking.length ? ranking[0].score : 0;
     const winners = ranking.filter((team) => team.score === winnerScore);
+
+    useMobileQuestionViewport(containerRef, cardState !== 'hidden' && phase === 'play');
 
     useEffect(() => {
         document.body.style.overflow = phase === 'gameover' ? '' : 'hidden';

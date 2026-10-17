@@ -1,7 +1,10 @@
+import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
+import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
+import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
-import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, useLayoutEffect, useCallback } from 'react';
 import { QuestionCardZoomButton } from './QuestionCardZoomButton';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { RoundedBox, Environment, ContactShadows, Float, Html, useTexture } from '@react-three/drei';
@@ -13,7 +16,7 @@ import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/Winne
 import { PracticeReviewSummary } from './shared/PracticeReviewSummary';
 import { CozyChessRoomModel } from './models/CozyChessRoomModel';
 import { StarOrbModel } from './models/StarOrbModel';
-import { ArrowLeft, HelpCircle, AlertTriangle, CheckCircle, XCircle, Clock, Play, Eye, EyeOff, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, X, Flag, Gift, Info } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, CheckCircle, XCircle, Clock, Play, ArrowRight, Maximize2, Minimize2, Volume2, VolumeX, Shuffle, X, Flag, Gift, Info } from 'lucide-react';
 
 // --- 3D DICE COMPONENT ---
 const PIP_OFFSET = 0.505;
@@ -696,7 +699,7 @@ const PLAYER_PAWN_PROFILE = [
     new THREE.Vector2(0.082, 0.625),
 ];
 
-const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tracked, travelMode, reducedMotion, activePositionRef }: {
+const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tracked, travelMode, reducedMotion, activePositionRef, movingPiecesRef }: {
     index: number;
     position: number;
     offset: [number, number];
@@ -707,6 +710,7 @@ const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tra
     travelMode: 'normal' | 'ladder' | 'snake';
     reducedMotion: boolean;
     activePositionRef: React.MutableRefObject<THREE.Vector3>;
+    movingPiecesRef: React.MutableRefObject<Set<number>>;
 }) => {
     const group = useRef<THREE.Group>(null);
     const target = useMemo(() => {
@@ -740,6 +744,8 @@ const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tra
         previousSquare.current = position;
         currentTravelMode.current = changedSquare ? travelMode : 'reflow';
         progress.current = reducedMotion ? 1 : 0;
+        if (reducedMotion) movingPiecesRef.current.delete(index);
+        else movingPiecesRef.current.add(index);
         if (reducedMotion) group.current.position.copy(target);
     }, [target.x, target.z, position, travelMode, reducedMotion]);
 
@@ -747,6 +753,7 @@ const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tra
         if (!group.current) return;
         const mode = currentTravelMode.current;
         if (reducedMotion) {
+            movingPiecesRef.current.delete(index);
             group.current.position.copy(target);
             if (tracked) activePositionRef.current.copy(group.current.position);
             return;
@@ -766,6 +773,7 @@ const PlayerPiece3D = ({ index, position, offset, pieceScale, color, active, tra
         group.current.position.copy(tempPosition.current);
         if (progress.current < 1 && mode !== 'reflow') group.current.rotation.y += delta * 4.5;
         if (tracked) activePositionRef.current.copy(group.current.position);
+        if (progress.current >= 1) movingPiecesRef.current.delete(index);
     });
 
     return (
@@ -982,7 +990,7 @@ const SelectableBonusSquare = ({ index, origin, onSelect }: {
     );
 };
 
-const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady }: { animatedPositionRef: React.MutableRefObject<THREE.Vector3>; following: boolean; reducedMotion: boolean; introReady: boolean }) => {
+const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady, movingPiecesRef, onSettledChange }: { animatedPositionRef: React.MutableRefObject<THREE.Vector3>; following: boolean; reducedMotion: boolean; introReady: boolean; movingPiecesRef: React.MutableRefObject<Set<number>>; onSettledChange: (settled: boolean) => void }) => {
     const lookTarget = useRef(new THREE.Vector3());
     const restingLook = useRef(new THREE.Vector3());
     const restingPosition = useRef(new THREE.Vector3());
@@ -1000,9 +1008,19 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
     const initialized = useRef(false);
     const introStartedAt = useRef<number | null>(null);
     const introComplete = useRef(reducedMotion);
+    const lastSettled = useRef<boolean | null>(null);
+    const reportSettled = (ready: boolean) => {
+        const settled = ready && movingPiecesRef.current.size === 0;
+        if (settled !== lastSettled.current) {
+            lastSettled.current = settled;
+            onSettledChange(settled);
+        }
+    };
 
     useFrame(({ camera, size, clock }, delta) => {
         const shouldFollow = following && !reducedMotion;
+        if (reducedMotion) introComplete.current = true;
+        if (following || !introComplete.current || movingPiecesRef.current.size) reportSettled(false);
         const activePosition = animatedPositionRef.current;
         const canvasAspect = size.height > 0 ? size.width / size.height : 1;
         const narrowFrame = THREE.MathUtils.clamp((1.28 - canvasAspect) / 0.28, 0, 1);
@@ -1059,6 +1077,7 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
             if (introReady && introProgress >= 1) {
                 introComplete.current = true;
             }
+            reportSettled(introReady && introComplete.current);
             return;
         }
 
@@ -1095,6 +1114,7 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
         if (shouldFollow) returnStartedAt.current = null;
 
         if (!shouldFollow && returnStartedAt.current !== null) {
+            reportSettled(false);
             const returnProgress = THREE.MathUtils.clamp(
                 (clock.getElapsedTime() - returnStartedAt.current) / 1.35,
                 0,
@@ -1122,6 +1142,7 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
                 lookTarget.current.copy(restingLook.current);
                 camera.lookAt(lookTarget.current);
                 camera.updateMatrixWorld(true);
+                reportSettled(introReady && introComplete.current);
             }
             return;
         }
@@ -1147,6 +1168,10 @@ const BoardCamera = ({ animatedPositionRef, following, reducedMotion, introReady
             perspectiveCamera.fov = THREE.MathUtils.lerp(perspectiveCamera.fov, desiredFov, smoothing);
             perspectiveCamera.updateProjectionMatrix();
         }
+        reportSettled(introReady && introComplete.current && !following
+            && camera.position.distanceTo(restingPosition.current) < 0.01
+            && lookTarget.current.distanceTo(restingLook.current) < 0.01
+            && Math.abs(perspectiveCamera.fov - restingFov) < 0.02);
     });
     return null;
 };
@@ -1171,7 +1196,7 @@ const BoardShadowController = ({ ready }: { ready: boolean }) => {
     return null;
 };
 
-const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, statusMessage, snakes, ladders, bonusTiles, consumedBonusTiles, selectableBonusTargets, bonusChoiceOrigin, onSelectBonusTarget, teamColors, reducedMotion, compact }: {
+const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, statusMessage, snakes, ladders, bonusTiles, consumedBonusTiles, selectableBonusTargets, bonusChoiceOrigin, onSelectBonusTarget, teamColors, reducedMotion, compact, onSettledChange }: {
     positions: number[];
     currentTeamId: number;
     trackedTeamId: number;
@@ -1187,7 +1212,9 @@ const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, 
     teamColors: { solid: string }[];
     reducedMotion: boolean;
     compact: boolean;
+    onSettledChange: (settled: boolean) => void;
 }) => {
+    const movingPiecesRef = useRef(new Set<number>());
     const [roomReady, setRoomReady] = useState(false);
     const following = phase === 'moving' || phase === 'ladder-snake';
     const travelMode: 'normal' | 'ladder' | 'snake' = phase === 'ladder-snake'
@@ -1226,7 +1253,7 @@ const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, 
             <hemisphereLight args={["#dff9f5", "#071b24", 0.92]} />
             <directionalLight position={[-5, 12, 7]} intensity={2.05} color="#fff7e5" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0002} shadow-normalBias={0.035} shadow-camera-left={-18} shadow-camera-right={18} shadow-camera-top={18} shadow-camera-bottom={-18} />
             <spotLight position={[7, 9, -5]} intensity={0.68} angle={0.55} penumbra={0.85} color="#8de6db" />
-            <BoardCamera animatedPositionRef={activePiecePositionRef} following={following} reducedMotion={reducedMotion} introReady={roomReady} />
+            <BoardCamera animatedPositionRef={activePiecePositionRef} following={following} reducedMotion={reducedMotion} introReady={roomReady} movingPiecesRef={movingPiecesRef} onSettledChange={onSettledChange} />
             <BoardShadowController ready={roomReady} />
 
             <Suspense fallback={null}>
@@ -1283,6 +1310,7 @@ const SnakesLaddersBoard3D = ({ positions, currentTeamId, trackedTeamId, phase, 
                     travelMode={travelMode}
                     reducedMotion={reducedMotion}
                     activePositionRef={activePiecePositionRef}
+                    movingPiecesRef={movingPiecesRef}
                 />
             ))}
             <Environment preset="warehouse" />
@@ -1315,6 +1343,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [statusMessage, setStatusMessage] = useState("");
     const [diceValue, setDiceValue] = useState(1);
     const [isDiceRolling, setIsDiceRolling] = useState(false);
+    const [rollLocked, setRollLocked] = useState(false);
+    const [boardSettled, setBoardSettled] = useState(testMode);
+    const handleBoardSettledChange = useCallback((settled: boolean) => setBoardSettled(previous => previous === settled ? previous : settled), []);
     
     const [questions, setQuestions] = useState<GeneratedQuestion[]>(game.questions || []);
     const [currentQuestion, setCurrentQuestion] = useState<GeneratedQuestion | null>(null);
@@ -1322,7 +1353,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     
     const [isFlipped, setIsFlipped] = useState(false);
     const [flipLock, setFlipLock] = useState(false); 
-    const [isQuestionVisible, setIsQuestionVisible] = useState(true); 
     const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
     const [selectedMcAnswer, setSelectedMcAnswer] = useState('');
     const [missedItems, setMissedItems] = useState<PracticeReviewItem[]>([]);
@@ -1356,10 +1386,9 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
     const [boardSize, setBoardSize] = useState<number | null>(null);
-    const [diceSize, setDiceSize] = useState<number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const boardWrapRef = useRef<HTMLDivElement>(null);
-    const diceRowRef = useRef<HTMLDivElement>(null);
+    const turnDialogRef = useRef<HTMLDivElement>(null);
     const questionWrapRef = useRef<HTMLDivElement>(null);
     const questionTextRef = useRef<HTMLDivElement>(null);
     const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
@@ -1374,7 +1403,23 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
     const currentTeamId = turnOrder[currentTurnIndex];
-    const canRollDice = phase === 'roll' && !isDiceRolling;
+    const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'question' ? `${currentQuestion?.id}-${currentTeamId}` : null);
+    const canRollDice = phase === 'roll' && !isDiceRolling && !rollLocked;
+    const showTurnPopup = boardSettled && (phase === 'setup' || phase === 'roll'
+        || (phase === 'bonus-choice' && pendingBonusChoice?.effect.type !== 'move-five'));
+    useEffect(() => { if (phase === 'roll') setRollLocked(false); }, [phase]);
+    const showBoardNotice = phase === 'ladder-snake'
+        || (phase === 'bonus-choice' && pendingBonusChoice?.effect.type === 'move-five');
+
+    useEffect(() => {
+        if (!showTurnPopup) return;
+        const frame = requestAnimationFrame(() => {
+            const dialog = turnDialogRef.current;
+            (dialog?.querySelector<HTMLButtonElement>('[data-turn-primary]') ?? dialog?.querySelector<HTMLButtonElement>('button'))?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [phase, showTurnPopup]);
+
 
     useEffect(() => {
         setMotionTeamId(currentTeamId);
@@ -1384,12 +1429,17 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         skipTurnCountsRef.current = skipTurnCounts;
     }, [skipTurnCounts]);
 
+    useMobileQuestionViewport(containerRef, phase !== 'gameover', {
+        includeDesktop: true,
+        resetKey: `${phase}-${showTurnPopup}`,
+    });
+
     // SCROLL LOCK EFFECT
     useEffect(() => {
-        const shouldLock = (phase === 'question' && isQuestionVisible) || showCredits;
+        const shouldLock = phase === 'question' || showTurnPopup || showCredits;
         document.body.style.overflow = shouldLock ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
-    }, [phase, isQuestionVisible, showCredits]);
+    }, [phase, showTurnPopup, showCredits]);
 
     useEffect(() => {
         if (!showCredits) return;
@@ -1461,7 +1511,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const element = boardWrapRef.current;
         const updateSize = () => {
             const rect = element.getBoundingClientRect();
-            const padding = isMobileViewport ? 12 : 4;
+            const padding = 4;
             const next = Math.floor(Math.min(rect.width, rect.height) - padding);
             const safeNext = Math.max(0, next);
             setBoardSize(prev => (prev === safeNext ? prev : safeNext));
@@ -1476,29 +1526,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         };
     }, [isMobileViewport]);
 
-    useEffect(() => {
-        if (!isMobileViewport || !diceRowRef.current) return;
-        const element = diceRowRef.current;
-        const updateSize = () => {
-            const rect = element.getBoundingClientRect();
-            if (rect.height <= 0 || rect.width <= 0) return;
-            const sizeFromHeight = Math.floor(rect.height * 1.0);
-            const sizeFromWidth = Math.floor(rect.width * 1.0);
-            const next = Math.max(0, Math.min(sizeFromHeight, sizeFromWidth));
-            setDiceSize(prev => (prev === next ? prev : next));
-        };
-        updateSize();
-        const observer = new ResizeObserver(updateSize);
-        observer.observe(element);
-        window.addEventListener('resize', updateSize);
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', updateSize);
-        };
-    }, [isMobileViewport, phase]);
-
     useLayoutEffect(() => {
-        if (phase !== 'question' || !currentQuestion || isFlipped || !isQuestionVisible) {
+        if (phase !== 'question' || !currentQuestion || isFlipped) {
             setQuestionFontSize(null);
             return;
         }
@@ -1524,10 +1553,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             }
         }
         setQuestionFontSize(best);
-    }, [isMobileViewport, hasOptions, phase, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, isQuestionVisible, resizeTick]);
+    }, [isMobileViewport, hasOptions, phase, currentQuestion?.question, currentQuestion?.options?.length, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
-        if (!hasOptions || !currentQuestion?.options || phase !== 'question' || !isQuestionVisible || isFlipped) {
+        if (!hasOptions || !currentQuestion?.options || phase !== 'question' || isFlipped) {
             setOptionFontSize(null);
             return;
         }
@@ -1579,7 +1608,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             size -= 1;
         }
         setOptionFontSize(size);
-    }, [hasOptions, optionKey, phase, isQuestionVisible, isFlipped, isMobileViewport, resizeTick]);
+    }, [hasOptions, optionKey, phase, isFlipped, isMobileViewport, resizeTick]);
 
     // --- BOARD INITIALIZATION ---
     useEffect(() => {
@@ -1723,7 +1752,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             setCurrentQuestion(dummyQuestion);
             setIsFlipped(false);
             setFlipLock(false);
-            setIsQuestionVisible(true);
             setMcResult(null);
             setIsTimesUp(false);
             setIsProcessing(false);
@@ -1752,7 +1780,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setCurrentQuestion(q);
         setIsFlipped(false);
         setFlipLock(false);
-        setIsQuestionVisible(true);
         setMcResult(null);
         setIsTimesUp(false);
         setIsProcessing(false); // Reset lock
@@ -1815,7 +1842,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                     id: String(currentQuestion.id),
                     question: currentQuestion.question,
                     correctAnswer: currentQuestion.answer,
-                    studentAnswer: selectedMcAnswer || undefined,
+                    studentAnswer: writtenAnswer.submitted ? writtenAnswer.text : selectedMcAnswer || undefined,
                     context: `Square ${positions[currentTeamId] + 1}`,
                 },
             ]);
@@ -1841,7 +1868,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     };
 
     const rollDice = () => {
-        if (phase !== 'roll' || isDiceRolling) return;
+        if (!canRollDice) return;
+        setRollLocked(true);
         snakeRollPendingRef.current = false;
         setIsDiceRolling(true);
         playSound('select', isMuted, 'Glitch'); 
@@ -2143,6 +2171,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setPhase('roll');
     };
 
+    useEffect(() => {
+        if (phase === 'turn-complete' && boardSettled) nextTurn();
+    }, [phase, boardSettled]);
+
     const teamColors = [
         { grad: 'radial-gradient(circle at 30% 26%, #d76b6a, #8f2932)', solid: '#a7373f' },
         { grad: 'radial-gradient(circle at 30% 26%, #7596c8, #294c82)', solid: '#365f9b' },
@@ -2175,11 +2207,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         const currentPos = positions[currentTeamId];
         const target = Math.min(99, currentPos + diceValue);
         
-        if (target === 99) return { text: ui("Winning Move!"), color: "text-brand-yellow drop-shadow-lg", size: "text-2xl md:text-3xl" };
-        if (snakes.some(s => s.start === target)) return { text: ui("Target: Snake Hazard!"), color: "text-red-500 animate-pulse drop-shadow-md", size: "text-xl md:text-2xl" };
-        if (ladders.some(l => l.start === target)) return { text: ui("Target: Ladder Boost!"), color: "text-green-500 animate-bounce drop-shadow-md", size: "text-xl md:text-2xl" };
-        if (bonusTiles.includes(target) && !consumedBonusTiles.includes(target)) return { text: ui("BONUS TILE!"), color: "text-purple-200 drop-shadow-[0_8px_15px_rgba(109,40,217,0.6)] animate-pulse uppercase tracking-[0.35em]", size: "text-3xl md:text-5xl" };
-        return { text: ui("Target: Square {target + 1}", { "target + 1": (target + 1) }), color: "text-slate-200", size: "text-lg md:text-xl" };
+        if (target === 99) return { text: ui("Winning Move!"), color: "text-amber-900", size: "text-2xl md:text-3xl" };
+        if (snakes.some(s => s.start === target)) return { text: ui("Target: Snake Hazard!"), color: "text-rose-800", size: "text-xl md:text-2xl" };
+        if (ladders.some(l => l.start === target)) return { text: ui("Target: Ladder Boost!"), color: "text-emerald-800", size: "text-xl md:text-2xl" };
+        if (bonusTiles.includes(target) && !consumedBonusTiles.includes(target)) return { text: ui("BONUS TILE!"), color: "text-amber-900", size: "text-3xl md:text-5xl" };
+        return { text: ui("Target: Square {target + 1}", { "target + 1": (target + 1) }), color: "text-stone-700", size: "text-lg md:text-xl" };
     };
 
     const targetStatus = getTargetStatus();
@@ -2198,19 +2230,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         ? getBonusCardDetails(collectedBonusCard.effect)
         : null;
     const showExpandedBonusCard = !!collectedBonusCard && isBonusCardExpanded;
-    const nextTurnPreview = resolveNextPlayableTurn(currentTurnIndex, turnOrder, skipTurnCounts);
-    const nextPlayableTeamId = turnOrder[nextTurnPreview.nextTurnIndex] ?? currentTeamId;
-    const skippedTeamLabel = nextTurnPreview.skippedTeamIds.map((teamId) => displayTeamName(teamNames[teamId])).join(', ');
-    const turnCompleteCopy = extraTurnTeamId !== null
-        ? ui("The table is yours again.")
-        : nextTurnPreview.skippedTeamIds.length
-            ? ui(nextTurnPreview.skippedTeamIds.length === 1 ? "{skipped} misses this turn. {next} plays next." : "{skipped} miss this turn. {next} plays next.", {skipped: skippedTeamLabel, next: displayTeamName(teamNames[nextPlayableTeamId])})
-            : ui("Pass play to the next player.");
-    const turnCompleteAction = extraTurnTeamId !== null
-        ? ui("Roll Again")
-        : nextTurnPreview.skippedTeamIds.length
-            ? ui("Continue with {team}", {team: displayTeamName(teamNames[nextPlayableTeamId])})
-            : ui("Next Player");
+    const questionHeaderOffset = (isFullscreen ? 0 : 64) + (isMobileViewport ? (teamNames.length >= 4 ? 112 : 72) : 140);
     const boardVisualStyle = isMobileViewport
         ? {
             width: boardSize ? `${boardSize}px` : 'min(100%, calc(100vh - 100px))',
@@ -2310,83 +2330,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 }
                 `}
             </style>
-            {/* HEADER */}
-            <div className={`snl-topbar shrink-0 z-[50] flex items-center ${isMobileViewport ? 'h-[58px] px-2 py-2' : 'h-[72px] px-5'}`}>
-                <div className="flex items-center justify-between w-full gap-3">
-                    <div className={`flex ${isMobileViewport ? 'flex-row items-center gap-1.5' : 'items-center gap-2'}`}>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={isMobileViewport
-                                ? 'w-9 h-9 rounded-lg bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 flex items-center justify-center transition-colors'
-                                : 'w-[140px] h-10 justify-center text-slate-600 hover:text-red-600 flex items-center text-sm bg-white hover:bg-red-50 px-4 rounded-xl transition-colors font-bold border border-slate-200 shadow-sm'
-                            }
-                        >
-                            <ArrowLeft size={isMobileViewport ? 17 : 16} className={isMobileViewport ? '' : 'mr-2'} />
-                            {!isMobileViewport && 'Quit'}
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={isMobileViewport
-                                ? 'w-9 h-9 rounded-lg bg-rose-700 text-white hover:bg-rose-600 border border-rose-800 flex items-center justify-center transition-colors'
-                                : 'w-[140px] h-10 justify-center text-white flex items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 rounded-xl transition-colors font-bold border border-rose-800 shadow-sm'
-                            }
-                            title={ui("End game now")}
-                        >
-                            <Flag size={isMobileViewport ? 14 : 16} className={isMobileViewport ? '' : 'mr-2'} />
-                            {!isMobileViewport && 'End Game'}
-                        </button>
-                        {isMobileViewport && (
-                            <>
-                                <button
-                                    onClick={() => setIsMuted(!isMuted)}
-                                    className="w-9 h-9 rounded-lg bg-slate-100 text-slate-400 hover:text-brand-blue hover:bg-sky-50 border border-slate-200 flex items-center justify-center transition-colors"
-                                    aria-label={isMuted ? ui("Turn sound on") : ui("Mute sound")}
-                                    title={isMuted ? ui("Turn sound on") : ui("Mute sound")}
-                                >
-                                    {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCredits(true)}
-                                    className="snl-credits-trigger w-9 h-9 rounded-lg flex items-center justify-center transition-colors"
-                                    aria-label={ui("View asset credits")}
-                                    title={ui("Asset credits")}
-                                >
-                                    <Info size={17} />
-                                </button>
-                            </>
-                        )}
-                    </div>
-                    
-                    <div className="flex-1 flex items-center justify-end md:justify-center">
-                        <div className={`snl-turn-banner flex items-center gap-3 ${isMobileViewport ? 'px-2 py-1' : 'min-h-11 px-6 py-2'}`} style={{'--team-color': teamColors[currentTeamId % 6].grad} as React.CSSProperties}>
-                            <span className={`font-bold uppercase tracking-wider ${isMobileViewport ? 'text-[9px]' : 'text-xs'}`}>{ui("Active team")}</span>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: teamColors[currentTeamId % 6].solid }}></div>
-                                <span className={`font-black text-amber-50 ${isMobileViewport ? 'text-[11px]' : ''}`}>{displayTeamName(teamNames[currentTeamId])}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {!isMobileViewport && (
-                        <div className="flex flex-row items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowCredits(true)}
-                                className="snl-credits-trigger w-10 h-10 flex items-center justify-center rounded-xl transition-colors"
-                                aria-label={ui("View asset credits")}
-                                title={ui("Asset credits")}
-                            >
-                                <Info size={20} />
-                            </button>
-                            <button onClick={() => setIsMuted(!isMuted)} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isMuted ? ui("Turn sound on") : ui("Mute sound")} title={isMuted ? ui("Turn sound on") : ui("Mute sound")}>{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
-                            <button onClick={toggleFullscreen} className="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-brand-blue bg-white hover:bg-sky-50 rounded-xl transition-colors border border-slate-200 shadow-sm" aria-label={isFullscreen ? ui("Exit full screen") : ui("Enter full screen")} title={isFullscreen ? ui("Exit full screen") : ui("Enter full screen")}>{isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}</button>
-                        </div>
-                    )}
-                </div>
-            </div>
+            <TeamScoreboardHeader scores={positions.map(position => position + 1)} teamNames={teamNames} currentTeam={currentTeamId}
+                isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted}
+                onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}
+                onToggleMute={() => setIsMuted(!isMuted)} onToggleFullscreen={toggleFullscreen} />
 
             <div className="snl-table flex-1 p-2 sm:p-3 relative overflow-hidden">
+                <button onClick={() => setShowCredits(true)} aria-label={ui("View asset credits")} title={ui("Asset credits")}
+                    className="absolute bottom-3 left-3 z-50 w-9 h-9 flex items-center justify-center rounded-xl bg-white text-slate-500 border border-slate-200 shadow-sm"><Info size={18} /></button>
                 <div className="snl-layout w-full h-full min-h-0">
                 <div ref={boardWrapRef} className="snl-board-stage min-h-0 w-full flex items-center justify-center">
                     <div
@@ -2395,6 +2346,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         data-bonus-orb-count={bonusTiles.length - consumedBonusTiles.length}
                         data-team-positions={positions.map(position => position + 1).join(',')}
                         data-game-phase={phase}
+                        data-board-settled={boardSettled ? 'true' : 'false'}
                         data-current-team-id={currentTeamId}
                         data-skip-turn-counts={turnOrder.map((teamId) => skipTurnCounts[teamId] || 0).join(',')}
                     >
@@ -2433,31 +2385,31 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 teamColors={teamColors}
                                 reducedMotion={prefersReducedMotion}
                                 compact={isMobileViewport}
+                                onSettledChange={handleBoardSettledChange}
                             />
                         )}
                     </div>
                 </div>
 
-                {/* RIGHT SIDE (Controls) */}
-                <aside className="snl-controls w-full flex flex-col items-stretch justify-start">
-                    <div className={`snl-control-panel w-full p-2 sm:p-4 text-center flex flex-col items-center overflow-hidden ${isMobileViewport ? `snl-control-panel-mobile snl-control-panel-mobile--${phase}` : 'flex-1 min-h-0'} ${!isMobileViewport && teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}>
-                        {!isMobileViewport && phase !== 'setup' && !showExpandedBonusCard && (
-                            <div className="snl-scoreboard w-full" aria-label={ui("Team positions")}>
-                                <div className="snl-panel-label">{ui("Players")}</div>
-                                {teamNames.map((name, teamIdx) => (
-                                    <div key={teamIdx} className={`snl-score-row ${teamIdx === currentTeamId ? 'is-active' : ''}`}>
-                                        <span className="snl-score-token" style={{ background: teamColors[teamIdx % teamColors.length].grad }}>{teamIdx + 1}</span>
-                                        <span className="snl-score-name">{displayTeamName(name)}</span>
-                                        <strong>{ui("Square ")}{positions[teamIdx] + 1}</strong>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {/* Keep the dice mounted while the turn dialog opens and closes. */}
+                <div className={`snl-turn-overlay ${showBoardNotice ? 'is-board-notice' : ''}`}
+                    style={{ display: !showExpandedBonusCard && (showTurnPopup || showBoardNotice) ? 'flex' : 'none' }}>
+                    <div ref={turnDialogRef}
+                        className={`snl-control-panel snl-turn-dialog ${teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}
+                        role={showTurnPopup ? 'dialog' : 'status'} aria-modal={showTurnPopup ? true : undefined}
+                        aria-label={phase === 'setup' ? ui("Turn Order") : phase === 'roll' ? ui("Roll Dice") : phase === 'turn-complete' ? ui("Turn Complete") : pendingBonusChoice?.effect.type === 'move-five' ? ui("Choose your move") : ui("Choose another player")}
+                        onKeyDown={event => {
+                            if (!showTurnPopup || event.key !== 'Tab') return;
+                            const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), [tabindex="0"]')).filter(element => element.getClientRects().length);
+                            const first = buttons[0], last = buttons[buttons.length - 1];
+                            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+                        }}>
 
                         {!showExpandedBonusCard && phase === 'setup' && (
-                            <div className="animate-fade-in w-full">
+                            <div className="snl-turn-setup animate-fade-in w-full">
                                 <h3 className="snl-setup-title font-display font-bold text-sm sm:text-xl mb-2 sm:mb-4">{ui("Turn Order")}</h3>
-                                <div className={`mb-2 sm:mb-6 ${isMobileViewport ? 'grid grid-cols-3 gap-1' : 'space-y-2'}`}>
+                                <div className="snl-turn-order-list">
                                     {turnOrder.map((teamIdx, i) => (
                                         <div key={i} className={`snl-turn-order-row flex items-center rounded-lg ${isMobileViewport ? 'px-1 py-1 text-[10px]' : 'p-2'}`}>
                                             <span className={`snl-turn-order-index font-bold ${isMobileViewport ? 'mr-1' : 'mr-3'}`}>{i+1}.</span>
@@ -2466,10 +2418,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         </div>
                                     ))}
                                 </div>
-                                <div className={`${isMobileViewport ? 'grid grid-cols-2 gap-2' : 'space-y-3'}`}>
+                                <div className="snl-turn-setup-actions">
                                     <button onClick={shuffleTeams} className={`snl-panel-secondary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3'}`}>
                                         <Shuffle size={isMobileViewport ? 12 : 18} className="mr-2" /> {ui(" Randomize")}</button>
-                                    <button onClick={() => setPhase('roll')} className={`snl-panel-primary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3 text-base sm:text-lg'}`}>
+                                    <button data-turn-primary onClick={() => setPhase('roll')} className={`snl-panel-primary w-full rounded-xl font-bold transition-all flex items-center justify-center ${isMobileViewport ? 'py-1.5 text-[10px]' : 'py-3 text-base sm:text-lg'}`}>
                                         <Play size={isMobileViewport ? 12 : 18} className="mr-2" /> {ui(" Start Game")}</button>
                                 </div>
                             </div>
@@ -2477,17 +2429,14 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                         {/* PERSISTENT DICE CONTAINER - Fix for WebGL Context Thrashing */}
                         <div className="snl-dice-region" style={{ display: !showExpandedBonusCard && (phase === 'roll' || phase === 'moving') ? 'flex' : 'none' }}>
-                            <div ref={diceRowRef} className={`snl-dice-zone w-full animate-fade-in ${isMobileViewport ? 'flex items-center justify-between gap-2 h-full' : 'flex flex-col items-center flex-1 justify-center'}`}>
+                            <div className={`snl-dice-zone w-full animate-fade-in ${isMobileViewport ? 'flex items-center justify-between gap-2 h-full' : 'flex flex-col items-center flex-1 justify-center'}`}>
                                 <div
-                                    className={`snl-dice-player-card ${isMobileViewport ? 'is-mobile flex-1' : ''}`}
-                                    style={isMobileViewport && diceSize ? { minHeight: `${diceSize}px` } : undefined}
+                                    className={`snl-dice-player-card ${isMobileViewport ? 'is-mobile' : ''}`}
                                 >
-                                    <span className="snl-dice-player-label">{ui("Now playing")}</span>
                                     <div className="snl-dice-player-name">
                                         <span className="snl-dice-player-dot" style={{ backgroundColor: teamColors[currentTeamId % teamColors.length].solid }} aria-hidden="true" />
                                         <h3 className="snl-dice-team-name">{displayTeamName(teamNames[currentTeamId])}</h3>
                                     </div>
-                                    <div className="snl-dice-turn-copy">{ui("Your turn to roll")}</div>
                                 </div>
                                 <div
                                     role="button"
@@ -2495,7 +2444,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     onClick={() => { if (canRollDice) rollDice(); }}
                                     onKeyDown={(e) => { if (canRollDice && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); rollDice(); } }}
                                     className={`snl-dice ${isDiceRolling ? 'is-rolling' : 'is-landed'} ${isMobileViewport ? 'relative flex items-center justify-center' : 'w-full h-[clamp(150px,25vh,230px)]'} ${canRollDice ? 'cursor-pointer' : 'cursor-default'}`}
-                                    style={isMobileViewport ? { width: `${diceSize ?? 96}px`, height: `${diceSize ?? 96}px` } : undefined}
                                     aria-label={canRollDice ? ui("Roll Dice") : ui("Dice rolling")}
                                 >
                                     {testMode ? (
@@ -2503,9 +2451,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                             {diceValue}
                                         </div>
                                     ) : (
+                                        <Suspense fallback={null}>
                                         <Canvas
                                             shadows
-                                            camera={{ position: [0, 0, 4], fov: 45 }}
+                                            camera={{ position: [0, 0, isMobileViewport ? 2.6 : 4], fov: 45 }}
                                             children={[
                                                 <ambientLight key="ambient" intensity={0.8} />,
                                                 <spotLight key="spot" position={[5, 10, 5]} angle={0.5} penumbra={1} intensity={1} castShadow />,
@@ -2521,32 +2470,19 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 </Suspense>
                                             ]}
                                         />
+                                        </Suspense>
                                     )}
                                 </div>
-                                {!isMobileViewport && !isDiceRolling && phase === 'roll' && (
+                                {phase === 'roll' && (
                                     <button 
-                                        onClick={rollDice}
+                                        data-turn-primary disabled={!canRollDice} onClick={rollDice}
                                         className="snl-roll-button w-full py-4 font-black flex items-center justify-center text-xl"
                                     >
                                         <Play size={20} className="mr-2" /> {ui(" Roll Dice")}</button>
                                 )}
-                                {!isMobileViewport && isDiceRolling && (
-                                    <div className="snl-roll-result font-bold animate-pulse mt-2">{ui("Rolling...")}</div>
-                                )}
                             </div>
                         </div>
                         
-                        {!showExpandedBonusCard && phase === 'question' && (
-                            <div className="snl-question-panel animate-fade-in">
-                                <HelpCircle size={48} className="snl-question-panel-icon mx-auto mb-4 animate-bounce" />
-                                <h3 className="text-xl font-bold mb-2">{ui("Question Time!")}</h3>
-                                <div className="snl-question-roll px-4 py-2 rounded-lg font-black text-2xl mb-2">
-                                    {ui("You rolled a ")}{diceValue}
-                                </div>
-                                <p className="text-sm">{ui("Answer correctly to move.")}</p>
-                            </div>
-                        )}
-
                         {!showExpandedBonusCard && phase === 'bonus-choice' && pendingBonusChoice && (
                             <div className="snl-bonus-choice-state w-full animate-fade-in text-center">
                                 <Gift size={isMobileViewport ? 34 : 54} className="snl-bonus-choice-icon mx-auto mb-2 text-amber-500" />
@@ -2594,32 +2530,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             </div>
                         )}
 
-                        {!showExpandedBonusCard && phase === 'turn-complete' && (
-                            <div className="snl-turn-complete-state animate-fade-in">
-                                <div className="snl-turn-complete-seal" aria-hidden="true">
-                                    <CheckCircle size={isMobileViewport ? 28 : 46} />
-                                </div>
-                                <span className="snl-turn-complete-label">{ui("Move resolved")}</span>
-                                <h3 className="snl-turn-complete-title">
-                                    {extraTurnTeamId !== null ? ui("Bonus Turn!") : ui("Turn Complete")}
-                                </h3>
-                                <p className="snl-turn-complete-copy">
-                                    {turnCompleteCopy}
-                                </p>
-                                <button 
-                                    onClick={nextTurn}
-                                    className="snl-panel-primary snl-turn-complete-action"
-                                >
-                                    <span>{turnCompleteAction}</span>
-                                    <ArrowRight size={isMobileViewport ? 17 : 20} />
-                                </button>
-                            </div>
-                        )}
                     </div>
-                </aside>
+                </div>
                 </div>
 
-                {showExpandedBonusCard && bonusCardDetails && collectedBonusCard && (
+                {showExpandedBonusCard && boardSettled && bonusCardDetails && collectedBonusCard && (
                     <div
                         className="snl-bonus-card-overlay animate-fade-in"
                         role="dialog"
@@ -2645,36 +2560,25 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             </div>
 
             {/* QUESTION MODAL */}
-            {phase === 'question' && currentQuestion && isQuestionVisible && (
-                <div
+            {phase === 'question' && currentQuestion && (
+                <div data-written-question-overlay
                     className={`snl-question-overlay ${isMobileViewport
-                        ? 'fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-3 animate-fade-in overflow-hidden'
-                        : 'fixed inset-0 z-[200] flex flex-col items-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in'
+                        ? 'fixed inset-x-0 bottom-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-3 animate-fade-in overflow-hidden'
+                        : 'fixed inset-x-0 bottom-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in'
                     }`}
-                    style={isMobileViewport ? undefined : { paddingTop: '160px' }}
+                    style={isMobileViewport
+                        ? { top: `calc(${questionHeaderOffset}px + env(safe-area-inset-top))`, paddingTop: '12px' }
+                        : { top: `calc(${questionHeaderOffset}px + env(safe-area-inset-top))` }}
                 >
-                    <div className={`${isMobileViewport
-                        ? 'w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative'
-                        : 'w-[75vw] aspect-[16/9] max-h-[70vh] [perspective:1000px] relative'
-                    }`}>
+                    <div className="snl-question-frame w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative">
                         <QuestionCardZoomButton />
-                        <button 
-                            onClick={() => setIsQuestionVisible(false)}
-                            className="snl-question-peek absolute -top-12 right-0 px-4 py-2 rounded-lg font-bold flex items-center z-[210] transition-colors"
-                        >
-                            <Eye size={18} className="mr-2" /> {ui(" Peek at Board")}</button>
-
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
-                            <div className={`snl-question-card absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl overflow-hidden flex flex-col h-full ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="snl-question-card-header p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
-                                    <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                                        <div className="font-bold text-sm sm:text-xl opacity-90">{ui("Question for ")}{displayTeamName(teamNames[currentTeamId])}</div>
-                                        <div className="snl-question-roll px-3 py-1 rounded-full text-xs sm:text-sm font-bold">{ui("You rolled a ")}{diceValue}</div>
-                                    </div>
-                                    <div className={`font-bold ${targetStatus.size} ${targetStatus.color}`}>
-                                        {targetStatus.text}
-                                    </div>
+                            <div className={`snl-question-card absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl overflow-hidden flex flex-col h-full ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
+                                <div className="snl-question-card-header snl-question-front-header">
+                                    <div className="snl-question-team">{ui("Question for ")}{displayTeamName(teamNames[currentTeamId])}</div>
+                                    <div className="snl-question-roll">{ui("You rolled a ")}{diceValue}</div>
+                                    <div className={`snl-question-target ${targetStatus.color}`}>{targetStatus.text}</div>
                                 </div>
                                 <div className={`snl-question-card-body flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {questionImageUrl && hasOptions ? (
@@ -2714,7 +2618,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                     className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden"
                                                     style={isMobileViewport ? { flex: '1 1 0%' } : undefined}
                                                 >
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                    <div ref={optionGridRef} data-mcq-theme="snakes" className="snl-question-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -2793,7 +2697,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                             </div>
                                             {hasOptions && !isFlipped && (
                                                 <div className="w-full flex-1 min-h-0 mt-2 sm:mt-4 relative z-10 overflow-hidden">
-                                                    <div ref={optionGridRef} className="grid grid-cols-2 md:grid-cols-2 gap-0 w-full h-full auto-rows-fr">
+                                                <div ref={optionGridRef} data-mcq-theme="snakes" className="snl-question-options grid grid-cols-2 w-full h-full auto-rows-fr">
                                                         {(() => {
                                                             const longestText = currentQuestion.options!.reduce(
                                                                 (a, b) => (stripOptionPrefix(a).length > stripOptionPrefix(b).length ? a : b),
@@ -2838,29 +2742,21 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         </div>
                                     )}
                                 </div>
-                                <div className={`snl-question-footer flex flex-col relative flex-shrink-0 z-50 ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
+                                <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { handleFlip(); }} />
+                                <div data-written-footer className="snl-question-footer flex flex-col shrink-0 relative z-50">
                                     {options.timerSeconds > 0 && (
-                                        <div className={`snl-question-timer relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} overflow-hidden flex items-center justify-start pointer-events-none`}>
-                                            {!isTimesUp && (
-                                                <div 
-                                                    className="snl-question-timer-fill absolute inset-y-0 left-0 transition-all duration-1000"
-                                                    style={{ width: `${timerProgress * 100}%` }}
-                                                />
-                                            )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black tracking-wider">
-                                                {isTimesUp ? ui("TIME'S UP!") : (
-                                                    <><Clock size={18} className="mr-2" /> {timeLeft}</>
-                                                )}
+                                        <div className="snl-question-timer relative overflow-hidden flex items-center justify-center pointer-events-none" role="timer" aria-label={ui("Time remaining")}>
+                                            {!isTimesUp && <div className="snl-question-timer-fill absolute inset-y-0 left-0 transition-all duration-1000" style={{ width: `${timerProgress * 100}%` }} />}
+                                            <div className="snl-question-timer-label relative flex items-center justify-center gap-2">
+                                                {isTimesUp ? ui("TIME'S UP!") : <><Clock size={18} aria-hidden="true" /><span>{timeLeft}s</span></>}
                                             </div>
                                         </div>
                                     )}
                                     {!hasOptions && (
-                                        <div className="w-full flex-1 flex items-center justify-center py-2 sm:py-3">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleFlip(); }}
-                                                className="snl-question-primary px-10 py-3 rounded-full font-bold text-2xl hover:scale-105 transition-transform flex items-center relative z-50"
-                                            >
-                                                {ui("Reveal Answer")}</button>
+                                        <div data-written-reveal className="snl-question-reveal">
+                                            <button onClick={(event) => { event.stopPropagation(); handleFlip(); }} className="snl-question-primary">
+                                                {ui("Reveal Answer")}
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -2868,10 +2764,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
                             {/* BACK */}
                             <div className={`snl-question-card snl-question-card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden flex flex-col h-full ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="snl-question-card-header p-4 flex justify-between items-center h-20 flex-shrink-0">
+                                <div className="snl-question-card-header snl-question-answer-header">
                                     <div className="font-bold text-xl opacity-80">{ui("Answer")}</div>
                                 </div>
-                                <div className="snl-question-card-body flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                <div className="written-answer-result-content snl-question-card-body flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                    <WrittenAnswerReview state={writtenAnswer} />
                                     {currentQuestion.options && mcResult && (
                                         <div className="mb-6 animate-bounce">
                                             {mcResult === 'correct' ? (
@@ -2885,8 +2782,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                         {currentQuestion.answer}
                                     </div>
                                 </div>
-                                <div className="h-24 flex gap-0 flex-shrink-0">
-                                    {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                                <div className="snl-question-actions flex gap-0 flex-shrink-0">
+                                    {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={flipLock || isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : currentQuestion.options && currentQuestion.options.length > 0 ? (
                                         <button 
                                             disabled={flipLock || isProcessing}
                                             onClick={() => handleAnswer(mcResult === 'correct')} 
@@ -2954,17 +2851,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             className="rounded-2xl object-contain border border-white/10 shadow-2xl cursor-zoom-out"
                         />
                     </div>
-                </div>
-            )}
-
-            {/* RESTORE MODAL BUTTON */}
-            {phase === 'question' && !isQuestionVisible && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[250] animate-bounce">
-                    <button 
-                        onClick={() => setIsQuestionVisible(true)}
-                        className="snl-question-primary px-8 py-4 rounded-full font-bold shadow-2xl flex items-center text-xl"
-                    >
-                        <EyeOff size={24} className="mr-3" /> {ui(" Show Question")}</button>
                 </div>
             )}
 

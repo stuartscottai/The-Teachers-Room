@@ -24,7 +24,10 @@ export interface UploadedFile {
   savedToSchoolStorage?: boolean;
 }
 
+export type AnswerMethod = 'say' | 'write';
+
 export interface GameConfig {
+  answerMethod?: AnswerMethod;
   coverImage?: GameCoverImage;
   playCount?: number; // Legacy saved-game metric when the separate database column is unavailable
   type: GameType;
@@ -98,6 +101,7 @@ export interface StopTheFireCategory {
 
 // New Interface for Runtime Options (Players, Timer, Bonuses)
 export interface GameRunOptions {
+  answerMethod?: AnswerMethod;
   players: number;
   timerSeconds: number;
   enableBonuses: boolean;
@@ -221,6 +225,7 @@ export interface SurveyAnswer {
 }
 
 export interface GeneratedQuestion {
+  questionType?: 'gap-fill' | 'open'; // Multiple choice is identified by its options.
   id: number;
   question: string;
   answer: string; // Keep for backward compatibility or as a "top answer"
