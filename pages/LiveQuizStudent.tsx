@@ -173,20 +173,30 @@ const StudentExitScreen: React.FC<{ icon: React.ReactNode; title: string; messag
   );
 };
 
-export const LiveQuizStudent: React.FC = () => {
+export interface LiveQuizStudentPreview {
+  participantId: string;
+  session: LiveQuizSession;
+  question: StudentSafeLiveQuizQuestion;
+  participants: LiveQuizParticipant[];
+}
+
+export const LiveQuizStudent: React.FC<{ preview?: LiveQuizStudentPreview }> = ({ preview: suppliedPreview }) => {
+  const preview = import.meta.env.DEV ? suppliedPreview : undefined;
   useUiLanguage();
-  const { sessionId = '', participantId = '' } = useParams();
+  const params = useParams();
+  const sessionId = preview?.session.id ?? params.sessionId ?? '';
+  const participantId = preview?.participantId ?? params.participantId ?? '';
   const navigate = useNavigate();
-  const [session, setSession] = useState<LiveQuizSession | null>(null);
-  const [question, setQuestion] = useState<StudentSafeLiveQuizQuestion | null>(null);
-  const [participants, setParticipants] = useState<LiveQuizParticipant[]>([]);
+  const [session, setSession] = useState<LiveQuizSession | null>(preview?.session ?? null);
+  const [question, setQuestion] = useState<StudentSafeLiveQuizQuestion | null>(preview?.question ?? null);
+  const [participants, setParticipants] = useState<LiveQuizParticipant[]>(preview?.participants ?? []);
   const [submissions, setSubmissions] = useState<LiveQuizSubmission[]>([]);
   const [submittedQuestion, setSubmittedQuestion] = useState<number | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [nowMs, setNowMs] = useState(Date.now());
-  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(false);
+  const [hasLoadedSnapshot, setHasLoadedSnapshot] = useState(Boolean(preview));
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -195,10 +205,11 @@ export const LiveQuizStudent: React.FC = () => {
   const isLargeAnswerScreen = useIsLargeLiveQuizScreen();
 
   useEffect(() => {
-    if (sessionId && participantId) rememberLiveQuizParticipant(sessionId, participantId);
-  }, [participantId, sessionId]);
+    if (!preview && sessionId && participantId) rememberLiveQuizParticipant(sessionId, participantId);
+  }, [participantId, sessionId, preview]);
 
   useEffect(() => {
+    if (preview) return;
     let disposed = false;
     const load = async () => {
       const [nextSession, nextQuestion, nextParticipants, nextSubmissions] = await Promise.all([
@@ -225,7 +236,7 @@ export const LiveQuizStudent: React.FC = () => {
       disposed = true;
       window.clearInterval(intervalId);
     };
-  }, [participantId, sessionId, submittedQuestion]);
+  }, [participantId, sessionId, submittedQuestion, preview]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 250);
@@ -277,6 +288,11 @@ export const LiveQuizStudent: React.FC = () => {
 
   const handleAnswer = async (answer: string) => {
     if (!question || !canAnswer) return;
+    if (preview) {
+      setSelectedAnswer(answer);
+      setSubmittedQuestion(question.questionIndex);
+      return;
+    }
     setSubmitting(true);
     setError('');
     setSelectedAnswer(answer);
@@ -296,6 +312,12 @@ export const LiveQuizStudent: React.FC = () => {
   const handleSaveAvatar = async (avatarId = selectedAvatar) => {
     if (!me || !avatarId) return;
     const parsed = parseLiveQuizDisplayName(me.displayName);
+    if (preview) {
+      setParticipants((current) => current.map((player) => player.id === participantId
+        ? { ...player, displayName: makeLiveQuizDisplayName(avatarId, parsed.name || 'Player') } : player));
+      setShowAvatarPicker(false);
+      return;
+    }
     setAvatarSaving(true);
     setAvatarError('');
     const result = await updateLiveQuizParticipantDisplayName(

@@ -1311,7 +1311,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
             </main>
 
             {(activeTileId !== null || pendingFinal !== null) && shownQuestion && (
-                <div data-written-question-overlay className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center ${pendingFinal !== null ? 'bg-slate-950/88' : 'bg-slate-900/50'} backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
+                <div data-written-question-overlay data-question-below-scoreboard className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center ${pendingFinal !== null ? 'bg-slate-950/88' : 'bg-slate-900/50'} backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
                     {pendingFinal !== null && (
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.32)_0%,rgba(250,204,21,0.14)_28%,rgba(2,6,23,0.92)_68%)]" />
                     )}

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, To, useNavigate } from 'react-router-dom';
 import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw, Radio } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
+import { PromoVideoSection } from '../components/PromoVideoSection';
 import { GameType } from '../types';
 import { getGlobalStats, getTrendingGames } from '../utils/gameUtils';
 import { GameCover } from '../components/shared/GameCover';
@@ -452,6 +453,8 @@ export const Home: React.FC = () => {
              </div>
          </div>
       </section>
+
+      <PromoVideoSection />
 
       {/* Testimonials - Parallax Effects */}
       <section className="site-home-testimonials py-24 bg-brand-blue text-white relative overflow-hidden">

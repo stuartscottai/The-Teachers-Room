@@ -470,7 +470,9 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
     const letterPool = useMemo(() => buildLetterPool(), []);
 
-    useMobileQuestionViewport(containerRef, (isFlipped || showReview) && !showWinner);
+    useMobileQuestionViewport(containerRef, (isFlipped || showReview) && !showWinner, {
+        resetKey: `${isFlipped}-${showReview}-${reviewIndex}`,
+    });
 
     useEffect(() => {
         const shouldLock = !showWinner && (isFlipped || showReview || showRoundSummary || showTieBreakerResolve);

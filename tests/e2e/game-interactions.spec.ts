@@ -113,9 +113,20 @@ for (const mode of ['trivia', 'jeopardy', 'blockbeaters'] as const) {
     test.skip(isMobile, 'Question zoom is only offered on larger screens');
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto(`/test/game-smoke?mode=${mode}`);
-    if (mode === 'jeopardy') await page.getByRole('button', { name: '100', exact: true }).first().click();
-    else if (mode === 'blockbeaters') await page.getByRole('button', { name: /^Tile / }).first().click();
-    else await page.getByRole('button', { name: /^1$/ }).click();
+    // Dispatch without Playwright scrolling the tile into view, so the game
+    // itself must restore the page before painting the question overlay.
+    await page.evaluate(() => window.scrollTo(0, 64));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    if (mode === 'jeopardy') await page.getByRole('button', { name: '100', exact: true }).first().dispatchEvent('click');
+    else if (mode === 'blockbeaters') await page.getByRole('button', { name: /^Tile / }).first().dispatchEvent('click');
+    else await page.getByRole('button', { name: /^1$/ }).dispatchEvent('click');
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.locator('.team-scoreboard-header')).toBeInViewport({ ratio: 1 });
+    await expect.poll(() => page.evaluate(() => {
+      const header = document.querySelector('.team-scoreboard-header')!.getBoundingClientRect();
+      const overlay = document.querySelector('[data-question-below-scoreboard]')!.getBoundingClientRect();
+      return Math.abs(header.bottom - overlay.top);
+    })).toBeLessThanOrEqual(1);
     await page.getByRole('button', { name: 'Enlarge question card' }).click();
     const close = page.getByRole('button', { name: 'Close enlarged question card' });
     await expect(close).toBeVisible();

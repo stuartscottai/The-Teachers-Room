@@ -1,0 +1,8 @@
+Music: "Upbeat Forever" by Kevin MacLeod (incompetech.com).
+Source: https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1500063
+Licensed under Creative Commons Attribution 4.0:
+https://creativecommons.org/licenses/by/4.0/
+Changes: edited excerpt, short fades, and added game sound effects.
+
+Gameplay, logo and existing game effect assets: The Teachers Room project.
+Typeface: Fredoka, SIL Open Font License.

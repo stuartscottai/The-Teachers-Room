@@ -6,18 +6,22 @@ test('live quiz teacher fixture flows from lobby to final positions', async ({ p
 
   await page.goto('/test/live-quiz-smoke?mode=teacher');
   await expect(page.getByText('Code SMOKE1')).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Waiting for players/i })).toBeVisible();
+  await expect(page.getByText(/Players Joined/)).toBeVisible();
   await page.getByRole('button', { name: /Start Game/i }).click();
 
   await expect(page.getByRole('heading', { name: /Which answer is correct/i })).toBeVisible();
-  await expect(page.getByAltText('Live quiz smoke image')).toBeVisible();
-  await expect(page.getByText('2/2 answered')).toBeVisible();
+  await expect(page.locator('main img')).toBeVisible();
+  await expect(page.getByText('Wrong C', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Reveal Answer/i }).click();
 
   await expect(page.getByText(/Round complete/i)).toBeVisible();
   await page.getByRole('button', { name: /Show Leaderboard/i }).click();
   await expect(page.getByRole('heading', { name: /Leaderboard/i })).toBeVisible();
   await expect(page.getByText(/Team 2/i).first()).toBeVisible();
+  await page.getByRole('button', { name: /Next Question/i }).click();
+  await expect(page.getByRole('heading', { name: /Which planet is famous for its rings/i })).toBeVisible();
+  await page.getByRole('button', { name: /Lock Answers/i }).click();
+  await page.getByRole('button', { name: /Reveal Answer/i }).click();
   await page.getByRole('button', { name: /Final Podium/i }).click();
 
   await expect(page.getByRole('heading', { name: /Team 2 wins/i })).toBeVisible();

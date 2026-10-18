@@ -242,21 +242,31 @@ const LiveQuizAnswerGrid: React.FC<{
   );
 };
 
-export const LiveQuizHost: React.FC = () => {
+export interface LiveQuizHostPreview {
+  session: LiveQuizSession;
+  questions: LiveQuizQuestion[];
+  participants: LiveQuizParticipant[];
+  submissions: LiveQuizSubmission[];
+  answerDelayMs?: number;
+}
+
+export const LiveQuizHost: React.FC<{ preview?: LiveQuizHostPreview }> = ({ preview: suppliedPreview }) => {
+  // Development fixtures exercise this exact screen without contacting a live classroom.
+  const preview = import.meta.env.DEV ? suppliedPreview : undefined;
   useUiLanguage();
   const { sessionId = '' } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isMobileViewport = useIsMobileViewport();
-  const [session, setSession] = useState<LiveQuizSession | null>(null);
-  const [questions, setQuestions] = useState<LiveQuizQuestion[]>([]);
-  const [participants, setParticipants] = useState<LiveQuizParticipant[]>([]);
-  const [submissions, setSubmissions] = useState<LiveQuizSubmission[]>([]);
+  const [session, setSession] = useState<LiveQuizSession | null>(preview?.session ?? null);
+  const [questions, setQuestions] = useState<LiveQuizQuestion[]>(preview?.questions ?? []);
+  const [participants, setParticipants] = useState<LiveQuizParticipant[]>(preview?.participants ?? []);
+  const [submissions, setSubmissions] = useState<LiveQuizSubmission[]>(preview?.answerDelayMs ? [] : preview?.submissions ?? []);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
   const [removingParticipantId, setRemovingParticipantId] = useState<string | null>(null);
-  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(!preview);
   const [lobbyTrack, setLobbyTrack] = useState<LobbyTrackId>('chill');
   const [showJoinQr, setShowJoinQr] = useState(false);
   const [resizeTick, setResizeTick] = useState(0);
@@ -268,6 +278,7 @@ export const LiveQuizHost: React.FC = () => {
   const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
 
   const load = async () => {
+    if (preview) return;
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
       getLiveQuizSession(sessionId),
       getLiveQuizQuestionsForTeacher(sessionId),
@@ -281,23 +292,30 @@ export const LiveQuizHost: React.FC = () => {
   };
 
   useEffect(() => {
+    if (preview) return;
     void load();
     const intervalId = window.setInterval(load, 1000);
     return () => window.clearInterval(intervalId);
-  }, [sessionId]);
+  }, [sessionId, preview]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || preview) return;
     const sendHeartbeat = () => void updateLiveQuizHostHeartbeat(sessionId);
     sendHeartbeat();
     const intervalId = window.setInterval(sendHeartbeat, 5000);
     return () => window.clearInterval(intervalId);
-  }, [sessionId]);
+  }, [sessionId, preview]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 250);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (!preview?.answerDelayMs || session?.status !== 'question') return;
+    const timer = window.setTimeout(() => setSubmissions(preview.submissions), preview.answerDelayMs);
+    return () => window.clearTimeout(timer);
+  }, [preview, session?.status, session?.currentQuestionIndex]);
 
   useEffect(() => {
     if (!session || ['ended'].includes(session.status)) return;
@@ -438,6 +456,11 @@ export const LiveQuizHost: React.FC = () => {
 
   const setStatus = async (status: LiveQuizSession['status'], nextIndex?: number) => {
     if (!session) return;
+    if (preview) {
+      setSession({ ...session, status, currentQuestionIndex: nextIndex ?? session.currentQuestionIndex,
+        questionStartedAt: status === 'question' ? new Date().toISOString() : session.questionStartedAt });
+      return;
+    }
     setBusy(true);
     await updateLiveQuizStatus(session.id, status, typeof nextIndex === 'number' ? { currentQuestionIndex: nextIndex } : {});
     await load();
@@ -450,6 +473,7 @@ export const LiveQuizHost: React.FC = () => {
   const lockAnswers = () => setStatus('locked');
   const endGame = () => setStatus('ended');
   const exitHost = async () => {
+    if (preview) { navigate('/test'); return; }
     if (!session) {
       navigate('/games');
       return;
@@ -511,6 +535,7 @@ export const LiveQuizHost: React.FC = () => {
 
   const replayToLobby = async () => {
     if (!session) return;
+    if (preview) { setSession({ ...preview.session }); setParticipants(preview.participants); setSubmissions(preview.answerDelayMs ? [] : preview.submissions); return; }
     setBusy(true);
     const result = await resetLiveQuizSession(session.id);
     if (!result.success) {
@@ -522,6 +547,11 @@ export const LiveQuizHost: React.FC = () => {
 
   const removeParticipant = async (participant: LiveQuizParticipant) => {
     if (!session || removingParticipantId) return;
+    if (preview) {
+      setParticipants((current) => current.filter((player) => player.id !== participant.id));
+      setSubmissions((current) => current.filter((answer) => answer.participantId !== participant.id));
+      return;
+    }
     const confirmed = window.confirm(ui("Remove {parseLiveQuizDisplayName(participant.displayName).name} from this live quiz? Their answers and score will be removed.", { "parseLiveQuizDisplayName(participant.displayName).name": (parseLiveQuizDisplayName(participant.displayName).name) }));
     if (!confirmed) return;
     setRemovingParticipantId(participant.id);

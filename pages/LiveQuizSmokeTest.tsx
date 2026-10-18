@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Home, Trophy, WifiOff, XCircle } from 'lucide-react';
 import { LiveQuizLeaderboardStage } from '../components/games/LiveQuizLeaderboardStage';
-import { WinnerCeremonyHero, WinnerCeremonyRankingEntry } from '../components/games/shared/WinnerCeremonyHero';
 import { LiveQuizParticipant, LiveQuizSubmission } from '../types';
+import { LiveQuizHost, type LiveQuizHostPreview } from './LiveQuizHost';
+import { LiveQuizStudent, type LiveQuizStudentPreview } from './LiveQuizStudent';
 
 const smokeImage =
   'data:image/svg+xml;utf8,' +
@@ -41,12 +42,6 @@ const submissions: LiveQuizSubmission[] = [
   },
 ];
 
-const finalRanking: WinnerCeremonyRankingEntry[] = participants.map((participant, index) => ({
-  index,
-  name: participant.displayName,
-  score: participant.score,
-}));
-
 const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
   <div className={`mx-auto w-full max-w-4xl rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl ${className}`}>{children}</div>
 );
@@ -71,97 +66,24 @@ const SmokeExitScreen: React.FC<{ kind: 'disconnected' | 'removed' }> = ({ kind 
   </div>
 );
 
-const TeacherSmokeFlow: React.FC = () => {
-  const [phase, setPhase] = useState<'lobby' | 'question' | 'reveal' | 'leaderboard' | 'ended'>('lobby');
-
-  if (phase === 'leaderboard') {
-    return (
-      <LiveQuizLeaderboardStage
-        participants={participants}
-        submissions={submissions}
-        questionIndex={0}
-        title="Leaderboard"
-        subtitle="Question 1 results"
-        controls={
-          <button onClick={() => setPhase('ended')} className="rounded-xl bg-brand-yellow px-5 py-3 font-black text-slate-900">
-            Final Podium
-          </button>
-        }
-      />
-    );
-  }
-
-  if (phase === 'ended') {
-    return (
-      <WinnerCeremonyHero
-        winnerHeadline="Team 2 wins!"
-        subtitle="Live Quiz Challenge final standings"
-        ranking={finalRanking}
-        isMobileViewport={false}
-        onPlayAgain={() => setPhase('lobby')}
-        onExit={() => setPhase('lobby')}
-      >
-        <div className="mx-auto w-full max-w-3xl rounded-3xl border border-white/15 bg-slate-950/80 p-4 text-left shadow-2xl">
-          <h2 className="mb-3 text-2xl font-black text-white">Final positions</h2>
-          {finalRanking.map((entry, index) => (
-            <div key={entry.name} className="mb-2 grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-white/10 p-3 text-white">
-              <div className="text-2xl font-black">#{index + 1}</div>
-              <div className="truncate text-xl font-black">{entry.name}</div>
-              <div className="font-mono text-xl font-black">{entry.score} pts</div>
-            </div>
-          ))}
-        </div>
-      </WinnerCeremonyHero>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-950 p-4 text-white [background:radial-gradient(circle_at_top_left,rgba(14,165,233,0.28),transparent_38%),#020617]">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h1 className="text-3xl font-black">Teacher Live Quiz Smoke</h1>
-          <div className="rounded-full bg-brand-yellow px-4 py-2 text-sm font-black text-slate-900">Code SMOKE1</div>
-        </div>
-        <Panel>
-          {phase === 'lobby' && (
-            <>
-              <div className="text-sm font-black uppercase tracking-wide text-brand-blue">Lobby</div>
-              <h2 className="mt-2 text-3xl font-black">Waiting for players</h2>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {participants.map((participant) => (
-                  <div key={participant.id} className="rounded-2xl bg-slate-100 p-4 font-black">{participant.displayName}</div>
-                ))}
-              </div>
-              <button onClick={() => setPhase('question')} className="mt-6 rounded-xl bg-brand-yellow px-6 py-3 font-black text-slate-900">Start Game</button>
-            </>
-          )}
-          {phase === 'question' && (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-black uppercase tracking-wide text-brand-blue">Question 1 of 1</div>
-                  <h2 className="mt-2 text-3xl font-black">Which answer is correct?</h2>
-                </div>
-                <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black">2/2 answered</div>
-              </div>
-              <img src={smokeImage} alt="Live quiz smoke image" className="mt-5 h-56 w-full rounded-xl border border-slate-200 object-contain" />
-              <button onClick={() => setPhase('reveal')} className="mt-6 rounded-xl bg-brand-blue px-6 py-3 font-black text-white">Reveal Answer</button>
-            </>
-          )}
-          {phase === 'reveal' && (
-            <>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 font-black text-emerald-800">
-                <CheckCircle2 size={18} />
-                Round complete
-              </div>
-              <h2 className="mt-4 text-3xl font-black">Correct answer: Correct</h2>
-              <button onClick={() => setPhase('leaderboard')} className="mt-6 rounded-xl bg-brand-yellow px-6 py-3 font-black text-slate-900">Show Leaderboard</button>
-            </>
-          )}
-        </Panel>
-      </div>
-    </div>
-  );
+const TeacherSmokeFlow: React.FC<{ promo?: boolean }> = ({ promo = false }) => {
+  const preview = useMemo<LiveQuizHostPreview>(() => ({
+    session: { id: 'smoke-session', title: promo ? 'Live Quiz Challenge' : 'Teacher Live Quiz Smoke',
+      joinCode: promo ? 'PLAY24' : 'SMOKE1', status: 'lobby', currentQuestionIndex: 0, timerSeconds: 60 },
+    questions: [
+      { questionIndex: 0, question: promo ? 'Which two colours mix to make purple?' : 'Which answer is correct?',
+        options: promo ? ['Red and blue', 'Yellow and green', 'Red and yellow', 'Blue and green'] : ['Correct', 'Wrong A', 'Wrong B', 'Wrong C'],
+        answer: promo ? 'Red and blue' : 'Correct', category: promo ? 'Colour lab' : 'Smoke quiz', points: 1000,
+        ...(!promo ? { image: { url: smokeImage, alt: 'Live quiz smoke image' } } : {}) },
+      { questionIndex: 1, question: 'Which planet is famous for its rings?',
+        options: ['Saturn', 'Mars', 'Earth', 'Mercury'], answer: 'Saturn', category: 'Space explorers', points: 1000 },
+    ],
+    participants,
+    answerDelayMs: promo ? 2000 : undefined,
+    submissions: submissions.map((submission) => ({ ...submission,
+      answer: promo ? (submission.isCorrect ? 'Red and blue' : 'Yellow and green') : submission.answer })),
+  }), [promo]);
+  return <LiveQuizHost preview={preview} />;
 };
 
 const StudentSmokeFlow: React.FC = () => {
@@ -264,6 +186,19 @@ export const LiveQuizSmokeTest: React.FC = () => {
 
   if (mode === 'disconnected') return <SmokeExitScreen kind="disconnected" />;
   if (mode === 'removed') return <SmokeExitScreen kind="removed" />;
+  if (mode === 'student' && params.get('promo') === '1') return <PromoStudent stage={params.get('stage') || 'question'} />;
   if (mode === 'student') return <StudentSmokeFlow />;
-  return <TeacherSmokeFlow />;
+  return <TeacherSmokeFlow promo={params.get('promo') === '1'} />;
+};
+
+const PromoStudent: React.FC<{ stage: string }> = ({ stage }) => {
+  const preview = useMemo<LiveQuizStudentPreview>(() => ({
+    participantId: 'team-2', participants,
+    session: { id: 'smoke-session', title: 'Live Quiz Challenge', joinCode: 'PLAY24',
+      status: stage === 'lobby' ? 'lobby' : 'question', currentQuestionIndex: 0,
+      timerSeconds: 60, questionStartedAt: new Date().toISOString() },
+    question: { questionIndex: 0, question: 'Which two colours mix to make purple?',
+      options: ['Red and blue', 'Yellow and green', 'Red and yellow', 'Blue and green'], points: 1000, category: 'Colour lab' },
+  }), [stage]);
+  return <LiveQuizStudent preview={preview} />;
 };

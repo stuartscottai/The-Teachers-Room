@@ -8,6 +8,8 @@ import { GameSetup } from '../components/games/GameSetup';
 import { GameConfigurator, ModeSelector } from '../components/games/GameConfigurator';
 import { GameRunOptions, GameType, GeneratedGame, GeneratedQuestion, SnakesLaddersBonusType } from '../types';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
+import { preparePromoGame } from './promoGameData';
+import { LiveQuizSmokeTest } from './LiveQuizSmokeTest';
 
 const smokeImage =
   'data:image/svg+xml;utf8,' +
@@ -140,7 +142,8 @@ export const GameSmokeTest: React.FC = () => {
     return () => setIsPlaying(false);
   }, [isPlayingFixture, setIsPlaying]);
   const type = modes[mode] || GameType.TRIVIA;
-  const baseGame = makeGame(type);
+  const isPromo = params.get('promo') === '1';
+  const baseGame = isPromo ? preparePromoGame(makeGame(type)) : makeGame(type);
   const isSnakesPreview = type === GameType.SNAKES_LADDERS && params.get('preview') === '1';
   if (isSnakesPreview) {
     baseGame.title = 'Animal adventures';
@@ -216,6 +219,7 @@ export const GameSmokeTest: React.FC = () => {
     game: preparedGame || game,
     options: {
       ...options,
+      ...(isPromo ? { questionLimit: game.questions.length } : {}),
       ...(params.has('timer') ? { timerSeconds: Math.max(0, Number(params.get('timer')) || 0) } : {}),
       players: playerCount,
       teamNames: Array.from({ length: playerCount }, (_, index) => params.get('preview') === '1' ? ['Foxes', 'Owls', 'Bears', 'Lions', 'Otters', 'Eagles'][index] : `Team ${index + 1}`),
@@ -266,8 +270,12 @@ export const GameSmokeTest: React.FC = () => {
     );
   }
 
+  // Live Quiz needs its host screen; the solo runner deliberately falls back to Trivia.
+  if (type === GameType.LIVE_QUIZ_CHALLENGE) return <LiveQuizSmokeTest />;
+
   return (
-    <div data-testid="game-smoke-root" data-mode={mode} data-lightweight={lightweightTestMode ? 'true' : 'false'}>
+    <div data-testid="game-smoke-root" data-mode={mode} data-lightweight={lightweightTestMode ? 'true' : 'false'}
+      data-promo-questions={isPromo ? JSON.stringify([...game.questions, ...(game.jeopardyBoard || []).flatMap(group => group.questions)]) : undefined}>
       <LazyGameRunner {...props} />
     </div>
   );

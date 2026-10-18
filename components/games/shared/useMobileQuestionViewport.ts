@@ -4,12 +4,19 @@ import { useLayoutEffect, type RefObject } from 'react';
 export function useMobileQuestionViewport(
   containerRef: RefObject<HTMLElement>,
   active: boolean,
-  { includeDesktop = false, resetKey }: { includeDesktop?: boolean; resetKey?: string } = {},
+  { includeDesktop = true, resetKey }: { includeDesktop?: boolean; resetKey?: string } = {},
 ) {
   useLayoutEffect(() => {
     if (!active) return;
     const media = window.matchMedia('(max-width: 639px)');
     let unlock: (() => void) | undefined;
+    const measure = () => {
+      const container = containerRef.current;
+      if (!container || container.closest('.game-view-zoomed')) return;
+      const header = container.querySelector<HTMLElement>('.team-scoreboard-header, [data-scoreboard-header]');
+      const overlay = container.querySelector<HTMLElement>('[data-question-below-scoreboard]');
+      if (header && overlay) overlay.style.top = `${Math.max(0, header.getBoundingClientRect().bottom)}px`;
+    };
 
     const update = () => {
       unlock?.();
@@ -22,6 +29,9 @@ export function useMobileQuestionViewport(
         element.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       }
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      // Use the real header edge, rather than a guessed nav/header height.
+      // This also prevents gaps with wrapped team names or resized viewports.
+      measure();
 
       // Games manage their own body lock. Lock the page root separately so this
       // shared rule does not overwrite those locks or block scrolling in cards.
@@ -32,8 +42,16 @@ export function useMobileQuestionViewport(
     };
 
     update();
+    const header = containerRef.current?.querySelector('.team-scoreboard-header, [data-scoreboard-header]');
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
+    if (header) observer?.observe(header);
+    window.addEventListener('resize', measure);
+    document.addEventListener('fullscreenchange', measure);
     media.addEventListener('change', update);
     return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      document.removeEventListener('fullscreenchange', measure);
       media.removeEventListener('change', update);
       unlock?.();
     };
