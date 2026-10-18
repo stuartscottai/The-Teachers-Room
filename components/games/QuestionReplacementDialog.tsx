@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import type { GeneratedGame, GeneratedQuestion } from '../../types';
@@ -51,14 +52,14 @@ export const QuestionReplacementDialog: React.FC<{
       </div>
       {!proposal && <div className="mt-4 space-y-4">
         <label className="block text-sm font-semibold">{ui('What should change?')}
-          <select aria-label={ui('What should change?')} value={reason} disabled={busy} onChange={event => setReason(event.target.value as ReplacementReason)} className="mt-1 w-full rounded-lg border-slate-300 text-sm">
+          <PlayfulSelect aria-label={ui('What should change?')} value={reason} disabled={busy} onChange={event => setReason(event.target.value as ReplacementReason)} className="mt-1 w-full rounded-lg border-slate-300 text-sm">
             <option value="different">{ui('Give me a different question')}</option>
             <option value="wrong-answer">{ui('The answer is wrong')}</option>
             <option value="ambiguous">{ui('More than one answer could be correct')}</option>
             <option value="off-topic">{ui('The question is off-topic')}</option>
             <option value="too-easy">{ui('The question is too easy')}</option>
             <option value="too-difficult">{ui('The question is too difficult')}</option>
-          </select>
+          </PlayfulSelect>
         </label>
         <label className="block text-sm font-semibold">{ui('Tell the AI more (optional)')}
           <textarea aria-label={ui('Tell the AI more (optional)')} value={feedback} maxLength={1000} rows={2} disabled={busy} onChange={event => setFeedback(event.target.value)} className="mt-1 w-full rounded-lg border-slate-300 text-sm" />

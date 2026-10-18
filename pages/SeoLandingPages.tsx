@@ -75,7 +75,7 @@ const pages: Record<string, LandingPageConfig> = {
 const LandingPage: React.FC<{ config: LandingPageConfig }> = ({ config }) => {
   const { language } = useUiLanguage();
   return (
-  <div translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate seo-landing bg-slate-50 min-h-screen">
+  <div translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate playful-page seo-landing min-h-screen">
     <section className="seo-landing-hero bg-brand-blue text-white">
       <div className="max-w-6xl mx-auto px-4 py-20 md:py-24">
         <div className="max-w-3xl">

@@ -1,13 +1,15 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
 import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import './game-workspace.css';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { GameType, GameConfig, GeneratedGame, UploadedFile } from '../../types';
 import { generateGameContent, generateStopTheFireCategories } from '../../services/geminiService';
 import { processFile } from '../../utils/gameUtils';
-import { ArrowLeft, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff, Copy, Upload, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Sparkles, Edit, X, Paperclip, FileText, HardDrive, Mic, MicOff, Copy, Upload, ChevronDown, Dice5, Star } from 'lucide-react';
 import { useDictation } from '../../utils/useDictation';
 import { useAuth } from '../../contexts/AuthContext';
 import { promptSignupForFree, promptUpgradeForAi } from '../../services/accountAccess';
@@ -73,7 +75,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
   useUiLanguage();
     const isStopTheFire = type === GameType.STOP_THE_FIRE;
     const [isCompactHeight, setIsCompactHeight] = useState(false);
-    const [showDialog, setShowDialog] = useState(false);
+    const reduceMotion = useReducedMotion();
     const shouldOffsetForTour = mobileTopInset > 0;
     const backdropImage = GAME_BACKDROP_IMAGES[type];
     const horizontalImageFade: React.CSSProperties = {
@@ -99,15 +101,11 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
         return () => media.removeEventListener('change', handleChange);
     }, []);
 
-    useEffect(() => {
-        setShowDialog(false);
-        const timeoutId = window.setTimeout(() => setShowDialog(true), 500);
-        return () => window.clearTimeout(timeoutId);
-    }, [type]);
-
     return (
-        <div
-            className={`fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto' : 'items-center'} justify-center p-3 sm:p-4 animate-fade-in`}
+        <motion.div
+            initial="hidden" animate="visible" exit="exit"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: .16 } }, exit: { opacity: 0, transition: { duration: reduceMotion ? 0 : .24 } } }}
+            className={`playful-mode-overlay fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] z-[100] flex ${(isCompactHeight || shouldOffsetForTour) ? 'items-start overflow-y-auto' : 'items-center'} justify-center p-3 sm:p-4`}
             style={shouldOffsetForTour
                 ? {
                     top: `calc(4rem + env(safe-area-inset-top) + ${mobileTopInset}px)`,
@@ -137,14 +135,17 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-b from-[#071122]/12 via-transparent to-[#071122]/20" />
             </div>
-            {showDialog && (
-            <div
-                className="game-config-mode-dialog bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-5 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto relative animate-slide-up border border-white/60"
+            <motion.div
+                role="dialog" aria-modal="true" aria-labelledby="creation-mode-title" tabIndex={-1}
+                onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onBack(); } }}
+                variants={{ hidden: { opacity: 0, scale: reduceMotion ? 1 : .72, rotate: reduceMotion ? 0 : -4 }, visible: { opacity: 1, scale: 1, rotate: 0, transition: { type: 'spring', stiffness: 340, damping: 21 } }, exit: { opacity: 0, scale: reduceMotion ? 1 : .55, y: reduceMotion ? 0 : 65, rotate: reduceMotion ? 0 : 7, transition: { duration: reduceMotion ? 0 : .24, ease: 'easeIn' } } }}
+                className="game-config-mode-dialog playful-mode-dialog p-5 sm:p-8 max-w-lg w-full max-h-full overflow-y-auto relative"
             >
-                <button onClick={onBack} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <button autoFocus onClick={onBack} aria-label={ui("Close")} className="playful-mode-close absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={24} />
                 </button>
-                <h2 className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">{ui("Create ")}{type}</h2>
+                <div className="playful-mode-sticker" aria-hidden="true"><Dice5 size={30} /><Star size={16} fill="currentColor" /></div>
+                <h2 id="creation-mode-title" className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">{ui("Create ")}{type}</h2>
                 <p className="text-center text-slate-500 mb-5 sm:mb-8">{ui("How would you like to build your game?")}</p>
 
                 <div className="space-y-4">
@@ -216,9 +217,8 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                         </>
                     )}
                 </div>
-            </div>
-            )}
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
 
@@ -343,14 +343,14 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             <>
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">{ui("MCQ Option Strategy")}</label>
-                    <select
+                    <PlayfulSelect
                         value={strategy}
                         onChange={(e) => updateMcOptionStrategy(e.target.value as 'fixed' | 'vary')}
                         className={selectClassName}
                     >
                         <option value="vary">{ui("Let AI Vary (2-4)")}</option>
                         <option value="fixed">{ui("Fixed Count")}</option>
-                    </select>
+                    </PlayfulSelect>
                     <p className="text-xs text-slate-500 mt-1">
                         {isExplicitMcq
                             ? ui("Use a fixed count for exam-style consistency, or let AI vary between 2, 3, and 4 options.")
@@ -361,7 +361,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 {strategy === 'fixed' && (
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Options")}</label>
-                        <select
+                        <PlayfulSelect
                             value={optionCount}
                             onChange={(e) => updateMcOptionCount(Number(e.target.value) as 2 | 3 | 4)}
                             className={selectClassName}
@@ -369,7 +369,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             <option value="2">{ui("2 Options")}</option>
                             <option value="3">{ui("3 Options")}</option>
                             <option value="4">{ui("4 Options")}</option>
-                        </select>
+                        </PlayfulSelect>
                     </div>
                 )}
             </>
@@ -957,22 +957,26 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
     };
 
     return (
-        <div
-            className="game-workspace fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto"
+        <motion.div
+            exit={{ opacity: 0 }} transition={{ duration: .12 }}
+            className="playful-page game-workspace workspace-playful fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto"
             style={mobileTopInset > 0 ? { top: `calc(4rem + ${mobileTopInset}px)` } : undefined}
         >
             <div>
                 <div className="workspace-shell" style={{ maxWidth: 1160 }}>
                     <button onClick={onBack} className="workspace-back">
                         <ArrowLeft size={18} /> {ui(" Back to creation options")}</button>
-                    <header>
-                        <p className="workspace-eyebrow mb-2">{ui("Game setup")}</p>
-                        <h1 className="workspace-heading">{ui("Create ")}{type}</h1>
+                    <header className="playful-header">
+                        <div className="playful-dice" aria-hidden="true"><Dice5 size={44} strokeWidth={2.2} /><Star className="playful-star" size={23} fill="currentColor" /></div>
+                        <div>
+                        <p className="workspace-eyebrow mb-2">{mode === 'ai' ? <><Sparkles size={14} aria-hidden="true" /> {ui("A little AI, a lot of play")}</> : <><Edit size={14} aria-hidden="true" /> {ui("Your ideas, your game")}</>}</p>
+                        <h1 className="workspace-heading">{ui("Let's make a game!")}</h1>
                         <p className="mt-2 text-sm text-slate-600">{mode === 'ai' ? ui("Choose your topic and settings, then review the questions.") : ui("Set up your game, then add your content in the editor.")}</p>
+                        </div>
                     </header>
                     <div className="workspace-config-grid">
                       <div className="workspace-config-form">
-                        <h2 className="workspace-section-title"><span>1</span> {ui(" Game details")}</h2>
+                        <h2 className="workspace-section-title"><span>1</span> {ui("Start with an idea")}</h2>
                         <div className="space-y-4">
                             {/* Global Title Field */}
                             <div>
@@ -1005,7 +1009,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                             )}
 
                             <section className="workspace-config-settings">
-                            <h2 className="workspace-section-title"><span>2</span> {ui(" Question settings")}</h2>
+                            <h2 className="workspace-section-title"><span>2</span> {ui("Make it your own")}</h2>
                             {/* CONFIG RENDER SWITCH */}
                             {type === GameType.MILLIONAIRE ? (
                                 <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
@@ -1145,7 +1149,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1155,7 +1159,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="multiple-choice">{ui("Multiple Choice")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
-                                                </select>
+                                                </PlayfulSelect>
                                                 {renderAnswerMethodControls()}
                                                 <p className="text-xs text-slate-500 mt-1">{ui("Time Bomb works best with quick-answer formats.")}</p>
                                             </div>
@@ -1348,7 +1352,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1358,7 +1362,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="multiple-choice">{ui("Multiple Choice")}</option>
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="open">{ui("Open Ended")}</option>
-                                                </select>
+                                                </PlayfulSelect>
                                                 {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1393,7 +1397,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1403,7 +1407,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
-                                                </select>
+                                                </PlayfulSelect>
                                                 {renderAnswerMethodControls()}
                                             </div>
 
@@ -1416,23 +1420,23 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <div className="grid grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Categories")}</label>
-                                            <select
+                                            <PlayfulSelect
                                                 value={config.jeopardyCategories}
                                                 onChange={(e) => setConfig({...config, jeopardyCategories: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                             >
                                                 {[3, 4, 5, 6].map(n => <option key={n} value={n}>{n} {ui(" Categories")}</option>)}
-                                            </select>
+                                            </PlayfulSelect>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Questions per Category")}</label>
-                                            <select
+                                            <PlayfulSelect
                                                 value={config.jeopardyRows}
                                                 onChange={(e) => setConfig({...config, jeopardyRows: Number(e.target.value)})}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                             >
                                                 {[3, 4, 5].map(n => <option key={n} value={n}>{n} {ui(" Rows")}</option>)}
-                                            </select>
+                                            </PlayfulSelect>
                                         </div>
                                     </div>
 
@@ -1460,7 +1464,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1470,7 +1474,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
-                                                </select>
+                                                </PlayfulSelect>
                                                 {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1482,23 +1486,23 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <div className="grid grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Number of Rounds")}</label>
-                                        <select
+                                        <PlayfulSelect
                                             value={config.pubQuizRoundsCount}
                                             onChange={(e) => setConfig({...config, pubQuizRoundsCount: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         >
                                             {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} {ui(" Rounds")}</option>)}
-                                        </select>
+                                        </PlayfulSelect>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Questions per Round")}</label>
-                                        <select
+                                        <PlayfulSelect
                                             value={config.pubQuizQuestionsPerRound}
                                             onChange={(e) => setConfig({...config, pubQuizQuestionsPerRound: Number(e.target.value)})}
                                             className="w-full p-3 rounded-lg border border-slate-200 outline-none"
                                         >
                                             {[3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} {ui(" Questions")}</option>)}
-                                        </select>
+                                        </PlayfulSelect>
                                     </div>
                                 </div>
 
@@ -1526,7 +1530,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                     <>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                            <select
+                                            <PlayfulSelect
                                                 value={config.questionType}
                                                 onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                 className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1536,7 +1540,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 <option value="gap-fill">{ui("Gap Fill")}</option>
                                                 <option value="open">{ui("Open Ended")}</option>
                                                 <option value="mixed">{ui("Mixed Format")}</option>
-                                            </select>
+                                            </PlayfulSelect>
                                             {renderAnswerMethodControls()}
                                         </div>
                                         {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1562,7 +1566,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                         <>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={config.questionType}
                                                     onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                     className="w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400"
@@ -1572,7 +1576,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                     <option value="gap-fill">{ui("Gap Fill")}</option>
                                                     <option value="open">{ui("Open Ended")}</option>
                                                     <option value="mixed">{ui("Mixed Format")}</option>
-                                                </select>
+                                                </PlayfulSelect>
                                                 {renderAnswerMethodControls()}
                                             </div>
                                             {renderMcOptionControls("w-full p-3 rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-sky-400")}
@@ -1633,7 +1637,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 {supportsExternalQuestionType && (
                                                     <div>
                                                         <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Question Type")}</label>
-                                                        <select
+                                                        <PlayfulSelect
                                                             value={config.questionType}
                                                             onChange={(e) => updateQuestionType(e.target.value as GameConfig['questionType'])}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
@@ -1643,7 +1647,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             <option value="multiple-choice">{ui("Multiple Choice")}</option>
                                                             <option value="gap-fill">{ui("Gap Fill")}</option>
                                                             <option value="open">{ui("Open Ended")}</option>
-                                                        </select>
+                                                        </PlayfulSelect>
                                                         {renderAnswerMethodControls()}
                                                     </div>
                                                 )}
@@ -1653,7 +1657,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                 {supportsExternalPointsMode && (
                                                     <div>
                                                         <label className="block text-sm font-medium text-slate-700 mb-2">{ui("Points Strategy")}</label>
-                                                        <select
+                                                        <PlayfulSelect
                                                             value={externalPromptPointsMode}
                                                             onChange={(e) => setExternalPromptPointsMode(e.target.value as 'fixed' | 'random' | 'ai-random' | 'manual')}
                                                             className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-brand-blue"
@@ -1662,7 +1666,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             <option value="random">{ui("Random Points")}</option>
                                                             <option value="ai-random">{ui("Vary By Difficulty")}</option>
                                                             <option value="manual">{ui("Edit Points Later")}</option>
-                                                        </select>
+                                                        </PlayfulSelect>
                                                     </div>
                                                 )}
 
@@ -1910,7 +1914,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                             <div className="mt-3">
                                                 <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-1">
                                                     {ui("School folder for new uploads")}</label>
-                                                <select
+                                                <PlayfulSelect
                                                     value={schoolUploadFolderId}
                                                     onChange={(event) => setSchoolUploadFolderId(event.target.value)}
                                                     disabled={schoolStorageLoading}
@@ -1922,7 +1926,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                                                             {folder.name}
                                                         </option>
                                                     ))}
-                                                </select>
+                                                </PlayfulSelect>
                                             </div>
                                             <p className="mt-2 text-xs text-slate-500">
                                                 {localUploadsPendingSchoolSave > 0
@@ -1955,6 +1959,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         </div>
                       </div>
                       <aside className="workspace-config-summary" aria-label={ui("Game summary")}>
+                        <div className="playful-preview-label"><Star size={15} fill="currentColor" aria-hidden="true" /> {ui("Your next classroom adventure")}</div>
                         <img src={GAME_BACKDROP_IMAGES[type]} alt="" />
                         <p className="workspace-eyebrow">{ui("Your game")}</p>
                         <h2 className="mt-1 text-lg font-bold text-slate-800">{type}</h2>
@@ -1999,6 +2004,6 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                 onAttach={handleAttachSchoolFiles}
                 onClose={() => setSchoolStorageBrowserOpen(false)}
             />
-        </div>
+        </motion.div>
     );
 };

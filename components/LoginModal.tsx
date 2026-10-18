@@ -192,8 +192,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
-      <div className="relative flex h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-fade-in sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
+    <div className="playful-auth-overlay fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-900/50 p-3 backdrop-blur-sm sm:p-4">
+      <div role="dialog" aria-modal="true" aria-label={ui(renderTitle())} className="playful-auth-card relative flex h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
         <button
           onClick={onClose}
           aria-label={ui("Close")}

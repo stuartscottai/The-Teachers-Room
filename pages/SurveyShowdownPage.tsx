@@ -23,7 +23,7 @@ const Screenshot = ({ name, alt, title, children }: { name: string; alt: string;
   </figure>;
 };
 
-export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<div className="bg-sky-50 text-brand-dark">
+export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<div className="playful-page playful-game-landing text-brand-dark">
   <section className="mx-auto max-w-[1400px] px-6 pb-10 pt-7 sm:px-10">
     <nav aria-label={ui("Breadcrumb")} className="flex gap-3 text-sm text-slate-600"><Link to="/games" className="underline-offset-4 hover:underline">{ui("Games")}</Link><span aria-hidden="true">/</span><span aria-current="page">{ui("Survey Showdown")}</span></nav>
     <div className="mt-7 grid items-center gap-6 grid-rows-[minmax(539px,auto)_322px] min-[375px]:grid-rows-[minmax(462px,auto)_322px] sm:grid-rows-[minmax(385px,auto)_408px] lg:grid-cols-[0.7fr_1.3fr] lg:grid-rows-[518px] lg:gap-8">
@@ -39,7 +39,7 @@ export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<di
       </figure>
     </div>
   </section>
-  <section className="border-t-4 border-brand-yellow bg-white px-6 py-12 sm:px-10 lg:py-16" aria-labelledby="survey-showdown-gameplay-heading">
+  <section className="border-t border-slate-200 px-6 py-12 sm:px-10 lg:py-16" aria-labelledby="survey-showdown-gameplay-heading">
     <div className="mx-auto max-w-6xl">
       <div className="mb-8 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <h2 id="survey-showdown-gameplay-heading" className="font-display text-3xl font-bold sm:text-4xl">{ui("Let’s play Survey Showdown")}</h2>
@@ -57,7 +57,7 @@ export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<di
       </div>
     </div>
   </section>
-  <section className="border-t border-sky-100 bg-sky-50 px-6 py-12 sm:px-10 lg:py-16">
+  <section className="border-t border-slate-200 px-6 py-12 sm:px-10 lg:py-16">
     <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:gap-16">
       <div>
         <h2 className="font-display text-3xl font-bold">{ui("Make it your own")}</h2>
@@ -67,7 +67,7 @@ export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<di
           <div><dt className="font-bold text-sky-800">{ui("Keep everyone involved")}</dt><dd className="mt-1 text-slate-600">{ui("Let teammates compare ideas before you enter a guess. Turns move between teams, so everyone has a chance to help uncover the board.")}</dd></div>
         </dl>
       </div>
-      <div className="border-l-4 border-brand-yellow pl-6 sm:pl-8">
+      <div className="border-l border-slate-200 pl-6 sm:pl-8">
         <h2 className="font-display text-3xl font-bold">{ui("Where will you take it?")}</h2>
         <dl className="mt-6 space-y-5 text-sm leading-relaxed">
           <div><dt className="font-bold text-sky-800">{ui("Get a topic talking")}</dt><dd className="mt-1 text-slate-600">{ui("Start with something familiar and hear what comes to mind. The guesses can help bring earlier learning back into the room.")}</dd></div>
@@ -77,7 +77,7 @@ export const SurveyShowdownPage: React.FC = () => { useUiLanguage(); return (<di
       </div>
     </div>
   </section>
-  <section className="bg-white px-6 py-14 sm:px-10 lg:py-20">
+  <section className="px-6 py-14 sm:px-10 lg:py-20">
     <div className="mx-auto max-w-6xl text-center">
       <div aria-hidden="true" className="mx-auto mb-6 h-1 w-12 bg-brand-yellow" />
       <h2 className="font-display text-3xl font-bold sm:text-4xl">{ui("What will your students play next?")}</h2>

@@ -194,7 +194,11 @@ const Navbar: React.FC = () => {
 
   return (
     <>
-    <nav className="bg-white sticky top-0 z-[100] shadow-sm border-b border-slate-100 print:hidden">
+    <nav className="playful-navbar bg-white sticky top-0 z-[100] shadow-sm border-b border-slate-100 print:hidden" onKeyDown={event => {
+      if (event.key !== 'Escape') return;
+      if (isOpen) { setIsOpen(false); event.currentTarget.querySelector<HTMLButtonElement>('[aria-controls="mobile-navigation"]')?.focus(); }
+      if (showUserMenu) { setShowUserMenu(false); event.currentTarget.querySelector<HTMLButtonElement>('.playful-user-menu-trigger')?.focus(); }
+    }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -227,7 +231,8 @@ const Navbar: React.FC = () => {
                 <div className="relative">
                   <button 
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center space-x-2 text-slate-700 hover:text-brand-blue relative z-[101]"
+                    aria-expanded={showUserMenu} aria-haspopup="true"
+                    className="playful-user-menu-trigger flex items-center space-x-2 text-slate-700 hover:text-brand-blue relative z-[101]"
                   >
                     <Avatar
                       name={user.name}
@@ -242,7 +247,7 @@ const Navbar: React.FC = () => {
                      <>
                      {/* Backdrop to close menu when clicking outside */}
                      <div className="fixed inset-0 z-[100]" onClick={() => setShowUserMenu(false)} />
-                     <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[102] animate-fade-in">
+                     <div className="playful-user-menu playful-dropdown-panel absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-[102]">
                         <div className="px-4 py-2 border-b border-slate-50 mb-2">
                           <p className="text-xs text-slate-400 uppercase">{ui("Signed in as")}</p>
                           <p className="font-bold text-slate-800 truncate">{user.email}</p>
@@ -294,7 +299,7 @@ const Navbar: React.FC = () => {
               ) : (
                 <button 
                   onClick={() => openLoginModal('login')}
-                  className="text-slate-500 hover:text-brand-accent transition-colors"
+                  className="playful-nav-login text-slate-500 hover:text-brand-accent transition-colors"
                 >
                   <div className="bg-slate-100 p-2 rounded-full hover:bg-sky-50 hover:text-sky-600 transition-colors flex items-center gap-2 px-4">
                      <User size={20} />
@@ -311,7 +316,8 @@ const Navbar: React.FC = () => {
             <button
               onClick={() => setIsOpen(!isOpen)}
               aria-label={t(isOpen ? 'nav.closeMenu' : 'nav.openMenu')}
-              className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none"
+              aria-expanded={isOpen} aria-controls="mobile-navigation"
+              className="playful-hamburger inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -321,7 +327,7 @@ const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="xl:hidden bg-white border-t border-slate-100">
+        <div id="mobile-navigation" className="playful-mobile-menu playful-dropdown-panel xl:hidden bg-white border-t border-slate-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             {navItems.map((item) => (
               <SafeLink
@@ -474,7 +480,7 @@ const Footer: React.FC = () => {
   const [showMobileGames, setShowMobileGames] = useState(false);
 
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-6 pb-5 md:pt-10 md:pb-6 print:hidden">
+    <footer className="playful-footer-menu bg-slate-900 text-slate-300 border-t border-slate-800 pt-6 pb-5 md:pt-10 md:pb-6 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-x-6 gap-y-6 mb-6 md:grid-cols-3 md:gap-y-10 md:mb-8 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.6fr)] lg:gap-x-8">
           <div className="col-span-2 md:col-span-1">
@@ -490,7 +496,7 @@ const Footer: React.FC = () => {
             <button type="button" aria-controls="footer-game-links" aria-expanded={showMobileGames} onClick={() => setShowMobileGames(open => !open)} className="flex w-full items-center justify-between border-y border-slate-700 py-3 text-left text-sm font-semibold text-white md:hidden">
               {ui("Explore games and guides")}<ChevronDown size={18} aria-hidden="true" className={`transition-transform ${showMobileGames ? 'rotate-180' : ''}`} />
             </button>
-            <div id="footer-game-links" className={`${showMobileGames ? 'block' : 'hidden'} pt-4 md:block md:pt-0`}>
+            <div id="footer-game-links" className={`playful-footer-menu ${showMobileGames ? 'playful-dropdown-panel block' : 'hidden'} pt-4 md:block md:pt-0`}>
             <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5">
               <li><SafeLink to="/game-types/trivia" className="hover:text-brand-yellow text-sm transition-colors">{ui("Trivia")}</SafeLink></li>
               <li><SafeLink to="/game-types/jeopardy" className="hover:text-brand-yellow text-sm transition-colors">{ui("Jeopardy")}</SafeLink></li>
@@ -550,6 +556,9 @@ const Footer: React.FC = () => {
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { language } = useInterfaceLanguage();
   const location = useLocation();
+  const { isPlaying } = useUnsavedChanges();
+  const playfulPage = location.pathname !== '/' && !isPlaying
+    && !/^\/(student\/|live\/(host|play)\/)/.test(location.pathname);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -558,7 +567,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return (
         <div translate="no" lang={language === 'es' ? 'es-ES' : 'en'} className="notranslate flex flex-col font-sans selection:bg-brand-yellow selection:text-slate-900">
       <Navbar />
-      <main className="bg-white relative z-0">
+      <main className={`bg-white relative z-0${playfulPage ? ' playful-site' : ''}`}>
         {children}
       </main>
       <Footer />

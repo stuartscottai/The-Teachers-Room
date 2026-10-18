@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
 import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -205,7 +206,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     || (game.stopTheFireRounds || []).reduce((total, round) => total + round.categories.filter(category => category.trim()).length, 0);
 
   return (
-    <div className="game-workspace workspace-setup min-h-screen">
+    <div className="playful-page game-workspace workspace-setup min-h-screen">
       <div className="workspace-shell">
         <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(backLabel)}</button>
         <header className="workspace-setup-header">
@@ -276,7 +277,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         <div>
                             <label className={setupLabelClass}>
                                 <Zap size={16} className="mr-2 text-brand-blue" /> {ui(" Initial Bomb Time")}</label>
-                            <select
+                            <PlayfulSelect
                                 aria-label={ui("Initial bomb time")} value={options.bombDuration}
                                 onChange={(e) => setOptions({ ...options, bombDuration: Number(e.target.value) })}
                                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-blue"
@@ -286,7 +287,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                 <option value={60}>{ui("60 Seconds (Standard)")}</option>
                                 <option value={90}>{ui("90 Seconds (Long)")}</option>
                                 <option value={120}>{ui("2 Minutes (Marathon)")}</option>
-                            </select>
+                            </PlayfulSelect>
                         </div>
                         <div>
                             <label className={setupLabelClass}>
@@ -311,7 +312,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     <div>
                         <label className={setupLabelClass}>
                             <Clock size={16} className="mr-2 text-brand-blue" /> {ui(" Answer Timer")}</label>
-                        <select
+                        <PlayfulSelect
                             aria-label={ui("Answer timer")} value={options.timerSeconds}
                             onChange={(e) => setOptions({ ...options, timerSeconds: Number(e.target.value) })}
                             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-blue"
@@ -320,7 +321,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <option value={15}>{ui("15 Seconds")}</option>
                             <option value={30}>{ui("30 Seconds")}</option>
                             <option value={60}>{ui("60 Seconds")}</option>
-                        </select>
+                        </PlayfulSelect>
                         {game.config.type === GameType.SURVEY_SHOWDOWN && <p className="mt-2 text-sm text-slate-500">{ui("Time for each team’s guess. Running out of time adds a strike and passes the turn. You can pause during play.")}</p>}
                     </div>
                 )}
@@ -367,21 +368,21 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                         <div>
                             <label className={setupLabelClass}>
                                 <Target size={16} className="mr-2 text-brand-blue" /> {ui(" Game Mode")}</label>
-                            <select
+                            <PlayfulSelect
                                 aria-label={ui("Game mode")} value={options.dartsMode}
                                 onChange={(e) => setOptions({ ...options, dartsMode: e.target.value as any })}
                                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                             >
                                 <option value="high-score">{ui("High Score (Standard)")}</option>
                                 <option value="301">{ui("301 (Double Out)")}</option>
-                            </select>
+                            </PlayfulSelect>
                         </div>
 
                         {options.dartsMode === 'high-score' && (
                             <div className="mt-4 animate-fade-in">
                                 <label className={setupLabelClass}>
                                     <Hash size={16} className="mr-2 text-brand-blue" /> {ui(" Turns per Player")}</label>
-                                <select
+                                <PlayfulSelect
                                     aria-label={ui("Turns per player")} value={options.dartsLegs}
                                     onChange={(e) => setOptions({ ...options, dartsLegs: Number(e.target.value) })}
                                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
@@ -390,7 +391,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                     <option value={5}>{ui("5 Turns (Standard)")}</option>
                                     <option value={10}>{ui("10 Turns (Long)")}</option>
                                     <option value={15}>{ui("15 Turns (Marathon)")}</option>
-                                </select>
+                                </PlayfulSelect>
                             </div>
                         )}
                         <p className="mt-3 text-xs font-semibold text-slate-500">
@@ -408,7 +409,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <label className={setupLabelClass}>
                                 <Grid size={16} className="mr-2 text-brand-blue" /> {ui(" Grid Size (Questions)")}</label>
                             {validQuestionCounts.length > 0 ? (
-                                <select
+                                <PlayfulSelect
                                     aria-label={ui("Grid size")} value={options.questionLimit}
                                     onChange={(e) => setOptions({ ...options, questionLimit: Number(e.target.value) })}
                                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
@@ -417,7 +418,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                         <option key={count} value={count}>
                                             {count} {ui(" Questions (")}{(count / options.players).toFixed(0)} {ui(" turns each)")}</option>
                                     ))}
-                                </select>
+                                </PlayfulSelect>
                             ) : (
                                 <div className="flex rounded-xl bg-red-50 p-3 text-xs font-bold text-red-500">
                                     <AlertCircle size={14} className="mr-1" />
@@ -495,7 +496,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
 
                             <div>
                                 <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{ui("Board Size")}</label>
-                                <select
+                                <PlayfulSelect
                                     aria-label={ui("Board size")} value={options.blockBeatersBoardSize}
                                     onChange={(event) => setOptions({ ...options, blockBeatersBoardSize: event.target.value as any })}
                                     className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
@@ -507,7 +508,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                         >
                                             {board.label} - {board.required} {ui(" questions recommended")}</option>
                                     ))}
-                                </select>
+                                </PlayfulSelect>
                                 <p className="mt-2 text-xs font-semibold text-slate-500">
                                     {ui("Questions are drawn when tiles are selected. This game has ")}{blockBeatersQuestionCount} {ui(" questions.")}</p>
                                 {blockBeatersWillRepeatQuestions && (
@@ -547,14 +548,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             {options.blockBeatersSteals !== false && !blockBeatersSinglePlayer && (
                                 <div>
                                     <label htmlFor="block-beaters-steal-limit" className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{ui("Steals per team")}</label>
-                                    <select
+                                    <PlayfulSelect
                                         id="block-beaters-steal-limit"
                                         value={options.blockBeatersStealLimit ?? 3}
                                         onChange={(event) => setOptions({ ...options, blockBeatersStealLimit: Number(event.target.value) })}
                                         className="w-full rounded-xl border border-slate-200 bg-white p-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-blue"
                                     >
                                         {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count} {count === 1 ? ui("steal") : ui("steals")}</option>)}
-                                    </select>
+                                    </PlayfulSelect>
                                     <p className="mt-2 text-xs font-semibold text-slate-500">{ui("Each team can retake this many tiles from opponents.")}</p>
                                 </div>
                             )}
@@ -778,7 +779,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                             <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                                 <div className="flex-1">
                                     <label className="text-xs font-bold text-slate-500 uppercase block mb-1">{item.label}</label>
-                                    <select
+                                    <PlayfulSelect
                                         value={options.soundConfig?.[configKey as keyof typeof options.soundConfig]}
                                         onChange={(e) => updateSoundConfig(configKey, e.target.value)}
                                         className="w-full text-sm font-bold text-slate-800 bg-white border border-slate-200 rounded p-1.5 focus:border-brand-blue outline-none cursor-pointer"
@@ -786,7 +787,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                                         {SOUND_VARIANTS[configKey as keyof typeof SOUND_VARIANTS].map((variant) => (
                                             <option key={variant} value={variant}>{variant}</option>
                                         ))}
-                                    </select>
+                                    </PlayfulSelect>
                                 </div>
                                 <button
                                     onClick={() => playSound(soundType as any, false, options.soundConfig?.[configKey as keyof typeof options.soundConfig])}

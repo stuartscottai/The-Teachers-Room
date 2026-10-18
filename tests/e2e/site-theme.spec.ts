@@ -5,10 +5,11 @@ test('saved dark appearance loads across public pages and survives refresh', asy
   await page.goto('/games');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('nav').first()).toHaveCSS('background-color', 'rgb(34, 39, 46)');
-  await expect(page.locator('.game-ai-teaser')).toHaveCSS('background-image', 'none');
+  await expect(page.getByRole('button', { name: 'Open AI Assistant', exact: true })).toBeVisible();
+  await expect(page.locator('.assistant-launcher-bubble')).toHaveCSS('background-image', 'none');
   await page.goto('/pricing');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('main')).toHaveCSS('background-color', 'rgb(34, 39, 46)');
+  await expect(page.locator('main')).toHaveCSS('background-color', 'rgb(23, 26, 31)');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });

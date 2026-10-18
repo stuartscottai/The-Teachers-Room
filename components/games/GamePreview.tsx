@@ -9,6 +9,7 @@ import { GeneratedGame, GeneratedQuestion, GameType, JeopardyCategory } from '..
 import { resolveGameImageUrl, resolveGameImageUrls, resolveGameQuestionImageUrl, resolveGameQuestionImageUrls } from '../../utils/gameImage';
 import { refreshStockImage } from '../../services/stockImageService';
 import { getCompatibleGameTypes } from '../../utils/gameCompatibility';
+import { PlayfulTitleAccent } from '../PlayfulTitleAccent';
 
 type PreviewItem = {
   id: string;
@@ -538,6 +539,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const [isPromptOpen, setIsPromptOpen] = useState(false);
   const promptDialogRef = useWorkspaceDialog(isPromptOpen, () => setIsPromptOpen(false));
   const [playChoiceGame, setPlayChoiceGame] = useState<GeneratedGame | null>(null);
+  const playChoiceDialogRef = useWorkspaceDialog(Boolean(playChoiceGame), () => setPlayChoiceGame(null));
   const [viewMode, setViewMode] = useState<'study' | 'quick'>('quick');
   const [randomSelectionCount, setRandomSelectionCount] = useState(20);
   const [showRandomSelection, setShowRandomSelection] = useState(false);
@@ -617,7 +619,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
   const previewSaveLabel = (saveLabel ? ui(saveLabel) : undefined) || (source === 'community' ? ui("Save a copy") : ui("Save game"));
 
   return (
-    <div className="game-workspace relative min-h-screen">
+    <div className="playful-page game-workspace workspace-preview relative min-h-screen">
       <div className="workspace-shell">
         <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {backLabel ? ui(backLabel) : <>{ui(" Back to ")}{sourceLabel}</>}</button>
         <header className="workspace-preview-header">
@@ -756,42 +758,42 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
 
         {playChoiceGame && (
           <div className="fixed inset-0 z-[170] flex items-center justify-center bg-sky-950/35 p-4 backdrop-blur-sm">
-            <div className="game-play-choice-dialog relative w-full max-w-lg rounded-3xl border border-white bg-gradient-to-b from-white via-sky-50/80 to-yellow-50/60 p-6 shadow-[0_24px_48px_rgba(14,116,144,0.18)]">
+            <div ref={playChoiceDialogRef} role="dialog" aria-modal="true" aria-labelledby="game-play-choice-title" tabIndex={-1} className="game-play-choice-dialog relative w-full max-w-lg p-6">
               <button
                 type="button"
                 onClick={() => setPlayChoiceGame(null)}
-                className="absolute right-4 top-4 rounded-full border border-sky-100 bg-white/80 p-2 text-slate-400 transition-colors hover:bg-sky-50 hover:text-brand-blue"
+                className="game-play-choice-close absolute right-4 top-4 rounded-full p-2"
                 aria-label={ui("Close play menu")}
               >
                 <X size={18} />
               </button>
-              <h2 className="pr-10 font-display text-2xl font-bold text-slate-900">{ui("Choose how to play")}</h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+              <h2 id="game-play-choice-title" className="pr-10 font-display text-2xl font-bold"><PlayfulTitleAccent>{ui("Choose how to play")}</PlayfulTitleAccent></h2>
+              <p className="game-play-choice-description mt-3 text-sm leading-6">
                 {ui("Use the selected questions in this game, or try the same question set in another compatible game.")}</p>
               <div className="mt-6 grid gap-3">
                 <button
                   type="button"
                   onClick={handlePlayOriginal}
-                  className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
+                  className="game-play-choice-option flex items-center justify-between p-4 text-left"
                 >
                   <span>
-                    <span className="block font-bold text-slate-800">{ui("Play ")}{playChoiceGame.config.type}</span>
-                    <span className="block text-sm font-semibold text-slate-600">{ui("Use the original game format.")}</span>
+                    <span className="block font-bold">{ui("Play ")}{playChoiceGame.config.type}</span>
+                    <span className="game-play-choice-description mt-1 block text-sm">{ui("Use the original game format.")}</span>
                   </span>
-                  <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 text-brand-blue">
+                  <span className="game-play-choice-icon ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
                     <Play size={18} fill="currentColor" />
                   </span>
                 </button>
                 <button
                   type="button"
                   onClick={handlePlayDifferent}
-                  className="flex items-center justify-between rounded-2xl border border-sky-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-brand-blue hover:bg-sky-50"
+                  className="game-play-choice-option flex items-center justify-between p-4 text-left"
                 >
                   <span>
-                    <span className="block font-bold text-slate-800">{ui("Play question set with a different game")}</span>
-                    <span className="block text-sm font-semibold text-slate-600">{ui("Choose from compatible games next.")}</span>
+                    <span className="block font-bold">{ui("Play question set with a different game")}</span>
+                    <span className="game-play-choice-description mt-1 block text-sm">{ui("Choose from compatible games next.")}</span>
                   </span>
-                  <span className="ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-yellow/55 text-slate-900">
+                  <span className="game-play-choice-icon ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">
                     <Layers size={18} />
                   </span>
                 </button>

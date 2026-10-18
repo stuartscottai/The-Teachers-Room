@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, FileText, Folder, HardDrive, Plus, RefreshCw, Trash2, Upload } from 'lucide-react';
@@ -660,7 +661,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                       <div className="mt-3 flex items-center gap-2">
                         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                           {ui("Move to")}</label>
-                        <select
+                        <PlayfulSelect
                           aria-label={ui("Move {file.name} to folder", { "file.name": (file.name) })}
                           value={file.folderId || ''}
                           onChange={(event) => void handleMoveFile(file.id, event.target.value)}
@@ -671,7 +672,7 @@ export const SchoolStorageManager: React.FC<SchoolStorageManagerProps> = ({ scho
                               {option.label}
                             </option>
                           ))}
-                        </select>
+                        </PlayfulSelect>
                       </div>
                     </div>
                   ))}

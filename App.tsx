@@ -1,6 +1,7 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from './utils/interfaceLanguage';
 
 import React, { Suspense, lazy, useEffect } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -119,6 +120,8 @@ const GuardedRoute: React.FC<{ children: React.ReactNode; title?: string; messag
 };
 
 const App: React.FC = () => {
+  const location = useLocation();
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     const setAppVh = () => {
       const vh = window.innerHeight * 0.01;
@@ -141,7 +144,12 @@ const App: React.FC = () => {
           <RouteSEO />
           <AccountTierOnboardingRedirect />
           <Layout>
-            <Routes>
+            <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={location.pathname} className="playful-route-frame"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : .14 }}
+            >
+            <Routes location={location}>
               <Route path="/" element={<Home />} />
               <Route path="/games" element={<GuardedRoute><LazyRoute><Games /></LazyRoute></GuardedRoute>} />
               <Route path="/game-types/survey-showdown" element={<LazyRoute><SurveyShowdownPage /></LazyRoute>} />
@@ -186,6 +194,8 @@ const App: React.FC = () => {
               <Route path="/live/join/:joinCode" element={<GuardedRoute title="The live quiz join screen could not be loaded"><LazyRoute><LiveQuizJoin /></LazyRoute></GuardedRoute>} />
               <Route path="/live/play/:sessionId/:participantId" element={<GuardedRoute title="The live quiz player screen could not be loaded"><LazyRoute><LiveQuizStudent /></LazyRoute></GuardedRoute>} />
             </Routes>
+            </motion.div>
+            </AnimatePresence>
           </Layout>
       </UnsavedChangesProvider>
     </AuthProvider>

@@ -1,0 +1,251 @@
+/* Shared classroom-paper language, scoped to the requested pages. */
+:is(main.playful-site, .playful-auth-overlay) {
+  --play-ink: #17384b;
+  --play-muted: #64748b;
+  --play-paper: #f4edde;
+  --play-surface: #fffefa;
+  --play-line: #dfd3c2;
+  --play-shadow: #0f172a0a;
+  --play-accent: #0369a1;
+  --play-raised: #f6f1e8;
+  background: var(--play-paper);
+  color: var(--play-ink);
+  min-height: calc(100dvh - 4rem);
+}
+html[data-theme='dark'] :is(main.playful-site, .playful-auth-overlay) {
+  --play-ink: #eff3f8;
+  --play-muted: #b5c1cf;
+  --play-paper: #171a1f;
+  --play-surface: #22272e;
+  --play-line: #3a4552;
+  --play-shadow: #00000024;
+  --play-accent: #38bdf8;
+  --play-raised: #2a313a;
+  background: var(--play-paper);
+}
+.playful-title-accent { display: inline-block; max-width: 100%; }
+.playful-title-underline { display: block; width: min(100%, 240px); height: 16px; margin-top: 4px; color: var(--play-accent, #0369a1); }
+.playful-title-underline path { stroke-dasharray: 1; animation: playful-underline-draw 1.2s .5s both cubic-bezier(.22,.7,.3,1); }
+.playful-page-heading-centered .playful-title-underline { margin-inline: auto; }
+@keyframes playful-underline-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+main.playful-site .playful-page .game-play-choice-dialog {
+  max-height: calc(100dvh - 32px); overflow-y: auto; border: 1px solid var(--play-line); border-radius: 24px;
+  background: var(--play-surface); color: var(--play-ink);
+  box-shadow: 0 12px 48px #0f172a1a; animation: playful-page-bounce .55s backwards;
+}
+main.playful-site .playful-page .game-play-choice-dialog h2 { color: var(--play-ink); }
+main.playful-site .playful-page .game-play-choice-close { border: 1px solid var(--play-line); background: var(--play-surface); color: var(--play-muted); transition: color .2s, transform .3s cubic-bezier(.34,1.56,.64,1); }
+main.playful-site .playful-page .game-play-choice-close:hover { color: var(--play-accent); transform: rotate(9deg) scale(1.06); }
+main.playful-site .playful-page .game-play-choice-option { border: 1px solid var(--play-line); border-radius: 17px; background: var(--play-surface); color: var(--play-ink); box-shadow: 0 3px 12px var(--play-shadow); transition: transform .3s cubic-bezier(.34,1.56,.64,1), border-color .2s, background .2s; }
+main.playful-site .playful-page .game-play-choice-option:hover { transform: translateY(-3px) rotate(-.35deg); border-color: var(--play-accent); background: var(--play-raised); }
+main.playful-site .playful-page .game-play-choice-description { color: var(--play-muted); }
+main.playful-site .playful-page .game-play-choice-icon { background: #0ea5e91a; color: var(--play-accent); }
+@media (prefers-reduced-motion: reduce) {
+  .playful-title-underline path { animation: none !important; }
+}
+main.playful-site > .bg-slate-50,
+main.playful-site .playful-route-frame > .bg-slate-50,
+main.playful-site .playful-page { background: transparent; }
+.playful-page { animation: playful-page-fade .2s ease-out; }
+.playful-page-heading { display: flex; align-items: center; gap: 24px; margin: 8px 0 34px; animation: playful-page-bounce .6s backwards; transform-origin: center top; }
+.playful-page-heading h1 { font: 600 clamp(30px, 3.8vw, 44px)/1.15 Fredoka, sans-serif; color: var(--play-ink); overflow-wrap: anywhere; }
+.playful-heading-description { margin-top: 12px; color: var(--play-muted); line-height: 1.7; max-width: 720px; }
+.playful-heading-icon { display: grid; place-items: center; position: relative; width: 82px; height: 82px; flex: 0 0 82px; border: 0; border-radius: 25px; color: #17384b; background: #ffdb75; box-shadow: 0 4px 12px #17384b12; transform: rotate(-8deg); }
+.playful-heading-star { position: absolute; top: -11px; right: -10px; color: #0ea5e9; stroke: #075985; }
+.playful-page-heading-centered { flex-direction: column; text-align: center; margin-bottom: 48px; }
+.playful-page-heading-centered .playful-heading-description { margin-inline: auto; }
+.playful-eyebrow { display: inline-flex; margin-bottom: 16px; padding: 6px 13px; border: 1px solid var(--play-line); border-radius: 8px; background: var(--play-surface); color: var(--play-ink); font-size: 12px; font-weight: 700; transform: rotate(-2deg); }
+main.playful-site .playful-page :is(.playful-panel, .playful-filter-bar, .profile-panel, .profile-activity, .profile-disclosure) {
+  background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 23px; box-shadow: 0 4px 18px var(--play-shadow);
+}
+main.playful-site .playful-page :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea, select) {
+  border-color: var(--play-line); border-radius: 13px; background-color: var(--play-surface); color: var(--play-ink);
+}
+main.playful-site .playful-page :is(button, a, input, textarea, select, summary):focus-visible { outline: 3px solid var(--play-accent); outline-offset: 4px; }
+main.playful-site .playful-page :is(button.bg-brand-blue, a.bg-brand-blue) {
+  background: #0ea5e9; color: #082f49; border: 1px solid #0284c7; border-radius: 13px; box-shadow: 0 4px 18px var(--play-shadow); transition: background .18s, translate .18s, box-shadow .18s;
+}
+main.playful-site .playful-page :is(button.bg-brand-blue, a.bg-brand-blue):hover:not(:disabled) { background: #38bdf8; translate: 0 -2px; }
+main.playful-site .playful-page :is(button.bg-brand-blue, a.bg-brand-blue):active:not(:disabled) { translate: 0 2px; box-shadow: 0 4px 18px var(--play-shadow); }
+main.playful-site :is(.playful-info, .playful-plan-grid, .playful-contact) :is(h2, h3) { color: var(--play-ink); }
+/* One active-tab treatment across the hub; each panel settles into view. */
+.playful-hub-header > div:first-child { flex: 1; text-align: left; padding: 0; }
+.playful-hub-header .playful-page-heading { margin-bottom: 4px; }
+.playful-hub-header > div[aria-hidden='true'] { display: none; }
+.playful-game-hub .game-hub-tabs { height: auto; align-items: center; gap: 8px; padding: 7px; margin-top: 0; border: 1px solid var(--play-line); border-radius: 20px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); }
+main.playful-site .game-hub-tabs button { height: 48px; min-width: 0; border: 1px solid transparent; border-radius: 13px; background: transparent; color: var(--play-muted); padding: 10px 14px; transition: background .2s, transform .3s cubic-bezier(.34,1.56,.64,1); }
+.playful-game-hub .game-hub-tabs button::after { display: none; }
+main.playful-site .game-hub-tabs button[aria-selected='true'] { color: #082f49; background: #0ea5e9; border-color: #0284c7; box-shadow: 0 4px 18px var(--play-shadow); transform: rotate(-2deg) translateY(-2px); }
+.playful-tab-content { animation: playful-page-bounce .55s backwards; transform-origin: center 100px; }
+/* Game cards gather below the viewport, then spring to their measured places. */
+@keyframes games-fly-in {
+  0% { opacity: 0; transform: translate(var(--fly-x, 0px), var(--fly-y, 0px)) scale(.16); }
+  10% { opacity: 1; transform: translate(var(--fly-x, 0px), var(--fly-y, 0px)) scale(.22); }
+  72% { opacity: 1; transform: translate(calc(var(--fly-x, 0px) * -.018), calc(var(--fly-y, 0px) * -.018)) scale(1.018); }
+  88% { transform: translate(0, 2px) scale(.995); }
+  100% { opacity: 1; transform: none; }
+}
+.playful-game-hub :is(.playful-game-card, .community-library-card, .personal-library-card) { animation: games-fly-in .9s cubic-bezier(.2,.7,.25,1) backwards; transform-origin: center; }
+.playful-game-hub :is(.game-hub-tabs, .assistant-launcher-button) { animation: playful-page-bounce .6s backwards; transform-origin: center top; }
+.playful-game-hub .playful-tab-content { animation: none; }
+main.playful-site :is(.playful-game-card, .community-library-card, .personal-library-card) { border: 1px solid var(--play-line); border-radius: 23px; box-shadow: 0 4px 18px var(--play-shadow); background: var(--play-surface); transition: transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .2s; }
+main.playful-site :is(.playful-game-card, .community-library-card, .personal-library-card):hover { transform: translateY(-5px) rotate(-.6deg); box-shadow: 0 4px 18px var(--play-shadow); }
+.playful-game-hub { padding-bottom: 144px; }
+.assistant-launcher { position: fixed; right: 24px; bottom: max(20px, env(safe-area-inset-bottom)); z-index: 45; }
+.assistant-launcher[aria-hidden='true'] { opacity: 0; pointer-events: none; }
+.assistant-launcher-button { display: flex; align-items: center; gap: 14px; text-align: left; border-radius: 18px; }
+.assistant-launcher-bubble { position: relative; display: flex; flex-direction: column; gap: 5px; max-width: 220px; padding: 14px 17px; background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 18px; box-shadow: 0 5px 22px #0f172a0d; color: var(--play-ink); font-size: 14px; font-weight: 600; }
+.assistant-launcher-bubble::after { content: ''; position: absolute; right: -6px; bottom: 23px; width: 11px; height: 11px; background: var(--play-surface); border-right: 1px solid var(--play-line); border-top: 1px solid var(--play-line); transform: rotate(45deg); }
+.assistant-launcher-caption { display: flex; align-items: center; gap: 6px; color: var(--play-accent); font-size: 12px; font-weight: 600; }
+.assistant-launcher-mascot { width: 86px; height: 94px; flex-shrink: 0; object-fit: contain; filter: drop-shadow(0 4px 8px #0f172a16); transition: transform .28s cubic-bezier(.34,1.56,.64,1); }
+.assistant-launcher-button:hover .assistant-launcher-mascot { transform: translateY(-4px) rotate(5deg); }
+.assistant-launcher-button:focus-visible { outline: 3px solid var(--play-accent); outline-offset: 5px; }
+.assistant-chat-overlay { position: fixed; inset: calc(4rem + env(safe-area-inset-top)) 0 0; z-index: 200; display: flex; align-items: flex-end; justify-content: flex-end; padding: 20px 24px max(20px, env(safe-area-inset-bottom)); background: #0f172a16; backdrop-filter: blur(2px); }
+.assistant-chat-panel { display: flex; flex-direction: column; width: min(450px, 100%); height: min(650px, calc(100dvh - 104px)); max-height: 100%; overflow: hidden; border: 1px solid var(--play-line); border-radius: 23px; background: var(--play-surface); color: var(--play-ink); box-shadow: 0 12px 48px #0f172a1a; transform-origin: bottom right; }
+.assistant-chat-header { background: var(--play-surface); border-bottom: 1px solid var(--play-line); color: var(--play-ink); }
+.assistant-chat-header h2 { color: var(--play-ink); }
+.assistant-chat-subtitle { color: var(--play-muted); margin-top: 3px; }
+.assistant-chat-close { display: grid; place-items: center; width: 40px; height: 40px; background: var(--play-raised); color: var(--play-muted); }
+.assistant-chat-close:hover { color: var(--play-accent); }
+.assistant-chat-messages { min-height: 0; overscroll-behavior: contain; background: var(--play-paper); }
+.assistant-message { line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assistant-message-ai, .assistant-suggestion { background: var(--play-surface); color: var(--play-ink); border: 1px solid var(--play-line); }
+.assistant-message-user { background: #0ea5e9; color: #082f49; }
+.assistant-suggestion-label { color: var(--play-accent); }
+.assistant-chat-primary { background: #0ea5e9; color: #082f49; border: 1px solid #0284c7; min-height: 40px; }
+.assistant-chat-primary:hover:not(:disabled) { background: #38bdf8; }
+.assistant-chat-composer { background: var(--play-surface); border-top: 1px solid var(--play-line); }
+.assistant-chat-composer input { min-height: 54px; padding-inline: 52px; background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 13px; color: var(--play-ink); }
+.assistant-chat-composer button { display: grid; place-items: center; width: 40px; height: 40px; }
+.assistant-chat-panel :is(button, input):focus-visible { outline: 3px solid var(--play-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chat-panel *, .assistant-launcher * { animation: none !important; transition: none !important; }
+  .assistant-launcher-button:hover .assistant-launcher-mascot { transform: none; }
+}
+@media (max-width: 767px) {
+  .assistant-launcher { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
+  .assistant-launcher-button { gap: 10px; }
+  .assistant-launcher-bubble { max-width: 200px; padding: 11px 14px; font-size: 13px; }
+  .assistant-launcher-mascot { width: 66px; height: 76px; }
+  .assistant-chat-overlay { padding: 10px 10px max(10px, env(safe-area-inset-bottom)); }
+  .assistant-chat-panel { width: 100%; height: 100%; border-radius: 20px; }
+}
+.playful-filter-bar { padding: 20px; }
+.playful-info > .space-y-4, .playful-contact > .playful-panel, .playful-filter-bar { animation: playful-page-bounce .55s .06s backwards; transform-origin: center top; }
+/* Plans share neutral paper cards; the recommendation gets a small yellow badge. */
+.playful-plan-grid { padding-top: 14px; align-items: stretch; }
+main.playful-site .playful-plan-grid > :is(div, section) { display: flex; flex-direction: column; position: relative; border: 1px solid var(--play-line); border-radius: 25px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); transform: none; animation: playful-page-bounce .6s backwards; }
+main.playful-site .playful-plan-grid > :is(div, section):nth-child(2) { border-color: var(--play-line); animation-delay: .06s; }
+main.playful-site .playful-plan-grid > :is(div, section):nth-child(3) { animation-delay: .12s; }
+.playful-plan-grid > :is(div, section) > :is(h2, h3) { font-family: Fredoka, sans-serif; font-size: 28px; font-weight: 500; padding: 10px 0 16px; margin: -6px 0 20px; border-bottom: 1px dashed var(--play-line); }
+.playful-plan-grid > :is(div, section) > button { margin-top: auto; min-height: 48px; }
+.playful-plan-grid > :is(div, section) > .absolute { border: 1px solid #17384b; border-radius: 8px; color: #17384b; white-space: nowrap; }
+.playful-plan-intro .playful-page-heading { margin-bottom: 16px; }
+main.playful-site .playful-notice { border: 1px solid var(--play-line); border-radius: 26px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); animation: playful-page-bounce .55s backwards; }
+/* Notebook dividers use the same paper and brand-blue accent throughout. */
+main.playful-site .playful-info > .space-y-4 > section { border: 1px solid var(--play-line); border-radius: 22px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); overflow: hidden; }
+.playful-info > .space-y-4 > section > button { background: var(--play-surface); gap: 16px; }
+main.playful-site .info-topic-nav button { background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 12px; box-shadow: 0 4px 18px var(--play-shadow); color: var(--play-ink); transition: transform .2s; }
+.info-topic-nav button:hover { transform: translateY(-2px) rotate(-2deg); }
+.playful-info [id^='info-']:not(input) { scroll-margin-top: 90px; }
+.playful-info section > div { animation: playful-answer-in .24s ease-out; }
+.playful-contact .playful-panel { position: relative;  }
+.playful-contact label { font-weight: 700; }
+/* Personal details stay easy to read, with stationery-style panels and stats. */
+main.playful-site .playful-page .profile-header { padding: 24px; margin-bottom: 28px; border: 1px solid var(--play-line); border-radius: 25px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); animation: playful-page-bounce .55s backwards; }
+main.playful-site .playful-page .profile-header h1 { color: var(--play-ink); font-size: 38px; }
+.playful-page .profile-header > div:first-child { transform: rotate(-5deg); }
+.playful-page .profile-header .workspace-eyebrow { text-transform: none; color: var(--play-muted); letter-spacing: .02em; }
+main.playful-site .playful-page .profile-stats > div { border: 0; border-radius: 15px; padding: 16px; background: var(--play-raised); }
+main.playful-site .playful-page .profile-stats dd { font: 500 34px Fredoka, sans-serif; color: var(--play-ink); }
+main.playful-site .playful-page .profile-panel-heading { background: var(--play-surface); padding: 20px; border-bottom: 1px dashed var(--play-line); }
+.playful-page .profile-panel-heading h2, .playful-page .profile-activity h2 { font: 500 23px Fredoka, sans-serif; }
+main.playful-site .playful-page .profile-plan-badge { background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 8px; color: var(--play-ink); }
+/* Live entry is a centred invitation card rather than a dark control panel. */
+.playful-live-entry { min-height: calc(100dvh - 4rem); }
+main.playful-site .playful-live-card { border: 1px solid var(--play-line); border-radius: 28px; background: var(--play-surface); box-shadow: 0 4px 18px var(--play-shadow); color: var(--play-ink); }
+.playful-live-card .playful-page-heading { margin-bottom: 0; animation: none; }
+.playful-live-card .playful-page-heading h1 { font-size: 34px; }
+.playful-live-card .playful-heading-icon { width: 66px; height: 66px; flex-basis: 66px; border-radius: 21px; margin-bottom: 12px; }
+.playful-live-badge { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--play-line); border-radius: 10px; background: var(--play-raised); color: var(--play-ink); font-size: 12px; font-weight: 700; margin: 0 0 24px; }
+main.playful-site .playful-live-card input { border: 1px dashed var(--play-line); background: var(--play-raised); }
+main.playful-site .playful-plan-grid .text-teal-600,
+main.playful-site .playful-game-hub .text-brand-blue { color: var(--play-accent); }
+main.playful-site .playful-page .profile-theme-choice[aria-pressed='true'] { background: #0ea5e9; color: #082f49; border-color: #17384b; }
+@keyframes playful-page-bounce {
+  0% { opacity: 0; transform: translateY(22px) scale(.94); }
+  55% { opacity: 1; transform: translateY(-4px) scale(1.012); }
+  78% { transform: translateY(2px) scale(.997); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes playful-page-fade { from { opacity: .5; } to { opacity: 1; } }
+/* Workspaces, school tools and editorial pages share the same quiet surfaces. */
+main.playful-site .playful-page.game-workspace { background: transparent; }
+main.playful-site .playful-page :is(.workspace-toolbar, .workspace-preview-list, .workspace-question, .workspace-setup-card, .workspace-start-bar, .workspace-config-form, .workspace-config-summary, .school-panel, .school-overview, .school-storage, .playful-blog-card) {
+  background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 20px; box-shadow: 0 4px 18px var(--play-shadow);
+}
+main.playful-site .playful-page :is(.workspace-heading, .workspace-editor-title input, .school-section-heading) { color: var(--play-ink); }
+main.playful-site .playful-page :is(.workspace-eyebrow, .workspace-back) { color: var(--play-muted); text-transform: none; letter-spacing: .02em; }
+main.playful-site .playful-page .workspace-button-primary { background: #0ea5e9; border: 1px solid #0284c7; color: #082f49; box-shadow: none; border-radius: 12px; }
+main.playful-site .playful-page .workspace-button-primary:hover:not(:disabled) { background: #38bdf8; }
+main.playful-site .playful-page :is(.workspace-preview-columns, .workspace-question-number) { background: var(--play-raised); color: var(--play-ink); }
+main.playful-site .playful-page .workspace-preview-header { border-color: var(--play-line); }
+main.playful-site .playful-page .workspace-editor-top { background: transparent; }
+.playful-blog-card { transition: transform .28s cubic-bezier(.34,1.56,.64,1), box-shadow .2s; }
+.playful-blog-post > article { width: min(calc(100% - 32px), 1248px); background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 22px; padding: 32px; margin: 32px auto; }
+.playful-blog-post > .bg-slate-50 { background: transparent; }
+.playful-blog-post .border-l-4 { border-left-width: 1px; }
+main.playful-site .playful-game-landing section { border-color: var(--play-line); }
+.playful-game-landing > section:first-child { animation: playful-page-bounce .6s backwards; }
+main.playful-site .playful-game-landing a.bg-brand-yellow { background: #0ea5e9; color: #082f49; border: 1px solid #0284c7; border-radius: 13px; }
+.playful-game-landing figure > button, .playful-game-landing dialog { border-radius: 18px; overflow: hidden; }
+.playful-game-landing figure > button img { border-radius: 17px; }
+main.playful-site .playful-game-landing .grid.lg\:grid-cols-2 > div { padding: 24px; background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 20px; }
+.playful-page.school-admin { --school-surface: var(--play-surface); --school-border: var(--play-line); --school-raised: var(--play-raised); --school-text: var(--play-ink); --school-muted: var(--play-muted); }
+.playful-page .school-admin-header { padding: 20px; background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 22px; }
+.playful-page .school-logo { background: #ffdb75; color: #075985; border: 0; border-radius: 19px; transform: rotate(-5deg); }
+.playful-page .school-overview dd { font-family: Fredoka, sans-serif; font-weight: 500; }
+.playful-page .school-tabs { border-bottom: 0; gap: 8px; }
+.playful-page .school-tabs button { border: 1px solid var(--play-line); border-radius: 12px; background: var(--play-surface); }
+.playful-page .school-tabs button[aria-selected=true] { background: #0ea5e9; color: #082f49; border-color: #0284c7; }
+.playful-page .school-tabs button[aria-selected=true] .school-tab-count { background: #ffffff60; color: #082f49; }
+main.playful-site .playful-page.seo-landing .seo-landing-hero { background: transparent; color: var(--play-ink); animation: playful-page-bounce .6s backwards; }
+main.playful-site .seo-landing-hero :is(.text-sky-50, a.text-white) { color: var(--play-ink); }
+main.playful-site .seo-landing-hero h1 { color: var(--play-ink); }
+main.playful-site .seo-landing-hero .bg-white\/10 { background: var(--play-surface); border-color: var(--play-line); }
+main.playful-site .seo-landing-hero a.bg-brand-yellow { background: #0ea5e9; color: #082f49; border-radius: 13px; }
+main.playful-site .seo-landing-hero a.border { border: 1px solid var(--play-line); border-radius: 13px; background: var(--play-surface); }
+main.playful-site .seo-landing section:not(.seo-landing-hero) .bg-white { background: var(--play-surface); border-color: var(--play-line); border-radius: 20px; box-shadow: 0 4px 18px var(--play-shadow); }
+/* Auth lives beside the navbar, so it receives its own palette and shape layer. */
+.playful-auth-overlay { background: color-mix(in srgb, var(--play-paper) 94%, transparent); }
+html[data-theme='dark'] .playful-auth-overlay { background: color-mix(in srgb, var(--play-paper) 94%, transparent); }
+.playful-auth-overlay .playful-auth-card { z-index: 1; background: var(--play-surface); border: 1px solid var(--play-line); border-radius: 24px; box-shadow: 0 12px 40px #0f172a12; animation: playful-page-bounce .55s backwards; }
+.playful-auth-card h2 { color: var(--play-ink); }
+.playful-auth-card :is(input:not([type=checkbox]), select) { background: var(--play-surface); color: var(--play-ink); border: 1px solid var(--play-line); border-radius: 12px; }
+.playful-auth-card button.bg-brand-blue { background: #0ea5e9; color: #082f49; border: 1px solid #0284c7; border-radius: 12px; box-shadow: none; }
+.playful-auth-card button.bg-brand-blue:hover:not(:disabled) { background: #38bdf8; }
+.playful-auth-card :is(button, a, input):focus-visible { outline: 3px solid var(--play-accent); outline-offset: 3px; }
+.playful-auth-card .bg-brand-yellow { border-radius: 17px; transform: rotate(-6deg); }
+@media (max-width: 767px) { .playful-blog-post > article { width: calc(100% - 32px); margin: 20px auto; padding: 24px 18px; } }
+@media (prefers-reduced-motion: reduce) { .playful-auth-card, .playful-auth-card * { animation: none !important; transition: none !important; } }
+@keyframes playful-answer-in { from { opacity: 0; translate: 0 -6px; } to { opacity: 1; translate: 0 0; } }
+@media (max-width: 767px) {
+  .playful-page-heading { gap: 16px; align-items: flex-start; margin-bottom: 26px; }
+  .playful-heading-icon { width: 56px; height: 56px; flex-basis: 56px; border-radius: 18px; box-shadow: 0 4px 18px var(--play-shadow); }
+  .playful-heading-icon > svg:first-child { width: 30px; height: 30px; }
+  .playful-heading-description { margin-top: 10px; font-size: 14px; }
+  .playful-page-heading-centered { align-items: center; gap: 18px; margin-bottom: 36px; }
+  .playful-game-hub .playful-page-heading h1 { font-size: 30px; }
+  main.playful-site .game-hub-tabs { width: 100%; }
+  main.playful-site .game-hub-tabs button { padding-inline: 8px; }
+  .playful-filter-bar { padding: 16px; }
+  main.playful-site .playful-page .profile-header { padding: 18px; }
+  .playful-page .profile-header > .workspace-button { margin-left: 0; }
+  main.playful-site .playful-page .profile-header h1 { font-size: 30px; }
+  main.playful-site .playful-page .profile-stats > div { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playful-page, .playful-page *, .playful-page *::before, .playful-page *::after { animation: none !important; transition: none !important; }
+  main.playful-site :is(.playful-game-card, .community-library-card, .personal-library-card):hover { transform: none; }
+  .playful-page button:hover { translate: none !important; }
+}

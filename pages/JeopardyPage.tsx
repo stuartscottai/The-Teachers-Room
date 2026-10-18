@@ -23,7 +23,7 @@ const Screenshot = ({ name, alt, title, children }: { name: string; alt: string;
   </figure>;
 };
 
-export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div className="bg-sky-50 text-brand-dark">
+export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div className="playful-page playful-game-landing text-brand-dark">
   <section className="mx-auto max-w-[1400px] px-6 pb-10 pt-7 sm:px-10">
     <nav aria-label={ui("Breadcrumb")} className="flex gap-3 text-sm text-slate-600"><Link to="/games" className="underline-offset-4 hover:underline">{ui("Games")}</Link><span aria-hidden="true">/</span><span aria-current="page">{ui("Jeopardy")}</span></nav>
     <div className="mt-7 grid items-center gap-6 grid-rows-[minmax(539px,auto)_322px] min-[375px]:grid-rows-[minmax(462px,auto)_322px] sm:grid-rows-[minmax(385px,auto)_408px] lg:grid-cols-[0.7fr_1.3fr] lg:grid-rows-[518px] lg:gap-8">
@@ -39,7 +39,7 @@ export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div clas
       </figure>
     </div>
   </section>
-  <section className="border-t-4 border-brand-yellow bg-white px-6 py-12 sm:px-10 lg:py-16" aria-labelledby="jeopardy-gameplay-heading">
+  <section className="border-t border-slate-200 px-6 py-12 sm:px-10 lg:py-16" aria-labelledby="jeopardy-gameplay-heading">
     <div className="mx-auto max-w-6xl">
       <div className="mb-8 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <h2 id="jeopardy-gameplay-heading" className="font-display text-3xl font-bold sm:text-4xl">{ui("Let’s play Jeopardy")}</h2>
@@ -57,7 +57,7 @@ export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div clas
       </div>
     </div>
   </section>
-  <section className="border-t border-sky-100 bg-sky-50 px-6 py-12 sm:px-10 lg:py-16">
+  <section className="border-t border-slate-200 px-6 py-12 sm:px-10 lg:py-16">
     <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:gap-16">
       <div>
         <h2 className="font-display text-3xl font-bold">{ui("Make it your own")}</h2>
@@ -67,7 +67,7 @@ export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div clas
           <div><dt className="font-bold text-sky-800">{ui("Add a few surprises")}</dt><dd className="mt-1 text-slate-600">{ui("Start with a straightforward board while everyone gets comfortable. When you fancy a change, switch on bonus cards for a few surprises along the way.")}</dd></div>
         </dl>
       </div>
-      <div className="border-l-4 border-brand-yellow pl-6 sm:pl-8">
+      <div className="border-l border-slate-200 pl-6 sm:pl-8">
         <h2 className="font-display text-3xl font-bold">{ui("Where will you take it?")}</h2>
         <dl className="mt-6 space-y-5 text-sm leading-relaxed">
           <div><dt className="font-bold text-sky-800">{ui("Welcome everyone back")}</dt><dd className="mt-1 text-slate-600">{ui("Make a category for each part of a topic you’ve covered. Let teams choose where to begin and enjoy finding out how much they remember.")}</dd></div>
@@ -77,7 +77,7 @@ export const JeopardyPage: React.FC = () => { useUiLanguage(); return (<div clas
       </div>
     </div>
   </section>
-  <section className="bg-white px-6 py-14 sm:px-10 lg:py-20">
+  <section className="px-6 py-14 sm:px-10 lg:py-20">
     <div className="mx-auto max-w-6xl text-center">
       <div aria-hidden="true" className="mx-auto mb-6 h-1 w-12 bg-brand-yellow" />
       <h2 className="font-display text-3xl font-bold sm:text-4xl">{ui("What will your students play next?")}</h2>

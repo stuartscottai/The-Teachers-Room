@@ -29,7 +29,7 @@ export const BlogPostPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-white animate-fade-in">
+        <div className="playful-page playful-blog-post min-h-screen animate-fade-in">
             {/* Hero Section */}
             {heroUsesContain ? (
                 <div className="theme-article-hero relative h-[50vh] min-h-[400px] overflow-hidden bg-gradient-to-br from-teal-50 via-white to-sky-50">
@@ -44,7 +44,7 @@ export const BlogPostPage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-white/98 via-white/88 to-white/15"></div>
 
                     <div className="absolute inset-0 flex flex-col justify-end pb-12 md:pb-20">
-                        <div className="max-w-4xl mx-auto px-4 w-full">
+                        <div className="max-w-7xl mx-auto px-4 w-full">
                             <Link
                                 to="/blog"
                                 className="inline-flex items-center mb-6 transition-colors px-4 py-2 rounded-full backdrop-blur-sm text-slate-700 hover:text-slate-900 bg-white/75 hover:bg-white/90 border border-slate-200 shadow-sm"
@@ -74,7 +74,7 @@ export const BlogPostPage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
                     
                     <div className="relative pt-24 pb-12 md:pt-32 md:pb-20">
-                        <div className="max-w-4xl mx-auto px-4 w-full">
+                        <div className="max-w-7xl mx-auto px-4 w-full">
                             <Link
                                 to="/blog"
                                 className="inline-flex items-center text-white/80 hover:text-white mb-6 transition-colors bg-black/20 hover:bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm"
@@ -96,7 +96,7 @@ export const BlogPostPage: React.FC = () => {
             )}
 
             {/* Content Section */}
-            <article className="max-w-3xl mx-auto px-4 py-16">
+            <article className="max-w-7xl mx-auto px-4 py-16">
                 <div className="blog-article-content prose prose-lg prose-slate prose-headings:font-display prose-headings:font-bold prose-headings:text-slate-800 prose-p:text-slate-600 prose-a:text-brand-blue prose-strong:text-slate-900 max-w-none">
                     <div dangerouslySetInnerHTML={{ __html: post.content }} />
                 </div>
@@ -120,7 +120,7 @@ export const BlogPostPage: React.FC = () => {
             
             {/* Suggested Readings */}
             <div className="bg-slate-50 py-16 mt-12 border-t border-slate-100">
-                <div className="max-w-6xl mx-auto px-4">
+                <div className="max-w-7xl mx-auto px-4">
                      <h3 className="font-display text-2xl font-bold text-slate-800 mb-8">{ui("Read Next")}</h3>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {publicBlogPosts.filter(p => p.id !== post.id).slice(0, 3).map(related => (

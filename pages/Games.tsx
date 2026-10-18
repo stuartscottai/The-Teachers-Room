@@ -1,6 +1,10 @@
+import { PlayfulSelect } from '../components/PlayfulSelect';
+import { useGameHubEntrance } from '../components/games/useGameHubEntrance';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { PlayfulHeading } from '../components/PlayfulHeading';
 import { GameCover } from '../components/shared/GameCover';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GameType, GeneratedGame, GeneratedQuestion, GameRunOptions, JeopardyCategory } from '../types';
@@ -392,7 +396,7 @@ const CategoryFormatSetup: React.FC<{
                             <div className="space-y-4">
                                 <div>
                                     <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{groupLabelPlural}</label>
-                                    <select
+                                    <PlayfulSelect
                                         value={groupCount}
                                         onChange={(event) => setGroupCount(Number(event.target.value))}
                                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue"
@@ -400,11 +404,11 @@ const CategoryFormatSetup: React.FC<{
                                         {Array.from({ length: maxGroupCount }, (_, index) => index + 1).map((count) => (
                                             <option key={count} value={count}>{count}</option>
                                         ))}
-                                    </select>
+                                    </PlayfulSelect>
                                 </div>
                                 <div>
                                     <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-500">{ui("Questions per ")}{groupLabel.toLowerCase()}</label>
-                                    <select
+                                    <PlayfulSelect
                                         value={questionsPerGroup}
                                         onChange={(event) => setQuestionsPerGroup(Number(event.target.value))}
                                         className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue"
@@ -412,7 +416,7 @@ const CategoryFormatSetup: React.FC<{
                                         {Array.from({ length: maxQuestionsPerGroup }, (_, index) => index + 1).map((count) => (
                                             <option key={count} value={count}>{count}</option>
                                         ))}
-                                    </select>
+                                    </PlayfulSelect>
                                 </div>
                                 <div className="rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-600">
                                     {ui("Need ")}{totalNeeded} {ui(" questions. ")}{selectedCount} {ui(" selected.")}</div>
@@ -503,7 +507,7 @@ const CategoryFormatSetup: React.FC<{
                                                     {ui("Answer:")} {question.answer || ui("No answer saved")}
                                                 </p>
                                             </div>
-                                            <select
+                                            <PlayfulSelect
                                                 value={assignments[questionIndex] ?? 0}
                                                 onChange={(event) => updateAssignment(questionIndex, Number(event.target.value))}
                                                 className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-brand-blue disabled:opacity-50"
@@ -513,7 +517,7 @@ const CategoryFormatSetup: React.FC<{
                                                         {groupNames[groupIndex] || `${groupLabel} ${groupIndex + 1}`}
                                                     </option>
                                                 ))}
-                                            </select>
+                                            </PlayfulSelect>
                                         </div>
                                     </div>
                                 );
@@ -577,7 +581,7 @@ const GameCard: React.FC<{
             onMouseLeave={() => setIsPreviewing(false)}
             onFocus={() => setIsPreviewing(true)}
             onBlur={() => setIsPreviewing(false)}
-            className="group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
+            className="playful-game-card group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
             <button type="button" aria-label={infoPath ? ui("More info about {game.type}", { "game.type": (game.type) }) : ui("Create {game.type}", { "game.type": (game.type) })} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
@@ -978,7 +982,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             </div>
 
             {/* Control Bar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
+            <div className="playful-filter-bar bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-6">
                 <div className="flex w-full gap-2">
                     <div className="relative min-w-0 flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -1002,7 +1006,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                 <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-4 xl:grid-cols-5`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1011,14 +1015,14 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         {Object.values(GameType).map(t => (
                             <option key={t} value={t}>{t}</option>
                         ))}
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                         {sourceFilter === 'ai' ? <Sparkles size={18} /> : <PenTool size={18} />}
                     </div>
-                    <select
+                    <PlayfulSelect
                         value={sourceFilter}
                         onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1026,12 +1030,12 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <option value="all">{ui("All Sources")}</option>
                         <option value="ai">{ui("AI Generated")}</option>
                         <option value="manual">{ui("Handcrafted")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[170px] w-full md:w-auto">
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={imageFilter}
                         onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1039,12 +1043,12 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <option value="all">{ui("Any Image Status")}</option>
                         <option value="with-images">{ui("With Images")}</option>
                         <option value="without-images">{ui("Without Images")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1054,7 +1058,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                         <option value="oldest">{ui("Oldest First")}</option>
                         <option value="az">{ui("A-Z (Title)")}</option>
                         <option value="za">{ui("Z-A (Title)")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 </div>
@@ -1206,7 +1210,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                     </button>
                     <div className="relative min-w-[120px] ml-auto">
                         <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <select
+                        <PlayfulSelect
                             value={itemsPerPage}
                             onChange={(e) => setItemsPerPage(Number(e.target.value))}
                             className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
@@ -1214,7 +1218,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                             {pageSizeOptions.map((size) => (
                                 <option key={size} value={size}>{size} {ui(" per page")}</option>
                             ))}
-                        </select>
+                        </PlayfulSelect>
                     </div>
                 </div>
                 )}
@@ -1435,7 +1439,7 @@ const CommunityLibrary: React.FC<{
             </div>
 
             {/* Control Bar */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8">
+            <div className="playful-filter-bar bg-white p-4 rounded-xl shadow-sm border border-slate-100 mb-8">
                 <div className="flex w-full gap-2">
                     <div className="relative min-w-0 flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -1463,7 +1467,7 @@ const CommunityLibrary: React.FC<{
                 <div className={`${showMobileFilters ? 'grid' : 'hidden'} mt-3 grid-cols-1 gap-3 md:mt-4 md:grid-cols-3 xl:grid-cols-6`}>
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1472,14 +1476,14 @@ const CommunityLibrary: React.FC<{
                         {Object.values(GameType).map(t => (
                             <option key={t} value={t}>{t}</option>
                         ))}
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                         {sourceFilter === 'ai' ? <Sparkles size={18} /> : <PenTool size={18} />}
                     </div>
-                    <select
+                    <PlayfulSelect
                         value={sourceFilter}
                         onChange={(e) => setSourceFilter(e.target.value as 'all' | 'ai' | 'manual')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1487,12 +1491,12 @@ const CommunityLibrary: React.FC<{
                         <option value="all">{ui("All Sources")}</option>
                         <option value="ai">{ui("AI Generated")}</option>
                         <option value="manual">{ui("Handcrafted")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[170px] w-full md:w-auto">
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={imageFilter}
                         onChange={(e) => setImageFilter(e.target.value as 'all' | 'with-images' | 'without-images')}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1500,12 +1504,12 @@ const CommunityLibrary: React.FC<{
                         <option value="all">{ui("Any Image Status")}</option>
                         <option value="with-images">{ui("With Images")}</option>
                         <option value="without-images">{ui("Without Images")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 <div className="relative min-w-[160px] w-full md:w-auto">
                     <SortAsc className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <select
+                    <PlayfulSelect
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
@@ -1516,20 +1520,20 @@ const CommunityLibrary: React.FC<{
                         <option value="oldest">{ui("Oldest First")}</option>
                         <option value="az">{ui("A-Z (Title)")}</option>
                         <option value="za">{ui("Z-A (Title)")}</option>
-                    </select>
+                    </PlayfulSelect>
                 </div>
 
                 {canFilterBySchool && (
                     <div className="relative min-w-[170px] w-full md:w-auto">
                         <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <select
+                        <PlayfulSelect
                             value={communityScope}
                             onChange={(e) => setCommunityScope(e.target.value as 'all' | 'school')}
                             className="w-full pl-10 pr-8 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-sm cursor-pointer"
                         >
                             <option value="all">{ui("All Community")}</option>
                             <option value="school">{schoolCommunityName || 'My School'}</option>
-                        </select>
+                        </PlayfulSelect>
                     </div>
                 )}
 
@@ -1736,7 +1740,7 @@ const CommunityLibrary: React.FC<{
                         </button>
                         <div className="relative min-w-[120px] ml-auto">
                             <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                            <select
+                            <PlayfulSelect
                                 value={itemsPerPage}
                                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
                                 className="w-full pl-9 pr-7 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none appearance-none bg-white text-xs font-bold text-slate-600 cursor-pointer"
@@ -1744,7 +1748,7 @@ const CommunityLibrary: React.FC<{
                                 {pageSizeOptions.map((size) => (
                                     <option key={size} value={size}>{size} {ui(" per page")}</option>
                                 ))}
-                            </select>
+                            </PlayfulSelect>
                         </div>
                     </div>
                     )}
@@ -1761,11 +1765,13 @@ const GameHub: React.FC<{
     onLoadCommunityGame: (game: GeneratedGame) => void,
     onLoadPersonalGame: (game: GeneratedGame) => void,
     onOpenAiAssistant: () => void,
+    assistantOpen: boolean,
     initialCommunityAuthorFilter?: { id?: string; name: string } | null,
     initialCommunitySearch?: string
-}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant, initialCommunityAuthorFilter, initialCommunitySearch }) => {
+}> = ({ onSelect, initialTab = 'create', onLoadCommunityGame, onLoadPersonalGame, onOpenAiAssistant, assistantOpen, initialCommunityAuthorFilter, initialCommunitySearch }) => {
   useUiLanguage();
     const [activeTab, setActiveTab] = useState<GameHubTab>(initialTab);
+    const entranceRef = useGameHubEntrance(activeTab);
     const swipeStart = useRef<{ x: number; y: number } | null>(null);
     const hubTabs: Array<{ id: GameHubTab; label: string; icon: React.ReactNode }> = [
         { id: 'create', get label() { return ui("Create New"); }, icon: <Sparkles size={16} /> },
@@ -1906,11 +1912,10 @@ const GameHub: React.FC<{
     ];
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="relative mb-12 flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
+        <div ref={entranceRef} className="playful-page playful-game-hub max-w-7xl mx-auto px-4 py-8" data-hub-tab={activeTab}>
+            <div className="playful-hub-header relative mb-10 flex flex-col xl:flex-row justify-between items-center xl:items-end gap-6">
                 <div className="min-w-0 text-center md:flex-1 md:pr-6 md:text-left">
-                    <h1 className="font-display text-4xl font-bold text-slate-800 mb-1">{ui("AI Classroom Games Hub")}</h1>
-                    <p className="text-slate-500">{ui("Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.")}</p>
+                    <PlayfulHeading icon={activeTab === 'community' ? <Globe size={38} /> : activeTab === 'library' ? <Library size={38} /> : <Dice5 size={38} />} title={ui("AI Classroom Games Hub")} description={ui("Create classroom games from any topic. Choose trivia, live quiz, Jeopardy-style games, word games, board games, and more.")} />
                 </div>
 
                 <div
@@ -1954,7 +1959,7 @@ const GameHub: React.FC<{
                     onTouchEnd={handleSwipeEnd}
                     className="relative z-0"
                 >
-                    <div key={activeTab} className="animate-tab-content">
+                    <div key={activeTab} className="playful-tab-content">
                         {activeTab === 'create' && (
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -1963,27 +1968,6 @@ const GameHub: React.FC<{
                                     ))}
                                 </div>
 
-                                {/* AI Chatbot Teaser */}
-                                <div className="game-ai-teaser mt-12 bg-brand-blue rounded-2xl p-7 md:p-9 flex flex-col-reverse md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative animate-slide-up">
-                                    <div className="max-w-2xl">
-                                        <h3 className="font-display text-2xl font-bold text-white mb-3">
-                                            {ui("Not sure which game fits?")}</h3>
-                                        <p className="text-sky-100 mb-5 text-base max-w-xl leading-relaxed">
-                                            {ui("Tell the assistant what you're teaching. It can suggest a format and draft questions for you to review before playing.")}</p>
-                                        <button
-                                            onClick={onOpenAiAssistant}
-                                            className="bg-white text-brand-blue px-5 py-3 rounded-lg font-bold hover:bg-sky-50 transition-colors inline-flex items-center gap-3"
-                                        >
-                                            {ui("Open AI Assistant")}<ArrowRight size={18} aria-hidden="true" />
-                                        </button>
-                                    </div>
-                                    <img
-                                        src="/assets/game_elements/aiassistanthead.png"
-                                        alt=""
-                                        aria-hidden="true"
-                                        className="h-20 w-20 md:h-28 md:w-28 shrink-0 rounded-xl object-cover"
-                                    />
-                                </div>
                             </>
                         )}
 
@@ -2000,6 +1984,15 @@ const GameHub: React.FC<{
                         )}
                     </div>
                 </div>
+            </div>
+            <div className="assistant-launcher" aria-hidden={assistantOpen}>
+                <button type="button" onClick={onOpenAiAssistant} aria-label={ui("Open AI Assistant")} aria-haspopup="dialog" aria-expanded={assistantOpen} className="assistant-launcher-button">
+                    <span className="assistant-launcher-bubble">
+                        <span>{ui("Not sure which game fits?")}</span>
+                        <span className="assistant-launcher-caption">{ui("Open AI Assistant")} <ArrowRight size={14} aria-hidden="true" /></span>
+                    </span>
+                    <img src="/assets/game_elements/aiassistanthead.png" alt="" aria-hidden="true" className="assistant-launcher-mascot" />
+                </button>
             </div>
         </div>
     );
@@ -2800,6 +2793,7 @@ export const Games: React.FC = () => {
             )}
             {step === 'hub' && (
                 <GameHub
+                    assistantOpen={isAssistantOpen}
                     onSelect={handleSelect}
                     initialTab={hubTab}
                     onLoadCommunityGame={handleLoadCommunityGame}
@@ -2852,8 +2846,10 @@ export const Games: React.FC = () => {
                 />
             )}
 
+            <AnimatePresence mode="wait">
             {step === 'mode' && selectedType && (
                 <ModeSelector
+                    key="creation-mode"
                     type={selectedType}
                     onBack={() => setStep('hub')}
                     onModeSelect={handleModeSelect}
@@ -2863,6 +2859,7 @@ export const Games: React.FC = () => {
 
             {step === 'config' && selectedType && (
                 <GameConfigurator
+                    key="creation-config"
                     type={selectedType}
                     mode={creationMode}
                     onBack={handleBack}
@@ -2871,6 +2868,8 @@ export const Games: React.FC = () => {
                     mobileTopInset={isMobileTourViewport && isTourActive && step === 'config' ? mobileTourSpacerHeight : 0}
                 />
             )}
+
+            </AnimatePresence>
 
             {step === 'editor' && generatedGame && (
                 <GameEditor
@@ -2911,12 +2910,14 @@ export const Games: React.FC = () => {
                 />
             )}
 
+            <AnimatePresence>
             {isAssistantOpen && (
                 <AiAssistantChat
                     onClose={() => setIsAssistantOpen(false)}
                     onGameGenerated={handleAiGameGenerated}
                 />
             )}
+            </AnimatePresence>
 
             <LiveQuizSetupModal
                 isOpen={Boolean(liveQuizSelectedItems)}

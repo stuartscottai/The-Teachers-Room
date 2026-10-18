@@ -2,22 +2,23 @@ import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } f
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getPublicBlogPosts } from '../data/blogPosts';
+import { PlayfulHeading } from '../components/PlayfulHeading';
+import { BookOpen } from 'lucide-react';
 
 export const Blog: React.FC = () => {
   const { language } = useUiLanguage();
   const publicBlogPosts = getPublicBlogPosts(language);
     return (
-        <div className="bg-slate-50 min-h-screen py-20">
+        <div className="playful-page playful-blog min-h-screen py-12 sm:py-16">
             <div className="max-w-7xl mx-auto px-4">
-                <h1 className="font-display text-4xl font-bold text-slate-800 mb-2 text-center">{ui("The Teachers' Blog")}</h1>
-                <p className="text-center text-slate-500 mb-16">{ui("Insights, tips, and stories from the education frontier.")}</p>
+                <PlayfulHeading centered icon={<BookOpen size={38} />} title={ui("The Teachers' Blog")} description={ui("Insights, tips, and stories from the education frontier.")} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {publicBlogPosts.map((post) => (
                         <Link 
                             key={post.id} 
                             to={`/blog/${post.id}`}
-                            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col group"
+                            className="playful-blog-card bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 border border-slate-100 flex flex-col group"
                         >
                             <div className="h-48 overflow-hidden">
                                 <img src={post.image} alt={post.title} crossOrigin="anonymous" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

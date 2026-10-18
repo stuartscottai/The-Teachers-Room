@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../components/PlayfulSelect';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -555,7 +556,7 @@ export const LiveQuizHost: React.FC = () => {
       </button>
       {(session?.status === 'lobby' || session?.status === 'leaderboard') && (
         <div className="relative min-w-0">
-          <select
+          <PlayfulSelect
             value={lobbyTrack}
             onChange={(event) => setLobbyTrack(event.target.value as LobbyTrackId)}
             className="h-10 w-[96px] appearance-none rounded-xl border border-white/20 bg-white px-3 pr-8 text-xs font-black text-slate-900 [-moz-appearance:none] [-webkit-appearance:none] sm:w-[150px] sm:px-4 sm:pr-12 sm:text-sm"
@@ -565,7 +566,7 @@ export const LiveQuizHost: React.FC = () => {
             {LOBBY_TRACKS.map((track) => (
               <option key={track.id} value={track.id}>{track.label}</option>
             ))}
-          </select>
+          </PlayfulSelect>
           <ChevronDown size={18} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" />
         </div>
       )}

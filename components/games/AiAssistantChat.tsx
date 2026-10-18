@@ -1,6 +1,8 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { useWorkspaceDialog } from './GameWorkspace';
 import { Send, X, User, ArrowRight, Loader2, Mic } from 'lucide-react';
 import { GameConfig, GeneratedGame, GameType } from '../../types';
 import { chatWithGameWizard, generateGameContent, WizardSuggestion } from '../../services/geminiService';
@@ -39,6 +41,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     const MIN_AI_QUESTION_COUNT = 25;
     const dictation = useDictation({ model: 'tiny', language: 'auto' });
     const assistantHeadSrc = '/assets/game_elements/aiassistanthead.png';
+    const reduceMotion = useReducedMotion();
 
     const getUserRequestedQuestionCount = () => {
         const patterns = [
@@ -164,6 +167,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
         dictation.stop();
         onClose();
     };
+    const dialogRef = useWorkspaceDialog(true, handleClose);
 
     const toggleDictation = () => {
         void dictation.toggle({
@@ -211,10 +215,15 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
     };
 
     return (
-        <div className="fixed inset-x-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top))] sm:inset-0 z-[200] flex items-start sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-            <div className="bg-white w-full max-w-lg h-full max-h-full sm:h-[600px] sm:max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative animate-slide-up border border-white/20">
+        <motion.div className="assistant-chat-overlay" initial="hidden" animate="visible" exit="closed"
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 }, closed: { opacity: 0 } }}
+            transition={{ duration: reduceMotion ? 0 : .18 }}
+            onClick={event => { if (event.target === event.currentTarget) handleClose(); }}>
+            <motion.div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="assistant-chat-title" tabIndex={-1}
+                className="assistant-chat-panel"
+                variants={{ hidden: { opacity: 0, scale: reduceMotion ? 1 : .88, y: reduceMotion ? 0 : 28 }, visible: { opacity: 1, scale: 1, y: 0, transition: reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 360, damping: 25 } }, closed: { opacity: 0, scale: reduceMotion ? 1 : .92, y: reduceMotion ? 0 : 16, transition: { duration: reduceMotion ? 0 : .18 } } }}>
                 {/* Header */}
-                <div className="bg-brand-blue p-4 flex justify-between items-center text-white shrink-0">
+                <div className="assistant-chat-header p-4 flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="bg-white/20 h-11 w-11 rounded-full overflow-hidden shrink-0">
                             <img
@@ -225,25 +234,25 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                             />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg leading-tight">{ui("AI Assistant")}</h3>
-                            <p className="text-xs text-sky-100 opacity-80">{ui("Game Consultant")}</p>
+                            <h2 id="assistant-chat-title" className="font-display text-xl leading-tight">{ui("AI Assistant")}</h2>
+                            <p className="assistant-chat-subtitle text-xs">{ui("Game Consultant")}</p>
                         </div>
                     </div>
-                    <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <button onClick={handleClose} aria-label={ui("Close AI Assistant")} className="assistant-chat-close p-2 rounded-full transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
                 {/* Chat Area */}
-                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                <div ref={scrollRef} className="assistant-chat-messages flex-1 overflow-y-auto p-4 space-y-4" role="log" aria-live="polite" aria-relevant="additions text">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] ${msg.role === 'user' ? 'order-1' : 'order-2'}`}>
                                 <div
-                                    className={`px-4 py-3 rounded-2xl text-sm shadow-sm
+                                    className={`assistant-message px-4 py-3 rounded-2xl text-sm
                                     ${msg.role === 'user'
-                                        ? 'bg-brand-blue text-white rounded-br-none'
-                                        : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'}`}
+                                        ? 'assistant-message-user rounded-br-none'
+                                        : 'assistant-message-ai rounded-bl-none'}`}
                                 >
                                     {msg.text}
                                 </div>
@@ -265,7 +274,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                 const isThisSuggestionGenerating = generatingSuggestionId === suggestionId;
 
                                                 return (
-                                                <div key={`${msg.id}-${suggestion.type}-${index}`} className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-xl border border-indigo-100 shadow-md">
+                                                <div key={`${msg.id}-${suggestion.type}-${index}`} className="assistant-suggestion p-4 rounded-xl border">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <img
                                                             src={assistantHeadSrc}
@@ -273,7 +282,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                             aria-hidden="true"
                                                             className="h-5 w-5 rounded-md object-cover"
                                                         />
-                                                        <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
+                                                        <span className="assistant-suggestion-label text-xs font-bold">
                                                             {index === 0 ? ui("Best Fit") : ui("Alternative {index + 1}", { "index + 1": (index + 1) })}
                                                         </span>
                                                     </div>
@@ -288,7 +297,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                                                     <button
                                                         onClick={() => handleCreateGame(suggestion, suggestionId)}
                                                         disabled={isGenerating}
-                                                        className="w-full py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center"
+                                                        className="assistant-chat-primary w-full py-2.5 rounded-lg font-bold text-sm transition-colors flex items-center justify-center"
                                                     >
                                                         {isThisSuggestionGenerating ? (
                                                             <><Loader2 size={16} className="animate-spin mr-2" /> {ui(" Creating...")}</>
@@ -306,7 +315,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
 
                             {/* Avatar */}
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0 mt-auto mx-2 shadow-sm
-                                ${msg.role === 'user' ? 'bg-sky-100 order-2' : 'bg-indigo-100 order-1'}`}>
+                                ${msg.role === 'user' ? 'bg-sky-100 order-2' : 'order-1'}`}>
                                 {msg.role === 'user' ? (
                                     <User size={14} className="text-sky-600" />
                                 ) : (
@@ -323,7 +332,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
 
                     {isTyping && (
                         <div className="flex justify-start">
-                            <div className="bg-indigo-100 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden mr-2 order-1">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden mr-2 order-1">
                                 <img
                                     src={assistantHeadSrc}
                                     alt=""
@@ -341,9 +350,10 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 bg-white border-t border-slate-100">
+                <div className="assistant-chat-composer p-4">
                     <form onSubmit={handleSend} className="relative">
                         <input
+                            aria-label={ui("Describe your lesson topic...")}
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -369,8 +379,9 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                         </button>
                         <button
                             type="submit"
+                            aria-label={ui("Send message")}
                             disabled={!input.trim() || isTyping || isGenerating}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-brand-blue text-white rounded-lg hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="assistant-chat-primary absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             <Send size={18} />
                         </button>
@@ -381,7 +392,7 @@ export const AiAssistantChat: React.FC<AiAssistantChatProps> = ({ onClose, onGam
                         </p>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };

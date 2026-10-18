@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../components/PlayfulSelect';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ban, Building2, CheckCircle2, ChevronDown, Clock3, Copy, Gamepad2, HardDrive, KeyRound, Mail, Minus, Plus, RefreshCw, Search, Shield, Trash2, Users, XCircle } from 'lucide-react';
@@ -613,7 +614,7 @@ export const SchoolAdmin: React.FC = () => {
   ];
 
   return (
-    <div className="school-admin game-workspace min-h-screen">
+    <div className="playful-page school-admin game-workspace min-h-screen">
       <div className="workspace-shell school-admin-shell">
         <header className="school-admin-header">
           <div className="school-identity">
@@ -707,12 +708,12 @@ export const SchoolAdmin: React.FC = () => {
                 <Search size={16} aria-hidden="true" />
                 <input aria-label={ui("Search teachers")} placeholder={ui("Search name or email")} value={teacherSearch} onChange={event => setTeacherSearch(event.target.value)} />
               </label>
-              <select aria-label={ui("Filter teachers by status")} value={teacherStatus} onChange={event => setTeacherStatus(event.target.value)}>
+              <PlayfulSelect aria-label={ui("Filter teachers by status")} value={teacherStatus} onChange={event => setTeacherStatus(event.target.value)}>
                 <option value="all">{ui("All statuses")}</option>
                 <option value="active">{ui("Active")}</option>
                 <option value="inactive">{ui("Inactive")}</option>
                 <option value="pending">{ui("Pending")}</option>
-              </select>
+              </PlayfulSelect>
             </div>
           </div>
 

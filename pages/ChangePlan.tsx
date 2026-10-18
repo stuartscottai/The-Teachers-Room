@@ -8,6 +8,7 @@ import { changeMyAccountPlan, promptSignupForFree } from '../services/accountAcc
 import { uploadSchoolLogoForSchool } from '../utils/schoolLogoStorage';
 import { supabase } from '../services/supabase';
 import { CompanyLogo } from '../components/CompanyLogo';
+import { PlayfulHeading } from '../components/PlayfulHeading';
 
 type Feedback = { type: 'success' | 'error'; text: string } | null;
 
@@ -238,8 +239,8 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full text-center">
+      <div className="playful-page playful-change-plan min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="playful-panel bg-white border border-slate-200 rounded-2xl shadow-lg p-8 max-w-xl w-full text-center">
           <h1 className="font-display text-2xl font-bold text-slate-800 mb-2">{pageTitle}</h1>
           <p className="text-slate-500 mb-6">
             {isOnboarding
@@ -258,10 +259,10 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
+    <div className="playful-page playful-change-plan min-h-screen bg-slate-50 py-10 px-4">
       {showBetaNotice && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-900/55 backdrop-blur-sm px-4">
-          <div className="relative w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-2xl animate-fade-in">
+          <div className="playful-notice relative w-full max-w-lg rounded-2xl border border-slate-100 bg-white p-8 text-center shadow-2xl">
             <button
               type="button"
               onClick={() => setShowBetaNotice(false)}
@@ -289,13 +290,12 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
         </div>
       )}
       <div className="max-w-6xl mx-auto space-y-6">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div className="playful-plan-intro p-2 sm:p-4">
           {!isOnboarding && (
             <Link to="/profile" className="inline-flex items-center text-sm font-semibold text-slate-600 hover:text-slate-800 mb-4">
               <ArrowLeft size={14} className="mr-2" /> {ui(" Back to Profile")}</Link>
           )}
-          <h1 className="font-display text-3xl font-bold text-slate-800">{pageTitle}</h1>
-          <p className="text-slate-500 mt-1">{pageDescription}</p>
+          <PlayfulHeading icon={<GraduationCap size={38} />} title={pageTitle} description={pageDescription} />
           <div className="mt-4 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
             {badgeText}
           </div>
@@ -313,7 +313,7 @@ export const ChangePlan: React.FC<ChangePlanProps> = ({ mode = 'settings' }) => 
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="playful-plan-grid grid md:grid-cols-3 gap-6">
           <section
             className={`bg-white rounded-2xl border shadow-sm p-6 ${
               user.accountType === 'free' ? 'border-brand-blue' : 'border-slate-200'

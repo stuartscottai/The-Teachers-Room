@@ -2,7 +2,8 @@ import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } f
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, AlertCircle, Send, Loader, ChevronDown, X, Search } from 'lucide-react';
+import { Check, AlertCircle, Send, Loader, ChevronDown, X, Search, BookOpen, GraduationCap, Mail } from 'lucide-react';
+import { PlayfulHeading } from '../components/PlayfulHeading';
 import { sendContactMessage } from '../utils/gameUtils';
 import { BrandName } from '../components/BrandName';
 import { useAuth } from '../contexts/AuthContext';
@@ -178,10 +179,10 @@ export const Info: React.FC = () => {
   };
 
   return (
-    <div className="info-page max-w-5xl mx-auto px-4 py-12 sm:py-16">
+    <div className="playful-page playful-info info-page max-w-5xl mx-auto px-4 py-12 sm:py-16">
       <div className="mb-8">
-        <p className="mb-2 text-xs font-bold uppercase tracking-widest text-brand-blue">{ui("Guides & answers")}</p>
-        <h1 className="font-display text-4xl font-bold text-slate-800 mb-3">{ui("Help with ")}<BrandName /></h1>
+        <p className="playful-eyebrow">{ui("Guides & answers")}</p>
+        <PlayfulHeading icon={<BookOpen size={38} />} title={<>{ui("Help with ")}<BrandName /></>} />
         <p className="text-slate-600 max-w-2xl">
           {ui("Find your way around the games, get better results from AI, and answer common questions.")}</p>
       </div>
@@ -194,7 +195,7 @@ export const Info: React.FC = () => {
         ))}
       </nav>
 
-      <div className="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+      <div className="playful-panel mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
         <label htmlFor="info-search" className="block text-sm font-bold text-slate-700 mb-2">
           {ui("Search help topics")}</label>
         <div className="relative">
@@ -441,14 +442,11 @@ export const Pricing: React.FC = () => {
   };
 
   return (
-    <div className="py-20 bg-slate-50">
+    <div className="playful-page playful-pricing py-12 sm:py-16 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-16">
-          <h1 className="font-display text-4xl font-bold text-slate-800 mb-4">{ui("Early Access For Teachers")}</h1>
-          <p className="text-slate-600">{ui("The Teacher Plan and School Plan are free during early access, and no credit card information is required to sign up.")}</p>
-        </div>
+        <PlayfulHeading centered icon={<GraduationCap size={40} />} title={ui("Early Access For Teachers")} description={ui("The Teacher Plan and School Plan are free during early access, and no credit card information is required to sign up.")} />
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="playful-plan-grid grid md:grid-cols-3 gap-8">
           {/* Free */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
             <h3 className="font-display text-2xl font-bold text-slate-800 mb-2">{ui("Starter")}</h3>
@@ -548,9 +546,9 @@ export const Contact: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-20">
-       <h1 className="font-display text-4xl font-bold text-slate-800 mb-8 text-center">{ui("Get in Touch")}</h1>
-       <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-100 relative overflow-hidden">
+    <div className="playful-page playful-contact max-w-2xl mx-auto px-4 py-12 sm:py-16">
+       <PlayfulHeading centered icon={<Mail size={38} />} title={ui("Get in Touch")} />
+       <div className="playful-panel bg-white rounded-2xl shadow-lg p-6 sm:p-8 border border-slate-100 relative overflow-hidden">
           
           {status === 'success' ? (
               <div className="text-center py-12 animate-fade-in">
@@ -575,8 +573,9 @@ export const Contact: React.FC = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Name")}</label>
+                  <label htmlFor="contact-name" className="block text-sm font-medium text-slate-700 mb-1">{ui("Name")}</label>
                   <input 
+                    id="contact-name"
                     type="text" 
                     required
                     value={formData.name}
@@ -586,8 +585,9 @@ export const Contact: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Email")}</label>
+                  <label htmlFor="contact-email" className="block text-sm font-medium text-slate-700 mb-1">{ui("Email")}</label>
                   <input 
+                    id="contact-email"
                     type="email" 
                     required
                     value={formData.email}
@@ -597,8 +597,9 @@ export const Contact: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{ui("Message")}</label>
+                  <label htmlFor="contact-message" className="block text-sm font-medium text-slate-700 mb-1">{ui("Message")}</label>
                   <textarea 
+                    id="contact-message"
                     required
                     value={formData.message}
                     onChange={(e) => setFormData({...formData, message: e.target.value})}

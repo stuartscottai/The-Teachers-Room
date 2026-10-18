@@ -1,0 +1,58 @@
+/* Shared motion for form pickers, action menus and site navigation. */
+@keyframes playful-menu-in {
+  0% { opacity: 0; transform: translateY(-7px) scale(.96); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.006); }
+  82% { transform: translateY(-1px) scale(.999); }
+  100% { opacity: 1; transform: none; }
+}
+:is(.playful-dropdown-panel, .workspace-menu-panel, .school-actions-menu) {
+  animation: playful-menu-in .34s backwards;
+  transform-origin: center top;
+}
+.playful-mobile-menu { max-height: calc(100dvh - 4rem); overflow-y: auto; overscroll-behavior: contain; }
+.playful-picker {
+  --menu-surface: #fffefa;
+  --menu-ink: #17384b;
+  --menu-line: #dfd3c2;
+  --menu-hover: #eef8fe;
+  padding: 5px; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--menu-surface); color: var(--menu-ink);
+  border: 1px solid var(--menu-line); border-radius: 14px;
+  box-shadow: 0 8px 28px #0f172a18; font: 500 14px/1.4 Quicksand, sans-serif;
+}
+html[data-theme='dark'] .playful-picker { --menu-surface: #22272e; --menu-ink: #eff3f8; --menu-line: #3a4552; --menu-hover: #1b3545; }
+.playful-picker-above { transform-origin: center bottom; }
+.playful-picker-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 10px 12px; margin: 2px; border-radius: 9px; cursor: pointer; overflow-wrap: anywhere; transition: background .15s, translate .22s cubic-bezier(.34,1.56,.64,1); }
+.playful-picker-option > svg { flex-shrink: 0; color: #0284c7; }
+.playful-picker-option[aria-selected=true] { font-weight: 700; }
+.playful-picker-option:is(:hover, .is-active):not([aria-disabled=true]) { background: var(--menu-hover); translate: 2px 0; }
+.playful-picker-option[aria-disabled=true] { opacity: .45; cursor: not-allowed; }
+.playful-picker-group { padding: 9px 14px 4px; color: #64748b; font-size: 12px; font-weight: 700; }
+:is(.workspace-menu-panel, .school-actions-menu, .playful-user-menu) > :is(a, button),
+.playful-mobile-menu :is(a, button) {
+  transition: background .15s, color .15s, translate .23s cubic-bezier(.34,1.56,.64,1);
+}
+:is(.workspace-menu-panel, .school-actions-menu, .playful-user-menu) > :is(a, button):is(:hover, :focus-visible):not(:disabled),
+.playful-mobile-menu :is(a, button):is(:hover, :focus-visible):not(:disabled) {
+  translate: 3px 0;
+  background-color: #eef8fe;
+}
+html[data-theme='dark'] :is(.workspace-menu-panel, .school-actions-menu, .playful-user-menu) > :is(a, button):is(:hover, :focus-visible):not(:disabled),
+html[data-theme='dark'] .playful-mobile-menu :is(a, button):is(:hover, :focus-visible):not(:disabled) { background-color: #1b3545; }
+.playful-navbar .xl\:flex > a, .playful-user-menu-trigger, .playful-nav-login { transition: background .15s, color .15s, transform .23s cubic-bezier(.34,1.56,.64,1); }
+.playful-navbar .xl\:flex > a:is(:hover, :focus-visible), .playful-user-menu-trigger:is(:hover, :focus-visible), .playful-nav-login:is(:hover, :focus-visible) { transform: translateY(-2px) rotate(-1deg); }
+.playful-navbar :is(a, button):focus-visible { outline: 2px solid #0ea5e9; outline-offset: 3px; }
+.playful-hamburger { min-width: 44px; min-height: 44px; transition: background .15s, transform .23s cubic-bezier(.34,1.56,.64,1); }
+.playful-hamburger:is(:hover, :focus-visible) { transform: rotate(-7deg) scale(1.06); }
+.playful-hamburger:active { transform: scale(.94); }
+.playful-mobile-menu :is(a, button):active { translate: 3px 0; }
+.playful-footer-menu a { display: inline-flex; border-radius: 6px; transition: color .15s, translate .23s cubic-bezier(.34,1.56,.64,1); }
+.playful-footer-menu a:is(:hover, :focus-visible) { translate: 3px 0; }
+details > summary { transition: color .15s, translate .23s cubic-bezier(.34,1.56,.64,1); }
+details > summary:is(:hover, :focus-visible) { color: #0369a1; translate: 2px 0; }
+details[open] > :not(summary) { animation: playful-menu-in .34s backwards; transform-origin: center top; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.playful-dropdown-panel, .workspace-menu-panel, .school-actions-menu), details[open] > :not(summary) { animation: none !important; }
+  .playful-navbar *, .playful-picker-option, .playful-footer-menu a, details > summary, :is(.workspace-menu-panel, .school-actions-menu) > :is(a, button) { transition: none !important; }
+  .playful-navbar :is(a, button):is(:hover, :focus-visible, :active), .playful-picker-option, .playful-footer-menu a, details > summary, :is(.workspace-menu-panel, .school-actions-menu) > :is(a, button) { transform: none !important; translate: none !important; }
+}

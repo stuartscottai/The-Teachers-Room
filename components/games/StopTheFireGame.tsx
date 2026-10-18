@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
@@ -1426,7 +1427,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 <p className="text-slate-500 mb-6">{ui("Time is up. Do you want to score now or add more time?")}</p>
                                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
                                     <div className="relative">
-                                        <select
+                                        <PlayfulSelect
                                             value={extraTime}
                                             onChange={(e) => setExtraTime(Number(e.target.value))}
                                             className="px-4 pr-12 py-2 border border-slate-200 rounded-lg font-bold text-slate-700 appearance-none bg-transparent"
@@ -1437,7 +1438,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                                     +{value}s
                                                 </option>
                                             ))}
-                                        </select>
+                                        </PlayfulSelect>
                                         <svg
                                             className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                                             width="14"

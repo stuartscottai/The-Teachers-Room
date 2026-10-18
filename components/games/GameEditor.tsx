@@ -1,3 +1,4 @@
+import { PlayfulSelect } from '../PlayfulSelect';
 import { getWrittenQuestionType, supportsWrittenAnswers, getAnswerEditorText, getAnswerEditorPatch } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, QuestionEditorPanel, AnswerOptions, useWorkspaceDialog } from './GameWorkspace';
@@ -885,7 +886,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
     </div>;
 
     return (
-        <div className="game-workspace fixed inset-0 top-16 z-50 overflow-hidden flex flex-col">
+        <div className="playful-page game-workspace workspace-editor fixed inset-0 top-16 z-50 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-y-auto">
                 <div className="workspace-shell relative z-20">
                         <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(" Back")}</button>
@@ -1127,7 +1128,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                         {groups && groups.length > 1 && (
                                                             <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
                                                                 <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{groupLabel}</span>
-                                                                <select
+                                                                <PlayfulSelect
                                                                     value={activeTab}
                                                                     onChange={(event) => moveGroupedQuestion(qIdx, Number(event.target.value))}
                                                                     className="max-w-[180px] bg-transparent text-xs font-bold text-slate-700 outline-none"
@@ -1137,7 +1138,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                             {group.name || `${groupLabel} ${groupIndex + 1}`}
                                                                         </option>
                                                                     ))}
-                                                                </select>
+                                                                </PlayfulSelect>
                                                             </label>
                                                         )}
                                                         <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-slate-200">
@@ -1304,7 +1305,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                         </div>
                                         <div className="relative ml-auto min-w-[120px]">
                                             <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                            <select
+                                            <PlayfulSelect
                                                 aria-label={ui("Questions per page")}
                                             value={itemsPerPage}
                                                 onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
@@ -1313,7 +1314,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                 {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
                                                     <option key={size} value={size}>{size} {ui(" per page")}</option>
                                                 ))}
-                                            </select>
+                                            </PlayfulSelect>
                                         </div>
                                     </div>
                                 </div>
@@ -1410,7 +1411,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                     {/* Darts Difficulty Selector */}
                                                     {editedGame.config.type === GameType.DARTS && (
                                                         <div className="flex items-center ml-2">
-                                                            <select
+                                                            <PlayfulSelect
                                                                 value={q.difficulty || 'easy'}
                                                                 onChange={(e) => updateQuestionDifficulty(questionIndex, e.target.value)}
                                                                 className={`text-xs font-bold uppercase py-1 px-2 rounded border border-slate-200 outline-none
@@ -1421,7 +1422,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                                                 <option value="easy">{ui("Easy")}</option>
                                                                 <option value="medium">{ui("Medium")}</option>
                                                                 <option value="hard">{ui("Hard")}</option>
-                                                            </select>
+                                                            </PlayfulSelect>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1709,7 +1710,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                     </div>
                                     <div className="relative ml-auto min-w-[120px]">
                                         <List className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                        <select
+                                        <PlayfulSelect
                                             aria-label={ui("Questions per page")}
                                             value={itemsPerPage}
                                             onChange={(event) => handleItemsPerPageChange(Number(event.target.value))}
@@ -1718,7 +1719,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                                             {GAME_EDITOR_PAGE_SIZE_OPTIONS.map((size) => (
                                                 <option key={size} value={size}>{size} {ui(" per page")}</option>
                                             ))}
-                                        </select>
+                                        </PlayfulSelect>
                                     </div>
                                 </div>
 

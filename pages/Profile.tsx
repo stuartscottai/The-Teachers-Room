@@ -399,7 +399,7 @@ export const Profile: React.FC = () => {
     };
 
     if (!user) return (
-        <div className="game-workspace workspace-profile min-h-screen">
+        <div className="playful-page game-workspace workspace-profile min-h-screen">
           <div className="workspace-shell">
             <ProfileWebsiteSettings />
             <div className="bg-white p-8 rounded-xl shadow-lg text-center mt-5">
@@ -410,7 +410,7 @@ export const Profile: React.FC = () => {
     );
 
     return (
-        <div className="game-workspace workspace-profile min-h-screen">
+        <div className="playful-page game-workspace workspace-profile min-h-screen">
             <div className="workspace-shell">
                 <header className="profile-header">
                   <div className="relative shrink-0">
