@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('prepares healthy images before opening gameplay', async ({ page }) => {
   await page.goto('/test/game-smoke?mode=trivia&prepare=success');

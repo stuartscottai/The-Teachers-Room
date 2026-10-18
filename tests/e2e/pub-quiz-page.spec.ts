@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test('Pub Quiz page has real images, metadata, usable enlargement and no horizontal overflow', async ({ page }) => {
   await page.goto('/game-types/pub-quiz');

@@ -1,7 +1,7 @@
 import { parseImportedGameContent } from '../../utils/gameImport';
 import { GameType } from '../../types';
 import { convertGeminiSchemaToOpenAI } from '../../api/aiRuntime';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { getSurveyGenerationError } from '../../utils/surveyGeneration';
 
 const board = (mode = 'survey', scores = [25, 18, 15, 12, 10, 7, 5, 4, 3, 1]) => ({

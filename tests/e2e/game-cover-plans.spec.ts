@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { buildCoverBrief, coverSearchPlanParams, parseCoverSearchPlans } from '../../utils/gameCoverBrief';
 import { selectGameCover, getGameCoverQuery } from '../../utils/gameCover';
 import { GameType, GeneratedGame } from '../../types';

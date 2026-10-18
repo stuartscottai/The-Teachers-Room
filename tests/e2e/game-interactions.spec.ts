@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { expectLoadedSmokeImage, expectNoBrowserErrors, installErrorGuards, rollSnakesLaddersDice, startSnakesLaddersGame } from './helpers';
 
 test('trivia answer flow shows feedback and keeps image loaded', async ({ page }) => {

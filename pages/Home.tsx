@@ -199,9 +199,6 @@ export const Home: React.FC = () => {
     };
 
     void refreshHomeFeed();
-    const refreshInterval = window.setInterval(() => {
-      void refreshHomeFeed();
-    }, 120000);
 
     try {
       const disabled = localStorage.getItem(TOUR_HIDE_KEY) === '1';
@@ -212,7 +209,6 @@ export const Home: React.FC = () => {
 
     return () => {
       isUnmounted = true;
-      clearInterval(refreshInterval);
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);

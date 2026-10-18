@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('saved dark appearance loads across public pages and survives refresh', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('teachers-room-theme', 'dark'));

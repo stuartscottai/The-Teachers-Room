@@ -6,6 +6,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: '**/prod-smoke/**',
   timeout: 30_000,
   expect: {
     timeout: 5_000,
@@ -18,6 +19,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL,
+    serviceWorkers: 'block',
     // Smoke tests verify game state rather than animation smoothness. This
     // also exercises the accessibility path intended for reduced motion.
     contextOptions: { reducedMotion: 'reduce' },

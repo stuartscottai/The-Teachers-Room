@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { expectNoBrowserErrors, installErrorGuards } from './helpers';
 
 test('live quiz teacher fixture flows from lobby to final positions', async ({ page }) => {

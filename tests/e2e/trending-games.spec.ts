@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { GameType, type GeneratedGame } from '../../types';
 import { selectTrendingGamesByMode } from '../../utils/trendingGames';
 

@@ -11,7 +11,7 @@ import { GameType, GeneratedGame, GeneratedQuestion, GameRunOptions, JeopardyCat
 import { Dice5, Target, Grid, HelpCircle, Sparkles, BookOpen, LogIn, Trash2, Beer, DollarSign, Timer, List, ArrowRight, ArrowLeft, Search, Play, Globe, Filter, SortAsc, SortDesc, ChevronLeft, ChevronRight, HardDrive, Cloud, User, RefreshCw, AlertTriangle, Library, Plus, Copy, Layers, PenTool, Flame, GraduationCap, X, ImageIcon, Shuffle, Hexagon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useUnsavedChanges } from '../contexts/UnsavedChangesContext';
-import { createSelectedStudentGameShare, deleteSavedGame, gameHasQuestionImages, getCommunityGames, getGameShareUrl, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
+import { createSelectedStudentGameShare, deleteSavedGame, gameHasQuestionImages, getCommunityGames, getGameShareUrl, getSavedGame, getSavedGames, getSelectedStudentGameShareUrl, getSharedGame, isUUID, prepareGameForLibrarySave, recordGamePlay, saveGameToLibrary } from '../utils/gameUtils';
 import { createLiveQuizSession } from '../utils/liveQuizUtils';
 import { promptSignupForFree, promptUpgradeForAi } from '../services/accountAccess';
 import { convertGameForTemporaryPlay, flattenGameQuestions, getCompatibleGameTypes } from '../utils/gameCompatibility';
@@ -37,26 +37,26 @@ const getGameStats = (game: GeneratedGame) => {
 
     // Counts
     if (type === GameType.JEOPARDY) {
-        const cats = game.jeopardyBoard?.length || 0;
-        const qs = game.jeopardyBoard?.reduce((acc: number, cat: any) => acc + (cat.questions?.length || 0), 0) || 0;
+        const cats = game.librarySummary?.categoryCount ?? game.jeopardyBoard?.length ?? 0;
+        const qs = game.librarySummary?.questionCount ?? (game.jeopardyBoard?.reduce((acc: number, cat: any) => acc + (cat.questions?.length || 0), 0) || 0);
         stats.push({ kind: 'Cats', get label() { return ui("Cats"); }, value: cats, icon: <Grid size={12} /> });
         stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: qs, icon: <HelpCircle size={12} /> });
     } else if (type === GameType.PUB_QUIZ) {
-        const rounds = game.pubQuizRounds?.length || 0;
-        const qs = game.pubQuizRounds?.reduce((acc: number, rnd: any) => acc + (rnd.questions?.length || 0), 0) || 0;
+        const rounds = game.librarySummary?.roundCount ?? game.pubQuizRounds?.length ?? 0;
+        const qs = game.librarySummary?.questionCount ?? (game.pubQuizRounds?.reduce((acc: number, rnd: any) => acc + (rnd.questions?.length || 0), 0) || 0);
         stats.push({ kind: 'Rounds', get label() { return ui("Rounds"); }, value: rounds, icon: <Layers size={12} /> });
         stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: qs, icon: <HelpCircle size={12} /> });
     } else if (type === GameType.SURVEY_SHOWDOWN) {
-        const rounds = game.questions?.length || 0;
+        const rounds = game.librarySummary?.questionCount ?? game.questions?.length ?? 0;
         stats.push({ kind: 'Rounds', get label() { return ui("Rounds"); }, value: rounds, icon: <List size={12} /> });
     } else if (type === GameType.STOP_THE_FIRE) {
-        const cats = game.stopTheFireCategories?.length || game.config.stopTheFireCategories?.length || 0;
+        const cats = game.librarySummary?.categoryCount ?? (game.stopTheFireCategories?.length || game.config.stopTheFireCategories?.length || 0);
         stats.push({ kind: 'Cats', get label() { return ui("Cats"); }, value: cats, icon: <List size={12} /> });
     } else if (type === GameType.WORD_WHEEL) {
-        const count = game.questions?.length || 0;
+        const count = game.librarySummary?.questionCount ?? game.questions?.length ?? 0;
         stats.push({ kind: 'Letters', get label() { return ui("Letters"); }, value: count, icon: <RefreshCw size={12} /> });
     } else {
-        const count = game.questions?.length || 0;
+        const count = game.librarySummary?.questionCount ?? game.questions?.length ?? 0;
         stats.push({ kind: 'Qs', get label() { return ui("Qs"); }, value: count, icon: <HelpCircle size={12} /> });
     }
 
@@ -906,20 +906,25 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const pageSizeOptions = [10, 20, 30, 40, 50];
 
+    const [totalCount, setTotalCount] = useState(0);
+    const [error, setError] = useState<string | null>(null);
+    const requestVersion = useRef(0);
     const loadGames = async () => {
+        const version = ++requestVersion.current;
         setLoading(true);
-        const data = await getSavedGames(user?.id);
-        setGames(data);
+        setError(null);
+        const result = await getSavedGames(user?.id, currentPage, itemsPerPage, search, typeFilter, sortBy, sourceFilter, imageFilter);
+        if (version !== requestVersion.current) return;
+        setGames(result.data);
+        setTotalCount(result.count);
+        setError(result.error);
         setLoading(false);
     };
-
+    useEffect(() => { setCurrentPage(1); }, [search, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage]);
     useEffect(() => {
-        loadGames();
-    }, [user]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [search, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage]);
+        const timer = setTimeout(() => { void loadGames(); }, 300);
+        return () => { clearTimeout(timer); requestVersion.current++; };
+    }, [user?.id, currentPage, itemsPerPage, search, typeFilter, sortBy, sourceFilter, imageFilter]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -929,45 +934,12 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
         }
     };
 
-    // Client-side Filtering & Sorting
-    const filteredGames = games.filter(g => {
-        // Search
-        if (search) {
-            const term = search.toLowerCase();
-            const matchesTitle = g.title.toLowerCase().includes(term);
-            const matchesTopic = g.config.topic?.toLowerCase().includes(term);
-            if (!matchesTitle && !matchesTopic) return false;
-        }
-
-        // Type
-        if (typeFilter !== 'all' && g.config.type !== typeFilter) return false;
-
-        // Source
-        if (sourceFilter === 'ai' && !g.config.isAI) return false;
-        if (sourceFilter === 'manual' && g.config.isAI) return false;
-
-        // Image status
-        if (imageFilter === 'with-images' && !gameHasQuestionImages(g)) return false;
-        if (imageFilter === 'without-images' && gameHasQuestionImages(g)) return false;
-
-        return true;
-    }).sort((a, b) => {
-        if (sortBy === 'newest') return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        if (sortBy === 'oldest') return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-        if (sortBy === 'az') return a.title.localeCompare(b.title);
-        if (sortBy === 'za') return b.title.localeCompare(a.title);
-        if (sortBy === 'plays') {
-            const playDifference = getGamePlayCount(b) - getGamePlayCount(a);
-            if (playDifference !== 0) return playDifference;
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        }
-        return 0;
-    });
-
-    const totalPages = Math.max(1, Math.ceil(filteredGames.length / itemsPerPage));
+    // Supabase filters and pages the small card summaries before sending them.
+    const filteredGames = games;
+    const pagedGames = games;
+    const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
     const pageStart = (currentPage - 1) * itemsPerPage;
-    const pageEnd = Math.min(pageStart + itemsPerPage, filteredGames.length);
-    const pagedGames = filteredGames.slice(pageStart, pageEnd);
+    const pageEnd = Math.min(pageStart + games.length, totalCount);
 
     useEffect(() => {
         if (currentPage > totalPages) {
@@ -1065,7 +1037,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
             </div>
 
             <div className="mb-4 text-sm text-slate-500 font-bold text-center md:text-left">
-                {ui("Showing ")}{filteredGames.length === 0 ? 0 : pageStart + 1}-{pageEnd} {ui(" of ")}{filteredGames.length} {ui(" game")}{filteredGames.length !== 1 ? 's' : ''}
+                {ui("Showing ")}{games.length === 0 ? 0 : pageStart + 1}-{pageEnd} {ui(" of ")}{totalCount} {ui(" game")}{totalCount !== 1 ? 's' : ''}
             </div>
             {filteredGames.length > 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -1096,6 +1068,8 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                     <div className="w-10 h-10 border-4 border-brand-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-slate-500">{ui("Loading library...")}</p>
                 </div>
+            ) : error ? (
+                <p role="alert" className="py-12 text-center text-red-600">{error}</p>
             ) : filteredGames.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 border-dashed">
                     <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1319,8 +1293,10 @@ const CommunityLibrary: React.FC<{
     const schoolCommunityId = user?.accountType === 'school' ? user.schoolAccess?.schoolId : undefined;
     const schoolCommunityName = user?.accountType === 'school' ? user.schoolAccess?.schoolName : '';
     const canFilterBySchool = Boolean(schoolCommunityId);
+    const requestVersion = useRef(0);
 
     const fetchGames = async () => {
+        const version = ++requestVersion.current;
         setLoading(true);
         setError(null);
 
@@ -1337,6 +1313,7 @@ const CommunityLibrary: React.FC<{
             communityScope === 'school' ? schoolCommunityId : undefined
         );
 
+        if (version !== requestVersion.current) return;
         if (fetchError) {
             setError(fetchError);
             setLoading(false);
@@ -1380,7 +1357,7 @@ const CommunityLibrary: React.FC<{
         const timer = setTimeout(() => {
             fetchGames();
         }, 500);
-        return () => clearTimeout(timer);
+        return () => { clearTimeout(timer); requestVersion.current++; };
     }, [currentPage, searchQuery, typeFilter, sortBy, sourceFilter, imageFilter, itemsPerPage, authorFilter, communityScope, schoolCommunityId]);
 
     useEffect(() => {
@@ -2015,6 +1992,8 @@ export const Games: React.FC = () => {
     const [playReturnStep, setPlayReturnStep] = useState<'editor' | 'preview'>('editor');
     const [imagePreparationBackStep, setImagePreparationBackStep] = useState<'setup' | 'editor' | 'preview'>('setup');
     const [imageRepairKeys, setImageRepairKeys] = useState<string[]>([]);
+    const openingGame = useRef(false);
+    const [isOpeningGame, setIsOpeningGame] = useState(false);
     const [hubTab, setHubTab] = useState<'create' | 'community' | 'library'>('create');
     const [communitySeedAuthorFilter, setCommunitySeedAuthorFilter] = useState<{ id?: string; name: string } | null>(null);
     const [communitySeedSearch, setCommunitySeedSearch] = useState('');
@@ -2377,10 +2356,26 @@ export const Games: React.FC = () => {
         beginGamePreparation(gameToStart, options, 'setup');
     };
 
-    const handleLoadPersonalGame = (game: GeneratedGame) => {
+    const handleLoadPersonalGame = async (game: GeneratedGame) => {
         if (!user) {
             promptSignupForFree('Create a free account on the Teacher Plan to use saved game features.');
             return;
+        }
+        if (game.librarySummary) {
+            if (openingGame.current) return;
+            openingGame.current = true;
+            setIsOpeningGame(true);
+            try {
+                const fullGame = await getSavedGame(game.id!, user.id);
+                if (!fullGame) { alert(ui("This game could not be loaded. Please try again.")); return; }
+                game = fullGame;
+            } catch {
+                alert(ui("This game could not be loaded. Please try again."));
+                return;
+            } finally {
+                openingGame.current = false;
+                setIsOpeningGame(false);
+            }
         }
         setGeneratedGame(game);
         setSessionGame(null);
@@ -2390,10 +2385,26 @@ export const Games: React.FC = () => {
         setIsDirty(false);
     };
 
-    const handleLoadCommunityGame = (game: GeneratedGame) => {
+    const handleLoadCommunityGame = async (game: GeneratedGame) => {
         if (!user) {
             promptSignupForFree('Create a free account on the Teacher Plan to copy and play community games.');
             return;
+        }
+        if (game.librarySummary) {
+            if (openingGame.current) return;
+            openingGame.current = true;
+            setIsOpeningGame(true);
+            try {
+                const fullGame = await getSharedGame(game.id!);
+                if (!fullGame) { alert(ui("This game could not be loaded. Please try again.")); return; }
+                game = fullGame;
+            } catch {
+                alert(ui("This game could not be loaded. Please try again."));
+                return;
+            } finally {
+                openingGame.current = false;
+                setIsOpeningGame(false);
+            }
         }
         // Strip ID to treat as template (avoid overwriting public game or confusing local store)
         // Also ensure visibility is reset to private for the remixer
@@ -2788,6 +2799,11 @@ export const Games: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50">
+            {isOpeningGame && (
+                <div role="status" aria-label={ui("Loading game...")} className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40">
+                    <div className="h-12 w-12 animate-spin rounded-full border-4 border-white border-t-brand-blue" />
+                </div>
+            )}
             {mobileTourSpacerHeight > 0 && (
                 <div className="sm:hidden" style={{ height: `${mobileTourSpacerHeight}px` }} aria-hidden />
             )}

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { getGameCoverQuery, selectGameCover } from '../../utils/gameCover';
 import { GameType, GeneratedGame } from '../../types';
 
@@ -101,8 +101,8 @@ test('community covers render without searching and keep mobile layout within th
   let searches = 0;
   page.on('request', request => { if (request.url().includes('/api/stock-images?')) searches++; });
   const coverImage = { source: 'stock', stockId: 'pexels:1', url: items[0].url, alt: 'Football community cover', provider: 'pexels', selection: 'automatic' };
-  await page.route('**/rest/v1/saved_games?*', route => route.fulfill({ json: [{ id: '00000000-0000-4000-8000-000000000001', title: game.title,
-    config: { ...game.config, coverImage }, is_public: true, questions: [], author_name: 'A Teacher', created_at: '2026-01-01' }], headers: { 'content-range': '0-0/1' } }));
+  await page.route('**/rest/v1/rpc/get_game_library_page', route => route.fulfill({ json: { data: [{ id: '00000000-0000-4000-8000-000000000001', title: game.title,
+    config: { ...game.config, coverImage }, is_public: true, library_summary: { questionCount: 20, categoryCount: 0, roundCount: 0 }, author_name: 'A Teacher', created_at: '2026-01-01' }], count: 1 } }));
   await page.goto('/games');
   await page.getByRole('tab', { name: 'Community', exact: true }).click();
   await expect(page.getByAltText('Football community cover')).toBeVisible();
@@ -138,3 +138,45 @@ test('touch pinch zooms and touch drag repositions the cover', async ({ page, is
   expect(cover.positionX).toBeLessThan(50);
   expect(cover.positionY).toBeLessThan(50);
 });
+
+for (const scope of ['community', 'own'] as const) {
+  test(`${scope} library pages use summaries and load full content only on opening`, async ({ page }) => {
+    const userId = '00000000-0000-4000-8000-000000000009';
+    const gameId = '00000000-0000-4000-8000-000000000001';
+    const requests: any[] = [];
+    let fullLoads = 0;
+    const authUser = { id: userId, email: 'teacher@example.test', aud: 'authenticated', role: 'authenticated', user_metadata: { full_name: 'Teacher', account_type: 'teacher' }, app_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
+    await page.addInitScript(user => {
+      localStorage.setItem('sb-xsefgwhywcuzfnawtyru-auth-token', JSON.stringify({ access_token: 'fixture-access-token', refresh_token: 'fixture-refresh-token', expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user }));
+    }, authUser);
+    await page.route('**/auth/v1/user', route => route.fulfill({ json: authUser }));
+    await page.route('**/rest/v1/rpc/get_game_library_page', route => {
+      const args = route.request().postDataJSON();
+      requests.push(args);
+      const title = args.p_page === 2 ? 'Second page game' : 'Summary game';
+      return route.fulfill({ json: { count: 11, data: [{ id: gameId, title, user_id: userId, author_name: 'Teacher', play_count: 5, created_at: '2026-01-01', is_public: scope === 'community', config: { type: 'Trivia Quiz', topic: 'Science', questionType: 'multiple-choice', isAI: false }, library_summary: { questionCount: 20, categoryCount: 0, roundCount: 0 } }] } });
+    });
+    await page.route('**/rest/v1/saved_games?*', route => {
+      fullLoads++;
+      const query = new URL(route.request().url()).searchParams;
+      expect(query.get('id')).toBe(`eq.${gameId}`);
+      expect(query.get(scope === 'own' ? 'user_id' : 'is_public')).toBe(scope === 'own' ? `eq.${userId}` : 'eq.true');
+      return route.fulfill({ json: { id: gameId, title: 'Loaded full game', user_id: userId, created_at: '2026-01-01', config: { type: 'Trivia Quiz', topic: 'Science', questionType: 'multiple-choice', isAI: false }, questions: [{ question: 'Full question loaded on demand', answer: 'Earth', options: ['Earth', 'Mars'] }] } });
+    });
+    await page.goto('/games');
+    await page.getByRole('tab', { name: scope === 'community' ? 'Community' : /My Library/, exact: scope === 'community' }).click();
+    await expect(page.getByRole('heading', { name: 'Summary game', exact: true })).toBeVisible();
+    await expect(page.getByText('20 Qs', { exact: true })).toBeVisible();
+    expect(fullLoads).toBe(0);
+    expect(requests.at(-1)).toMatchObject({ p_scope: scope, p_page: 1, p_limit: 10 });
+    // The top and bottom pagination rows share the same next-page action.
+    await page.locator('button').filter({ has: page.locator('svg.lucide-chevron-right') }).first().click();
+    await expect(page.getByRole('heading', { name: 'Second page game', exact: true })).toBeVisible();
+    expect(requests.at(-1)).toMatchObject({ p_scope: scope, p_page: 2, p_limit: 10 });
+    expect(fullLoads).toBe(0);
+    if (scope === 'community') await page.getByRole('button', { name: 'Preview', exact: true }).click();
+    else await page.getByRole('heading', { name: 'Second page game', exact: true }).click();
+    await expect(page.getByText('Loaded full game', { exact: true }).first()).toBeVisible();
+    expect(fullLoads).toBe(1);
+  });
+}

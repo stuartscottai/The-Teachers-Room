@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('Stop the Fire stays readable and restores zoom when moving to scoring', async ({ page, isMobile }) => {
   await page.addInitScript(() => localStorage.setItem('teachers-room-theme', 'dark'));

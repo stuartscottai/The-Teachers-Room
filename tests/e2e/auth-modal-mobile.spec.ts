@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('signup dialog remains usable on a short phone with a school code', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });

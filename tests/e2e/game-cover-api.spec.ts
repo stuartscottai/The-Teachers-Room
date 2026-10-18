@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import handler from '../../api/game-cover';
 
 test('public upload endpoint refuses invalid and private games without reading assets', async () => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 for (const [name, slug] of [['Trivia Quiz', 'trivia'], ['Jeopardy', 'jeopardy'], ['Time Bomb', 'time-bomb'], ['Word Wheel', 'wordwheel'], ['Block Beaters', 'blockbeaters'], ['Live Quiz Challenge', 'live-quiz'], ['Pub Quiz', 'pub-quiz'], ['Survey Showdown', 'survey-showdown'], ['Stop the Fire!', 'stop-the-fire'], ['Millionaire Maker', 'millionaire-maker'], ['Darts', 'darts-challenge'], ['Snakes and Ladders', 'snakes-and-ladders']]) {
   test(`${name} separates information from creation`, async ({ page }) => {

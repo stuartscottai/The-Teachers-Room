@@ -271,6 +271,8 @@ export interface JeopardyCategory {
 }
 
 export interface GeneratedGame {
+  // Present only on browsing cards; fetch the full game before editing/playing.
+  librarySummary?: { questionCount: number; categoryCount: number; roundCount: number };
   id?: string; // For saving
   createdAt?: string; // For saving
   playCount?: number; // Optional metric for community/trending ranking

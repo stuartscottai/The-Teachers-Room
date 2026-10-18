@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 test('Profile language selector updates the header and persists across reloads and tabs', async ({ page, context, isMobile }) => {
   await page.goto('/profile');

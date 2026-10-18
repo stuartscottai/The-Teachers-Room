@@ -1,6 +1,7 @@
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { startPolling } from '../utils/polling';
 import { CheckCircle, CheckCircle2, Clock, Crown, Home, Pencil, Trophy, WifiOff, XCircle } from 'lucide-react';
 import {
   getCurrentStudentQuestion,
@@ -211,30 +212,52 @@ export const LiveQuizStudent: React.FC<{ preview?: LiveQuizStudentPreview }> = (
   useEffect(() => {
     if (preview) return;
     let disposed = false;
+    let snapshotKey = '';
+    let questionLoadedAt = 0;
+    let participantsLoadedAt = 0;
+    let submissionsLoadedAt = 0;
     const load = async () => {
-      const [nextSession, nextQuestion, nextParticipants, nextSubmissions] = await Promise.all([
-        getLiveQuizStudentSession(sessionId, participantId),
-        getCurrentStudentQuestion(sessionId, participantId),
-        getLiveQuizStudentParticipants(sessionId, participantId),
-        getLiveQuizOwnSubmissions(sessionId, participantId),
+      const nextSession = await getLiveQuizStudentSession(sessionId, participantId);
+      if (disposed) return 15000;
+      if (!nextSession) {
+        setSession(null);
+        setHasLoadedSnapshot(true);
+        return 15000;
+      }
+      const nextKey = `${nextSession.currentQuestionIndex}:${nextSession.status}`;
+      const changed = snapshotKey !== nextKey;
+      const now = Date.now();
+      const refreshQuestion = changed || now - questionLoadedAt > 1800000;
+      const refreshParticipants = changed || now - participantsLoadedAt > (nextSession.status === 'question' ? 2000 : 5000);
+      const refreshSubmissions = changed || now - submissionsLoadedAt > 15000;
+      // State changes still arrive every second, but unchanged questions and
+      // answer history are not downloaded (and images re-signed) on every tick.
+      const [nextQuestion, nextParticipants, nextSubmissions] = await Promise.all([
+        refreshQuestion ? getCurrentStudentQuestion(sessionId, participantId) : Promise.resolve(undefined),
+        refreshParticipants ? getLiveQuizStudentParticipants(sessionId, participantId) : Promise.resolve(undefined),
+        refreshSubmissions ? getLiveQuizOwnSubmissions(sessionId, participantId) : Promise.resolve(undefined),
       ]);
-      if (disposed) return;
+      if (disposed) return 15000;
       setSession(nextSession);
-      setQuestion(nextQuestion);
-      setParticipants(nextParticipants);
-      setSubmissions(nextSubmissions);
+      if (nextQuestion !== undefined) {
+        setQuestion(nextQuestion);
+        if (nextQuestion) questionLoadedAt = now;
+      }
+      if (nextParticipants !== undefined) { setParticipants(nextParticipants); participantsLoadedAt = now; }
+      if (nextSubmissions !== undefined) { setSubmissions(nextSubmissions); submissionsLoadedAt = now; }
+      snapshotKey = nextKey;
       setHasLoadedSnapshot(true);
       if (nextSession && submittedQuestion !== null && nextSession.currentQuestionIndex !== submittedQuestion) {
         setSubmittedQuestion(null);
         setSelectedAnswer('');
         setError('');
       }
+      return nextSession.status === 'ended' ? 15000 : document.hidden ? 10000 : 1000;
     };
-    void load();
-    const intervalId = window.setInterval(load, 900);
+    const stop = startPolling(load);
     return () => {
       disposed = true;
-      window.clearInterval(intervalId);
+      stop();
     };
   }, [participantId, sessionId, submittedQuestion, preview]);
 

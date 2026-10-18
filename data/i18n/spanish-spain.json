@@ -2530,5 +2530,6 @@
   "Gap Fill · {points} pts": "Rellenar huecos · {points} puntos",
   "Enter correct answers, one answer per line.": "Escribe las respuestas correctas, una respuesta por línea.",
   "You can enter multiple correct answers, one answer per line.": "Puedes escribir varias respuestas correctas, una respuesta por línea.",
-  "Show result": "Mostrar resultado"
+  "Show result": "Mostrar resultado",
+  "This game could not be loaded. Please try again.": "No se ha podido cargar este juego. Inténtalo de nuevo."
 }

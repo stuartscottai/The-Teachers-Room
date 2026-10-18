@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { expectNoBrowserErrors, installErrorGuards } from './helpers';
 
 const startPractice = async (page: Page, name = 'Stu') => {

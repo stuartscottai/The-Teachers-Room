@@ -3,6 +3,7 @@ import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } f
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeCanvas } from 'qrcode.react';
+import { startPolling } from '../utils/polling';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, CheckCircle, ChevronDown, Copy, Crown, Music, Play, QrCode, SkipForward, Trophy, Users, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -277,34 +278,56 @@ export const LiveQuizHost: React.FC<{ preview?: LiveQuizHostPreview }> = ({ prev
   const questionTextRef = useRef<HTMLHeadingElement>(null);
   const [questionFontSize, setQuestionFontSize] = useState<number | null>(null);
 
-  const load = async () => {
+  const questionCache = useRef<{ sessionId: string; loadedAt: number; questions: LiveQuizQuestion[] } | null>(null);
+  const questionPending = useRef<{ sessionId: string; request: Promise<LiveQuizQuestion[]> } | null>(null);
+  const load = async (isCurrent = () => true) => {
     if (preview) return;
+    const cached = questionCache.current;
+    let questionRequest: Promise<LiveQuizQuestion[]>;
+    if (cached?.sessionId === sessionId && Date.now() - cached.loadedAt < 1800000) {
+      questionRequest = Promise.resolve(cached.questions);
+    } else if (questionPending.current?.sessionId === sessionId) {
+      questionRequest = questionPending.current.request;
+    } else {
+      questionRequest = getLiveQuizQuestionsForTeacher(sessionId).then(next => {
+        if (next.length) questionCache.current = { sessionId, loadedAt: Date.now(), questions: next };
+        return next;
+      }).finally(() => {
+        if (questionPending.current?.request === questionRequest) questionPending.current = null;
+      });
+      questionPending.current = { sessionId, request: questionRequest };
+    }
     const [nextSession, nextQuestions, nextParticipants, nextSubmissions] = await Promise.all([
       getLiveQuizSession(sessionId),
-      getLiveQuizQuestionsForTeacher(sessionId),
+      questionRequest,
       getLiveQuizParticipants(sessionId),
       getLiveQuizSubmissions(sessionId),
     ]);
+    if (!isCurrent()) return nextSession;
     setSession(nextSession);
     setQuestions(nextQuestions);
     setParticipants(nextParticipants);
     setSubmissions(nextSubmissions);
+    return nextSession;
   };
 
   useEffect(() => {
     if (preview) return;
-    void load();
-    const intervalId = window.setInterval(load, 1000);
-    return () => window.clearInterval(intervalId);
+    let disposed = false;
+    const stop = startPolling(async () => {
+      const next = await load(() => !disposed);
+      return !next || next.status === 'ended' ? 15000 : document.hidden ? 5000 : 1000;
+    });
+    return () => { disposed = true; stop(); };
   }, [sessionId, preview]);
 
   useEffect(() => {
-    if (!sessionId || preview) return;
+    if (!sessionId || preview || session?.status === 'ended') return;
     const sendHeartbeat = () => void updateLiveQuizHostHeartbeat(sessionId);
     sendHeartbeat();
     const intervalId = window.setInterval(sendHeartbeat, 5000);
     return () => window.clearInterval(intervalId);
-  }, [sessionId, preview]);
+  }, [sessionId, preview, session?.status === 'ended']);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNowMs(Date.now()), 250);

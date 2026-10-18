@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { expectLoadedImageByAlt, expectLoadedSmokeImage, expectNoBrokenImages, expectNoBrowserErrors, installErrorGuards, rollSnakesLaddersDice, startSnakesLaddersGame } from './helpers';
 
 test.describe('image health smoke tests', () => {
