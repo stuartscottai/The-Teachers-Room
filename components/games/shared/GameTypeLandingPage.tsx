@@ -40,7 +40,7 @@ export const GameTypeLandingPage = ({ content: c }: { content: GameTypePageConte
           <p className="mt-4 max-w-sm text-sm text-slate-600">{ui(c.note)}</p>
         </div>
         <figure className="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_32px]">
-          <img src={`/assets/game-types/${c.slug}/hero-transparent.webp${c.slug === 'stop-the-fire' ? '?v=20261017' : ''}`} alt={c.heroAlt} width="1536" height="1024" loading="eager" decoding="async" className="h-full min-h-0 w-full object-contain" />
+          <img src={`/assets/game-types/${c.slug}/hero-transparent.webp${c.slug === 'stop-the-fire' ? '?v=20261017' : ''}`} alt={ui(c.heroAlt)} width="1536" height="1024" loading="eager" decoding="async" className="h-full min-h-0 w-full object-contain" />
           <figcaption className="mt-3 text-center text-xs text-slate-500">{ui("3D illustration based on the real {game} game.", {game: c.name})}</figcaption>
         </figure>
       </div>

@@ -15,6 +15,8 @@ Teachers can turn a lesson topic, learning objective, or source material into cl
 
 ## Game types
 
+- [Plinkemoji](https://www.theteachersroom.app/game-types/plinkemoji): Answer questions, bounce emoji chips through an electric peg board and collect stars for character bonuses.
+
 - [Trivia](https://www.theteachersroom.app/game-types/trivia): Turn questions into a colourful team game.
 - [Jeopardy](https://www.theteachersroom.app/game-types/jeopardy): Choose categories and point values for team review.
 - [Time Bomb](https://www.theteachersroom.app/game-types/time-bomb): Answer questions against a countdown.

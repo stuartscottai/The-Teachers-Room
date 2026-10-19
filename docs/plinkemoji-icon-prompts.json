@@ -1,0 +1,65 @@
+{
+  "generator": "Built-in image_gen",
+  "assets": [
+    {
+      "key": "two-balls",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: Two overlapping round sunny golden-yellow emoji ball faces, one grinning and one winking, staggered diagonally, equal size. No other objects.",
+      "original": "public/assets/games/plinko/bonuses/two-balls-v1.png",
+      "web": "public/assets/games/plinko/bonuses/two-balls-v1.webp"
+    },
+    {
+      "key": "bouncy",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One round electric-cyan rubber emoji ball with a mischievous delighted open smile and big friendly eyes. A short curved shiny blue swoosh hugging its bottom suggests a powerful bounce. No limbs.",
+      "original": "public/assets/games/plinko/bonuses/bouncy-v1.png",
+      "web": "public/assets/games/plinko/bonuses/bouncy-v1.webp"
+    },
+    {
+      "key": "dynamite",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: A compact bundle of three red cartoon dynamite sticks bound with a navy strap, with a cute cheeky smiling face on the front stick, short curved fuse and a tiny golden spark at the top. Playful and friendly.",
+      "original": "public/assets/games/plinko/bonuses/dynamite-v1.png",
+      "web": "public/assets/games/plinko/bonuses/dynamite-v1.webp"
+    },
+    {
+      "key": "lizard",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One adorable bright lime-green lizard emoji, three-quarter view, round big expressive eyes, little curled tail and tiny feet, long coral-pink tongue curling out to the side. Compact rounded silhouette.",
+      "original": "public/assets/games/plinko/bonuses/lizard-v1.png",
+      "web": "public/assets/games/plinko/bonuses/lizard-v1.webp"
+    },
+    {
+      "key": "chicken",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One cute plump white hen emoji with a bright red comb, yellow beak, delighted face, small wings slightly lifted. One small ivory egg tucked beside the hen suggests laying eggs. Compact rounded silhouette.",
+      "original": "public/assets/games/plinko/bonuses/chicken-v1.png",
+      "web": "public/assets/games/plinko/bonuses/chicken-v1.webp"
+    },
+    {
+      "key": "doll",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One beautiful cute red and teal nesting doll emoji with rosy cheeks, smiling friendly face, golden floral details, smooth lacquered rounded body and bright red headscarf. Include an obvious subtle horizontal seam at the waist to suggest that it opens. Single whole doll, no other dolls.",
+      "original": "public/assets/games/plinko/bonuses/doll-v1.png",
+      "web": "public/assets/games/plinko/bonuses/doll-v1.webp"
+    },
+    {
+      "key": "dragon",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One adorable emerald-green baby dragon emoji with small golden horns, big friendly mischievous eyes and a compact rounded head and shoulders, breathing one small orange-yellow flame to the side. Cute, powerful and friendly.",
+      "original": "public/assets/games/plinko/bonuses/dragon-v1.png",
+      "web": "public/assets/games/plinko/bonuses/dragon-v1.webp"
+    },
+    {
+      "key": "tornado",
+      "prompt": "Use case: stylized-concept. Asset type: one premium emoji game power-up icon for Plinkemoji, used large in a charcoal arcade sidebar and small as a moving chip. Make a charming glossy 3D emoji-style object with rounded sculpted forms, expressive cute face, vivid rich colors, smooth toy-like shading, crisp silhouette, warm upper-left studio light and restrained highlights. Single isolated subject centered in square canvas, fully visible with 12% breathing room on all sides. Genuine transparent background, no ground plane, no tile, no circle behind, no lettering, numbers, watermark or border. Readable at 40 pixels but richly polished at 140 pixels. Subject: One cute mischievous pale blue-lavender tornado emoji, a sculpted compact spiral funnel cloud with large expressive eyes and a cheeky grin on the upper broad coil. Subtle small blue wind curls around the funnel. No surrounding debris.",
+      "original": "public/assets/games/plinko/bonuses/tornado-v1.png",
+      "web": "public/assets/games/plinko/bonuses/tornado-v1.webp"
+    },
+    {
+      "key": "explosion-v2",
+      "prompt": "Create a premium mobile-game VFX asset: one isolated stylized 3D dynamite explosion fireball, fully visible with generous transparent margins, front view, brilliant white-yellow hot core, billowing sculpted orange and amber flame lobes, dark warm grey volumetric smoke curls around the outside, tiny glowing ember debris. Polished playful glossy emoji-game aesthetic, convincing dimensional lighting and textured fire, not a flat comic starburst. No bomb, no dynamite sticks, no text, no background, no ground, no frame. Square composition. Genuine transparent background. This will be animated as a growing explosion overlay in a dark blue and gold plinko game.",
+      "original": "public/assets/games/plinko/explosion-v2.png",
+      "web": "public/assets/games/plinko/explosion-v2.webp"
+    },
+    {
+      "key": "arcade-background-v1",
+      "prompt": "Create a polished playful arcade-game background illustration, landscape 16:9. Deep indigo purple perimeter with subtle scattered tiny star motifs. Broad sweeping curving ribbons of warm butter yellow, golden yellow and soft lavender, small cyan confetti and sparkles clustered near the outer edges. A quieter dark violet central area across the middle 60 percent will sit BEHIND a large plinko board, so avoid focal objects there. Sophisticated smooth 3D-ish gradients, restrained soft halftone texture, joyful classroom emoji quiz game mood. Full bleed artwork only: no text, no letters, no numbers, no game board, no panels, no UI, no emoji characters. All four corners complete.",
+      "original": "public/assets/games/plinko/arcade-background-v1.png",
+      "web": "public/assets/games/plinko/arcade-background-v1.webp"
+    }
+  ]
+}

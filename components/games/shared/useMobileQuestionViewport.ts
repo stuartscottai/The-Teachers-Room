@@ -13,7 +13,7 @@ export function useMobileQuestionViewport(
     const measure = () => {
       const container = containerRef.current;
       if (!container || container.closest('.game-view-zoomed')) return;
-      const header = container.querySelector<HTMLElement>('.team-scoreboard-header, [data-scoreboard-header]');
+      const header = container.querySelector<HTMLElement>('.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
       const overlay = container.querySelector<HTMLElement>('[data-question-below-scoreboard]');
       if (header && overlay) overlay.style.top = `${Math.max(0, header.getBoundingClientRect().bottom)}px`;
     };
@@ -42,7 +42,7 @@ export function useMobileQuestionViewport(
     };
 
     update();
-    const header = containerRef.current?.querySelector('.team-scoreboard-header, [data-scoreboard-header]');
+    const header = containerRef.current?.querySelector('.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
     if (header) observer?.observe(header);
     window.addEventListener('resize', measure);

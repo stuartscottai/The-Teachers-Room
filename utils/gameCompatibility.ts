@@ -1,3 +1,4 @@
+import { gameTypeLabel } from './gameTypeLabel';
 import { GameType, GeneratedGame, GeneratedQuestion, JeopardyCategory } from '../types';
 
 export interface GameConversionOptions {
@@ -11,6 +12,7 @@ export const STANDALONE_GAME_TYPES = new Set<GameType>([
 ]);
 
 const SIMPLE_QUESTION_GAME_TYPES: GameType[] = [
+  GameType.PLINKO,
   GameType.TRIVIA,
   GameType.SNAKES_LADDERS,
   GameType.TIME_BOMB,
@@ -141,7 +143,7 @@ export const convertGameForTemporaryPlay = (
   const questions = normalizeQuestionsForTarget(flattenGameQuestions(game), targetType);
   if (questions.length === 0) return null;
 
-  const title = `${game.title} (${targetType})`;
+  const title = `${game.title} (${gameTypeLabel(targetType)})`;
   const baseConfig = {
     ...game.config,
     type: targetType,

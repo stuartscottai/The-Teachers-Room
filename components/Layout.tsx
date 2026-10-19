@@ -498,6 +498,7 @@ const Footer: React.FC = () => {
             </button>
             <div id="footer-game-links" className={`playful-footer-menu ${showMobileGames ? 'playful-dropdown-panel block' : 'hidden'} pt-4 md:block md:pt-0`}>
             <ul className="grid grid-cols-2 gap-x-5 gap-y-2.5">
+              <li><SafeLink to="/game-types/plinkemoji" className="hover:text-brand-yellow text-sm transition-colors">Plinkemoji</SafeLink></li>
               <li><SafeLink to="/game-types/trivia" className="hover:text-brand-yellow text-sm transition-colors">{ui("Trivia")}</SafeLink></li>
               <li><SafeLink to="/game-types/jeopardy" className="hover:text-brand-yellow text-sm transition-colors">{ui("Jeopardy")}</SafeLink></li>
               <li><SafeLink to="/game-types/time-bomb" className="hover:text-brand-yellow text-sm transition-colors">{ui("Time Bomb")}</SafeLink></li>

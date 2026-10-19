@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../../utils/gameTypeLabel';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { WorkspaceMenu, useWorkspaceDialog } from './GameWorkspace';
 import { GameCover, CoverCredit } from '../shared/GameCover';
@@ -87,6 +88,7 @@ const PreviewQuestionImage: React.FC<{
 };
 
 const PREVIEW_BACKGROUND_IMAGES: Partial<Record<GameType, string>> = {
+  [GameType.PLINKO]: '/assets/games/plinkemoji-title.webp',
   [GameType.TRIVIA]: '/assets/games/trivia.png',
   [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
   [GameType.TIME_BOMB]: '/assets/games/timebomb.png',
@@ -633,7 +635,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
             <div className="workspace-preview-metadata mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
               <span>{ui("By ")}<strong>{createdByName}</strong></span><span>{creationLabel}</span>{createdDate !== "Date unavailable" && <span>{createdDate}</span>}<span>{items.length} {isStopTheFireOverview ? ui("categories") : ui("questions")}</span>
             </div>
-            <p className="workspace-eyebrow">{game.config.type} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
+            <p className="workspace-eyebrow">{gameTypeLabel(game.config.type)} <span className="px-1 text-slate-300">/</span> {sourceLabel}</p>
           </div>
             <div className="workspace-preview-actions">
               <button type="button" onClick={onEdit} className="workspace-button" aria-label={ui("Edit game")} title={ui("Edit game")}><Edit3 size={16} aria-hidden="true" /><span className="workspace-action-label">{ui(" Edit game")}</span></button>
@@ -777,7 +779,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ game, source, onBack, 
                   className="game-play-choice-option flex items-center justify-between p-4 text-left"
                 >
                   <span>
-                    <span className="block font-bold">{ui("Play ")}{playChoiceGame.config.type}</span>
+                    <span className="block font-bold">{ui("Play ")}{gameTypeLabel(playChoiceGame.config.type)}</span>
                     <span className="game-play-choice-description mt-1 block text-sm">{ui("Use the original game format.")}</span>
                   </span>
                   <span className="game-play-choice-icon ml-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-full">

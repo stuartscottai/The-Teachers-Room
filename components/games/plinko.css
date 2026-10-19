@@ -1,0 +1,515 @@
+.plinko-game { min-height: 100dvh; display: flex; flex-direction: column; background: #272a2f; color: #fff; }
+.plinko-game:fullscreen { overflow-y: auto; min-height: 100dvh; }
+.plinko-stage { flex: 1; display: flex; align-items: center; justify-content: center; gap: clamp(24px, 3vw, 52px); width: 100%; padding: 12px 24px 20px; background: transparent; }
+.plinko-board-wrap { width: min(calc(100vw - 340px), calc((100dvh - 145px) * 1.02), 1000px); flex-shrink: 1; margin: 0; }
+.gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 340px), calc((100dvh - 145px) * 1.02), 1120px); }
+.plinko-cabinet { position: relative; isolation: isolate; aspect-ratio: 1.02; }
+.plinko-board { display: block; width: 100%; height: 100%; overflow: visible; }
+.plinko-entries { position: absolute; top: 6.4%; left: 0; width: 100%; height: 7%; z-index: 1; }
+.plinko-entries button { position: absolute; top: 0; height: 100%; border: 0; background: transparent; color: #d8c4a2; font-size: clamp(11px, 1.4vw, 16px); font-weight: 800; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; transition: background 120ms, color 120ms; }
+.plinko-entries button:disabled { color: #8a8196; opacity: .55; }
+.plinko-entries button:not(:disabled):hover, .plinko-entries button.selected { color: #fff2cc; background: linear-gradient(0deg, #e8c26b26, transparent 70%); text-shadow: 0 0 10px #ffdd88; }
+.plinko-entries button.selected::after { content: ''; position: absolute; bottom: 0; left: 14%; right: 14%; height: 2px; background: #ffe4a1; box-shadow: 0 0 9px #ffd575; }
+.plinko-entries button:focus-visible { outline: 2px solid #f6d492; outline-offset: -4px; border-radius: 5px; }
+.plinko-pocket-number { font-family: 'Outfit', system-ui, sans-serif; font-size: 25px; font-weight: 900; fill: #251a30; stroke: #ffe5b7; stroke-width: .65; paint-order: stroke; letter-spacing: -.8px; }
+.plinko-pocket-number.is-winning { fill: #fff8dc; stroke: #633918; stroke-width: 1.8; filter: drop-shadow(0 0 7px #ffda81); }
+.plinko-hit-score { fill: #fff1b5; font-size: 16px; font-weight: 900; paint-order: stroke; stroke: #1c153c; stroke-width: 3px; }
+.plinko-pocket-glow { animation: plinko-prize-glow 1.4s ease-in-out infinite alternate; }
+@keyframes plinko-prize-glow { to { opacity: .45; } }
+.plinko-controls { display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: 250px; flex-shrink: 0; max-height: calc(100dvh - 32px); overflow-y: auto; color: #e3e1e8; padding: 3px; }
+.plinko-round { color: #c3c0ca; font-size: 13px; white-space: nowrap; }
+.plinko-round strong { color: #f4e2be; font-weight: 700; margin-left: 5px; }
+.plinko-drop-counter { font-size: 14px; color: #d8d4df; }
+.plinko-drop-counter strong { color: #f4dfae; font-size: 22px; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.plinko-turn-message:empty { display: none; }
+.plinko-turn-message { font-size: 14px; color: #d5d1dc; text-align: center; }
+.plinko-turn-message [data-testid='plinko-result'] { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 6px 12px; }
+.plinko-turn-message h3 { font-size: 21px; font-weight: 800; color: #f4dfae; }
+.plinko-turn-message p { font-size: 13px; line-height: 1.5; }
+.plinko-primary { border-radius: 8px; background: #ebd19a; color: #21192a; font-weight: 800; padding: 11px 20px; border: 1px solid #fff0c9; }
+.plinko-primary:hover { background: #ffebbf; }
+.plinko-primary:disabled { opacity: .5; cursor: not-allowed; }
+.plinko-secondary { width: 100%; padding: 12px; border: 1px solid #aaa4bd; border-radius: 9px; font-weight: 700; }
+.plinko-secondary:disabled { opacity: .5; }
+.plinko-dialog-backdrop { position: fixed; inset: 0; background: #070b20dd; display: flex; justify-content: center; align-items: center; padding: 20px; z-index: 900; }
+.plinko-dialog { background: #fff; color: #1e293b; border-radius: 20px; padding: 26px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; }
+.plinko-dialog h2 { font-size: 24px; font-weight: 900; }
+.plinko-dialog label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; }
+.plinko-dialog input { border: 1px solid #94a3b8; border-radius: 8px; padding: 10px; }
+
+.plinko-shape-title { display: flex; align-items: center; gap: 12px; color: #f4dfae; }
+.plinko-shape-title h2 { font-size: 24px; font-weight: 800; line-height: 1.2; }
+.plinko-shape-sequence { display: flex; gap: 12px; color: #898d96; }
+.plinko-shape-sequence span { padding: 3px 0; }
+.plinko-shape-sequence .current { color: #f3d48d; border-bottom: 2px solid #f3d48d; }
+.plinko-value-step { font-size: 12px; line-height: 1.5; color: #c3c0ca; }
+.plinko-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 14px; font-size: 12px; color: #d9d7df; }
+.plinko-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.plinko-legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.plinko-legend-blue { background: #6fdfff; box-shadow: 0 0 5px #6fdfff66; }
+.plinko-legend-red { background: #ff526e; box-shadow: 0 0 5px #ff526e66; }
+.plinko-rail-blue { color: #8ceaff; }
+.plinko-rail-red { color: #ff7b8d; }
+.plinko-active-bonus { display: flex; align-items: center; gap: 8px; color: #f1dcae; font-size: 13px; font-weight: 700; }
+.plinko-active-bonus button { margin-left: auto; text-decoration: underline; font-weight: 400; font-size: 11px; }
+.plinko-two-ball-icon { display: inline-block; position: relative; color: #f1dcae; }
+.plinko-two-ball-icon svg { position: absolute; top: 0; left: 0; }
+.plinko-two-ball-icon svg + svg { bottom: 0; right: 0; top: auto; left: auto; color: #74e4ff; }
+.plinko-hit-score.is-red { fill: #ff8da0; }
+.plinko-electric-hit { filter: brightness(1.7); }
+.plinko-turn-message [data-testid='plinko-result'] { flex-direction: column; align-items: center; gap: 6px; }
+.plinko-turn-message small { font-size: 11px; color: #d0cbd6; }
+.plinko-controls .plinko-primary { width: 100%; }
+@media (max-width: 900px) {
+  .plinko-stage { flex-direction: column; padding: 8px 10px 22px; gap: 14px; }
+  .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%, 720px); }
+  .plinko-controls { width: min(100%, 620px); max-height: none; overflow: visible; align-items: center; }
+  .plinko-controls .plinko-primary { width: min(100%, 300px); }
+  .plinko-entries button { font-size: 12px; padding-bottom: 2px; }
+  .plinko-turn-message { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .plinko-pocket-glow { animation: none; } }
+
+.plinko-bonus-award { align-items: center; text-align: center; background: #252934; color: #f4dfae; border: 1px solid #c9ad71; box-shadow: 0 20px 100px #0009; padding: 34px; }
+.plinko-bonus-award > p { line-height: 1.6; color: #e4dfeb; }
+.plinko-bonus-award .plinko-bonus-eyebrow { text-transform: uppercase; letter-spacing: .15em; font-size: 12px; color: #d9bd80; }
+.plinko-bonus-award .plinko-primary { margin-top: 8px; width: 100%; }
+
+.plinko-scorebar { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.plinko-scorebar button { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-left: 3px solid #686b77; padding: 10px 12px; background: #30343b; color: #d5d6de; border-radius: 7px; text-align: left; }
+.plinko-scorebar button.is-active { border-color: #f0d599; background: #e6c580; color: #272139; }
+.plinko-scorebar button span { overflow-wrap: anywhere; font-weight: 700; font-size: 14px; }
+.plinko-scorebar button strong { font-size: 28px; font-variant-numeric: tabular-nums; }
+.plinko-tools { display: flex; justify-content: space-between; gap: 8px; width: 100%; }
+.plinko-tools button { display: grid; place-items: center; width: 42px; height: 36px; border: 1px solid #6c6d79; border-radius: 7px; }
+.plinko-tools button:hover { color: #f5d891; background: #393d46; }
+.plinko-guide-label { font-size: 8px; fill: #e9d4a3; letter-spacing: .8px; paint-order: stroke; stroke: #10142c; stroke-width: 2px; }
+.plinko-current { animation: plinko-current-flow 1s linear infinite; }
+@keyframes plinko-current-flow { to { stroke-dashoffset: -20; } }
+.plinko-turn-announcement h2 { font-size: 32px; }
+.plinko-game [data-question-overlay-anchor] { height: 0; }
+@media (max-width: 900px) {
+ .plinko-scorebar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .plinko-controls { max-height: none; }
+}
+@media (prefers-reduced-motion: reduce) { .plinko-current { animation: none; } }
+
+body:has(.plinko-game) .playful-navbar, body:has(.plinko-game) footer { display: none; }
+
+.plinko-layout-summary { color: #e3cf9e; font-size: 12px; line-height: 1.5; }
+
+.plinko-live-counter { min-height: 70px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; }
+.plinko-live-counter > span { text-transform: uppercase; letter-spacing: .16em; color: #b3b5c1; font-size: 10px; }
+.plinko-live-counter strong { color: #ffe1a2; font-size: 38px; line-height: 1.1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 20px #edc16c28; }
+.plinko-score-flight { position: fixed; z-index: 950; pointer-events: none; color: #ffe1a2; font-size: 36px; font-weight: 900; text-shadow: 0 0 22px #e6b959, 0 2px 4px #000; white-space: nowrap; }
+.plinko-scorebar button[data-tallying='true'] strong { color: #392143; text-shadow: 0 0 16px #fff5b8; }
+.plinko-controls { padding: 4px; }
+@media (max-width: 900px) { .plinko-live-counter { min-height: 60px; } }
+
+.plinko-controls { height: min(570px, calc(100dvh - 64px)); padding: 20px; gap: 24px; background: #20242b; border: 1px solid #454b57; border-radius: 18px; box-shadow: 0 12px 32px #0002; align-items: stretch; }
+.plinko-controls > .plinko-tools { flex-shrink: 0; }
+.plinko-menu-footer { margin-top: auto; width: 100%; }
+.plinko-menu-footer p { margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
+.plinko-menu-footer .plinko-primary { width: 100%; }
+@media (max-width: 900px) { .plinko-controls { width: min(100%, 620px); height: auto; min-height: 280px; max-height: none; padding: 18px; gap: 20px; } .plinko-controls > .plinko-tools { justify-content: space-between; } }
+/* Fit the complete cabinet and every team into the available screen. */
+html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
+.plinko-game, .plinko-game:fullscreen { position: fixed; inset: 0; height: 100dvh; min-height: 0; overflow: hidden; z-index: 100; }
+.plinko-stage { height: 100%; min-height: 0; flex: 1; flex-direction: row; gap: clamp(12px,2vw,32px); padding: 10px 18px; }
+.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 300px),calc((100dvh - 80px)*1.02),1100px); min-height: 0; flex-shrink: 1; }
+.plinko-live-counter { min-height: 54px; height: 54px; }
+.plinko-live-counter strong { font-size: 32px; }
+.plinko-controls { width: clamp(210px,23vw,280px); height: 100%; min-height: 0; max-height: 740px; overflow: hidden; padding: clamp(10px,1.4vw,20px); gap: clamp(10px,2vh,22px); align-items: stretch; }
+.plinko-scorebar { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(var(--plinko-players),minmax(0,1fr)); flex: 1; min-height: 0; gap: clamp(4px,1vh,10px); }
+.plinko-scorebar button { min-height: 0; gap: 7px; padding: 6px 9px; overflow: hidden; }
+.plinko-scorebar button > svg { flex-shrink: 0; }
+.plinko-scorebar button .plinko-team-label { flex: 1; min-width: 0; line-height: 1.15; font-size: clamp(11px,1.2vw,15px); }
+.plinko-team-stars { display: block; margin-top: 4px; color: #ffe19a; font-weight: 700; font-size: 13px; }
+.plinko-scorebar button.is-active .plinko-team-stars { color: #624514; }
+.plinko-scorebar button strong { font-size: clamp(22px,3.5vh,34px); }
+.plinko-menu-footer { flex-shrink: 0; margin-top: 0; }
+.plinko-tools button { width: 100%; min-width: 0; height: 38px; }
+.plinko-choice-dialog { max-width: 720px; background: #242934; border: 1px solid #70634e; color: #f8e4b9; text-align: center; gap: 12px; padding: 22px; }
+.plinko-choice-dialog > p { color: #c8cad4; font-size: 14px; }
+.plinko-face-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.plinko-face-grid button { display: flex; flex-direction: column; align-items: center; padding: 14px; background: #333947; border: 1px solid #646b7a; border-radius: 12px; gap: 8px; }
+.plinko-face-grid button:disabled { opacity: .18; }
+.plinko-face-grid button:not(:disabled):hover, .plinko-bonus-option:hover { border-color: #ffe3a0; background: #44403c; }
+.plinko-bonus-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+.plinko-bonus-option { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 7px; padding: 12px 8px; border: 1px solid #646b7a; background: #303644; border-radius: 12px; }
+.plinko-bonus-option strong { font-size: 14px; }
+.plinko-bonus-option span { font-size: 11px; line-height: 1.4; color: #d0d3db; }
+.plinko-bonus-grid:has(> :only-child) { grid-template-columns: minmax(0,260px); justify-content: center; }
+.plinko-star-flight { position: fixed; z-index: 955; pointer-events: none; font-size: 30px; letter-spacing: 3px; color: #ffe78e; text-shadow: 0 0 15px #fbbf24,0 2px 4px #000; }
+@media (max-width: 639px) and (min-height: 520px) {
+ .plinko-stage { flex-direction: column; gap: 5px; padding: 6px 10px; }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 20px),calc((100dvh - 310px)*1.02)); }
+ .plinko-live-counter { height: 42px; min-height: 42px; }
+ .plinko-live-counter strong { font-size: 27px; }
+ .plinko-controls { width: 100%; max-width: 460px; height: 240px; min-height: 0; gap: 8px; padding: 10px; }
+ .plinko-scorebar { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(3,minmax(0,1fr)); }
+ .plinko-scorebar button { padding: 2px 6px; }
+ .plinko-scorebar button > svg { width: 23px; height: 23px; }
+ .plinko-scorebar button strong { font-size: 20px; }
+ .plinko-team-stars { margin-top: 1px; font-size: 11px; }
+ .plinko-tools button { height: 30px; }
+ .plinko-menu-footer .plinko-primary { width: 100%; padding: 7px; }
+ .plinko-choice-dialog { padding: 16px; }
+ .plinko-face-grid button { padding: 10px; }
+ .plinko-bonus-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+ .plinko-bonus-option { padding: 7px; gap: 3px; }
+ .plinko-bonus-option > svg { width: 32px; height: 32px; }
+}
+@media (max-height: 520px) {
+ .plinko-controls { width: 230px; gap: 7px; padding: 9px; }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 280px),calc((100dvh - 65px)*1.02)); }
+ .plinko-live-counter { min-height: 40px; height: 40px; }
+ .plinko-scorebar button strong { font-size: 20px; }
+ .plinko-scorebar button > svg { width: 22px; height: 22px; }
+ .plinko-team-stars { font-size: 10px; margin-top: 0; }
+ .plinko-tools button { height: 28px; }
+ .plinko-primary { padding: 6px 12px; }
+ .plinko-dialog { padding: 14px; gap: 8px; }
+ .plinko-choice-dialog { max-width: 760px; }
+ .plinko-dialog h2 { font-size: 20px; }
+ .plinko-face-grid { grid-template-columns: repeat(6,minmax(0,1fr)); }
+ .plinko-face-grid button { padding: 8px; }
+ .plinko-bonus-option { padding: 6px; gap: 3px; }
+ .plinko-bonus-option > svg { width: 28px; height: 28px; }
+ .plinko-bonus-option strong { font-size: 12px; }
+ .plinko-bonus-option span { font-size: 10px; }
+}
+.plinko-stage { display: grid; grid-template-columns: clamp(170px,18vw,250px) minmax(0,1fr) clamp(200px,21vw,280px); gap: clamp(10px,1.5vw,26px); align-items: center; padding: 10px clamp(10px,1.5vw,24px); }
+.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); justify-self: center; }
+.plinko-controls { width: 100%; }
+.plinko-bonus-panel { height: 100%; max-height: 740px; min-height: 0; display: flex; flex-direction: column; padding: clamp(10px,1.3vw,18px); background: #20242b; border: 1px solid #454b57; border-radius: 18px; gap: 10px; overflow: hidden; }
+.plinkemoji-brand { font-size: clamp(20px,2vw,29px); letter-spacing: -.8px; color: #ffe1a2; font-weight: 900; line-height: 1.2; }
+.plinkemoji-brand span { margin-left: 4px; font-size: 18px; color: #7ce9ff; }
+.plinko-bonus-panel h2 { text-transform: uppercase; letter-spacing: .14em; font-size: 10px; color: #aeb7c8; }
+.plinko-bonus-panel.is-picking { border-color: #e9ca82; box-shadow: 0 0 28px #d9b45c12; }
+.plinko-bonus-panel.is-picking h2 { color: #ffe1a2; }
+.plinko-bonus-gallery { min-height: 0; flex: 1; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(4,minmax(0,1fr)); gap: 7px; }
+.plinko-gallery-option { min-height: 0; min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #2b303a; color: #e3dfd5; transition: background .15s,border-color .15s; }
+.plinko-gallery-option > img { width: min(100%,110px); height: min(12vh,105px); min-height: 0; object-fit: contain; filter: drop-shadow(0 4px 5px #0004); }
+.plinko-gallery-option strong { font-size: clamp(10px,1vw,12px); line-height: 1.15; }
+.plinko-gallery-option:disabled { cursor: default; }
+.plinko-bonus-panel.is-picking .plinko-gallery-option:disabled { opacity: .3; }
+.plinko-gallery-option.is-offered { border-color: #e8ca83; background: #4a4030; cursor: pointer; }
+.plinko-gallery-option.is-offered:hover { background: #665233; transform: translateY(-1px); }
+.plinko-gallery-option.is-offered:focus-visible { outline: 3px solid #83edff; outline-offset: 1px; }
+.plinko-gallery-option.is-selected { border-color: #79e5ff; background: #233d49; }
+.plinko-bonus-panel-note { color: #c0c4d0; font-size: 11px; line-height: 1.4; min-height: 32px; }
+@media (max-width: 639px) and (min-height: 520px) {
+ .plinko-stage { grid-template-columns: 88px minmax(0,1fr); grid-template-rows: minmax(0,1fr) 240px; gap: 6px; padding: 6px; }
+ .plinko-bonus-panel { grid-column: 1; grid-row: 1; padding: 6px 4px; gap: 5px; border-radius: 12px; }
+ .plinkemoji-brand { font-size: 13px; letter-spacing: -.4px; }
+ .plinkemoji-brand span { display: none; }
+ .plinko-bonus-panel h2 { font-size: 8px; letter-spacing: 0; text-align: center; }
+ .plinko-bonus-gallery { grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(8,minmax(0,1fr)); gap: 3px; }
+ .plinko-gallery-option { padding: 2px; flex-direction: row; gap: 2px; border-radius: 6px; }
+ .plinko-gallery-option > img { width: 35px; height: 35px; }
+ .plinko-gallery-option strong { font-size: 8px; max-width: 40px; }
+ .plinko-bonus-panel-note { font-size: 8px; min-height: 0; line-height: 1.2; }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { grid-column: 2; grid-row: 1; width: min(100%,calc((100dvh - 300px)*1.02)); }
+ .plinko-controls { grid-column: 1 / -1; grid-row: 2; height: 100%; max-width: none; }
+}
+@media (max-height: 520px) {
+ .plinko-stage { grid-template-columns: 160px minmax(0,1fr) 210px; gap: 8px; padding: 6px; }
+ .plinko-bonus-panel { padding: 7px; gap: 5px; }
+ .plinkemoji-brand { font-size: 19px; }
+ .plinko-bonus-panel h2 { font-size: 8px; }
+ .plinko-gallery-option { padding: 2px; gap: 1px; }
+ .plinko-gallery-option > img { height: 42px; width: 52px; }
+ .plinko-gallery-option strong { font-size: 9px; }
+ .plinko-bonus-gallery { gap: 3px; }
+ .plinko-bonus-panel-note { font-size: 9px; min-height: 0; }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((100dvh - 60px)*1.02)); }
+}
+.plinko-offer-instruction { color: #ffe1a2; font-size: 12px; line-height: 1.35; }
+@media (max-height:520px) { .plinko-offer-instruction { font-size: 9px; } }
+@media (max-width:639px) and (min-height:520px) { .plinko-offer-instruction { font-size: 8px; line-height: 1.2; } }
+/* The offer panel only exists while a team is choosing its earned bonus. */
+.plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr) clamp(200px,21vw,280px); }
+.plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); }
+.plinko-bonus-gallery { grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(var(--plinko-offers), minmax(0,1fr)); gap: 12px; }
+.plinko-bonus-panel { height: auto; max-height: calc(100dvh - 32px); overflow: visible; }
+.plinko-bonus-gallery { flex: 0 1 auto; }
+.plinko-gallery-option { position: relative; padding: 10px; animation: plinkemoji-pop-in .65s cubic-bezier(.2,1.7,.4,1) backwards; }
+.plinko-gallery-option > img { width: min(100%,140px); height: min(17vh,130px); }
+.plinko-gallery-option strong { font-size: 14px; }
+.plinko-bonus-bubble { position: fixed; z-index: 980; padding: 14px 16px; border-radius: 18px; color: #2c2335; background: #fff0c8; border: 2px solid #ffda82; box-shadow: 0 8px 0 #16192355,0 14px 32px #0004; transform: translate(-50%,-100%); transform-origin: center bottom; pointer-events: none; animation: plinkemoji-bubble-in .32s cubic-bezier(.2,1.8,.45,1) both; }
+.plinko-bonus-bubble strong { display: block; font-size: 14px; margin-bottom: 4px; }
+.plinko-bonus-bubble p { font-size: 13px; line-height: 1.4; }
+.plinko-bonus-bubble i { position: absolute; bottom: -8px; left: calc(50% - 7px); width: 14px; height: 14px; background: #fff0c8; border-right: 2px solid #ffda82; border-bottom: 2px solid #ffda82; transform: rotate(45deg); }
+.plinko-bonus-bubble.is-below { transform: translate(-50%,0); transform-origin: center top; animation-name: plinkemoji-bubble-below; }
+.plinko-bonus-bubble.is-below i { top: -8px; bottom: auto; transform: rotate(225deg); }
+.plinko-dialog { animation: plinkemoji-pop-in .65s cubic-bezier(.2,1.6,.4,1) both; }
+.plinko-game button { transition: transform .28s cubic-bezier(.2,1.8,.4,1),box-shadow .2s,background-color .2s,border-color .2s,filter .2s; }
+@media (hover:hover) {
+ .plinko-game button:not(:disabled):hover { transform: translateY(-3px) scale(1.035); box-shadow: 0 5px 15px #0003; filter: brightness(1.08); }
+ .plinko-game .plinko-entries button:not(:disabled):hover { transform: none; box-shadow: inset 0 0 18px #ffe49a33; }
+ .plinko-entries button:not(:disabled):hover span { display: inline-block; animation: plinkemoji-label-hop .5s ease-out; }
+ .plinko-gallery-option:hover > img { animation: plinkemoji-icon-wiggle .6s cubic-bezier(.2,1.7,.4,1); }
+ .plinko-game [data-shared-question-card] button:not(:disabled):hover { transform: translateY(-2px) scale(1.015); z-index: 55; }
+}
+.plinko-game button:not(:disabled):active { transform: translateY(1px) scale(.94); }
+.plinko-game button:focus-visible { outline: 3px solid #7ce9ff; outline-offset: 3px; }
+.plinko-live-counter strong > span { display: inline-block; animation: plinkemoji-score-pop .3s cubic-bezier(.2,1.7,.4,1); }
+.plinko-scorebar [data-tallying='true'] strong { animation: plinkemoji-score-pop .45s ease-in-out infinite alternate; }
+.plinko-team-stars { transition: color .3s; }
+.plinko-game [data-playful-motion] [data-question-flip] { will-change: transform; }
+@keyframes plinkemoji-pop-in { 0% { opacity: 0; transform: translateY(28px) scale(.75); } 65% { opacity: 1; transform: translateY(-5px) scale(1.035); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes plinkemoji-bubble-in { from { opacity:0; transform:translate(-50%,-100%) scale(.65) rotate(-3deg); } to { opacity:1; transform:translate(-50%,-100%) scale(1) rotate(0); } }
+@keyframes plinkemoji-bubble-below { from { opacity:0; transform:translate(-50%,0) scale(.65) rotate(-3deg); } to { opacity:1; transform:translate(-50%,0) scale(1) rotate(0); } }
+@keyframes plinkemoji-label-hop { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-4px) scale(1.15); } 70% { transform:translateY(1px); } }
+@keyframes plinkemoji-icon-wiggle { 0%,100% { transform:rotate(0) scale(1); } 25% { transform:rotate(-9deg) scale(1.07); } 55% { transform:rotate(7deg) scale(1.1); } 80% { transform:rotate(-3deg); } }
+@keyframes plinkemoji-score-pop { 0% { transform:scale(.88); } 55% { transform:scale(1.15); } 100% { transform:scale(1); } }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr); }
+ .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { grid-column: 1; width: min(100%,calc((100dvh - 310px)*1.02)); }
+ .plinko-bonus-panel { max-height: 100%; }
+ .plinko-bonus-gallery { gap: 8px; }
+ .plinko-gallery-option { flex-direction: column; padding: 6px 2px; }
+ .plinko-gallery-option > img { width: 68px; height: min(12vh,80px); }
+ .plinko-gallery-option strong { font-size: 10px; max-width: none; }
+ .plinko-bonus-bubble { padding: 11px; }
+}
+@media (max-height:520px) {
+ .plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr) 210px; }
+ .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 60px)*1.02)); }
+ .plinko-bonus-panel { max-height: 100%; }
+ .plinko-bonus-gallery { gap: 6px; }
+ .plinko-gallery-option { flex-direction: row; gap: 4px; padding: 4px; }
+ .plinko-gallery-option > img { width: 52px; height: 52px; }
+ .plinko-gallery-option strong { font-size: 11px; }
+}
+@media (prefers-reduced-motion:reduce) {
+ .plinko-game *, .plinko-game *::before, .plinko-game *::after { animation: none !important; transition-duration: .01ms !important; }
+ .plinko-game button:not(:disabled):hover, .plinko-game button:not(:disabled):active { transform: none; }
+}
+/* Keep a balanced stage, with room for floating bonus choices on the left. */
+.plinko-stage, .plinko-stage[data-bonus-choices='false'] { grid-template-columns: clamp(180px,20vw,280px) minmax(0,1fr) clamp(180px,20vw,280px); }
+.plinko-board-wrap { position: relative; grid-column: 2; grid-row: 1; }
+.plinko-controls { grid-column: 3; grid-row: 1; padding: 16px; gap: 14px; border: 3px solid #746496; border-radius: 28px 28px 32px 24px; background: linear-gradient(155deg,#383244,#262832 65%); box-shadow: 0 7px 0 #151620, inset 0 2px 0 #d2b5ef33; }
+.plinko-tools button { border: 2px solid #8f80a5; background: #292634; border-radius: 12px; box-shadow: 0 3px 0 #151620; color: #fff0d0; }
+.plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(72px,calc((100dvh - 320px)/6))); align-content: start; }
+.plinko-scorebar button { border: 2px solid #575569; border-left-width: 5px; border-radius: 14px; background: #373846; box-shadow: 0 3px 0 #171822; }
+.plinko-scorebar button.is-active { border-color: #ffe6a0; background: linear-gradient(135deg,#ffe5a1,#e8bd68); box-shadow: 0 3px 0 #8a6436,0 0 18px #f4cd7c20; }
+.plinko-menu-footer .plinko-primary { border: 2px solid #fff1c8; border-radius: 16px; box-shadow: 0 4px 0 #977440; }
+.plinko-bonus-panel, .plinko-bonus-panel.is-picking { grid-column: 1; grid-row: 1; padding: 8px; border: 0; background: transparent; box-shadow: none; }
+.plinko-bonus-panel h2 { font-size: clamp(14px,1.4vw,20px); line-height: 1.25; text-transform: none; letter-spacing: 0; text-align: center; font-weight: 800; }
+.plinko-gallery-option, .plinko-gallery-option.is-offered, .plinko-gallery-option.is-offered:hover { padding: 4px; border: 0; background: transparent; box-shadow: none; }
+.plinko-game .plinko-gallery-option:not(:disabled):hover { box-shadow: none; }
+.plinko-gallery-option > img { width: min(100%,165px); height: min(19vh,155px); filter: drop-shadow(0 7px 10px #0005); }
+.plinko-turn-overlay { position: absolute; z-index: 20; inset: 54px 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: radial-gradient(ellipse,#11182a77,transparent 65%); }
+.plinko-turn-token { position: relative; display: grid; place-items: center; width: min(55%,240px); aspect-ratio: 1; animation: plinkemoji-pop-in .7s cubic-bezier(.2,1.7,.4,1) both; filter: drop-shadow(0 0 28px #ffdc6877); }
+.plinko-turn-token > svg { width: 100%; height: 100%; }
+.plinko-turn-token h2 { position: absolute; left: -12%; right: -12%; top: 44%; text-align: center; font-size: clamp(22px,2.6vw,42px); line-height: 1.1; color: #fff8e8; font-weight: 900; paint-order: stroke fill; -webkit-text-stroke: 5px #211d35; text-shadow: 0 4px 0 #211d35; overflow-wrap: anywhere; }
+.plinko-turn-overlay .plinko-primary { box-shadow: 0 5px 0 #8f6a3a; }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { grid-template-columns: 76px minmax(0,1fr) 76px; }
+ .plinko-stage[data-bonus-choices='true'] { grid-template-columns: 76px minmax(0,1fr); }
+ .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { grid-column: 1 / -1; }
+ .plinko-controls { grid-column: 1 / -1; grid-row: 2; padding: 10px; gap: 8px; border-radius: 18px; }
+ .plinko-scorebar { grid-template-rows: repeat(3,32px); grid-auto-flow: row; gap: 5px; }
+ .plinko-scorebar button { border-radius: 9px; border-left-width: 3px; }
+ .plinko-bonus-panel { padding: 0; }
+ .plinko-bonus-panel h2 { font-size: 12px; }
+ .plinko-gallery-option > img { width: 70px; height: min(12vh,80px); }
+ .plinko-turn-overlay { inset: 42px 0 0; gap: 12px; }
+ .plinko-turn-token h2 { font-size: 22px; -webkit-text-stroke-width: 3px; }
+}
+@media (max-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { grid-template-columns: 160px minmax(0,1fr) 210px; }
+ .plinko-controls { padding: 9px; gap: 7px; border-radius: 18px; }
+ .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(38px,calc((100dvh - 130px)/6))); gap: 4px; }
+ .plinko-bonus-panel h2 { font-size: 13px; }
+ .plinko-gallery-option > img { width: 60px; height: 60px; }
+ .plinko-turn-overlay { inset: 40px 0 0; gap: 10px; }
+ .plinko-turn-token { width: min(45%,150px); }
+ .plinko-turn-token h2 { font-size: 24px; -webkit-text-stroke-width: 3px; }
+}
+/* A single illustrated arcade stage keeps the board and both side spaces together. */
+.plinko-game { background: #251355 url('/assets/games/plinko/arcade-background-v1.webp') center / cover no-repeat; }
+.plinko-stage, .plinko-stage[data-bonus-choices='false'] { flex: 1; height: auto; width: calc(100% - 24px); margin: 12px; min-height: 0; border: 2px solid #c5a5ff66; border-radius: 30px; background: linear-gradient(135deg,#2412478c,#181c3d99); box-shadow: inset 0 1px 0 #fff3,0 12px 45px #100b3440; }
+.plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 112px)*1.02)); }
+.plinko-live-counter strong { color: #fff0b5; text-shadow: 0 2px 0 #492c66,0 0 22px #efc56870; }
+.plinko-bonus-panel h2 { color: #fff0b5; text-shadow: 0 2px 3px #1a124e; }
+@media (prefers-reduced-motion:no-preference) {
+ .plinko-cabinet:has([data-effect='blast']) .plinko-board { animation: plinko-blast-rumble .38s ease-out; }
+}
+@keyframes plinko-blast-rumble { 0%,100% { transform:translate(0); } 15% { transform:translate(-3px,2px); } 30% { transform:translate(3px,-2px); } 45% { transform:translate(-2px,-1px); } 60% { transform:translate(2px,1px); } 80% { transform:translate(-1px,0); } }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { margin: 6px; width: calc(100% - 12px); border-radius: 20px; }
+ .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 334px)*1.02)); }
+}
+@media (max-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { margin: 6px; width: calc(100% - 12px); border-radius: 18px; }
+ .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); }
+}
+.plinko-round-counter { color: #ffe7a6; text-align: center; font-size: clamp(15px,1.5vw,20px); font-weight: 800; letter-spacing: .02em; margin: 0 0 10px; text-shadow: 0 2px 0 #171321; }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-round-counter { font-size: 13px; margin-bottom: 4px; line-height: 18px; }
+ .plinko-scorebar { grid-template-rows: repeat(3,32px); }
+ .plinko-controls { gap: 5px; }
+}
+@media (max-height:520px) {
+ .plinko-round-counter { font-size: 12px; margin-bottom: 3px; line-height: 16px; }
+ .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(35px,calc((100dvh - 160px)/6))); }
+}
+/* Colourful, outlined box fronts and light sloping roofs match the game reference. */
+.plinko-pocket-number { fill: #fff; stroke: #11131d; stroke-width: 4px; paint-order: stroke fill; letter-spacing: -.6px; font-family: 'Outfit',system-ui,sans-serif; font-weight: 1000; stroke-linejoin: round; }
+.plinko-pocket-number.is-winning { fill: #fff9ce; stroke: #11131d; stroke-width: 4px; filter: drop-shadow(0 0 5px #fff0ad); }
+/* Keep both side spaces beside the cabinet, including on wide displays. */
+.plinko-stage, .plinko-stage[data-bonus-choices='false'] {
+ --plinko-side-width: clamp(160px,18vw,250px);
+ --plinko-board-width: min(calc((100dvh - 112px)*1.02),calc(100vw - var(--plinko-side-width)*2 - 164px));
+ grid-template-columns: var(--plinko-side-width) minmax(0,var(--plinko-board-width)) var(--plinko-side-width);
+ /* The cabinet artwork has a small transparent margin of its own. */
+ column-gap: max(8px,calc(1cm - var(--plinko-board-width)*.04));
+ justify-content: center;
+}
+.plinko-controls {
+ position: relative; overflow: visible; transform: rotate(.7deg);
+ border: 3px solid #e2c186; border-radius: 24px 34px 23px 38px;
+ background: linear-gradient(145deg,#493961,#302b43 55%,#252636);
+ box-shadow: 7px 8px 0 #161327,10px 11px 0 #a27d47,11px 12px 0 2px #251a34,inset 0 2px 0 #fff2;
+}
+.plinko-controls::after { content: ''; position: absolute; inset: 5px; pointer-events: none; border: 1px solid #ac83d138; border-radius: 18px 28px 17px 32px; }
+.plinko-controls .plinko-tools button { border-color: #bfa1cf; box-shadow: 0 3px 0 #161327; border-radius: 11px 14px 10px 13px; }
+.plinko-scorebar button { border-radius: 12px 16px 11px 15px; }
+.plinko-pocket-number { fill: #281c37; stroke: #fff0bd; stroke-width: 1.2px; }
+.plinko-pocket-number.is-winning { fill: #fff9da; stroke: #6f4a24; stroke-width: 1.8px; }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { grid-template-columns: 76px minmax(0,1fr) 76px; column-gap: 6px; }
+ .plinko-stage[data-bonus-choices='true'] { grid-template-columns: 76px minmax(0,1fr); }
+ .plinko-controls { transform: rotate(.2deg); border-radius: 18px 24px 17px 23px; box-shadow: 4px 5px 0 #161327,6px 7px 0 #a27d47; }
+}
+@media (max-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { --plinko-side-width: 160px; --plinko-board-width: min(calc((100dvh - 80px)*1.02),calc(100vw - 380px)); grid-template-columns: 160px minmax(0,var(--plinko-board-width)) 160px; column-gap: max(8px,calc(1cm - var(--plinko-board-width)*.04)); }
+ .plinko-controls { transform: rotate(.4deg); padding: 8px; }
+ .plinko-scorebar button { gap: 4px; padding: 4px; }
+ .plinko-scorebar button strong { font-size: 18px; }
+ .plinko-scorebar button .plinko-team-label { font-size: 11px; }
+}
+.plinko-bonus-panel { justify-self: end; width: min(100%,180px); }
+/* Three independent raised boxes share the exact cabinet height. */
+.plinko-game { align-items: center; justify-content: center; }
+.plinko-stage, .plinko-stage[data-bonus-choices='false'] { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 24px); height: auto; max-height: calc(100dvh - 20px); margin: auto; padding: 12px 16px 16px; align-items: end; }
+.plinko-bonus-panel { align-self: center; }
+.plinko-controls { display: grid; grid-template-rows: auto minmax(0,1fr) auto; align-self: end; height: calc(var(--plinko-board-width)/1.02); min-height: 0; max-height: none; margin-top: 54px; padding: 0 8px 8px 0; gap: 14px; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
+.plinko-controls::after { display: none; }
+.plinko-sidebar-box { position: relative; min-height: 0; padding: 12px; border: 3px solid #dfbd85; border-radius: 20px 27px 18px 29px; background: linear-gradient(145deg,#493961,#302b43 55%,#252636); box-shadow: 4px 5px 0 #161327,7px 8px 0 #a27d47,8px 9px 0 1px #251a34,inset 0 2px 0 #fff2; }
+.plinko-tools.plinko-sidebar-box { transform: rotate(-.45deg); align-items: center; }
+.plinko-score-panel { container-type: size; overflow: hidden; transform: rotate(.25deg); }
+.plinko-menu-footer.plinko-sidebar-box { transform: rotate(-.3deg); margin: 0; }
+.plinko-scorebar { display: grid; width: 100%; height: 100%; grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(var(--plinko-players),min(68px,calc((100cqh - 25px)/6))); align-content: start; gap: 5px; }
+.plinko-scorebar button { gap: 6px; padding: 3px 5px; }
+.plinko-scorebar button > svg { width: 26px; height: 26px; }
+.plinko-scorebar button .plinko-team-label { font-size: clamp(11px,1.1vw,14px); }
+.plinko-team-name { display: inline-block; transform-origin: left center; }
+.plinko-team-stars { margin-top: 2px; font-size: 11px; }
+.plinko-controls .plinko-menu-footer .plinko-primary { padding: 9px 8px; font-size: 16px; line-height: 24px; }
+.plinko-round-counter { font-size: 18px; line-height: 24px; margin-bottom: 8px; }
+@media (prefers-reduced-motion:no-preference) {
+ .plinko-scorebar button.is-active .plinko-team-name { animation: plinko-team-name-pulse 1.65s ease-in-out infinite; }
+}
+@keyframes plinko-team-name-pulse { 0%,100% { transform: scale(1); text-shadow: 0 0 0 #fff0; } 50% { transform: scale(1.055); text-shadow: 0 0 12px #fff5cb; } }
+@media (min-width:640px) and (max-height:760px) {
+ .plinko-sidebar-box { padding: 8px; }
+ .plinko-controls { gap: 12px; }
+ .plinko-tools button { height: 32px; }
+ .plinko-round-counter { font-size: 16px; line-height: 22px; margin-bottom: 6px; }
+ .plinko-controls .plinko-menu-footer .plinko-primary { padding: 7px 6px; line-height: 20px; }
+}
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { width: calc(100% - 12px); max-width: none; max-height: calc(100dvh - 12px); margin: auto; padding: 6px; grid-template-rows: minmax(0,1fr) 240px; align-items: center; }
+ .plinko-controls { height: 240px; grid-template-rows: 40px minmax(0,1fr) 65px; gap: 6px; margin: 0; padding: 0 4px 5px 0; }
+ .plinko-sidebar-box { padding: 4px; border-width: 2px; border-radius: 12px 17px 11px 16px; box-shadow: 2px 3px 0 #161327,4px 5px 0 #a27d47; }
+ .plinko-scorebar { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(3,min(32px,calc((100cqh - 10px)/3))); gap: 5px; }
+ .plinko-scorebar button { padding: 2px 4px; border-width: 1px; border-left-width: 3px; }
+ .plinko-scorebar button > svg { width: 22px; height: 22px; }
+ .plinko-tools button { height: 25px; }
+ .plinko-round-counter { font-size: 13px; line-height: 18px; margin-bottom: 3px; }
+ .plinko-controls .plinko-menu-footer .plinko-primary { font-size: 14px; line-height: 18px; padding: 4px; }
+}
+@media (max-height:520px) {
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { padding: 6px 10px 10px; }
+ .plinko-controls { margin-top: 40px; height: calc(var(--plinko-board-width)/1.02); gap: 10px; padding: 0 6px 6px 0; }
+ .plinko-sidebar-box { padding: 5px; border-width: 2px; border-radius: 12px 18px 11px 17px; box-shadow: 2px 3px 0 #161327,5px 6px 0 #a27d47; }
+ .plinko-controls .plinko-tools button { height: 24px; }
+ .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(27px,calc((100cqh - 20px)/6))); gap: 4px; }
+ .plinko-scorebar button { padding: 2px; border-width: 1px; border-left-width: 2px; gap: 3px; }
+ .plinko-scorebar button > svg { width: 16px; height: 16px; }
+ .plinko-scorebar button .plinko-team-label { font-size: 10px; line-height: 1.1; }
+ .plinko-team-stars { display: inline; margin-left: 3px; font-size: 9px; }
+ .plinko-scorebar button strong { font-size: 15px; }
+ .plinko-round-counter { font-size: 12px; line-height: 16px; margin-bottom: 3px; }
+ .plinko-controls .plinko-menu-footer .plinko-primary { font-size: 13px; line-height: 18px; padding: 4px; }
+}
+/* Match the visible cabinet, excluding the image's transparent top/bottom margins. */
+@media (min-width:640px) {
+ .plinko-controls { height: calc(var(--plinko-board-width)/1.02*1232/1340); margin-bottom: calc(var(--plinko-board-width)/1.02*70/1340); }
+}
+@media (max-height:520px) {
+ .plinko-controls { height: calc(var(--plinko-board-width)/1.02*1232/1340); margin-bottom: calc(var(--plinko-board-width)/1.02*70/1340); gap: 8px; }
+ .plinko-sidebar-box { padding: 4px; }
+ .plinko-controls .plinko-tools button { height: 22px; }
+ .plinko-round-counter { line-height: 14px; margin-bottom: 2px; }
+ .plinko-controls .plinko-menu-footer .plinko-primary { font-size: 12px; line-height: 16px; padding: 3px; }
+}
+/* A quieter illustrated backdrop keeps the cabinet as the main focus. */
+.plinko-game { background-image: linear-gradient(#141326c9,#171629d9),url('/assets/games/plinko/arcade-background-v1.webp'); }
+.plinko-stage { background: linear-gradient(135deg,#29223b88,#181c3d99); }
+.plinko-round-intro { position: absolute; inset: 54px 0 0; z-index: 30; display: grid; place-items: center; overflow: hidden; pointer-events: none; }
+.plinko-round-intro h2 { display: flex; align-items: center; justify-content: center; gap: .2em; width: 100%; color: #ffe5a1; font-size: clamp(42px,6.5vw,96px); font-weight: 1000; letter-spacing: -.035em; line-height: 1.15; paint-order: stroke fill; -webkit-text-stroke: 5px #271e43; text-shadow: 0 7px 0 #271e43,0 0 35px #f1bc6655; animation: plinko-round-fly 2.1s both; }
+.plinko-round-intro strong { color: #8ae8f9; font-size: 1.3em; }
+@keyframes plinko-round-fly { 0% { opacity:0; transform:translateX(-110%) rotate(-13deg) scale(.65); } 19% { opacity:1; transform:translateX(5%) rotate(3deg) scale(1.06); } 30%,66% { opacity:1; transform:translateX(0) rotate(0) scale(1); } 76% { opacity:1; transform:translateX(-3%) rotate(-3deg) scale(1.03); } 100% { opacity:0; transform:translateX(115%) rotate(11deg) scale(.8); } }
+.plinko-chip-picker { display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; width: 100%; height: 100%; min-height: 0; }
+.plinko-chip-picker h2 { text-align: center; color: #ffe4a2; font-size: 18px; font-weight: 800; line-height: 1.25; }
+.plinko-chip-picker .plinko-face-grid { min-height: 0; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(3,minmax(0,1fr)); gap: 7px; }
+.plinko-chip-picker .plinko-face-grid button { min-height: 0; padding: 5px; gap: 4px; border: 1px solid #997cb0; background: linear-gradient(#4b3b63,#322d45); box-shadow: 0 3px 0 #171326; }
+.plinko-chip-picker .plinko-face-grid svg { width: min(48px,13cqh); height: min(48px,13cqh); flex-shrink: 1; min-height: 0; }
+.plinko-chip-picker .plinko-face-grid span { font-size: 10px; line-height: 1.1; color: #fff0c8; }
+.plinko-random-chip { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 8px; font-size: 15px; line-height: 20px; }
+/* Only Plinkemoji opts into these shared flip-card colours. */
+.plinko-game [data-question-face] { border: 3px solid #e6c98b; background: #fff1d3; box-shadow: 0 8px 0 #342345,0 24px 60px #05051066; }
+.plinko-game [data-question-section='header'] { background: linear-gradient(115deg,#272b56,#533264); color: #ffe9b4; border-bottom: 3px solid #d9b875; }
+.plinko-game [data-question-section='body'],.plinko-game [data-written-footer] { background: linear-gradient(145deg,#fff7e7,#f6e7c7); color: #302643; }
+.plinko-game [data-question-section='body'] .text-slate-800 { color: #302643; }
+.plinko-game .game-mcq-options button { background: linear-gradient(130deg,#3c315e,#282b4c); color: #fff0c8; border-color: #b79b74; }
+.plinko-game .game-mcq-options button:nth-child(2n) { background: linear-gradient(130deg,#503666,#343053); }
+.plinko-game .game-mcq-options button:hover,.plinko-game .game-mcq-options button:focus-visible { background: linear-gradient(#ffe8ac,#e9c77e); color: #2a2240; border-color: #fff2bd; }
+.plinko-game [data-option-label] { background: linear-gradient(#ffe9af,#d5ad61); color: #30243f; border-color: #fff0c3; box-shadow: 0 3px 0 #1c173133; }
+.plinko-game [data-question-section='header'] button { background: #f7e4b7; color: #3e2d58; }
+.plinko-game [data-question-section='check'] { background: linear-gradient(#ffe7a3,#dfbc73); color: #2b2340; border: 2px solid #fff0c4; box-shadow: 0 4px 0 #9a723e; }
+@media (prefers-reduced-motion:reduce) {
+ .plinko-round-intro h2 { animation: plinko-round-fade .6s both !important; }
+}
+@keyframes plinko-round-fade { 0%,100% { opacity:0; } 20%,75% { opacity:1; } }
+@media (max-width:639px) and (min-height:520px) {
+ .plinko-round-intro { inset: 42px 0 0; }
+ .plinko-round-intro h2 { -webkit-text-stroke-width: 3px; }
+ .plinko-game[data-phase='chips'] .plinko-stage { grid-template-rows: minmax(0,1fr) 320px; }
+ .plinko-game[data-phase='chips'] .plinko-controls { height: 320px; }
+ .plinko-game[data-phase='chips'] .plinko-board-wrap { width: min(100%,calc((100dvh - 390px)*1.02)); }
+ .plinko-chip-picker { gap: 5px; }
+ .plinko-chip-picker h2 { font-size: 14px; }
+ .plinko-chip-picker .plinko-face-grid { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 4px; }
+ .plinko-chip-picker .plinko-face-grid svg { width: 32px; height: 32px; }
+ .plinko-random-chip { padding: 4px; font-size: 13px; line-height: 18px; }
+}
+@media (max-height:520px) {
+ .plinko-round-intro { inset: 40px 0 0; }
+ .plinko-round-intro h2 { font-size: 40px; -webkit-text-stroke-width: 3px; }
+ .plinko-chip-picker { gap: 4px; }
+ .plinko-chip-picker h2 { font-size: 11px; line-height: 1.15; }
+ .plinko-chip-picker .plinko-face-grid { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,minmax(0,1fr)); gap: 3px; }
+ .plinko-chip-picker .plinko-face-grid button { padding: 2px; gap: 1px; border-radius: 6px; }
+ .plinko-chip-picker .plinko-face-grid svg { width: 23px; height: 23px; }
+ .plinko-chip-picker .plinko-face-grid span { font-size: 8px; }
+ .plinko-random-chip { padding: 2px; font-size: 11px; line-height: 16px; }
+}
+.plinko-chip-picker .plinko-face-grid button { justify-content: center; }
+.plinko-game [data-question-section='body'] .game-mcq-options button { color: #fff0c8; }
+.plinko-game [data-question-section='body'] .game-mcq-options button:hover,.plinko-game [data-question-section='body'] .game-mcq-options button:focus-visible { color: #2a2240; }

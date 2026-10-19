@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../../utils/gameTypeLabel';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
 import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
@@ -33,6 +34,7 @@ const BLOCK_BEATERS_BOARD_OPTIONS: Array<{ value: 'small' | 'medium' | 'large'; 
 const getBlockBeatersQuestionCount = (boardSize: 'small' | 'medium' | 'large' = 'medium') =>
     (BLOCK_BEATERS_BOARD_OPTIONS.find((option) => option.value === boardSize)?.tiles || 36) + BLOCK_BEATERS_STEAL_RESERVE_QUESTIONS;
 const GAME_BACKDROP_IMAGES: Record<GameType, string> = {
+    [GameType.PLINKO]: '/assets/games/plinkemoji-title.webp',
     [GameType.SNAKES_LADDERS]: '/assets/games/snakes.png',
     [GameType.TRIVIA]: '/assets/games/trivia.png',
     [GameType.JEOPARDY]: '/assets/games/jeopardy.png',
@@ -128,7 +130,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                                 src={backdropImage}
                                 alt=""
                                 aria-hidden="true"
-                                className="absolute inset-0 h-full w-full scale-[1.01] object-cover opacity-92"
+                                className={`absolute inset-0 h-full w-full scale-[1.01] ${type === GameType.PLINKO ? 'object-contain' : 'object-cover'} opacity-92`}
                             />
                         </div>
                     </div>
@@ -145,7 +147,7 @@ export const ModeSelector: React.FC<{ type: GameType, onBack: () => void, onMode
                     <X size={24} />
                 </button>
                 <div className="playful-mode-sticker" aria-hidden="true"><Dice5 size={30} /><Star size={16} fill="currentColor" /></div>
-                <h2 id="creation-mode-title" className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">{ui("Create ")}{type}</h2>
+                <h2 id="creation-mode-title" className="font-display text-3xl font-bold text-slate-800 mb-2 text-center">{ui("Create ")}{gameTypeLabel(type)}</h2>
                 <p className="text-center text-slate-500 mb-5 sm:mb-8">{ui("How would you like to build your game?")}</p>
 
                 <div className="space-y-4">
@@ -1962,7 +1964,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                         <div className="playful-preview-label"><Star size={15} fill="currentColor" aria-hidden="true" /> {ui("Your next classroom adventure")}</div>
                         <img src={GAME_BACKDROP_IMAGES[type]} alt="" />
                         <p className="workspace-eyebrow">{ui("Your game")}</p>
-                        <h2 className="mt-1 text-lg font-bold text-slate-800">{type}</h2>
+                        <h2 className="mt-1 text-lg font-bold text-slate-800">{gameTypeLabel(type)}</h2>
                         <dl>
                           <div><dt>{type === GameType.STOP_THE_FIRE ? ui("Categories") : ui("Questions")}</dt><dd>{type === GameType.JEOPARDY ? (config.jeopardyCategories || 5) * (config.jeopardyRows || 5) : type === GameType.PUB_QUIZ ? (config.pubQuizRoundsCount || 3) * (config.pubQuizQuestionsPerRound || 5) : type === GameType.STOP_THE_FIRE && mode === 'manual' ? manualCategories.filter(c => c.trim()).length : type === GameType.STOP_THE_FIRE && mode === 'bank' ? '1,000' : config.questionCount}</dd></div>
                           {type === GameType.JEOPARDY && <div><dt>{ui("Categories")}</dt><dd>{config.jeopardyCategories}</dd></div>}

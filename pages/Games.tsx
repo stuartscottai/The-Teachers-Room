@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../utils/gameTypeLabel';
 import { PlayfulSelect } from '../components/PlayfulSelect';
 import { useGameHubEntrance } from '../components/games/useGameHubEntrance';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
@@ -102,6 +103,7 @@ const gamePageScreenshots = (slug: string, ...names: string[]) =>
     names.map(name => `/assets/game-types/${slug}/${name}.jpg${['snakes-and-ladders', 'stop-the-fire'].includes(slug) ? '?v=20261017' : ''}`);
 
 const gameThumbnailSets: Partial<Record<GameType, string[]>> = {
+    [GameType.PLINKO]: ['/assets/games/plinkemoji-title.webp', ...gamePageScreenshots('plinkemoji', 'board', 'question', 'bonuses')],
     [GameType.SNAKES_LADDERS]: [
         "/assets/games/snakes.png",
         ...gamePageScreenshots('snakes-and-ladders', 'board', 'question', 'answer')
@@ -210,12 +212,13 @@ const CompatibleGameChooser: React.FC<{
                                     <div className="relative aspect-[3/2] overflow-hidden bg-slate-100">
                                         <img
                                             src={image}
-                                            alt={type}
+                                            alt={gameTypeLabel(type)}
                                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                            style={type === GameType.PLINKO ? { objectFit: 'contain', padding: '16px', background: '#22143e' } : undefined}
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
                                         <div className="absolute bottom-4 left-4 right-4">
-                                            <h2 className="font-display text-xl font-bold text-white drop-shadow">{type}</h2>
+                                            <h2 className="font-display text-xl font-bold text-white drop-shadow">{gameTypeLabel(type)}</h2>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between p-5">
@@ -383,7 +386,7 @@ const CategoryFormatSetup: React.FC<{
                     <ArrowLeft size={16} className="mr-2" /> {ui(" Back to Games")}</button>
 
                 <div className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-                    <p className="mb-2 text-sm font-black uppercase tracking-wide text-brand-blue">{targetType}</p>
+                    <p className="mb-2 text-sm font-black uppercase tracking-wide text-brand-blue">{gameTypeLabel(targetType)}</p>
                     <h1 className="font-display text-3xl font-black text-slate-900 sm:text-4xl">{ui("Set up ")}{groupLabelPlural.toLowerCase()}</h1>
                     <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
                         {ui("Choose the layout, name each ")}{groupLabel.toLowerCase()}{ui(", then assign exactly ")}{questionsPerGroup} {ui(" question")}{questionsPerGroup === 1 ? '' : 's'} {ui(" to each one.")}</p>
@@ -536,7 +539,7 @@ const GameCard: React.FC<{
     onSelect: (type: GameType) => void
 }> = ({ game, onSelect }) => {
   useUiLanguage();
-    const infoPath = game.type === GameType.TRIVIA ? '/game-types/trivia' : game.type === GameType.JEOPARDY ? '/game-types/jeopardy' : game.type === GameType.TIME_BOMB ? '/game-types/time-bomb' : game.type === GameType.WORD_WHEEL ? '/game-types/wordwheel' : game.type === GameType.BLOCK_BEATERS ? '/game-types/blockbeaters' : game.type === GameType.LIVE_QUIZ_CHALLENGE ? '/game-types/live-quiz' : game.type === GameType.PUB_QUIZ ? '/game-types/pub-quiz' : game.type === GameType.SURVEY_SHOWDOWN ? '/game-types/survey-showdown' : game.type === GameType.STOP_THE_FIRE ? '/game-types/stop-the-fire' : game.type === GameType.MILLIONAIRE ? '/game-types/millionaire-maker' : game.type === GameType.DARTS ? '/game-types/darts-challenge' : game.type === GameType.SNAKES_LADDERS ? '/game-types/snakes-and-ladders' : null;
+    const infoPath = game.type === GameType.PLINKO ? '/game-types/plinkemoji' : game.type === GameType.TRIVIA ? '/game-types/trivia' : game.type === GameType.JEOPARDY ? '/game-types/jeopardy' : game.type === GameType.TIME_BOMB ? '/game-types/time-bomb' : game.type === GameType.WORD_WHEEL ? '/game-types/wordwheel' : game.type === GameType.BLOCK_BEATERS ? '/game-types/blockbeaters' : game.type === GameType.LIVE_QUIZ_CHALLENGE ? '/game-types/live-quiz' : game.type === GameType.PUB_QUIZ ? '/game-types/pub-quiz' : game.type === GameType.SURVEY_SHOWDOWN ? '/game-types/survey-showdown' : game.type === GameType.STOP_THE_FIRE ? '/game-types/stop-the-fire' : game.type === GameType.MILLIONAIRE ? '/game-types/millionaire-maker' : game.type === GameType.DARTS ? '/game-types/darts-challenge' : game.type === GameType.SNAKES_LADDERS ? '/game-types/snakes-and-ladders' : null;
     const navigate = useNavigate();
     const [hasError, setHasError] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
@@ -584,14 +587,15 @@ const GameCard: React.FC<{
             className="playful-game-card group relative flex flex-col text-left bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 transition-all duration-300 overflow-hidden h-full hover:-translate-y-1"
         >
             {/* Image Container */}
-            <button type="button" aria-label={infoPath ? ui("More info about {game.type}", { "game.type": (game.type) }) : ui("Create {game.type}", { "game.type": (game.type) })} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : 'bg-transparent'}`}>
+            <button type="button" aria-label={infoPath ? ui("More info about {game.type}", { "game.type": gameTypeLabel(game.type) }) : ui("Create {game.type}", { "game.type": gameTypeLabel(game.type) })} onClick={() => infoPath ? navigate(infoPath) : onSelect(game.type)} className={`block text-left aspect-[3/2] w-full relative overflow-hidden ${hasError ? game.color : game.type === GameType.PLINKO ? 'bg-[#22143e]' : 'bg-transparent'}`}>
                 {!hasError && frames.map((frame, index) => (
                     <img
                         key={`${game.type}-${frame.src}`}
                         crossOrigin="anonymous"
                         src={frame.src}
-                        alt={game.type}
+                        alt={gameTypeLabel(game.type)}
                         className={getImageClassName(frame.isPreview, index === visibleFrameIndex)}
+                        style={game.type === GameType.PLINKO && !frame.isPreview ? { objectFit: 'contain', padding: '20px' } : undefined}
                         onError={() => {
                             if (index === 0) {
                                 setHasError(true);
@@ -622,7 +626,7 @@ const GameCard: React.FC<{
 
                 {/* Title Overlay */}
                 <div className="absolute bottom-4 left-4 right-4">
-                     <h3 className="font-display font-bold text-xl text-white mb-1 drop-shadow-md">{game.type}</h3>
+                     <h3 className="font-display font-bold text-xl text-white mb-1 drop-shadow-md">{gameTypeLabel(game.type)}</h3>
                 </div>
             </button>
 
@@ -1101,7 +1105,7 @@ const PersonalLibrary: React.FC<{ onLoadGame: (game: GeneratedGame) => void }> =
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent" />
                                 <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
                                     <div style={theme.headerStyle} className="inline-flex min-w-0 max-w-[75%] items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[10px] font-bold uppercase shadow-sm">
-                                        {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
+                                        {getIcon(game.config.type)} <span className="truncate">{gameTypeLabel(game.config.type)}</span>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-2">
                                         {game.config.isAI && (
@@ -1623,7 +1627,7 @@ const CommunityLibrary: React.FC<{
                                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-transparent" />
                                     <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
                                         <div style={theme.headerStyle} className="inline-flex min-w-0 max-w-[78%] items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[10px] font-bold uppercase shadow-sm">
-                                            {getIcon(game.config.type)} <span className="truncate">{game.config.type}</span>
+                                            {getIcon(game.config.type)} <span className="truncate">{gameTypeLabel(game.config.type)}</span>
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2">
                                             {game.config.isAI && (
@@ -1790,6 +1794,14 @@ const GameHub: React.FC<{
 
     // Game Types Data
     const games = [
+        {
+            type: GameType.PLINKO,
+            icon: <Dice5 size={24} />,
+            get desc() { return ui("Answer correctly, drop a chip, and collect points as it bounces!"); },
+            image: getGameThumbnails(GameType.PLINKO)[0],
+            previewImages: getGameThumbnails(GameType.PLINKO).slice(1),
+            color: "bg-violet-700"
+        },
         {
             type: GameType.LIVE_QUIZ_CHALLENGE,
             icon: <GraduationCap size={24} />,
@@ -2142,12 +2154,12 @@ export const Games: React.FC = () => {
 
     useEffect(() => {
         const requested = new URLSearchParams(location.search).get('create');
-        const creationType = requested === 'trivia' ? GameType.TRIVIA : requested === 'jeopardy' ? GameType.JEOPARDY : requested === 'time-bomb' ? GameType.TIME_BOMB : requested === 'wordwheel' ? GameType.WORD_WHEEL : requested === 'blockbeaters' ? GameType.BLOCK_BEATERS : requested === 'live-quiz' ? GameType.LIVE_QUIZ_CHALLENGE : requested === 'pub-quiz' ? GameType.PUB_QUIZ : requested === 'survey-showdown' ? GameType.SURVEY_SHOWDOWN : requested === 'stop-the-fire' ? GameType.STOP_THE_FIRE : requested === 'millionaire-maker' ? GameType.MILLIONAIRE : requested === 'darts-challenge' ? GameType.DARTS : requested === 'snakes-and-ladders' ? GameType.SNAKES_LADDERS : null;
+        const creationType = (requested === 'plinkemoji' || requested === 'plinko') ? GameType.PLINKO : requested === 'trivia' ? GameType.TRIVIA : requested === 'jeopardy' ? GameType.JEOPARDY : requested === 'time-bomb' ? GameType.TIME_BOMB : requested === 'wordwheel' ? GameType.WORD_WHEEL : requested === 'blockbeaters' ? GameType.BLOCK_BEATERS : requested === 'live-quiz' ? GameType.LIVE_QUIZ_CHALLENGE : requested === 'pub-quiz' ? GameType.PUB_QUIZ : requested === 'survey-showdown' ? GameType.SURVEY_SHOWDOWN : requested === 'stop-the-fire' ? GameType.STOP_THE_FIRE : requested === 'millionaire-maker' ? GameType.MILLIONAIRE : requested === 'darts-challenge' ? GameType.DARTS : requested === 'snakes-and-ladders' ? GameType.SNAKES_LADDERS : null;
         if (!creationType || isAuthLoading) return;
         if (!user) {
             if (!promptedCreation.current) {
                 promptedCreation.current = true;
-                const creationLabel = ({ trivia: ui("Trivia"), jeopardy: ui("Jeopardy"), 'time-bomb': ui("Time Bomb"), wordwheel: ui("Wordwheel"), blockbeaters: ui("Blockbeaters"), 'live-quiz': ui("Live Quiz"), 'pub-quiz': ui("Pub Quiz"), 'survey-showdown': ui("Survey Showdown"), 'stop-the-fire': ui("Stop the Fire"), 'millionaire-maker': ui("Millionaire Maker"), 'darts-challenge': ui("Darts Challenge"), 'snakes-and-ladders': ui("Snakes and Ladders") } as Record<string, string>)[requested];
+                const creationLabel = ({ plinkemoji: ui("Plinkemoji"), plinko: ui("Plinkemoji"), trivia: ui("Trivia"), jeopardy: ui("Jeopardy"), 'time-bomb': ui("Time Bomb"), wordwheel: ui("Wordwheel"), blockbeaters: ui("Blockbeaters"), 'live-quiz': ui("Live Quiz"), 'pub-quiz': ui("Pub Quiz"), 'survey-showdown': ui("Survey Showdown"), 'stop-the-fire': ui("Stop the Fire"), 'millionaire-maker': ui("Millionaire Maker"), 'darts-challenge': ui("Darts Challenge"), 'snakes-and-ladders': ui("Snakes and Ladders") } as Record<string, string>)[requested];
                 promptSignupForFree(`Sign in or create an account to make your own ${creationLabel} game.`);
             }
             return;

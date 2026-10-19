@@ -1,3 +1,4 @@
+import { gameTypeLabel } from './gameTypeLabel';
 import { supportsWrittenAnswers } from './writtenAnswers';
 import { getSurveyGenerationRules } from './surveyGeneration';
 import { jsonrepair } from 'jsonrepair';
@@ -762,7 +763,7 @@ const normalizeBlockBeatersQuestions = (
 };
 
 const getJsonOnlyTemplate = (config: GameConfig) => {
-  const title = config.title?.trim() || `${config.type} Import`;
+  const title = config.title?.trim() || `${gameTypeLabel(config.type)} Import`;
 
   if (config.type === GameType.STOP_THE_FIRE) {
     return JSON.stringify(
@@ -912,7 +913,7 @@ export const buildExternalLlmGamePrompt = (
   config: GameConfig,
   options?: { pointsStrategy?: ExternalPromptPointsStrategy }
 ) => {
-  const title = config.title?.trim() || `${config.type} Import`;
+  const title = config.title?.trim() || `${gameTypeLabel(config.type)} Import`;
   const topic = config.topic?.trim();
   const customInstructions = config.customInstructions?.trim();
   const questionStyle = getQuestionStyleInstruction(config);
@@ -930,7 +931,7 @@ export const buildExternalLlmGamePrompt = (
     `Example of valid escaping: "question": "Find the paraphrase for \\\"if I hadn't revised\\\"."`,
     `If a question needs quoted wording inside the visible text, prefer single quotes in the question itself, for example: What is a paraphrase for 'If I hadn't revised'?`,
     'Before sending the final answer, verify that it would parse with JSON.parse.',
-    `This JSON will be imported into a classroom game app for the game type "${config.type}".`,
+    `This JSON will be imported into a classroom game app for the game type "${gameTypeLabel(config.type)}".`,
     `Use the title "${title}".`,
     `Question style: ${questionStyle}.`,
   ];
@@ -1124,7 +1125,7 @@ export const parseImportedGameContent = (text: string, config: GameConfig): Gene
   const title =
     (isRecord(payload) ? asText(payload.title ?? payload.name) : '') ||
     config.title?.trim() ||
-    `${config.type} Import`;
+    `${gameTypeLabel(config.type)} Import`;
 
   if (config.type === GameType.STOP_THE_FIRE) {
     const rawCategories = Array.isArray(payload)

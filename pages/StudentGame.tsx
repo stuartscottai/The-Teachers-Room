@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../utils/gameTypeLabel';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -158,7 +159,7 @@ export const StudentGame: React.FC = () => {
             <div className="text-xs font-black uppercase tracking-wide text-brand-blue">{ui("Student Practice")}</div>
             <h1 translate="no" className="notranslate mt-2 text-3xl font-black leading-tight text-slate-900">{game.title}</h1>
             <p className="mt-2 text-sm font-semibold text-slate-500">
-              {game.config.type} | {questionCount} {ui(" question")}{questionCount === 1 ? '' : 's'}
+              {gameTypeLabel(game.config.type)} | {questionCount} {ui(" question")}{questionCount === 1 ? '' : 's'}
             </p>
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

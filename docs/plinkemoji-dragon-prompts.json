@@ -1,0 +1,18 @@
+{
+  "generator": "Built-in image_gen",
+  "assets": [
+    {
+      "key": "dragon-mouth-v2",
+      "prompt": "Edit this glossy green emoji dragon game chip. Remove ONLY the painted fire breath completely. Keep the same cute dragon, green scales, gold horns, gold wings, face, open smiling mouth, tongue and teeth, lighting, silhouette, pose and canvas framing. Mouth must remain open facing right, ready to emit an animated flame added separately in the game. Keep all character parts in exactly the same place in the canvas; do not recenter or enlarge the dragon to fill the space left by the removed flame. The space formerly occupied by the fire should be genuinely transparent. No flame, no smoke, no other objects, no text, no background. Preserve transparent background. This is a production game sprite.",
+      "original": "public/assets/games/plinko/bonuses/dragon-v2.png",
+      "web": "public/assets/games/plinko/bonuses/dragon-v2.webp",
+      "reference": "public/assets/games/plinko/bonuses/dragon-v1.webp"
+    },
+    {
+      "key": "dragon-fire-v1",
+      "prompt": "Production game VFX sprite: one isolated convincing dragon fire breath jet, horizontal flow from LEFT to RIGHT. Wide landscape 3:1 composition. The narrow ignition/root is precisely at 8% canvas width and 50% canvas height; fire spreads toward the right, ending before 94% canvas width. Bright white-hot and pale yellow narrow core at the root, flowing curling tongues of golden flame, deep orange-red translucent turbulent edges, fine glowing embers, subtle smoky wisps at the far tip. Sculpted volumetric fire with intricate flame texture and cinematic lighting, polished stylized 3D quality suited to a glossy emoji arcade game. Entire flame fully visible with clear transparent margins. No dragon, no objects, no ground, no lettering, no numbers, no frame, no background. Genuine transparent background. Flowing flame stream, not an explosion or a triangle.",
+      "original": "public/assets/games/plinko/dragon-fire-v1.png",
+      "web": "public/assets/games/plinko/dragon-fire-v1.webp"
+    }
+  ]
+}

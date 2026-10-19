@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../../utils/gameTypeLabel';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { getWrittenQuestionType, supportsWrittenAnswers, getAnswerEditorText, getAnswerEditorPatch } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -893,7 +894,7 @@ export const GameEditor: React.FC<GameEditorProps> = ({ game, onSave, onPlay, on
                         <div className="workspace-editor-intro">
                         <header className="workspace-editor-top">
                           <div className="workspace-editor-title">
-                            <h1 className="sr-only">{ui("Edit game")}</h1><div className="workspace-eyebrow mb-1">{ui("Edit game ")}<span className="px-1 text-slate-300">/</span> {editedGame.config.type}</div>
+                            <h1 className="sr-only">{ui("Edit game")}</h1><div className="workspace-eyebrow mb-1">{ui("Edit game ")}<span className="px-1 text-slate-300">/</span> {gameTypeLabel(editedGame.config.type)}</div>
                             <label htmlFor="editor-game-title" className="sr-only">{ui("Game title")}</label>
                             <input id="editor-game-title" value={editedGame.title} onChange={event => handleTitleChange(event.target.value)} placeholder={ui("Enter game title")} />
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">

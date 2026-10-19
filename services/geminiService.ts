@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../utils/gameTypeLabel';
 import { getSurveyGenerationRules, getSurveyGenerationError } from '../utils/surveyGeneration.js';
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
@@ -126,6 +127,7 @@ const cleanJson = (text: string): string => {
 };
 
 const WIZARD_REASON_BY_TYPE: Record<GameType, string> = {
+  [GameType.PLINKO]: 'Answer questions to earn chips, then drop them through a changing peg board to score points.',
   [GameType.JEOPARDY]: 'Best for structured retrieval practice across curriculum categories and exam-style revision.',
   [GameType.TRIVIA]: 'Great for fast mixed recall checks and broad topic coverage in one session.',
   [GameType.PUB_QUIZ]: 'Useful for themed rounds and sequenced review across subtopics or units.',
@@ -141,6 +143,7 @@ const WIZARD_REASON_BY_TYPE: Record<GameType, string> = {
 };
 
 const WIZARD_TITLE_BY_TYPE: Record<GameType, string> = {
+  [GameType.PLINKO]: 'Plinkemoji Quiz Challenge',
   [GameType.JEOPARDY]: 'Category Review Challenge',
   [GameType.TRIVIA]: 'Quick Knowledge Check',
   [GameType.PUB_QUIZ]: 'Round-by-Round Revision',
@@ -1269,7 +1272,7 @@ export const generateGameContent = async (config: GameConfig): Promise<Generated
   let prompt = '';
   
   // Determine Title
-  const gameTitle = config.title || `My ${config.type} Game`;
+  const gameTitle = config.title || `My ${gameTypeLabel(config.type)} Game`;
 
   // Define Schema Parts
   const questionSchema: Schema = {
@@ -1567,7 +1570,7 @@ if (isSurvey) {
     }
 
     prompt = `
-      Create a ${config.type} game titled "${gameTitle}" about "${config.topic}".
+      Create a ${gameTypeLabel(config.type)} game titled "${gameTitle}" about "${config.topic}".
       Number of questions: ${config.questionCount}.
       Question Type: ${qTypeInstruction}.${mcInstruction}
       Points Strategy: ${pointsInstruction}
@@ -1604,7 +1607,7 @@ if (isSurvey) {
       };
   }
 
-  if ([GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.DARTS, GameType.SNAKES_LADDERS, GameType.TIME_BOMB, GameType.BLOCK_BEATERS].includes(config.type)) {
+  if ([GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.DARTS, GameType.SNAKES_LADDERS, GameType.TIME_BOMB, GameType.BLOCK_BEATERS, GameType.PLINKO].includes(config.type)) {
     prompt += '\nFor each question without multiple-choice options, include questionType: "gap-fill" for a missing word or phrase, or "open" for an open-ended response. For gap-fill questions use ____ in the prompt and include answerAliases with up to 5 other valid answers when useful. Never include incorrect alternatives in answerAliases.\n';
   }
 

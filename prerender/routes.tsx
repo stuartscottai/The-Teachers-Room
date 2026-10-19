@@ -10,6 +10,7 @@ import { BlockBeatersPage } from '../pages/BlockBeatersPage';
 import { WordWheelPage } from '../pages/WordWheelPage';
 import { TimeBombPage } from '../pages/TimeBombPage';
 import { JeopardyPage } from '../pages/JeopardyPage';
+import { PlinkemojiPage } from '../pages/PlinkemojiPage';
 import { TriviaPage } from '../pages/TriviaPage';
 import { Home } from '../pages/Home';
 import { Games } from '../pages/Games';
@@ -45,6 +46,7 @@ export const prerenderRoutes: PrerenderRoute[] = [
   { path: '/game-types/wordwheel', Component: WordWheelPage },
   { path: '/game-types/time-bomb', Component: TimeBombPage },
   { path: '/game-types/jeopardy', Component: JeopardyPage },
+  { path: '/game-types/plinkemoji', Component: PlinkemojiPage },
   { path: '/game-types/trivia', Component: TriviaPage },
   { path: '/create-classroom-games', Component: CreateClassroomGamesPage },
   { path: '/classroom-quiz-maker', Component: ClassroomQuizMakerPage },

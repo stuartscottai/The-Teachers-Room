@@ -21,6 +21,7 @@ const BlockBeatersPage = lazy(() => import('./pages/BlockBeatersPage').then(m =>
 const WordWheelPage = lazy(() => import('./pages/WordWheelPage').then(m => ({ default: m.WordWheelPage })));
 const TimeBombPage = lazy(() => import('./pages/TimeBombPage').then(m => ({ default: m.TimeBombPage })));
 const JeopardyPage = lazy(() => import('./pages/JeopardyPage').then(m => ({ default: m.JeopardyPage })));
+const PlinkemojiPage = lazy(() => import('./pages/PlinkemojiPage').then(m => ({ default: m.PlinkemojiPage })));
 const TriviaPage = lazy(() => import('./pages/TriviaPage').then(m => ({ default: m.TriviaPage })));
 const Games = lazy(() => import('./pages/Games').then(({ Games }) => ({ default: Games })));
 const GameCoverSmokeTest = lazy(() => import('./pages/GameCoverSmokeTest').then(({ GameCoverSmokeTest }) => ({ default: GameCoverSmokeTest })));
@@ -163,6 +164,7 @@ const App: React.FC = () => {
               <Route path="/game-types/wordwheel" element={<LazyRoute><WordWheelPage /></LazyRoute>} />
               <Route path="/game-types/time-bomb" element={<LazyRoute><TimeBombPage /></LazyRoute>} />
               <Route path="/game-types/jeopardy" element={<LazyRoute><JeopardyPage /></LazyRoute>} />
+              <Route path="/game-types/plinkemoji" element={<LazyRoute><PlinkemojiPage /></LazyRoute>} />
               <Route path="/game-types/trivia" element={<LazyRoute><TriviaPage /></LazyRoute>} />
               <Route path="/pricing" element={<LazyRoute><Pricing /></LazyRoute>} />
               <Route path="/info" element={<LazyRoute><Info /></LazyRoute>} />

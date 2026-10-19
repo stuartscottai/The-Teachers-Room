@@ -2,6 +2,7 @@
 export enum GameType {
   SNAKES_LADDERS = 'Snakes and Ladders',
   TRIVIA = 'Trivia Quiz',
+  PLINKO = 'Plinko',
   JEOPARDY = 'Jeopardy',
   DARTS = 'Darts',
   PUB_QUIZ = 'Pub Quiz',
@@ -121,6 +122,11 @@ export interface GameRunOptions {
     timesUp: string;
   };
   randomizeQuestions?: boolean; // Order of questions (Sequential vs Random)
+  // Plinko
+  plinkoRounds?: number;
+  plinkoBoardChanges?: 'fixed' | 'values' | 'all';
+  plinkoPegPoints?: number;
+  plinkoRoundIncrease?: number;
   // Darts specific runtime options
   dartsLegs?: number; // How many rounds per game
   dartsMode?: 'high-score' | '301';

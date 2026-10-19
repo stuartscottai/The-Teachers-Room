@@ -1,7 +1,7 @@
 import { AnswerMethod, GameConfig, GameRunOptions, GameType, GeneratedQuestion } from '../types';
 
 export const supportsWrittenAnswers = (type: GameType) => [
-  GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.DARTS,
+  GameType.PLINKO, GameType.TRIVIA, GameType.JEOPARDY, GameType.PUB_QUIZ, GameType.DARTS,
   GameType.SNAKES_LADDERS, GameType.TIME_BOMB, GameType.BLOCK_BEATERS,
 ].includes(type);
 

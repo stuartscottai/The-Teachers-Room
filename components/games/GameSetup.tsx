@@ -1,3 +1,4 @@
+import { gameTypeLabel } from '../../utils/gameTypeLabel';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
 import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
@@ -53,6 +54,10 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
         bonus: 'Secret',
         timesUp: 'Gong'
     },
+    plinkoRounds: 5,
+    plinkoBoardChanges: 'all',
+    plinkoRoundIncrease: 50,
+    plinkoPegPoints: 2,
     dartsMode: 'high-score',
     dartsLegs: 5,
     teamLives: 3, // Default lives
@@ -188,8 +193,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     });
   };
   const setupCardClass = 'workspace-setup-card';
-  const hasExtraRules = [GameType.DARTS, GameType.TRIVIA, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type);
-  const hasBonusOptions = ![GameType.PUB_QUIZ, GameType.DARTS, GameType.TIME_BOMB, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL].includes(game.config.type);
+  const hasExtraRules = [GameType.PLINKO, GameType.DARTS, GameType.TRIVIA, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type);
+  const hasBonusOptions = ![GameType.PLINKO, GameType.PUB_QUIZ, GameType.DARTS, GameType.TIME_BOMB, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL].includes(game.config.type);
   const setupLabelClass = 'mb-2 flex items-center text-sm font-semibold text-slate-700';
 
   // Derive the recap from the same values passed to Start Game, including
@@ -211,7 +216,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
         <button onClick={onBack} className="workspace-back"><ArrowLeft size={18} /> {ui(backLabel)}</button>
         <header className="workspace-setup-header">
           <div className="min-w-0">
-            <p className="workspace-eyebrow mb-2">{ui("Ready to play ")}<span className="px-1 text-slate-300">/</span> {game.config.type}</p>
+            <p className="workspace-eyebrow mb-2">{ui("Ready to play ")}<span className="px-1 text-slate-300">/</span> {gameTypeLabel(game.config.type)}</p>
             <h1 className="workspace-heading">{game.title}</h1>
             <p className="mt-2 text-sm text-slate-600">{game.config.topic || 'Choose your teams and game settings.'}</p>
           </div>
@@ -362,6 +367,26 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
             <h2 className="workspace-section-title">{ui("Game options")}</h2>
             <div className={`grid gap-5 ${hasExtraRules && hasBonusOptions ? 'lg:grid-cols-2' : ''}`}>
               <div className={hasExtraRules ? `workspace-setup-extra ${game.config.type === GameType.DARTS ? 'workspace-setup-extra-wide' : ''}` : 'hidden'}>
+                {game.config.type === GameType.PLINKO && <div className="workspace-setup-field-group space-y-4">
+                  <label className="block text-sm font-bold">{ui("Rounds")}
+                    <PlayfulSelect aria-label={ui("Rounds")} value={options.plinkoRounds} onChange={e => setOptions({...options, plinkoRounds: Number(e.target.value)})} className="w-full rounded-lg border p-3">
+                      {[1, 3, 5, 8, 10].map(n => <option key={n} value={n}>{n}</option>)}
+                    </PlayfulSelect>
+                  </label>
+                  <label className="block text-sm font-bold">{ui("Pocket increase each round")}
+                    <PlayfulSelect aria-label={ui("Pocket increase each round")} value={options.plinkoRoundIncrease} onChange={e => setOptions({...options, plinkoRoundIncrease: Number(e.target.value)})} className="w-full rounded-lg border p-3">
+                      {[25, 50, 100].map(n => <option key={n} value={n}>+{n}</option>)}
+                    </PlayfulSelect>
+                  </label>
+
+                  <p className="text-sm text-slate-500">{ui("There are always 10 entries and blue electric sides. Each round adds a scoring box and grows the peg grid up to 8 rows of 8/7 pegs. A first hit breaks a box lid and bounces the ball away; an open box can collect the ball on a later fall.")}</p>
+                  <label className="block text-sm font-bold">{ui("Points per peg")}
+                    <PlayfulSelect aria-label={ui("Points per peg")} value={options.plinkoPegPoints} onChange={e => setOptions({...options, plinkoPegPoints: Number(e.target.value)})} className="w-full rounded-lg border p-3">
+                      {[1,2,5].map(n => <option key={n} value={n}>{n}</option>)}
+                    </PlayfulSelect>
+                  </label>
+                  <p className="text-sm text-slate-500">{ui("Every team answers once per round. Correct answers earn one chip. Peg points plus the landing value are added when the chip lands. Questions repeat if there are fewer questions than turns.")}</p>
+                </div>}
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (
                     <div className="workspace-setup-field-group">
@@ -677,7 +702,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                       </div>
                     )}
                   </div>
-                ) : game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
+                ) : game.config.type !== GameType.PLINKO && game.config.type !== GameType.PUB_QUIZ && game.config.type !== GameType.DARTS && game.config.type !== GameType.TIME_BOMB && game.config.type !== GameType.SURVEY_SHOWDOWN && game.config.type !== GameType.WORD_WHEEL ? (
                   <div className={`setup-bonus-panel chaos-options rounded-2xl border-2 p-4 transition-all ${options.enableBonuses ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <button

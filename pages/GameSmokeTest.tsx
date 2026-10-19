@@ -113,6 +113,7 @@ const modes: Record<string, GameType> = {
   timebomb: GameType.TIME_BOMB,
   trivia: GameType.TRIVIA,
   livequiz: GameType.LIVE_QUIZ_CHALLENGE,
+  plinko: GameType.PLINKO,
   blockbeaters: GameType.BLOCK_BEATERS,
   wordwheel: GameType.WORD_WHEEL,
 };
@@ -221,6 +222,7 @@ export const GameSmokeTest: React.FC = () => {
       ...options,
       ...(isPromo ? { questionLimit: game.questions.length } : {}),
       ...(params.has('timer') ? { timerSeconds: Math.max(0, Number(params.get('timer')) || 0) } : {}),
+      ...(type === GameType.PLINKO && params.has('rounds') ? { plinkoRounds: Math.max(1, Math.min(20, Number(params.get('rounds')) || 5)) } : {}),
       players: playerCount,
       teamNames: Array.from({ length: playerCount }, (_, index) => params.get('preview') === '1' ? ['Foxes', 'Owls', 'Bears', 'Lions', 'Otters', 'Eagles'][index] : `Team ${index + 1}`),
       enableBonuses: bonusesEnabled,

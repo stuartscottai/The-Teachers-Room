@@ -13,6 +13,7 @@ type GameRunnerProps = {
   testStartPosition?: number;
 };
 
+const PlinkoGame = lazy(() => import('./PlinkoGame').then(({ PlinkoGame }) => ({ default: PlinkoGame })));
 const DartsGame = lazy(() => import('./DartsGame').then(({ DartsGame }) => ({ default: DartsGame })));
 const JeopardyGame = lazy(() => import('./JeopardyGame').then(({ JeopardyGame }) => ({ default: JeopardyGame })));
 const MillionaireGame = lazy(() => import('./MillionaireGame').then(({ MillionaireGame }) => ({ default: MillionaireGame })));
@@ -41,6 +42,8 @@ const LazyGameRunnerInner: React.FC<GameRunnerProps> = (props) => {
   const gameType = selectGameType(props.game);
 
   switch (gameType) {
+    case GameType.PLINKO:
+      return <PlinkoGame {...props} />;
     case GameType.DARTS:
       return <DartsGame {...props} />;
     case GameType.JEOPARDY:

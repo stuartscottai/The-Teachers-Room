@@ -60,6 +60,17 @@ export const routeMeta: Record<string, RouteMeta> = {
     changeFrequency: 'monthly',
     priority: 0.8
   },
+  '/game-types/plinkemoji': {
+    title: "Plinkemoji Classroom Game for Teachers | The Teachers' Room",
+    description: 'Answer questions, drop emoji chips and bounce towards points in Plinkemoji. Collect stars, unlock character bonuses and create a classroom game for any subject.',
+    path: '/game-types/plinkemoji',
+    image: '/assets/games/plinkemoji-title.webp',
+    structuredData: 'webpage',
+    includeInSitemap: true,
+    lastModified: '2026-10-19',
+    changeFrequency: 'monthly',
+    priority: 0.8
+  },
   '/game-types/survey-showdown': {
     title: "Survey Showdown Classroom Game for Teachers | The Teachers' Room",
     description: 'Get your class guessing with Survey Showdown. Teams reveal hidden answers, collect points and share ideas. Create an answer board for whatever you teach.',

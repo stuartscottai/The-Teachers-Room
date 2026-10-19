@@ -34,6 +34,7 @@ if (!urls.includes('/terms')) fail('Terms page is missing from the sitemap.');
 if (!urls.includes('/privacy')) fail('Privacy page is missing from the sitemap.');
 
 const expectedGameTypeRoutes = [
+  'plinkemoji',
   'trivia',
   'jeopardy',
   'time-bomb',
