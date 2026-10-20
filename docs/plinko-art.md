@@ -56,7 +56,7 @@ Edit target: supplied Plinko cabinet image. Produce a new modular EMPTY cabinet 
 
 The visible game name is **Plinkemoji**. The stored type remains `Plinko` so existing saved games still open correctly.
 
-Each team chooses a distinct face from six expressions inside the team sidebar before the first turn; Random selects an available face for the current team. The chosen face appears in its score row, question reward and ordinary drops. The full cabinet, left bonus panel and right score/control panel fit the viewport without page or panel scrolling, including six teams.
+Each team chooses a distinct face from six expressions inside the team sidebar before the first turn; Random assigns distinct available faces to every unassigned team at once and starts the round, preserving manually chosen faces. The chosen face appears in its score row, question reward and ordinary drops. The full cabinet, left bonus panel and right score/control panel fit the viewport without page or panel scrolling, including six teams.
 
 Approximately 75% of boxes contain one, two or three stars; the others contain none. Whole-box rounding always leaves at least one box without stars. Their positions rotate each round and remain identical for every team within that round. On an eligible landing, the box's stars fly to the team's star balance. The same box only awards its stars once per turn. Stars reveal that many distinct random bonus options on the team's next correct-answer turn. The team chooses ONE of those options and ALL its stars are consumed. Stars are not prices or individual spending credits; an incorrect answer leaves existing stars available for a later turn.
 
@@ -134,7 +134,7 @@ Checks: 2,160 simulated turns cover the full settle, monotonic eased sink, scori
 
 After chip selection, and once at the start of each later round, a Round X banner flies into the board, settles and flies out. Only then does the next team's emoji and Start turn button appear. The intro lasts 2.1 seconds, or a short 0.6-second fade for reduced motion. It does not repeat between teams in the same round.
 
-Chip selection now lives inside the existing team 3D panel, with six face choices and a Random button. Random chooses an unclaimed face for the current team, then advances to the next team. The mobile starting layout makes extra room for the picker without page scrolling. The generated backdrop uses a darker overlay; only the Plinkemoji instance of the shared question card adopts indigo/purple headers and answer options, cream faces and gold trim. Option text is cream on dark buttons and dark on the gold hover/focus state.
+Chip selection now lives inside the existing team 3D panel, with six face choices and a Random button. Random shuffles the unclaimed faces, assigns all remaining teams at once and starts the round. Any faces already chosen manually are preserved. The mobile starting layout makes extra room for the picker without page scrolling. The generated backdrop uses a darker overlay; only the Plinkemoji instance of the shared question card adopts indigo/purple headers and answer options, cream faces and gold trim. Option text is cream on dark buttons and dark on the gold hover/focus state.
 
 `utils/plinkoAudio.ts` supplies procedural game audio through one lazily unlocked AudioContext, a shared mute bus and compressor. Browser autoplay rules are respected: the first pointer/keyboard action unlocks sound. Mute immediately cuts existing and scheduled sounds; unmount closes the context. No external audio downloads are required.
 

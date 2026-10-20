@@ -1,0 +1,73 @@
+/* Pinball Chrome is scoped to Plinkemoji; shared cards keep their other game themes. */
+.plinko-game { --plinko-chrome: #d9dcea; --plinko-ink: #e7faff; --plinko-panel: linear-gradient(135deg,#252d50,#131b31); }
+.plinko-game .plinko-sidebar-box,
+.plinko-game .plinko-dialog,
+.plinko-game .plinko-turn-dialog,
+.plinko-game .plinko-round-intro h2,
+.plinko-game .plinko-bonus-bubble {
+ border: 5px ridge var(--plinko-chrome); border-radius: 14px;
+ background: var(--plinko-panel); color: var(--plinko-ink);
+ box-shadow: 0 6px 0 #060b1a,inset 0 2px 0 #a0b2d166,0 0 0 1px #919bbc,0 16px 30px #050b1844;
+}
+.plinko-game .plinko-sidebar-box { transform: none; }
+.plinko-game .plinko-sidebar-box::before,.plinko-game .plinko-sidebar-box::after { content: ''; position: absolute; top: 5px; width: 5px; height: 5px; border: 0; border-radius: 50%; background: linear-gradient(45deg,#9ba8bb,#f6ffff,#666d88); box-shadow: 0 1px 1px #000; transform: none; }
+.plinko-game .plinko-sidebar-box::before { left: 6px; }
+.plinko-game .plinko-sidebar-box::after { left: auto; right: 6px; }
+.plinko-game .plinko-tools button,.plinko-game .plinko-secondary,
+.plinko-game .plinko-face-grid button {
+ border: 2px outset #c8d3e6; border-radius: 7px; background: linear-gradient(#425478,#222e4a); color: #b6f5ff; box-shadow: 0 2px 0 #060c1e;
+}
+.plinko-game .plinko-primary,.plinko-game .plinko-turn-overlay .plinko-primary {
+ border: 2px outset #e6bbdf; border-radius: 7px; color: #fff1fb; background: linear-gradient(#ae538f,#6f3469); box-shadow: 0 3px 0 #351b47;
+}
+.plinko-game .plinko-scorebar button { border: 2px inset #a6b6d4; border-radius: 5px; background: #0b142b; color: #9bf5f9; box-shadow: inset 0 2px 4px #0008; }
+.plinko-game .plinko-scorebar button.is-active { background: linear-gradient(135deg,#49305f,#30213f); color: #fff0ce; border-color: #f2cc7e; box-shadow: inset 0 0 10px #f2cc7e18,0 0 8px #f2cc7e33; }
+.plinko-game .plinko-scorebar button.is-active strong { color: #ffe5a1; }
+.plinko-game .plinko-scorebar button .plinko-team-stars { color: #ffe19a; text-shadow: 0 1px 2px #0009; }
+.plinko-game .plinko-scorebar button strong { font-family: ui-monospace,monospace; }
+.plinko-game .plinko-round-counter { color: #b6f5ff; text-shadow: 0 2px 0 #060b1a; border-color: #d9dcea; border-style: ridge; border-radius: 7px; background: #0b142b; box-shadow: inset 0 2px 4px #0008; transform: none; }
+.plinko-game .plinko-dialog input { background: #0b142b; color: #e7faff; border: 2px inset #a6b6d4; }
+.plinko-game .plinko-dialog { padding: 22px; gap: 12px; }
+.plinko-game .plinko-dialog h2 { color: #b6f5ff; }
+.plinko-game form.plinko-dialog { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.plinko-game form.plinko-dialog > h2,.plinko-game form.plinko-dialog > label:first-of-type { grid-column: 1 / -1; }
+.plinko-game form.plinko-dialog input { width: 100%; min-width: 0; }
+.plinko-game .plinko-turn-dialog { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; width: min(80%,300px); }
+.plinko-game .plinko-turn-dialog .plinko-turn-token { width: min(100%,200px); }
+.plinko-game .plinko-round-intro h2 { width: fit-content; max-width: 95%; padding: .15em .35em; color: #e7faff; }
+.plinko-game .plinko-bonus-bubble i { background: #18213b; border-color: #d9dcea; }
+.plinko-game .plinko-chip-dialog { position: fixed; inset: 0; margin: auto; width: min(620px,calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); overflow: auto; }
+.plinko-game .plinko-chip-dialog:not([open]) { display: none; }
+.plinko-chip-dialog::backdrop { background: #050b1ac9; backdrop-filter: blur(5px); }
+.plinko-chip-dialog .plinko-chip-picker { height: auto; gap: 18px; }
+.plinko-chip-dialog .plinko-chip-picker h2 { font-size: clamp(20px,3vw,28px); color: #b6f5ff; }
+.plinko-chip-dialog .plinko-chip-picker .plinko-face-grid { grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-rows: repeat(2,auto); gap: 12px; }
+.plinko-chip-dialog .plinko-chip-picker .plinko-face-grid button { padding: 14px 6px; gap: 8px; }
+.plinko-chip-dialog .plinko-chip-picker .plinko-face-grid svg { width: 76px; height: 76px; flex-shrink: 0; }
+.plinko-chip-dialog .plinko-chip-picker .plinko-face-grid span { font-size: 14px; color: #e7faff; }
+.plinko-chip-dialog .plinko-random-chip { padding: 10px; font-size: 17px; }
+.plinko-unassigned-chip { display: grid; place-items: center; width: 30px; height: 30px; border: 2px dashed #a6b6d4; border-radius: 50%; }
+/* Question cards retain the original purple, cream and gold theme in plinko.css. */
+/* The image viewer is a portal outside the game root, with a unique class. */
+.plinko-image-zoom { background: #080e20ed; }
+.plinko-image-zoom button { border: 3px ridge #d9dcea; border-radius: 10px; background: linear-gradient(#425478,#222e4a); color: #b6f5ff; }
+@media (max-width:639px) {
+ .plinko-game .plinko-sidebar-box { border-width: 3px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid svg { width: 56px; height: 56px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid span { font-size: 12px; }
+}
+@media (max-height:520px) {
+ .plinko-game .plinko-sidebar-box { border-width: 2px; }
+ .plinko-game .plinko-dialog { padding: 14px; gap: 8px; }
+ .plinko-game .plinko-dialog input { padding: 6px; }
+ .plinko-game .plinko-dialog h2 { font-size: 20px; }
+ .plinko-chip-dialog .plinko-chip-picker { gap: 10px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid { gap: 8px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid button { padding: 5px; gap: 3px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid svg { width: 44px; height: 44px; }
+ .plinko-chip-dialog .plinko-chip-picker .plinko-face-grid span { font-size: 12px; }
+ .plinko-chip-dialog .plinko-random-chip { padding: 5px; font-size: 14px; }
+ .plinko-game .plinko-turn-dialog { padding: 10px; gap: 8px; width: min(80%,200px); }
+ .plinko-game .plinko-turn-dialog .plinko-turn-token { width: min(100%,110px); }
+ .plinko-game .plinko-scorebar button { border-width: 1px; }
+}

@@ -1,0 +1,35 @@
+{
+  "tool": "Built-in image generation",
+  "date": "2026-10-20",
+  "reference": "Neon Rings and the other four peg comparison cards generated on 20 October 2026.",
+  "assets": [
+    {
+      "file": "public/assets/games/plinko/pegs/neon-blue-v1.webp",
+      "prompt": "Create ONE production game sprite: a electric cyan blue neon ring bumper peg, matching the ring style in the reference image. The reference is a design comparison card; extract ONLY the visual style, do not reproduce its layout. One round thick glowing torus surrounding a solid dark navy rounded inset core, glossy beveled 3D arcade finish, near straight-on front view with just a hint of depth underneath, very restrained halo. Exactly ONE peg centered on square genuinely transparent canvas. Outer ring diameter about 78% of canvas, core about 42%, even safe transparent margins all sides. Perfect circular collision silhouette, no stem, no feet, no pedestal, no shadow plane. No words, text, board, caption, framing, other colours or other pegs. Bright rim and dark centre must remain readable when reduced to 16 pixels. Colour for the luminous ring is electric cyan blue."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/neon-gold-v1.webp",
+      "prompt": "Create ONE production game sprite: a warm luminous golden yellow neon ring bumper peg, matching the ring style in the reference image. The reference is a design comparison card; extract ONLY the visual style, do not reproduce its layout. One round thick glowing torus surrounding a solid dark navy rounded inset core, glossy beveled 3D arcade finish, near straight-on front view with just a hint of depth underneath, very restrained halo. Exactly ONE peg centered on square genuinely transparent canvas. Outer ring diameter about 78% of canvas, core about 42%, even safe transparent margins all sides. Perfect circular collision silhouette, no stem, no feet, no pedestal, no shadow plane. No words, text, board, caption, framing, other colours or other pegs. Bright rim and dark centre must remain readable when reduced to 16 pixels. Colour for the luminous ring is warm luminous golden yellow."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/neon-red-v1.webp",
+      "prompt": "Create ONE production game sprite: a vivid luminous coral red neon ring bumper peg, matching the ring style in the reference image. The reference is a design comparison card; extract ONLY the visual style, do not reproduce its layout. One round thick glowing torus surrounding a solid dark navy rounded inset core, glossy beveled 3D arcade finish, near straight-on front view with just a hint of depth underneath, very restrained halo. Exactly ONE peg centered on square genuinely transparent canvas. Outer ring diameter about 78% of canvas, core about 42%, even safe transparent margins all sides. Perfect circular collision silhouette, no stem, no feet, no pedestal, no shadow plane. No words, text, board, caption, framing, other colours or other pegs. Bright rim and dark centre must remain readable when reduced to 16 pixels. Colour for the luminous ring is vivid luminous coral red."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/arcade-blue-v1.webp",
+      "prompt": "Create ONE production sprite for the Plinkemoji arcade peg board, using the reference only to match this exact peg design: A smooth luminous cyan-blue rounded arcade button dome, deep purple low-profile base, glossy plastic highlights, clean toy-like round silhouette. One isolated peg centered on square genuine transparent background. Near straight-on top/front view with just a hint of depth, circular collision footprint. Outer solid peg diameter about 78% of canvas; even safe transparent margins all around, compact restrained halo. No text, no comparison card, no framing, no pedestal, no stems, no shadow plane, no additional pegs. Crisp readable details when shrunk to 16 pixels, polished premium 3D game art. Use cyan blue as the main coloured material; game tinting supplies red and gold variants."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/jelly-blue-v1.webp",
+      "prompt": "Create ONE production sprite for the Plinkemoji arcade peg board, using the reference only to match this exact peg design: A squishy rounded cyan-blue jelly gumdrop bumper, translucent glossy gel with a gentle inner glow, friendly rounded cushion shape, no face. One isolated peg centered on square genuine transparent background. Near straight-on top/front view with just a hint of depth, circular collision footprint. Outer solid peg diameter about 78% of canvas; even safe transparent margins all around, compact restrained halo. No text, no comparison card, no framing, no pedestal, no stems, no shadow plane, no additional pegs. Crisp readable details when shrunk to 16 pixels, polished premium 3D game art. Use cyan blue as the main coloured material; game tinting supplies red and gold variants."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/rivet-blue-v1.webp",
+      "prompt": "Create ONE production sprite for the Plinkemoji arcade peg board, using the reference only to match this exact peg design: A neat round gold-rimmed metal bumper rivet with a cyan-blue enamel centre. Low cylindrical satin champagne-gold side and bright smooth enamel inset, clean and unornamented. One isolated peg centered on square genuine transparent background. Near straight-on top/front view with just a hint of depth, circular collision footprint. Outer solid peg diameter about 78% of canvas; even safe transparent margins all around, compact restrained halo. No text, no comparison card, no framing, no pedestal, no stems, no shadow plane, no additional pegs. Crisp readable details when shrunk to 16 pixels, polished premium 3D game art. Use cyan blue as the main coloured material; game tinting supplies red and gold variants."
+    },
+    {
+      "file": "public/assets/games/plinko/pegs/crystal-blue-v1.webp",
+      "prompt": "Create ONE production sprite for the Plinkemoji arcade peg board, using the reference only to match this exact peg design: A chunky rounded six-sided icy cyan-blue faceted crystal peg, shallow raised hexagonal top and clear bright facets. Friendly mobile-game crystal, no metal. One isolated peg centered on square genuine transparent background. Near straight-on top/front view with just a hint of depth, circular collision footprint. Outer solid peg diameter about 78% of canvas; even safe transparent margins all around, compact restrained halo. No text, no comparison card, no framing, no pedestal, no stems, no shadow plane, no additional pegs. Crisp readable details when shrunk to 16 pixels, polished premium 3D game art. Use cyan blue as the main coloured material; game tinting supplies red and gold variants."
+    }
+  ]
+}

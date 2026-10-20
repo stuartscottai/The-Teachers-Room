@@ -1962,7 +1962,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
                       </div>
                       <aside className="workspace-config-summary" aria-label={ui("Game summary")}>
                         <div className="playful-preview-label"><Star size={15} fill="currentColor" aria-hidden="true" /> {ui("Your next classroom adventure")}</div>
-                        <img src={GAME_BACKDROP_IMAGES[type]} alt="" />
+                        <img src={GAME_BACKDROP_IMAGES[type]} alt="" style={type === GameType.PLINKO ? { objectFit: 'contain' } : undefined} />
                         <p className="workspace-eyebrow">{ui("Your game")}</p>
                         <h2 className="mt-1 text-lg font-bold text-slate-800">{gameTypeLabel(type)}</h2>
                         <dl>

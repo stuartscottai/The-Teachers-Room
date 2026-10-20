@@ -9,8 +9,10 @@ import { StandardQuestionCard } from './shared/StandardQuestionCard';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { PlinkoBoard } from './PlinkoBoard';
 import { PlinkoBonusIcon, PLINKO_BONUS_COPY, PlinkoFaceIcon, PLINKO_FACES } from './PlinkoIcons';
-import { Volume2, VolumeX, Maximize2, Minimize2, LogOut, Flag, Dice5 } from 'lucide-react';
+import { Volume2, VolumeX, Maximize2, Minimize2, LogOut, Flag, Dice5, Settings } from 'lucide-react';
 import './plinko.css';
+import './plinko-chrome.css';
+import './plinko-mobile.css';
 
 type Props = { game: GeneratedGame; options: GameRunOptions; onBack: () => void; onFinish: () => void; onReplay: () => void };
 type Phase = 'chips' | 'round' | 'turn' | 'question' | 'bonus' | 'choose' | 'falling' | 'tally' | 'result' | 'over';
@@ -55,14 +57,40 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
   const [editing, setEditing] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editScore, setEditScore] = useState('');
+  const [editStars, setEditStars] = useState('');
   const container = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
+  const mobileMenu = useRef<HTMLDetailsElement>(null);
+  const chipDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = chipDialog.current;
+    if (phase === 'chips') {
+      if (dialog && !dialog.open) dialog.showModal();
+      dialog?.querySelector<HTMLButtonElement>('.plinko-face-grid button:not(:disabled)')?.focus();
+    } else if (dialog?.open) dialog.close();
+  }, [phase, chipTeam]);
   const animation = useRef(0);
   const liveCounter = useRef<HTMLSpanElement>(null);
   const scoreTargets = useRef<Array<HTMLElement | null>>([]);
   const [flight, setFlight] = useState<{points:number; x:number; y:number; scale:number} | null>(null);
   const dropLock = useRef(false);
   const currentTeam = turn % players;
+  useEffect(() => {
+    const panel=container.current?.querySelector<HTMLElement>('.plinko-score-panel');
+    if(!panel)return;
+    const revealActiveTeam=()=>{
+      if(panel.scrollHeight<=panel.clientHeight)return;
+      const active=panel.querySelector<HTMLElement>('[aria-current="true"]');
+      if(!active)return;
+      const row=active.getBoundingClientRect(),bounds=panel.getBoundingClientRect();
+      if(row.top<bounds.top+6)panel.scrollTop+=row.top-bounds.top-6;
+      else if(row.bottom>bounds.bottom-6)panel.scrollTop+=row.bottom-bounds.bottom+6;
+    };
+    revealActiveTeam();
+    const observer=new ResizeObserver(revealActiveTeam);
+    observer.observe(panel);
+    return ()=>observer.disconnect();
+  },[currentTeam]);
   const round = Math.floor(turn / players) + 1;
   const layout = plinkoRoundLayout(round - 1);
   const rails = useMemo(() => makePlinkoRails(round - 1), [round]);
@@ -187,6 +215,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
     let start: number | undefined;
     const lastPeg = simulations.map(() => -1);
     const lastHits = simulations.map(() => 0), lastRails = simulations.map(() => 0), lastRoofs=simulations.map(()=>0);
+    const dumplingPopped=new Set<number>();
     const hitAt = simulations.map(() => -Infinity), railAt = simulations.map(() => -Infinity);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const totalDuration = Math.max(...simulations.map(simulation => simulation.duration + simulation.delay));
@@ -204,6 +233,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
         if(landed.exitEligible&&landed.pocket>=0&&!landedBodies.has(ball)){landedBodies.add(ball);sound('land');}
         if(landed.exitEligible && landed.pocket>=0 && !wonBoxes.has(landed.pocket)){wonBoxes.add(landed.pocket);awardStars(landed.pocket,reduced);}
         const a = simulation.frames[index], b = simulation.frames[Math.min(index + 1, simulation.frames.length - 1)], mix = position - index;
+        if(a.blob?.burst&&!dumplingPopped.has(ball)){dumplingPopped.add(ball);sound('dumpling-pop');}
         if(a.roofHits>lastRoofs[ball]){lastRoofs[ball]=a.roofHits;sound('roof');}
         if (a.hits > lastHits[ball]) {
           for (let scan = index; scan >= 0; scan--) if (simulation.frames[scan].peg >= 0) { lastPeg[ball] = simulation.frames[scan].peg; break; }
@@ -237,14 +267,44 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
     sound('bonus');setChips(previous=>previous.map((n,i)=>i===chipTeam?face:n));
     if(chipTeam+1<players)setChipTeam(chipTeam+1);else setPhase('round');
   };
+  const randomizeChips=()=>{
+    if(phase!=='chips')return;
+    const available=PLINKO_FACES.map((_,index)=>index).filter(face=>!chips.includes(face));
+    for(let i=available.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}
+    let next=0;
+    sound('bonus');setChips(chips.map(face=>face>=0?face:available[next++]));setPhase('round');
+  };
+  const saveTeam=(event:React.FormEvent)=>{
+    event.preventDefault();
+    if(editing===null)return;
+    const index=editing,nextStars=Math.max(0,Math.floor(Number(editStars)||0));
+    setNames(previous=>previous.map((name,i)=>i===index?editName.trim()||`Team ${i+1}`:name));
+    setScores(previous=>previous.map((score,i)=>i===index?Math.max(0,Number(editScore)||0):score));
+    setStars(previous=>previous.map((count,i)=>i===index?nextStars:count));
+    if(index===currentTeam&&phase==='bonus'&&nextStars!==stars[index]){
+      setBonusBubble(null);setOffers(plinkoBonusOffers(nextStars));
+      if(nextStars===0){setBonus(null);setPhase('choose');}
+    }
+    setEditing(null);
+  };
   const hoverSound=(target:EventTarget|null,related:EventTarget|null=null)=>{
     const button=target instanceof Element?target.closest('button'):null;
     if(!button||button.disabled||(related instanceof Node&&button.contains(related)))return;
     const entry=button.closest('.plinko-entries');sound(entry?'entry-hover':'hover',entry?Number(button.textContent)-1:0);
   };
-  return <div ref={container} onPointerDownCapture={()=>audio.current?.unlock()} onKeyDownCapture={()=>audio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')hoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>hoverSound(event.target,event.relatedTarget)} className="plinko-game" data-phase={phase} style={{'--plinko-players':players} as React.CSSProperties}>
+  const renderMenuButtons = () => <>
+            <button aria-label={muted ? ui('Unmute') : ui('Mute')} onClick={() => {const nextMuted=!muted;audio.current?.setMuted(nextMuted);if(!nextMuted)audio.current?.unlock();setMuted(nextMuted);}}>{muted ? <VolumeX size={19}/> : <Volume2 size={19}/>}</button>
+            <button disabled={phase === 'tally'} aria-label={fullscreen ? ui('Exit fullscreen') : ui('Enter fullscreen')} onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else if (container.current) void requestGameFullscreen(container.current); }}>{fullscreen ? <Minimize2 size={19}/> : <Maximize2 size={19}/>}</button>
+            <button aria-label={ui('Quit')} onClick={() => setConfirm('quit')}><LogOut size={19}/></button>
+            <button aria-label={ui('End Game')} onClick={() => setConfirm('end')}><Flag size={19}/></button>
+  </>;
+  return <div ref={container} onPointerDownCapture={event=>{audio.current?.unlock();if(mobileMenu.current && !mobileMenu.current.contains(event.target as Node))mobileMenu.current.open=false;}} onKeyDownCapture={()=>audio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')hoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>hoverSound(event.target,event.relatedTarget)} className="plinko-game" data-phase={phase} style={{'--plinko-players':players,'--plinko-team-rows':Math.ceil(players/2)} as React.CSSProperties}>
     <div data-question-overlay-anchor />
     <div className="plinko-stage" data-bonus-choices={phase==='bonus'}>
+      <details ref={mobileMenu} className="plinko-mobile-menu" onKeyDown={event=>{if(event.key==='Escape'){event.currentTarget.open=false;event.currentTarget.querySelector('summary')?.focus();}}}>
+        <summary aria-label={ui('Open menu')}><Settings size={24}/></summary>
+        <div className="plinko-mobile-menu-options" onClick={event=>{if((event.target as Element).closest('button') && mobileMenu.current)mobileMenu.current.open=false;}}>{renderMenuButtons()}</div>
+      </details>
       {phase==='bonus' && <aside className="plinko-bonus-panel is-picking" aria-label={ui('Bonuses')}>
         <h2>{ui('Choose your bonus')}</h2>
         <div className="plinko-bonus-gallery" style={{'--plinko-offers':offers.length} as React.CSSProperties}>{offers.map((item,index)=><button key={item} className="plinko-gallery-option is-offered" style={{animationDelay:`${index*80}ms`}} data-bonus={item} aria-label={ui(PLINKO_BONUS_COPY[item].label)} aria-describedby={bonusBubble?.bonus===item?'plinko-bonus-bubble':undefined}
@@ -253,25 +313,18 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
       </aside>}
       <div className="plinko-board-wrap" ref={board}>
         <div className="plinko-live-counter" aria-live="polite" aria-atomic="true"><strong><span key={livePoints} ref={liveCounter} data-testid="plinko-live-points" style={{visibility:hasTurnPoints && phase === 'falling' ? 'visible' : 'hidden'}}>{hasTurnPoints ? livePoints : ''}</span></strong></div>
-        <PlinkoBoard stars={boxStars} face={chips[currentTeam]} entryCount={layout.entryCount} pegTime={pegTime} pegs={pegs} values={values} entry={entry} choosing={phase === 'choose'} falling={phase === 'falling'} frame={frame} trail={trail} extraBalls={extraBalls} rails={rails} bonus={bonus} winningPockets={result?.pockets} pegPoints={pegPoints} onPreview={setEntry} onDrop={drop} />
+        <PlinkoBoard round={round} stars={boxStars} face={chips[currentTeam]} entryCount={layout.entryCount} pegTime={pegTime} pegs={pegs} values={values} entry={entry} choosing={phase === 'choose'} falling={phase === 'falling'} frame={frame} trail={trail} extraBalls={extraBalls} rails={rails} bonus={bonus} winningPockets={result?.pockets} pegPoints={pegPoints} onPreview={setEntry} onDrop={drop} />
         {phase==='round' && <div className="plinko-round-intro" role="status" aria-live="assertive" data-testid="plinko-round-intro"><h2 key={round}><span>{ui('Round')}</span> <strong>{round}</strong></h2></div>}
-        {phase === 'turn' && <div className="plinko-turn-overlay" role="dialog" aria-labelledby="plinko-turn-heading"><div className="plinko-turn-token"><PlinkoFaceIcon face={Math.max(0,chips[currentTeam])} size={200}/><h2 id="plinko-turn-heading">{displayTeamName(names[currentTeam])}</h2></div><button autoFocus className="plinko-primary" disabled={!question} onClick={() => setPhase('question')}>{ui('Start turn')}</button></div>}
+        {phase === 'turn' && <div className="plinko-turn-overlay" role="dialog" aria-labelledby="plinko-turn-heading"><div className="plinko-turn-dialog"><div className="plinko-turn-token"><PlinkoFaceIcon face={Math.max(0,chips[currentTeam])} size={200}/><h2 id="plinko-turn-heading">{displayTeamName(names[currentTeam])}</h2></div><button autoFocus className="plinko-primary" disabled={!question} onClick={() => setPhase('question')}>{ui('Start turn')}</button></div></div>}
       </div>
       <aside className="plinko-controls" aria-label={ui('Scores')}>
           <div className="plinko-tools plinko-sidebar-box">
-            <button aria-label={muted ? ui('Unmute') : ui('Mute')} onClick={() => {const nextMuted=!muted;audio.current?.setMuted(nextMuted);if(!nextMuted)audio.current?.unlock();setMuted(nextMuted);}}>{muted ? <VolumeX size={19}/> : <Volume2 size={19}/>}</button>
-            <button disabled={phase === 'tally'} aria-label={fullscreen ? ui('Exit fullscreen') : ui('Enter fullscreen')} onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else if (container.current) void requestGameFullscreen(container.current); }}>{fullscreen ? <Minimize2 size={19}/> : <Maximize2 size={19}/>}</button>
-            <button aria-label={ui('Quit')} onClick={() => setConfirm('quit')}><LogOut size={19}/></button>
-            <button aria-label={ui('End Game')} onClick={() => setConfirm('end')}><Flag size={19}/></button>
+            {renderMenuButtons()}
           </div>
         <div className="plinko-score-panel plinko-sidebar-box" data-choosing-chips={phase==='chips'}>
-        {phase==='chips'?<div className="plinko-chip-picker" aria-labelledby="plinko-chip-heading">
-          <h2 id="plinko-chip-heading">{ui('{name}, choose your chip',{name:displayTeamName(names[chipTeam])})}</h2>
-          <div className="plinko-face-grid">{PLINKO_FACES.map((label,index)=><button key={label} disabled={chips.includes(index)} aria-label={ui(label)} onClick={()=>chooseChip(index)}><PlinkoFaceIcon face={index} size={48}/><span>{ui(label)}</span></button>)}</div>
-          <button className="plinko-primary plinko-random-chip" onClick={()=>{const available=PLINKO_FACES.map((_,i)=>i).filter(i=>!chips.includes(i));chooseChip(available[Math.floor(Math.random()*available.length)]);}}><Dice5 size={18}/>{ui('Random')}</button>
-        </div>:<div className="plinko-scorebar" role="region" aria-label={ui('Scores')}>
-          {scores.map((score, index) => <button key={index} className={index === currentTeam ? 'is-active' : ''} aria-current={index === currentTeam ? 'true' : undefined} data-tallying={phase === 'tally' && index === currentTeam} disabled={busy} onClick={() => { setEditing(index); setEditName(names[index]); setEditScore(String(score)); }}><PlinkoFaceIcon face={Math.max(0,chips[index])} size={30}/><span className="plinko-team-label"><span className="plinko-team-name">{displayTeamName(names[index])}</span><small ref={element=>{starTargets.current[index]=element;}} data-testid={`plinko-stars-${index}`} className="plinko-team-stars">★ {stars[index]}</small></span><strong ref={element => { scoreTargets.current[index]=element; }} data-testid={`plinko-score-${index}`}>{score}</strong></button>)}
-        </div>}
+<div className="plinko-scorebar" role="region" aria-label={ui('Scores')}>
+          {scores.map((score, index) => <button key={index} className={index === currentTeam ? 'is-active' : ''} aria-current={index === currentTeam ? 'true' : undefined} data-tallying={phase === 'tally' && index === currentTeam} disabled={busy || phase === 'chips'} onClick={() => { setEditing(index); setEditName(names[index]); setEditScore(String(score)); setEditStars(String(stars[index])); }}>{chips[index] >= 0 ? <PlinkoFaceIcon face={chips[index]} size={30}/> : <span className="plinko-unassigned-chip" aria-hidden="true">?</span>}<span className="plinko-team-label"><span className="plinko-team-name">{displayTeamName(names[index])}</span><small ref={element=>{starTargets.current[index]=element;}} data-testid={`plinko-stars-${index}`} className="plinko-team-stars">★ {stars[index]}</small></span><strong ref={element => { scoreTargets.current[index]=element; }} data-testid={`plinko-score-${index}`}>{score}</strong></button>)}
+        </div>
         </div><div className="plinko-menu-footer plinko-sidebar-box" data-testid={phase === 'result' ? 'plinko-result' : undefined} data-points={result?.points ?? 0}>
           <div className="plinko-round-counter" data-testid="plinko-round-counter">{ui('Round')} {round}/{rounds}</div>
           {!question && <p>{ui('Add questions in the editor before playing.')}</p>}
@@ -279,6 +332,13 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
         </div>
       </aside>
     </div>
+    <dialog ref={chipDialog} className="plinko-dialog plinko-chip-dialog" aria-labelledby="plinko-chip-heading" onCancel={event=>event.preventDefault()}>
+<div className="plinko-chip-picker" aria-labelledby="plinko-chip-heading">
+          <h2 id="plinko-chip-heading">{ui('{name}, choose your chip',{name:displayTeamName(names[chipTeam])})}</h2>
+          <div className="plinko-face-grid">{PLINKO_FACES.map((label,index)=><button key={label} disabled={chips.includes(index)} aria-label={ui(label)} onClick={()=>chooseChip(index)}><PlinkoFaceIcon face={index} size={48}/><span>{ui(label)}</span></button>)}</div>
+          <button className="plinko-primary plinko-random-chip" onClick={randomizeChips}><Dice5 size={18}/>{ui('Random')}</button>
+        </div>
+    </dialog>
     {bonusBubble && phase==='bonus' && <div id="plinko-bonus-bubble" role="tooltip" className={`plinko-bonus-bubble ${bonusBubble.below?'is-below':''}`} style={{left:bonusBubble.x,top:bonusBubble.y,width:bonusBubble.width}}><strong>{ui(PLINKO_BONUS_COPY[bonusBubble.bonus].label)}</strong><p>{ui(PLINKO_BONUS_COPY[bonusBubble.bonus].description)}</p><i/></div>}
     {flight && <span className="plinko-score-flight" data-testid="plinko-score-flight" style={{left:flight.x,top:flight.y,transform:`translate(-50%, -50%) scale(${flight.scale})`}}>{flight.points >= 0 ? '+' : ''}{flight.points}</span>}
     {phase === 'question' && question && <StandardQuestionCard onSound={sound} chipFace={chips[currentTeam]} key={turn} question={question} config={game.config} options={options} turn={turn} teamName={displayTeamName(names[currentTeam])} onAnswer={correct => {
@@ -286,6 +346,6 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
     }} />}
     {starFlights.map(starFlight=><span key={starFlight.id} className="plinko-star-flight" style={{left:starFlight.x,top:starFlight.y,transform:`translate(-50%,-50%) scale(${1-starFlight.progress*.25})`}}>{'★'.repeat(Math.min(3,starFlight.count))}{starFlight.count>3?` +${starFlight.count-3}`:''}</span>)}
     {confirm && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Confirm')}><div className="plinko-dialog"><h2>{confirm === 'quit' ? ui('Quit game?') : ui('End game now?')}</h2><p>{busy ? ui('Wait for the turn and score tally to finish.') : ui('Choose Continue to keep playing.')}</p><button className="plinko-primary" autoFocus onClick={() => setConfirm(null)}>{ui('Continue')}</button><button className="plinko-secondary" disabled={busy} onClick={() => { cancelAnimationFrame(animation.current); if (confirm === 'quit') onBack(); else setPhase('over'); setConfirm(null); }}>{confirm === 'quit' ? ui('Quit') : ui('End Game')}</button></div></div>}
-    {editing !== null && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Edit team')}><form className="plinko-dialog" onSubmit={e => { e.preventDefault(); const index = editing; setNames(previous => previous.map((n, i) => i === index ? editName.trim() || `Team ${i + 1}` : n)); setScores(previous => previous.map((s, i) => i === index ? Math.max(0, Number(editScore) || 0) : s)); setEditing(null); }}><h2>{ui('Edit team')}</h2><label>{ui('Team name')}<input autoFocus value={editName} maxLength={50} onChange={e => setEditName(e.target.value)} /></label><label>{ui('Score')}<input type="number" min="0" value={editScore} onChange={e => setEditScore(e.target.value)} /></label><button className="plinko-primary" type="submit">{ui('Save')}</button><button className="plinko-secondary" type="button" onClick={() => setEditing(null)}>{ui('Cancel')}</button></form></div>}
+    {editing !== null && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Edit team')}><form className="plinko-dialog" onSubmit={saveTeam}><h2>{ui('Edit team')}</h2><label>{ui('Team name')}<input autoFocus value={editName} maxLength={50} onChange={e => setEditName(e.target.value)} /></label><label>{ui('Score')}<input type="number" min="0" value={editScore} onChange={e => setEditScore(e.target.value)} /></label><label>{ui('Stars')}<input type="number" min="0" step="1" value={editStars} onChange={e => setEditStars(e.target.value)} /></label><button className="plinko-primary" type="submit">{ui('Save')}</button><button className="plinko-secondary" type="button" onClick={() => setEditing(null)}>{ui('Cancel')}</button></form></div>}
   </div>;
 }

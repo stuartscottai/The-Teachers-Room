@@ -1,4 +1,6 @@
 import { SharedQuestionFlipCard } from './shared/SharedQuestionFlipCard';
+import { useQuestionCardSounds } from './shared/useQuestionCardSounds';
+import { PlinkoAudio, type PlinkoSound } from '../../utils/plinkoAudio';
 import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
@@ -83,10 +85,21 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     
     // Lock state to prevent double clicks/points
     const [isProcessing, setIsProcessing] = useState(false);
+    const [cardExiting,setCardExiting]=useState(false);
+    const cardExitLock=useRef(false);
 
     
     // Audio State
     const [isMuted, setIsMuted] = useState(options.muted);
+    const cardAudio=useRef<PlinkoAudio|null>(null);
+    if(!cardAudio.current)cardAudio.current=new PlinkoAudio(options.muted,false);
+    useEffect(()=>{cardAudio.current?.setMuted(isMuted);},[isMuted]);
+    useEffect(()=>()=>cardAudio.current?.dispose(),[]);
+    const playCardSound=(cue:PlinkoSound)=>{cardAudio.current?.play(cue);};
+    const cardHoverSound=(target:EventTarget|null,related:EventTarget|null)=>{
+        const button=target instanceof Element?target.closest('button'):null;
+        if(button&&!button.disabled&&button.closest('[data-shared-question-card]')&&!(related instanceof Node&&button.contains(related)))playCardSound('hover');
+    };
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
 
     // Team Edit State
@@ -125,6 +138,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
     const writtenAnswer = useWrittenAnswer(activeQ, game.config, options, activeQuestionIndex);
+    useQuestionCardSounds({questionKey:activeQuestionIndex,isFlipped,exiting:cardExiting,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:Boolean(hasOptions),mcResult,onSound:playCardSound});
     const optionKey = activeQ?.options?.join('|') || '';
     const isPositiveBonus = activeQ?.bonusType === 'double' || activeQ?.bonusType === 'steal' || activeQ?.bonusType === 'first-place';
     const isNegativeBonus = activeQ?.bonusType === 'bust' || activeQ?.bonusType === 'lose-all' || activeQ?.bonusType === 'reset-score' || activeQ?.bonusType === 'last-place';
@@ -412,10 +426,9 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         const q = gameQuestions[index];
         if (q.isBonus) {
             playSound('bonus', isMuted, options.soundConfig?.bonus);
-        } else {
-            playSound('select', isMuted, options.soundConfig?.select);
         }
-        
+        cardExitLock.current=false;
+        setCardExiting(false);
         // Initialize timer immediately to avoid 0 flash
         setTimeLeft(options.timerSeconds);
         setIsTimesUp(false);
@@ -427,10 +440,11 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     };
 
     const handleAnswer = (correct: boolean) => {
-        if (activeQuestionIndex === null || isProcessing) return;
+        if (activeQuestionIndex === null || isProcessing || cardExitLock.current) return;
+        cardExitLock.current=true;
         setIsProcessing(true);
         
-        playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
+        if(!hasOptions&&!writtenAnswer.writing)playCardSound(correct?'correct':'wrong');
         
         const q = gameQuestions[activeQuestionIndex];
         const points = q.points || 100;
@@ -473,7 +487,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     };
 
     const handleBonusAction = () => {
-        if (activeQuestionIndex === null || isProcessing) return;
+        if (activeQuestionIndex === null || isProcessing || cardExitLock.current) return;
+        cardExitLock.current=true;
         setIsProcessing(true);
         
         const q = gameQuestions[activeQuestionIndex];
@@ -515,19 +530,18 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
     };
 
     const finalizeTurn = () => {
-        if (activeQuestionIndex !== null) {
-            setAnsweredIndices(prev => {
-                // Prevent duplicates
-                if (prev.includes(activeQuestionIndex)) return prev;
-                return [...prev, activeQuestionIndex];
-            });
-        }
         setIsTimesUp(false);
-        setTimeout(() => {
-            setActiveQuestionIndex(null);
-            setCurrentTeam((prev) => (prev + 1) % options.players);
-            setIsProcessing(false); // Unlock for next turn
-        }, 1500);
+        setCardExiting(true);
+    };
+
+    const completeCardExit = () => {
+        if(activeQuestionIndex===null||!cardExitLock.current)return;
+        cardExitLock.current=false;
+        setAnsweredIndices(previous=>previous.includes(activeQuestionIndex)?previous:[...previous,activeQuestionIndex]);
+        setActiveQuestionIndex(null);
+        setCurrentTeam(previous=>(previous+1)%options.players);
+        setIsProcessing(false);
+        setCardExiting(false);
     };
 
     // Edit Team Handler
@@ -753,7 +767,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         : `${mobileUsesTwoRowHeader ? 'top-[calc(11rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
 
     return (
-        <div ref={containerRef} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+        <div ref={containerRef} onPointerDownCapture={()=>cardAudio.current?.unlock()} onKeyDownCapture={()=>cardAudio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')cardHoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>cardHoverSound(event.target,event.relatedTarget)} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
             <style>
                 {`
                 @keyframes bonus-pulse {
@@ -885,6 +899,11 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
                 <SharedQuestionFlipCard
+                    key={activeQuestionIndex}
+                    playfulMotion
+                    springFlip={false}
+                    exiting={cardExiting}
+                    onExitComplete={completeCardExit}
                     questionOverlayTopClass={questionOverlayTopClass}
                     isFlipped={isFlipped}
                     isBonus={isBonus}

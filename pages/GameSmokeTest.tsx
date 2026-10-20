@@ -172,6 +172,10 @@ export const GameSmokeTest: React.FC = () => {
   if (type === GameType.SNAKES_LADDERS && params.get('image') === 'none') {
     baseGame.questions = baseGame.questions.map(question => ({ ...question, image: undefined }));
   }
+  if (useLongContent && type === GameType.PLINKO) {
+    const answer='I have got a sandwich, and we have got juice.';
+    baseGame.questions=baseGame.questions.map(question=>({...question,question:'Choose the correct sentence.',answer,options:[answer,'Wrong A','Wrong B','Wrong C']}));
+  }
   if (useLongContent && type === GameType.SNAKES_LADDERS) {
     baseGame.questions = baseGame.questions.map(question => ({ ...question,
       question: 'My brother ____ got PE on Wednesday.',

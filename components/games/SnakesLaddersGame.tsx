@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
@@ -1404,6 +1406,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
     const currentTeamId = turnOrder[currentTurnIndex];
     const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'question' ? `${currentQuestion?.id}-${currentTeamId}` : null);
+    const cardEffects=useFlipCardEffects({questionKey:phase==='question' ? `${currentQuestion?.id}-${currentTeamId}` : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:Boolean(currentQuestion?.options?.length),mcResult:mcResult});
     const canRollDice = phase === 'roll' && !isDiceRolling && !rollLocked;
     const showTurnPopup = boardSettled && (phase === 'setup' || phase === 'roll'
         || (phase === 'bonus-choice' && pendingBonusChoice?.effect.type !== 'move-five'));
@@ -1809,7 +1812,8 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
         setTimeout(() => setFlipLock(false), 500);
     };
 
-    const handleAnswer = (correct: boolean) => {
+    const handleAnswer = (correct: boolean) => {if(flipLock||isProcessing)return;cardEffects.close(()=>handleAnswerAfterExit(correct),correct);};
+    const handleAnswerAfterExit = (correct: boolean) => {
         if (flipLock || isProcessing) return;
         if (!currentQuestion) return;
         setIsProcessing(true);
@@ -1821,7 +1825,6 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
             ? usedQuestionIds
             : [...usedQuestionIds, currentQuestion.id];
         const isStudentPracticeComplete = options.studentPractice && nextUsedQuestionIds.length >= questions.length;
-        playSound(correct ? 'correct' : 'incorrect', isMuted);
         
         if (correct) {
             setCorrectCount((prev) => prev + 1);
@@ -1834,7 +1837,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 setPhase('moving');
                 movePlayer(diceValue); // Dice value is state, preserved
                 setIsProcessing(false); // Can release early as phase changes
-            }, 1000);
+            }, 0);
         } else {
             setMissedItems((prev) => [
                 ...prev,
@@ -1854,7 +1857,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 }
                 setPhase('turn-complete');
                 setIsProcessing(false);
-            }, 1500);
+            }, 0);
         }
     };
 
@@ -2570,7 +2573,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         ? { top: `calc(${questionHeaderOffset}px + env(safe-area-inset-top))`, paddingTop: '12px' }
                         : { top: `calc(${questionHeaderOffset}px + env(safe-area-inset-top))` }}
                 >
-                    <div className="snl-question-frame w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="snl-question-frame w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px] relative">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
@@ -2809,7 +2812,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 

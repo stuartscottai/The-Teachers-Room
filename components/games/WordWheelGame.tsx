@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
@@ -415,6 +417,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
     const letterRule = options.wordWheelLetterRule || game.config.wordWheelLetterRule || 'contains-hard';
     const hasTimer = options.timerSeconds > 0;
     const activeEntry = activeIndex >= 0 ? entries[activeIndex] : null;
+    const cardEffects=useFlipCardEffects({questionKey:cardState!=='hidden'&&activeEntry ? activeEntry.id : null,isFlipped,muted:isMuted,revealCue:revealState?.kind==='correct'?'correct':revealState?.kind==='incorrect'?'wrong':'reveal'});
     const cardPlayable = Boolean(activeEntry && activeEntry.question && activeEntry.answer);
     const activeRelation = activeEntry ? getLetterRelation(letterRule, activeEntry.letter, activeEntry.answer) : 'starts-with';
     const activeRelationHeader = activeRelation === 'contains' ? ui("Contains the letter") : ui("Starts with the letter");
@@ -785,7 +788,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             setCardState('answer');
             setIsFlipped(true);
             setInput('');
-            playSound('correct', isMuted, options.soundConfig?.correct);
+
             return;
         }
 
@@ -808,7 +811,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             setCardState('answer');
             setIsFlipped(true);
             setInput('');
-            playSound('incorrect', isMuted, options.soundConfig?.incorrect);
+
             return;
         }
 
@@ -826,7 +829,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             setCardState('answer');
             setIsFlipped(true);
             setInput('');
-            playSound('incorrect', isMuted, options.soundConfig?.incorrect);
+
             return;
         }
 
@@ -996,7 +999,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         resolveTurn('incorrect');
     };
 
-    const handleReturnToWheel = () => {
+    const handleReturnToWheel = () => {cardEffects.close(()=>handleReturnToWheelAfterExit());};
+    const handleReturnToWheelAfterExit = () => {
         if (phase !== 'play') return;
         if (activeIndex < 0) return;
 
@@ -1463,7 +1467,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     className="absolute inset-x-0 bottom-0 z-[520] flex items-center justify-center bg-slate-900/54 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden"
                     style={{ top: `${cardOverlayTop}px` }}
                 >
-                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
@@ -1665,7 +1669,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 

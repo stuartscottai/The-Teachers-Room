@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -420,6 +422,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const [showReview, setShowReview] = useState(false);
     const [showRoundSummary, setShowRoundSummary] = useState(false);
     const [showWinner, setShowWinner] = useState(false);
+    const cardEffects=useFlipCardEffects({questionKey:showWinner ? null : roundIndex,isFlipped,muted:isMuted});
 
     const [isTieBreaker, setIsTieBreaker] = useState(false);
     const [tieBreakerTeams, setTieBreakerTeams] = useState<number[]>([]);
@@ -740,10 +743,11 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         setScores((prev) => prev.map((score, i) => score + (roundTotals[i] || 0)));
         setShowReview(false);
         setShowRoundSummary(true);
-        playSound('correct', isMuted, options.soundConfig?.correct);
+        cardEffects.sound('correct');
     };
 
-    const handleNextRound = () => {
+    const handleNextRound = () => {cardEffects.close(()=>handleNextRoundAfterExit());};
+    const handleNextRoundAfterExit = () => {
         setRoundIndex((prev) => prev + 1);
         setIsFlipped(false);
         setShowRoundSummary(false);
@@ -753,7 +757,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         setCurrentCategories([]);
     };
 
-    const handleEndGame = () => {
+    const handleEndGame = () => {cardEffects.close(()=>handleEndGameAfterExit());};
+    const handleEndGameAfterExit = () => {
         const maxScore = Math.max(...scores);
         const winners = scores
             .map((score, idx) => ({ score, idx }))
@@ -773,7 +778,8 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         setShowWinner(true);
     };
 
-    const resolveTieBreaker = (winner: number) => {
+    const resolveTieBreaker = (winner: number) => {cardEffects.close(()=>resolveTieBreakerAfterExit(winner));};
+    const resolveTieBreakerAfterExit = (winner: number) => {
         setScores((prev) => prev.map((score, idx) => (idx === winner ? score + 1 : score)));
         setShowTieBreakerResolve(false);
         setShowWinner(true);
@@ -946,7 +952,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
                 <div className="relative z-10 w-full max-w-6xl mb-4 sm:mb-6 px-2 sm:px-6 py-3 sm:py-6">
                     <div className="flex justify-center">
-                        <div
+                        <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps}
                             className={`w-full max-w-[420px] ${
                                 !isFlipped ? 'h-auto max-h-none' : isMobileViewport
                                     ? isFlipped
@@ -1319,7 +1325,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                         </div>
                             )}
                             </div>
-                        </div>
+                        </QuestionCardMotion>
                     </div>
                 </div>
 

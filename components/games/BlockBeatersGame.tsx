@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -285,6 +287,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
     const showBonusAward = awardedBonus !== null;
     const hasOptions = mode === 'numbers' && Array.isArray(shownQuestion?.options) && shownQuestion.options.length > 0;
     const writtenAnswer = useWrittenAnswer(shownQuestion, game.config, options, `${activeTileId}-${pendingFinal}-${questionCardKey}`, hasOptions);
+    const cardEffects=useFlipCardEffects({questionKey:(activeTileId!==null||pendingFinal!==null)&&!showBonusIntro&&!showBonusAward ? `${activeTileId}-${pendingFinal}-${questionCardKey}` : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:hasOptions,mcResult:mcResult});
     const questionImageUrl = resolveGameQuestionImageUrl(shownQuestion?.image);
     const questionImageAlt = shownQuestion?.image?.alt || '';
     const timerProgress = options.timerSeconds > 0 ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds)) : 0;
@@ -443,7 +446,6 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         setSelectedMcAnswer(answer);
         const correct = normalizeAnswer(answer) === normalizeAnswer(shownQuestion.answer);
         setMcResult(correct ? 'correct' : 'incorrect');
-        playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
         setIsFlipped(true);
     };
 
@@ -526,10 +528,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         finishClaimedTileTurn(awardedBonus.tiles, awardedBonus.oldOwner, false, awardedBonus.tileId);
     };
 
-    const finishAnswer = (correct: boolean, playFeedback = true) => {
-        if (playFeedback) {
-            playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
-        }
+    const finishAnswer = (correct: boolean, playFeedback = true) => {cardEffects.close(()=>finishAnswerAfterExit(correct, playFeedback),correct);};
+    const finishAnswerAfterExit = (correct: boolean, playFeedback = true) => {
         if (pendingFinal !== null) {
             setUsedQuestionIndices((prev) => {
                 const next = new Set(prev);
@@ -1315,7 +1315,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     {pendingFinal !== null && (
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.32)_0%,rgba(250,204,21,0.14)_28%,rgba(2,6,23,0.92)_68%)]" />
                     )}
-                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         {showBonusIntro ? (
                             <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border-4 border-yellow-300/80 bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-800 p-6 text-center shadow-2xl">
@@ -1387,7 +1387,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                         <div className="font-black text-lg sm:text-3xl truncate">{pendingFinal !== null ? ui("Beat the block") : localTeamNames[currentTeam]}</div>
                                     </div>
                                     <div className="font-black text-xl sm:text-4xl">{fixedPoints}</div>
-                                    <button onClick={(event) => { event.stopPropagation(); setActiveTileId(null); setPendingFinal(null); setActiveQuestionIndex(null); setActiveIsSteal(false); }} className={`p-2 rounded-full cursor-pointer relative z-50 ${pendingFinal !== null ? 'bg-slate-950/10 text-slate-950 hover:bg-slate-950/20' : 'bg-white/15 text-white hover:bg-white/25'}`}>
+                                    <button onClick={(event) => { event.stopPropagation(); cardEffects.close(()=>{setActiveTileId(null); setPendingFinal(null); setActiveQuestionIndex(null); setActiveIsSteal(false);}); }} className={`p-2 rounded-full cursor-pointer relative z-50 ${pendingFinal !== null ? 'bg-slate-950/10 text-slate-950 hover:bg-slate-950/20' : 'bg-white/15 text-white hover:bg-white/25'}`}>
                                         <X size={18} className="sm:w-5 sm:h-5" />
                                     </button>
                                 </div>
@@ -1619,7 +1619,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             </div>
                         </div>
                         )}
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 

@@ -1,4 +1,7 @@
 export const PLINKO_VALUES = [10, 20, 30];
+export const PLINKO_PEG_STYLES = ['arcade','jelly','neon','rivet','crystal'] as const;
+export type PlinkoPegStyle = typeof PLINKO_PEG_STYLES[number];
+export const plinkoPegStyle = (round:number):PlinkoPegStyle => PLINKO_PEG_STYLES[Math.max(0,Math.floor(round)-1)%PLINKO_PEG_STYLES.length];
 export const PLINKO_POCKET_LEFT = 44;
 export const PLINKO_POCKET_WIDTH = 472;
 export const PLINKO_FLOOR_Y = 578;
@@ -18,14 +21,31 @@ export const PLINKO_COLLISION_RADIUS = PLINKO_CHIP_RADIUS + PLINKO_PEG_RADIUS;
 export const PLINKO_MIN_X = 44;
 export const PLINKO_MAX_X = 516;
 export const PLINKO_SHAPES = ['square', 'triangle', 'star', 'smile', 'logo'] as const;
-export const PLINKO_BONUSES = ['two-balls', 'bouncy', 'dynamite', 'lizard', 'chicken', 'doll', 'dragon', 'tornado'] as const;
+export const PLINKO_BONUSES = ['two-balls', 'bouncy', 'dynamite', 'lizard', 'chicken', 'doll', 'dragon', 'tornado', 'sonic', 'blob'] as const;
+export const PLINKO_LIZARD_REACH = 105;
 export type PlinkoBonus = typeof PLINKO_BONUSES[number];
 export type PlinkoShape = typeof PLINKO_SHAPES[number];
 export type PlinkoPeg = { x: number; y: number; kind: 'blue' | 'red' | 'gold' };
 export type PlinkoRail = { side: 'left' | 'right'; top: number; bottom: number; kind: 'boost'; zigzags: number };
-export type PlinkoAppearance = 'face' | 'bouncy' | 'dynamite' | 'lizard' | 'chicken' | 'egg' | 'doll' | 'doll-left' | 'doll-right' | 'dragon' | 'tornado';
-export type PlinkoEffect = { kind: 'blast' | 'tongue' | 'fire' | 'vortex'; x:number; y:number; tx:number; ty:number; time:number; duration:number; anchor?:number; targets?:Array<{x:number;y:number}> };
-export type PlinkoFrame = { x:number; y:number; hits:number; redHits:number; pegUnits:number; peg:number; rotation:number; rail:number; railHits:number; landing:number; removed:number[]; time:number; brokenAt:number[]; roof:number; roofHits:number; pocket:number; appearance:PlinkoAppearance; scale:number; exitEligible:boolean; fuse:number; effect?:PlinkoEffect };
+export type PlinkoAppearance = 'face' | 'bouncy' | 'dynamite' | 'lizard' | 'chicken' | 'egg' | 'doll' | 'doll-left' | 'doll-right' | 'dragon' | 'tornado' | 'sonic' | 'blob';
+export type PlinkoEffect = { kind: 'blast' | 'tongue' | 'fire' | 'vortex' | 'blob-grow' | 'blob-burst'; x:number; y:number; tx:number; ty:number; time:number; duration:number; anchor?:number; targets?:Array<{x:number;y:number}> };
+/** Relative skin coordinates are shared by physics and the live 3D mesh. */
+export type PlinkoBlobSkin = { points:Array<{x:number;y:number}>; phase:'falling'|'growing'|'startled'|'deflating'|'deflated'; growth:number; reactionAt?:number; burst?:{x:number;y:number;time:number}; contacts:number[] };
+export const PLINKO_DUMPLING_REACTION=.55;
+export const PLINKO_DUMPLING_DEFLATION=.24;
+export const PLINKO_BLOB_NODES=48;
+type BlobNode={r:number;v:number};
+export function plinkoBlobWallContact(center:{x:number;y:number},points:Array<{x:number;y:number}>,walls:Array<Array<{x:number;y:number}>>){
+ for(const [rail,wall] of walls.entries())for(let j=1;j<wall.length;j++)for(let i=0;i<points.length;i++){
+  const a={x:center.x+points[i].x,y:center.y+points[i].y},q=points[(i+1)%points.length],b={x:center.x+q.x,y:center.y+q.y},c=wall[j-1],d=wall[j];
+  const rx=b.x-a.x,ry=b.y-a.y,sx=d.x-c.x,sy=d.y-c.y,cross=rx*sy-ry*sx;
+  if(Math.abs(cross)<.000001)continue;
+  const u=((c.x-a.x)*sy-(c.y-a.y)*sx)/cross,v=((c.x-a.x)*ry-(c.y-a.y)*rx)/cross;
+  if(u>=0&&u<=1&&v>=0&&v<=1)return {x:a.x+u*rx,y:a.y+u*ry,rail};
+ }
+ return null;
+}
+export type PlinkoFrame = { x:number; y:number; hits:number; redHits:number; pegUnits:number; peg:number; rotation:number; rail:number; railHits:number; landing:number; removed:number[]; time:number; brokenAt:number[]; roof:number; roofHits:number; pocket:number; appearance:PlinkoAppearance; scale:number; exitEligible:boolean; fuse:number; blob?:PlinkoBlobSkin; effect?:PlinkoEffect };
 export type PlinkoPhysicsOptions = { bonus?:PlinkoBonus|null; rails?:PlinkoRail[]; startTime?:number; balls?:number; entryCount?:number; pocketCount?:number };
 // Stars reveal distinct random choices; selecting one consumes the whole offer.
 export function plinkoBonusOffers(stars:number,random=Math.random):PlinkoBonus[] {
@@ -163,13 +183,14 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
  let removed:number[]=[],brokenAt:number[]=Array(pocketCount).fill(-1);
  const gone=new Set<number>();
  const appearance:PlinkoAppearance=bonus&&bonus!=='two-balls'?bonus:'face';
- type Body={x:number;y:number;vx:number;vy:number;hits:number;redHits:number;pegUnits:number;rotation:number;railHits:number;roofHits:number;frames:PlinkoFrame[];delay:number;pocket:number;floorAt:number;floorX:number;floorRotation:number;appearance:PlinkoAppearance;scale:number;radius:number;exitEligible:boolean;finished:boolean;nextAbility:number;laid:number;generation:number;exploded:boolean;tether?:{index:number;until:number;length:number};effect?:PlinkoEffect;abilityUses:number};
+ type Body={x:number;y:number;vx:number;vy:number;hits:number;redHits:number;pegUnits:number;rotation:number;railHits:number;roofHits:number;frames:PlinkoFrame[];delay:number;pocket:number;floorAt:number;floorX:number;floorRotation:number;appearance:PlinkoAppearance;scale:number;radius:number;exitEligible:boolean;finished:boolean;nextAbility:number;laid:number;generation:number;exploded:boolean;tether?:{index:number;until:number;length:number};effect?:PlinkoEffect;abilityUses:number;blobAt?:number;blobReaction?:{at:number;time:number;x:number;y:number;rail:number;points:Array<{x:number;y:number}>;growth:number};blobLaunched?:boolean;blobBurstAt?:number;blobTouches?:Map<number,number>;blobNodes?:BlobNode[];blobSkin?:PlinkoBlobSkin;blobBurst?:{x:number;y:number;time:number}};
  const states:Body[]=[];
  const spawn=(x:number,y:number,vx:number,vy:number,delay:number,kind:PlinkoAppearance,scale=1,eligible=true,generation=0)=>{
   const b:Body={x,y,vx,vy,hits:0,redHits:0,pegUnits:0,rotation:0,railHits:0,roofHits:0,frames:[],delay,pocket:-1,floorAt:-1,floorX:0,floorRotation:0,appearance:kind,scale,radius:PLINKO_CHIP_RADIUS*scale,exitEligible:eligible,finished:false,nextAbility:delay+.4,laid:0,generation,exploded:false,abilityUses:0};
   states.push(b);return b;
  };
  for(let i=0;i<(options.balls??(bonus==='two-balls'?2:1));i++)spawn(entryX(entry,entryCount),80,(random()-.5)*48,0,i*.55,appearance);
+ if(appearance==='sonic'){states[0].vx=entry<5?390:-390;states[0].vy=190;}
  const walls=rails.map(r=>plinkoWallPoints(r.side,r.zigzags));
  const destroy=(b:Body,index:number)=>{
   if(gone.has(index))return false;
@@ -195,13 +216,13 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
    }
    if(b.floorAt<0){
     if((b.appearance==='lizard'||b.appearance==='dragon')&&elapsed>=b.nextAbility){
-     b.nextAbility=elapsed+(b.appearance==='lizard'?.95:.92);b.abilityUses++;
-     const targets=near(b,time,b.appearance==='lizard'?205:130);
+     b.nextAbility=elapsed+(b.appearance==='lizard'?1.1:.92);b.abilityUses++;
+     const targets=near(b,time,b.appearance==='lizard'?PLINKO_LIZARD_REACH-8:130);
      const latch=b.appearance==='lizard'?targets.find(p=>p.y<b.y-22&&Math.hypot(p.x-b.x,p.y-b.y)>45):undefined;
-     const aim=latch??targets[0]??{x:b.x+(b.vx>=0?180:-180),y:b.y+35};
+     const aim=latch??targets[0]??{x:b.x+(b.vx>=0?1:-1)*(PLINKO_LIZARD_REACH-10),y:b.y+20};
      if(b.appearance==='lizard'){
       if(latch){
-       b.tether={index:latch.index,until:elapsed+.68,length:Math.hypot(latch.x-b.x,latch.y-b.y)};
+       b.tether={index:latch.index,until:elapsed+.68,length:Math.min(PLINKO_LIZARD_REACH-7,Math.hypot(latch.x-b.x,latch.y-b.y))};
        b.vx+=(b.vx>=0?1:-1)*95;b.vy*=.6;
       }else if(targets[0])destroy(b,targets[0].index);
       b.effect={kind:'tongue',x:b.x,y:b.y,tx:aim.x,ty:aim.y,time,duration:.85,anchor:latch?.index};
@@ -223,18 +244,35 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
      if(b.floorAt<0){b.vx+=(b.vx>=0?1:-1)*40;b.vy=Math.min(b.vy,55);}
     }
    }
+   let inflating=false;
+   if(b.appearance==='blob'&&b.floorAt<0){
+    if(b.blobAt===undefined&&b.y>=295){b.blobAt=elapsed;b.blobTouches=new Map();b.vx=0;b.vy=0;b.rotation=0;}
+    const reaction=b.blobReaction;
+    if(reaction&&b.blobBurstAt===undefined&&elapsed-reaction.at>=PLINKO_DUMPLING_REACTION){
+     b.blobBurstAt=elapsed;b.blobBurst={x:reaction.x,y:reaction.y,time};b.abilityUses++;
+     b.effect={kind:'blob-burst',x:reaction.x,y:reaction.y,tx:b.x,ty:b.y,time,duration:1.15};
+    }
+    inflating=b.blobAt!==undefined&&(b.blobBurstAt===undefined||elapsed-b.blobBurstAt<PLINKO_DUMPLING_DEFLATION);
+    if(inflating&&!reaction)b.x+=(280-b.x)*(1-Math.exp(-dt*2));
+    if(b.blobBurstAt!==undefined&&!inflating){
+     if(!b.blobLaunched){b.blobLaunched=true;b.vx=reaction!.x<b.x?270:-270;b.vy=-165;}
+     const flight=elapsed-b.blobBurstAt-PLINKO_DUMPLING_DEFLATION;
+     if(flight<1.65){b.vx+=Math.sin(flight*16)*900*dt;b.vy+=Math.cos(flight*13)*580*dt;}
+    }
+   }
    if(b.floorAt>=0){
     landing=Math.min(1,(elapsed-b.floorAt)/1.1);
     const settle=landing*landing*(3-2*landing),bounce=Math.min(1,landing/.65),hop=10*Math.sin(Math.PI*bounce)**2*Math.exp(-2*bounce);
     b.x=b.floorX+(plinkoPocketCenter(b.pocket,pocketCount)-b.floorX)*settle;b.y=PLINKO_FLOOR_Y-hop;b.rotation=b.floorRotation+70*settle;
     if(landing>=1&&(b.appearance!=='dynamite'||(b.exploded&&age>=4.15)))b.finished=true;
-   }else if(age>0){
+   }else if(age>0&&!inflating){
     const previousY=b.y;
     if(b.vy>0&&b.y>=PLINKO_ROOF_Y-b.radius&&brokenAt[plinkoPocketAt(b.x,pocketCount)]>=0){b.vy=Math.min(b.vy,145);b.vx*=.985;}
-    b.vy+=(b.appearance==='dynamite'&&!b.exploded?360:540)*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.rotation+=b.vx*dt/(b.radius||1)*180/Math.PI;
+    const speeding=b.appearance==='sonic'&&age<5.5&&b.roofHits===0;
+    b.vy+=(speeding?0:b.appearance==='dynamite'&&!b.exploded?360:540)*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.rotation+=b.vx*dt/(b.radius||1)*180/Math.PI;
     if(b.appearance==='dragon')b.rotation=b.effect?.kind==='fire'&&time-b.effect.time<b.effect.duration?Math.atan2((b.effect.ty-b.effect.y)*.92,(b.effect.tx-b.effect.x)*.82)*180/Math.PI:Math.max(-25,Math.min(25,b.vx*.1));
     if(b.appearance==='lizard')b.rotation=Math.max(-30,Math.min(30,b.vx*.12));
-    if(b.tether && elapsed>=b.effect!.time-startTime+.09){
+    if(b.tether){
      const anchor=plinkoPegPosition(pegs[b.tether.index],b.tether.index,time),dx=b.x-anchor.x,dy=b.y-anchor.y,d=Math.hypot(dx,dy)||1;
      if(d>b.tether.length){
       const nx=dx/d,ny=dy/d,outward=b.vx*nx+b.vy*ny;
@@ -269,6 +307,9 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
       break;
      }
     }
+    if(speeding){const speed=Math.hypot(b.vx,b.vy)||1;b.vx=b.vx/speed*435;b.vy=b.vy/speed*435;}
+    if(b.appearance==='sonic')b.rotation=age*1100;
+    if(b.y<80){b.y=80;b.vy=Math.abs(b.vy);}
     if(!b.finished){
      if(b.vy>0&&previousY+b.radius<=PLINKO_ROOF_Y&&b.y+b.radius>=PLINKO_ROOF_Y){
       const box=plinkoPocketAt(b.x,pocketCount);if(brokenAt[box]<0){brokenAt=[...brokenAt];brokenAt[box]=time;roof=box;b.roofHits++;b.y=PLINKO_ROOF_Y-b.radius-.2;b.vy=-Math.max(280,Math.min(390,Math.abs(b.vy)*.85));if(Math.abs(b.vx)<70)b.vx=(random()<.5?-1:1)*105;}
@@ -280,6 +321,62 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
      if(b.y>=PLINKO_FLOOR_Y){b.y=PLINKO_FLOOR_Y;b.floorAt=elapsed;b.floorX=b.x;b.floorRotation=b.rotation;b.pocket=plinkoPocketAt(b.x,pocketCount);}
     }
    }
+   if(b.appearance==='blob'&&b.blobReaction&&inflating){
+    const reaction=b.blobReaction,deflating=b.blobBurstAt!==undefined;
+    const progress=deflating?Math.min(1,(elapsed-b.blobBurstAt!)/PLINKO_DUMPLING_DEFLATION):0;
+    const collapse=progress*progress*(3-2*progress);
+    const points=reaction.points.map((point,i)=>{
+     const angle=i*Math.PI*2/PLINKO_BLOB_NODES,c=Math.cos(angle),s=Math.sin(angle),r=1/Math.hypot(c/12,s/7);
+     const q={x:point.x*(1-collapse)+c*r*collapse,y:point.y*(1-collapse)+s*r*collapse};
+     b.blobNodes![i]={r:Math.hypot(q.x,q.y),v:0};return q;
+    });
+    b.blobSkin={points,phase:deflating?'deflating':'startled',growth:reaction.growth,reactionAt:reaction.time,burst:b.blobBurst,contacts:[]};
+   }else if(b.appearance==='blob'){
+    const growing=inflating,growth=growing?Math.max(0,elapsed-b.blobAt!):0,deflated=b.blobBurstAt!==undefined;
+    const width=growing?PLINKO_CHIP_RADIUS+growth*43:deflated?12:PLINKO_CHIP_RADIUS;
+    const height=growing?PLINKO_CHIP_RADIUS+growth*23:deflated?7:PLINKO_CHIP_RADIUS;
+    b.blobNodes??=Array.from({length:PLINKO_BLOB_NODES},()=>({r:PLINKO_CHIP_RADIUS,v:0}));
+    const targets=growing?near(b,time,width+PLINKO_PEG_RADIUS):[];
+    const touching=targets.filter(p=>{
+     const angle=(Math.atan2(p.y-b.y,p.x-b.x)+Math.PI*2)%(Math.PI*2),node=angle/(Math.PI*2)*PLINKO_BLOB_NODES,i=Math.floor(node),t=node-i;
+     const r=b.blobNodes![i].r*(1-t)+b.blobNodes![(i+1)%PLINKO_BLOB_NODES].r*t;
+     return b.blobTouches!.has(p.index)||Math.hypot(p.x-b.x,p.y-b.y)<r+PLINKO_PEG_RADIUS;
+    });
+    for(const p of touching){
+     if(!b.blobTouches!.has(p.index))b.blobTouches!.set(p.index,elapsed);
+     if(elapsed-b.blobTouches!.get(p.index)!>=.32)destroy(b,p.index);
+    }
+    // A damped spring ring: pegs hold back the skin until they snap, then it recoils.
+    const previous=b.blobNodes.map(n=>n.r),contacts=touching.filter(p=>!gone.has(p.index));
+    const points=b.blobNodes.map((node,i)=>{
+     const angle=i*Math.PI*2/PLINKO_BLOB_NODES,c=Math.cos(angle),s=Math.sin(angle);
+     const ellipse=1/Math.hypot(c/width,s/height);
+     const wobble=1+(growing?.035:.08)*Math.sin(angle*3+time*4.2)+.025*Math.cos(angle*5-time*3.1);
+     const crownAngle=Math.atan2(Math.sin(angle+Math.PI/2),Math.cos(angle+Math.PI/2));
+     const crown=deflated?0:height*(growing?.16:.25)*Math.exp(-Math.pow(crownAngle/.24,2));
+     let target=ellipse*wobble+crown;
+     for(const p of contacts){
+      const dx=p.x-b.x,dy=p.y-b.y,along=dx*c+dy*s,across=Math.abs(dx*s-dy*c);
+      if(along>0&&across<PLINKO_PEG_RADIUS+6)target=Math.min(target,Math.max(5,along-Math.sqrt(Math.max(0,(PLINKO_PEG_RADIUS+3)**2-across**2))));
+     }
+     const neighbors=(previous[(i+PLINKO_BLOB_NODES-1)%PLINKO_BLOB_NODES]+previous[(i+1)%PLINKO_BLOB_NODES])/2;
+     node.v+=((target-node.r)*180+(neighbors-node.r)*85-node.v*13)*dt;
+     node.r=Math.max(3,node.r+node.v*dt);
+     // Vertical movement makes a small travelling squash wave in the free skin.
+     const squash=growing?1:1+Math.min(.15,Math.abs(b.vy)*.00035)*Math.sin(time*9);
+     return {x:c*node.r*squash,y:s*node.r/squash};
+    });
+    if(growing){
+     const contact=plinkoBlobWallContact(b,points,walls);
+     b.effect={kind:'blob-grow',x:b.x,y:b.y,tx:b.x,ty:b.y,time,duration:dt*3,targets:contacts};
+     if(contact){
+      // Hold the full-size silhouette for an "oh no" look before the pop.
+      b.blobReaction={...contact,at:elapsed,time,points,growth};rail=contact.rail;b.railHits++;
+      b.vx=0;b.vy=0;
+     }
+    }
+    b.blobSkin={points,phase:b.blobReaction&&!deflated?'startled':deflated?'deflated':growing?'growing':'falling',growth,reactionAt:b.blobReaction?.time,burst:b.blobBurst,contacts:contacts.map(p=>p.index)};
+   }
    if(b.appearance==='dragon'&&b.floorAt<0){
     const jet=plinkoDragonFireJet(b,b.effect,time);
     if(jet)for(let index=0;index<pegs.length;index++){
@@ -288,9 +385,10 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
      if(plinkoFireContains(jet,position,PLINKO_PEG_RADIUS*.82))destroy(b,index);
     }
    }
+   if(b.effect?.kind==='tongue'&&!b.tether){const dx=b.effect.tx-b.x,dy=b.effect.ty-b.y,d=Math.hypot(dx,dy);if(d>PLINKO_LIZARD_REACH-7)b.effect={...b.effect,tx:b.x+dx/d*(PLINKO_LIZARD_REACH-7),ty:b.y+dy/d*(PLINKO_LIZARD_REACH-7)};}
    // Tiny helper bodies stop after eight seconds, without ever granting a box.
    if(!b.exitEligible&&age>=8){b.finished=true;landing=1;}
-   b.frames.push({x:b.x,y:b.y,hits:b.hits,redHits:b.redHits,pegUnits:b.pegUnits,peg,rotation:b.rotation,rail,railHits:b.railHits,landing,removed,time,brokenAt,roof,roofHits:b.roofHits,pocket:b.pocket,appearance:b.appearance,scale:b.scale,exitEligible:b.exitEligible,fuse:b.appearance==='dynamite'&&!b.exploded?Math.max(0,3-age):0,effect:b.effect});
+   b.frames.push({x:b.x,y:b.y,hits:b.hits,redHits:b.redHits,pegUnits:b.pegUnits,peg,rotation:b.rotation,rail,railHits:b.railHits,landing,removed,time,brokenAt,roof,roofHits:b.roofHits,pocket:b.pocket,appearance:b.appearance,scale:b.scale,exitEligible:b.exitEligible,blob:b.blobSkin,fuse:b.appearance==='dynamite'&&!b.exploded?Math.max(0,3-age):0,effect:b.effect});
   }
   if(states.every(b=>b.finished))break;
  }

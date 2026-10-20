@@ -1,0 +1,93 @@
+[
+  {
+    "file": "spring-boing-229170.mp3",
+    "title": "Spring Boing",
+    "creator": "Universfield",
+    "source": "https://pixabay.com/sound-effects/film-special-effects-spring-boing-229170/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 1.896,
+    "startSeconds": 0.1347,
+    "durationSeconds": 0.7036,
+    "gainDb": -5.926,
+    "bytes": 9134,
+    "decodedPeakDb": -5.12
+  },
+  {
+    "file": "mouse-367490.mp3",
+    "title": "Mouse animal sound",
+    "creator": "Soumages",
+    "source": "https://pixabay.com/sound-effects/nature-mouse-animal-sound-367490/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 1.0971,
+    "startSeconds": 0.1696,
+    "durationSeconds": 0.4991,
+    "gainDb": -4.044,
+    "bytes": 6940,
+    "decodedPeakDb": -5.157
+  },
+  {
+    "file": "punch-567196.mp3",
+    "title": "Punch Impact Hit",
+    "creator": "Universfield",
+    "source": "https://pixabay.com/sound-effects/film-special-effects-punch-impact-hit-567196/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 1.5935,
+    "startSeconds": 0.0449,
+    "durationSeconds": 0.4641,
+    "gainDb": -7.514,
+    "bytes": 6313,
+    "decodedPeakDb": -5.148
+  },
+  {
+    "file": "umph-47201.mp3",
+    "title": "Umph!",
+    "creator": "freesound_community",
+    "source": "https://pixabay.com/sound-effects/film-special-effects-umph-47201/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 1.608,
+    "startSeconds": 0.7832,
+    "durationSeconds": 0.2446,
+    "gainDb": -5.0,
+    "bytes": 3805,
+    "decodedPeakDb": -8.41
+  },
+  {
+    "file": "bewilderment-233483.mp3",
+    "title": "Bewilderment Animal Crossing SFX",
+    "creator": "Chroma_mod",
+    "source": "https://pixabay.com/sound-effects/film-special-effects-bewilderment-animal-crossing-sfx-233483/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 0.648,
+    "startSeconds": 0.0948,
+    "durationSeconds": 0.3644,
+    "gainDb": -0.217,
+    "bytes": 5059,
+    "decodedPeakDb": -5.884
+  },
+  {
+    "file": "pig-100272.mp3",
+    "title": "Pig Grunt",
+    "creator": "qubodup / freesound_community",
+    "source": "https://pixabay.com/sound-effects/nature-pig-grunt-100272/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 0.418,
+    "startSeconds": 0.0648,
+    "durationSeconds": 0.2995,
+    "gainDb": 2.503,
+    "bytes": 4432,
+    "decodedPeakDb": -5.674
+  },
+  {
+    "file": "horn-430368.mp3",
+    "title": "horn",
+    "creator": "digitalstore07",
+    "source": "https://pixabay.com/sound-effects/film-special-effects-horn-430368/",
+    "license": "https://pixabay.com/service/license-summary/",
+    "sourceDuration": 1.44,
+    "startSeconds": 0.0898,
+    "durationSeconds": 0.85,
+    "gainDb": -6.477,
+    "bytes": 11015,
+    "decodedPeakDb": -5.272
+  }
+]

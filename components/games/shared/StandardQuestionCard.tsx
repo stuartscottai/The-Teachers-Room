@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { GameConfig, GameRunOptions, GeneratedQuestion } from '../../../types';
 import { translateInterfaceText as ui } from '../../../utils/interfaceLanguage';
@@ -6,8 +7,9 @@ import { useWrittenAnswer } from './WrittenAnswer';
 import { PlinkoFaceIcon } from '../PlinkoIcons';
 import type { PlinkoSound } from '../../../utils/plinkoAudio';
 import { SharedQuestionFlipCard } from './SharedQuestionFlipCard';
+import { useQuestionCardSounds } from './useQuestionCardSounds';
 
-/** Plinko's question turn uses the same flip-card renderer as Trivia. */
+/** Plinkemoji's question turn uses the same flip-card renderer as Trivia. */
 export function StandardQuestionCard({ question, config, options, turn, teamName, chipFace=0, onSound, onAnswer }: {
   question: GeneratedQuestion; config: GameConfig; options: GameRunOptions; turn: number;
   teamName: string; chipFace?:number; onSound?:(cue:PlinkoSound)=>void; onAnswer: (correct: boolean) => void;
@@ -31,14 +33,10 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
   const resolvedAnswer=useRef(false);
   const [exiting,setExiting]=useState(false);
   const soundRef=useRef(onSound);soundRef.current=onSound;
-  const entered=useRef(false),wasFlipped=useRef(false),departed=useRef(false);
-  useEffect(()=>{if(!entered.current){entered.current=true;soundRef.current?.('card-in');}},[]);
-  useEffect(()=>{if(exiting&&!departed.current){departed.current=true;soundRef.current?.('card-out');}},[exiting]);
   const isTimesUp = options.timerSeconds > 0 && timeLeft === 0;
-  const answerState = useWrittenAnswer(question, config, options, turn);
-  const writtenAnswer = isTimesUp ? { ...answerState, writing: false } : answerState;
+  const writtenAnswer = useWrittenAnswer(question, config, options, turn);
   const activeQ = { ...question, options: question.options || [] };
-  const hasOptions = Boolean(question.options?.length) || isTimesUp;
+  const hasOptions = Boolean(question.options?.length);
   const optionKey = question.options?.join('|') || '';
   const activeQuestionIndex = turn;
   const isBonus = false;
@@ -60,31 +58,12 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
   };
   const handleAnswer = (correct: boolean) => {
     if (committed.current) return;
-    soundRef.current?.(correct&&!isTimesUp?'correct':'wrong');
+    if (!hasOptions && !writtenAnswer.writing) soundRef.current?.(correct ? 'correct' : 'wrong');
     committed.current = true;
-    resolvedAnswer.current=correct && !isTimesUp;
+    resolvedAnswer.current=correct;
     setExiting(true);
   };
-  useEffect(()=>{
-    if(isFlipped===wasFlipped.current)return;
-    wasFlipped.current=isFlipped;soundRef.current?.('card-flip');
-    if(!isFlipped)return;
-    if(writtenAnswer.writing)soundRef.current?.(writtenAnswer.matches&&!isTimesUp?'correct':'wrong');
-    else if(hasOptions)soundRef.current?.(mcResult==='correct'&&!isTimesUp?'correct':'wrong');
-    else soundRef.current?.('reveal');
-  },[isFlipped,writtenAnswer.writing,writtenAnswer.matches,hasOptions,mcResult,isTimesUp]);
-  // Leave the revealed answer visible, then let the slower exit finish the turn.
-  useEffect(() => {
-    if (!isFlipped || (!hasOptions && !writtenAnswer.writing)) return;
-    const correct = writtenAnswer.writing ? writtenAnswer.matches : mcResult === 'correct';
-    const timer = window.setTimeout(() => {
-      if (committed.current) return;
-      committed.current = true;
-      resolvedAnswer.current = correct && !isTimesUp;
-      setExiting(true);
-    }, 1200);
-    return () => window.clearTimeout(timer);
-  }, [isFlipped, hasOptions, writtenAnswer.writing, writtenAnswer.matches, mcResult, isTimesUp]);
+  useQuestionCardSounds({questionKey:turn,isFlipped,exiting,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions,mcResult,onSound});
   useEffect(() => {
     const media = window.matchMedia('(max-width: 639px)');
     const resize = () => { setIsMobileViewport(media.matches); setResizeTick(t => t + 1); };
@@ -93,11 +72,10 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
     return () => window.removeEventListener('resize', resize);
   }, []);
   useEffect(() => {
-    if (isFlipped || options.timerSeconds <= 0) return;
+    if (isFlipped || isTimesUp || options.timerSeconds <= 0) return;
     const timer = window.setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(timer);
-  }, [isFlipped, options.timerSeconds]);
-  useEffect(() => { if (isTimesUp) { setMcResult('incorrect'); setIsFlipped(true); } }, [isTimesUp]);
+  }, [isFlipped, isTimesUp, options.timerSeconds]);
     // Helper for dynamic font size to avoid scrollbars on cards
     const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;
@@ -170,26 +148,29 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
     }, [isMobileViewport, hasOptions, activeQ?.question, activeQ?.options?.length, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
-        if (!isMobileViewport || !activeQ || isBonus || !isFlipped) {
+        if (!activeQ || isBonus || !isFlipped) {
             setAnswerFontSize(null);
             return;
         }
         const wrap = answerWrapRef.current;
         const textEl = answerTextRef.current;
         if (!wrap || !textEl) return;
-        const availableHeight = wrap.clientHeight - (wrap.querySelector<HTMLElement>('.written-answer-review')?.offsetHeight ?? 0);
+        const feedback = wrap.querySelector<HTMLElement>('.question-choice-feedback, .written-answer-review');
+        const feedbackHeight = feedback ? feedback.offsetHeight + parseFloat(getComputedStyle(feedback).marginBottom || '0') : 0;
+        const availableHeight = Math.max(0, wrap.clientHeight - feedbackHeight);
+
         if (availableHeight === 0) return;
-        const maxSize = Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2)));
+        const maxSize = isMobileViewport ? Math.min(44, Math.max(22, Math.floor(window.innerWidth / 9.2))) : 72;
         const minSize = 12;
         let size = maxSize;
         textEl.style.lineHeight = '1.15';
         textEl.style.fontSize = `${size}px`;
-        while (textEl.scrollHeight > availableHeight && size > minSize) {
+        while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > wrap.clientWidth) && size > minSize) {
             size -= 1;
             textEl.style.fontSize = `${size}px`;
         }
         setAnswerFontSize(size);
-    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
+    }, [isMobileViewport, activeQ?.answer, isBonus, isFlipped, mcResult, resizeTick, writtenAnswer.writing, writtenAnswer.layoutTick]);
 
     useLayoutEffect(() => {
         if (!hasOptions || !activeQ?.options || isBonus || isFlipped) {
@@ -248,7 +229,7 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
 
 
   return <>
-    <SharedQuestionFlipCard autoAdvance playfulMotion exiting={exiting} onExitComplete={()=>onAnswer(resolvedAnswer.current)} questionOverlayTopClass={questionOverlayTopClass} isFlipped={isFlipped} isBonus={isBonus} writtenAnswer={writtenAnswer} setIsFlipped={setIsFlipped} activeQuestionIndex={activeQuestionIndex} activeQ={activeQ} teamNames={teamNames} currentTeam={currentTeam} hasOptions={hasOptions} questionImageUrl={questionImageUrl} isMobileViewport={isMobileViewport} questionImageAlt={questionImageAlt} setResizeTick={setResizeTick} openImageZoom={openImageZoom} handleImageKeyDown={handleImageKeyDown} questionWrapRef={questionWrapRef} questionTextRef={questionTextRef} questionFontSize={questionFontSize} getQuestionFontSizeClass={getQuestionFontSizeClass} optionGridRef={optionGridRef} stripOptionPrefix={stripOptionPrefix} optionFontSize={optionFontSize} getOptionFontSizeClass={getOptionFontSizeClass} handleMcSelect={handleMcSelect} optionMeasureRef={optionMeasureRef} options={options} isTimesUp={isTimesUp} timerProgress={timerProgress} timeLeft={timeLeft} isPositiveBonus={isPositiveBonus} isNegativeBonus={isNegativeBonus} getBonusEffectSizeClass={getBonusEffectSizeClass} bonusEffectText={bonusEffectText} getBonusDetailSizeClass={getBonusDetailSizeClass} bonusDetailText={bonusDetailText} handleBonusAction={handleBonusAction} answerWrapRef={answerWrapRef} mcResult={mcResult} answerTextRef={answerTextRef} answerFontSize={answerFontSize} getAnswerFontSizeClass={getAnswerFontSizeClass} isProcessing={isProcessing} handleAnswer={handleAnswer} rewardLabel={<span className="flex items-center gap-2" aria-label={ui('You earned a chip!')}><PlinkoFaceIcon face={chipFace} size={48}/>1</span>} />
-    {isImageZoomOpen && questionImageUrl && <div className="fixed inset-0 z-[650] bg-black/90 flex flex-col items-center justify-center gap-4 p-6" onClick={() => setIsImageZoomOpen(false)}><button autoFocus className="text-white font-bold px-6 py-3" onClick={() => setIsImageZoomOpen(false)}>{ui('Close image')}</button><img src={questionImageUrl} alt={questionImageAlt} className="max-h-[75dvh] max-w-full object-contain" /></div>}
+    <SharedQuestionFlipCard playfulMotion exiting={exiting} onExitComplete={()=>onAnswer(resolvedAnswer.current)} questionOverlayTopClass={questionOverlayTopClass} isFlipped={isFlipped} isBonus={isBonus} writtenAnswer={writtenAnswer} setIsFlipped={setIsFlipped} activeQuestionIndex={activeQuestionIndex} activeQ={activeQ} teamNames={teamNames} currentTeam={currentTeam} hasOptions={hasOptions} questionImageUrl={questionImageUrl} isMobileViewport={isMobileViewport} questionImageAlt={questionImageAlt} setResizeTick={setResizeTick} openImageZoom={openImageZoom} handleImageKeyDown={handleImageKeyDown} questionWrapRef={questionWrapRef} questionTextRef={questionTextRef} questionFontSize={questionFontSize} getQuestionFontSizeClass={getQuestionFontSizeClass} optionGridRef={optionGridRef} stripOptionPrefix={stripOptionPrefix} optionFontSize={optionFontSize} getOptionFontSizeClass={getOptionFontSizeClass} handleMcSelect={handleMcSelect} optionMeasureRef={optionMeasureRef} options={options} isTimesUp={isTimesUp} timerProgress={timerProgress} timeLeft={timeLeft} isPositiveBonus={isPositiveBonus} isNegativeBonus={isNegativeBonus} getBonusEffectSizeClass={getBonusEffectSizeClass} bonusEffectText={bonusEffectText} getBonusDetailSizeClass={getBonusDetailSizeClass} bonusDetailText={bonusDetailText} handleBonusAction={handleBonusAction} answerWrapRef={answerWrapRef} mcResult={mcResult} answerTextRef={answerTextRef} answerFontSize={answerFontSize} getAnswerFontSizeClass={getAnswerFontSizeClass} isProcessing={isProcessing} handleAnswer={handleAnswer} rewardLabel={<span className="flex items-center gap-2" aria-label={ui('You earned a chip!')}><PlinkoFaceIcon face={chipFace} size={48}/>1</span>} />
+    {isImageZoomOpen && questionImageUrl && createPortal(<div role="dialog" aria-modal="true" aria-label={ui('Close image')} className="plinko-image-zoom" onClick={() => setIsImageZoomOpen(false)} onKeyDown={event=>{if(event.key==='Escape')setIsImageZoomOpen(false);}}><button autoFocus className="text-white font-bold px-6 py-3" onClick={() => setIsImageZoomOpen(false)}>{ui('Close image')}</button><img src={questionImageUrl} alt={questionImageAlt} /></div>, document.fullscreenElement ?? document.body)}
   </>;
 }

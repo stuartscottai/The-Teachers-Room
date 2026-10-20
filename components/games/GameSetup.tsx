@@ -379,13 +379,11 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
                     </PlayfulSelect>
                   </label>
 
-                  <p className="text-sm text-slate-500">{ui("There are always 10 entries and blue electric sides. Each round adds a scoring box and grows the peg grid up to 8 rows of 8/7 pegs. A first hit breaks a box lid and bounces the ball away; an open box can collect the ball on a later fall.")}</p>
                   <label className="block text-sm font-bold">{ui("Points per peg")}
                     <PlayfulSelect aria-label={ui("Points per peg")} value={options.plinkoPegPoints} onChange={e => setOptions({...options, plinkoPegPoints: Number(e.target.value)})} className="w-full rounded-lg border p-3">
                       {[1,2,5].map(n => <option key={n} value={n}>{n}</option>)}
                     </PlayfulSelect>
                   </label>
-                  <p className="text-sm text-slate-500">{ui("Every team answers once per round. Correct answers earn one chip. Peg points plus the landing value are added when the chip lands. Questions repeat if there are fewer questions than turns.")}</p>
                 </div>}
                 {/* Darts Mode Selection */}
                 {game.config.type === GameType.DARTS && (

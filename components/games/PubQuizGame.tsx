@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { matchesWrittenAnswer } from '../../utils/writtenAnswers';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
@@ -118,6 +120,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const currentQuestionKey = currentRoundIndex !== null ? `${currentRoundIndex}-${currentQuestionIndex}` : '';
     const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'play' ? currentQuestionKey : null);
     const selectedStudentAnswer = currentQuestionKey ? selectedStudentAnswers[currentQuestionKey] : undefined;
+
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -155,6 +158,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
     const stripOptionPrefix = (value: string) => value.replace(/^[A-D][.)]\s*/i, '').trim();
     const normalizeAnswerValue = (value: string) => stripOptionPrefix(value).trim().toLowerCase();
+    const cardEffects=useFlipCardEffects({questionKey:phase==='play' ? currentQuestionKey : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:hasOptions,mcResult:selectedStudentAnswer ? (normalizeAnswerValue(selectedStudentAnswer)===normalizeAnswerValue(currentQuestion?.answer||'')?'correct':'incorrect') : null});
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -377,7 +381,8 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     };
 
     // BUG FIX: Flip card back before loading next question to prevent "flashing" answer
-    const handleNextQuestion = () => {
+    const handleNextQuestion = () => {cardEffects.close(()=>handleNextQuestionAfterExit());};
+    const handleNextQuestionAfterExit = () => {
         const proceed = () => {
             if (currentRound && currentQuestionIndex < currentRound.questions.length - 1) {
                 setCurrentQuestionIndex(prev => prev + 1);
@@ -401,12 +406,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             }
         };
 
-        if (isFlipped) {
-            setIsFlipped(false);
-            setTimeout(proceed, 600); // Wait for CSS transition (700ms)
-        } else {
-            proceed();
-        }
+        proceed();
     };
 
     const handleScoreUpdate = (teamIndex: number, delta: number) => {
@@ -415,17 +415,18 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             newScores[teamIndex] += delta;
             return newScores;
         });
-        if (delta > 0) playSound('correct', isMuted, 'Retro');
+        if (delta > 0 && !writtenAnswer.writing) cardEffects.sound('correct');
     };
 
-    const handleWrittenContinue = () => {
+    const handleWrittenContinue = () => {cardEffects.close(()=>handleWrittenContinueAfterExit());};
+    const handleWrittenContinueAfterExit = () => {
         if (!writtenAnswer.submitted) return;
         const team = options.studentPractice ? 0 : writtenTeamIndex;
         if (options.studentPractice && currentQuestionKey) {
             setSelectedStudentAnswers(prev => ({ ...prev, [currentQuestionKey]: writtenAnswer.text }));
         }
         if (writtenAnswer.matches) handleScoreUpdate(team, 1);
-        else playSound('incorrect', isMuted, options.soundConfig?.incorrect);
+
         setWrittenTeamIndex(index => (index + 1) % Math.max(1, scores.length));
         handleNextQuestion();
     };
@@ -886,7 +887,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
                 <div data-written-question-overlay data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
-                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
@@ -1188,7 +1189,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 </div>)}
                             </div>
                         </div>
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 

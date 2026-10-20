@@ -4,11 +4,12 @@ import ts from 'typescript';
 const module={exports:{}};
 new Function('module','exports',ts.transpileModule(fs.readFileSync('utils/plinko.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(module,module.exports);
 const p=module.exports;
+assert.deepEqual(Array.from({length:12},(_,i)=>p.plinkoPegStyle(i+1)),['arcade','jelly','neon','rivet','crystal','arcade','jelly','neon','rivet','crystal','arcade','jelly']);
 let seed=2701;
 const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
 for(let stars=0;stars<=10;stars++)for(let i=0;i<20;i++){
  const offers=p.plinkoBonusOffers(stars,random);
- assert.equal(offers.length,Math.min(8,stars));assert.equal(new Set(offers).size,offers.length);
+ assert.equal(offers.length,Math.min(p.PLINKO_BONUSES.length,stars));assert.equal(new Set(offers).size,offers.length);
  assert.ok(offers.every(b=>p.PLINKO_BONUSES.includes(b)));
 }
 // Settling uses a monotonic eased sink with no jump at either end.
@@ -29,7 +30,7 @@ const turnedJet=p.plinkoDragonFireJet({...firePose,rotation:90},fireEffect,.2);
 assert.ok(p.plinkoFireContains(turnedJet,{x:turnedJet.x,y:turnedJet.y+turnedJet.length*.7}),'Rotated breath burns in its visible direction');
 let turns=0,bodies=0,maxDuration=0,wallHits=0;
 const abilities={};
-let lizardSwings=0,longTongues=0;
+let lizardSwings=0,limitedTongues=0;
 for(let round=0;round<8;round++){
  const pegs=p.makePlinkoPegs(round),rails=p.makePlinkoRails(round),original=JSON.stringify(pegs),layout=p.plinkoRoundLayout(round),size=Math.min(8,round+5);
  assert.equal(layout.rows,size);assert.equal(layout.columns,size);assert.equal(layout.entryCount,10);assert.equal(layout.pocketCount,3+round);
@@ -76,9 +77,42 @@ for(let round=0;round<8;round++){
    assert.ok(blast.effect.duration>=1,'The detailed explosion has time to bloom and dissipate');
    assert.ok(balls[0].frames.at(-1).time>=blast.effect.time+blast.effect.duration-.02,'An early landing must not cut off the blast');
   }
+  if(bonus==='sonic'){
+   const frames=balls[0].frames;assert.ok(frames.every(f=>f.y>=80),'Sonic stays on screen');
+   assert.ok(frames[60].rotation-frames[30].rotation>250,'Sonic visibly spins several times per second');
+   assert.ok(Math.hypot(frames[0].x-frames[12].x,frames[0].y-frames[12].y)>35,'Sonic launches immediately');
+  }
+  if(bonus==='blob'){
+   const frames=balls[0].frames,growing=frames.filter(f=>f.blob?.phase==='growing');
+   assert.ok(growing.length>100,'Blob pauses to inflate against real obstacles');
+   assert.ok(growing.some(f=>f.blob.contacts.length),'Skin meets and resists pegs');
+   const burst=frames.find(f=>f.blob?.burst);
+   assert.ok(burst,'Blob reaches an electric side');
+   assert.equal(balls[0].abilityUses,1,'Blob bursts exactly once');
+   const reaction=frames.filter(f=>f.blob?.phase==='startled'),collapse=frames.filter(f=>f.blob?.phase==='deflating');
+   assert.ok(reaction.length>=60,'The full-size shocked face remains visible for half a second');
+   assert.ok(reaction.every(f=>f.x===reaction[0].x&&f.y===reaction[0].y),'Dumpling holds still to look at the camera');
+   assert.ok(reaction.every(f=>f.hits===reaction[0].hits&&!f.blob.burst),'The reaction cannot collect extra pegs or pop early');
+   assert.ok(reaction.every(f=>JSON.stringify(f.blob.points)===JSON.stringify(reaction[0].blob.points)),'The face changes while the original large silhouette stays intact');
+   assert.ok(burst.time-reaction[0].time>=p.PLINKO_DUMPLING_REACTION-.01,'The pop follows the reaction beat');
+   assert.ok(collapse.length>=25,'Deflation plays smoothly before flight');
+   const skinWidth=f=>Math.max(...f.blob.points.map(q=>q.x))-Math.min(...f.blob.points.map(q=>q.x));
+   assert.ok(skinWidth(collapse.at(-1))<skinWidth(collapse[0])*.2,'The full body visibly collapses');
+   assert.ok(collapse.every(f=>f.x===reaction[0].x&&f.y===reaction[0].y),'Flight waits until after deflation');
+   assert.ok(p.plinkoBlobWallContact(burst,burst.blob.points,rails.map(r=>p.plinkoWallPoints(r.side,r.zigzags))),'Burst is caused by the visible skin touching a wall');
+   assert.ok(frames.some(f=>f.blob?.phase==='deflated'),'The body deflates after contact');
+   for(const f of frames){
+    assert.equal(f.blob.points.length,p.PLINKO_BLOB_NODES);
+    assert.ok(f.blob.points.every(q=>Number.isFinite(q.x+q.y)),'Every spring node stays finite');
+   }
+   const lastGrowth=growing.at(-1),width=Math.max(...lastGrowth.blob.points.map(q=>q.x))-Math.min(...lastGrowth.blob.points.map(q=>q.x)),height=Math.max(...lastGrowth.blob.points.map(q=>q.y))-Math.min(...lastGrowth.blob.points.map(q=>q.y));
+   assert.ok(width>height*1.3,'The blob gets fatter rather than uniformly scaling');
+   assert.ok(width>50,'The body visibly inflates');
+   assert.ok(frames.at(-1).time>burst.time+1.15,'Burst and flutter finish before scoring');
+  }
   if(bonus==='lizard')for(const f of balls[0].frames){
    const e=f.effect;if(e?.kind!=='tongue')continue;
-   if(Math.hypot(e.tx-f.x,e.ty-f.y)>120)longTongues++;
+   if(f.time-e.time<e.duration){assert.ok(Math.hypot(e.tx-f.x,e.ty-f.y)<=p.PLINKO_LIZARD_REACH+.1,'Tongue reach is capped');limitedTongues++;}
    if(e.anchor!==undefined && f.pocket<0 && f.time-e.time>.1 && f.time-e.time<.65){
     lizardSwings++;
     assert.ok(!f.removed.includes(e.anchor),'The tether peg remains until the lizard releases it');
@@ -90,5 +124,5 @@ for(let round=0;round<8;round++){
  }
 }
 assert.ok(lizardSwings>0,'Lizards latch and swing from pegs');
-assert.ok(longTongues>0,'Long tongue reaches beyond the former range');
-console.log(JSON.stringify({turns,bodies,maxDuration,wallHits,lizardSwings,longTongues,abilities}));
+assert.ok(limitedTongues>0,'Limited tongues are exercised');
+console.log(JSON.stringify({turns,bodies,maxDuration,wallHits,lizardSwings,limitedTongues,abilities}));

@@ -1,11 +1,20 @@
-﻿/** Plinkemoji's own cartoon sound palette. All voices share one muted master bus. */
-export type PlinkoSound = 'hover'|'entry-hover'|'drop'|'peg'|'roof'|'correct'|'wrong'|'reveal'|'card-in'|'card-flip'|'card-out'|'round'|'coin'|'score-flight'|'land'|'rail'|'star'|'bonus';
-export const PLINKO_PEG_SOUNDS=['Rubber boing','Bubble pop','Mouse squeak','Duck quack','Toy laser','Tiny giggle','Jaw harp','Slide whistle','Hiccup','Wooden bonk'] as const;
+/** Plinkemoji's own cartoon sound palette. All voices share one muted master bus. */
+export type PlinkoSound = 'hover'|'entry-hover'|'drop'|'peg'|'roof'|'correct'|'wrong'|'reveal'|'card-in'|'card-flip'|'card-out'|'round'|'coin'|'score-flight'|'land'|'rail'|'star'|'bonus'|'dumpling-pop';
+export const PLINKO_PEG_CLIPS=[
+ {label:'Spring boing',file:'spring-boing-229170.mp3'},
+ {label:'Mouse squeak',file:'mouse-367490.mp3'},
+ {label:'Punch impact',file:'punch-567196.mp3'},
+ {label:'Umph',file:'umph-47201.mp3'},
+ {label:'Bewilderment',file:'bewilderment-233483.mp3'},
+ {label:'Pig grunt',file:'pig-100272.mp3'},
+ {label:'Horn',file:'horn-430368.mp3'},
+] as const;
+export const PLINKO_PEG_SOUNDS=PLINKO_PEG_CLIPS.map(clip=>clip.label);
 export class PlinkoPegSoundBag {
  private bag:number[]=[];private last=-1;
  constructor(private random= Math.random){}
  next(){
-  if(!this.bag.length){this.bag=PLINKO_PEG_SOUNDS.map((_,i)=>i);for(let i=9;i>0;i--){const j=Math.floor(this.random()*(i+1));[this.bag[i],this.bag[j]]=[this.bag[j],this.bag[i]];}if(this.bag[9]===this.last)[this.bag[0],this.bag[9]]=[this.bag[9],this.bag[0]];}
+  if(!this.bag.length){this.bag=PLINKO_PEG_SOUNDS.map((_,i)=>i);for(let i=this.bag.length-1;i>0;i--){const j=Math.floor(this.random()*(i+1));[this.bag[i],this.bag[j]]=[this.bag[j],this.bag[i]];}const end=this.bag.length-1;if(this.bag[end]===this.last)[this.bag[0],this.bag[end]]=[this.bag[end],this.bag[0]];}
   return this.last=this.bag.pop()!;
  }
 }
@@ -16,7 +25,10 @@ export class PlinkoAudio {
  private active=0;
  private last=new Map<PlinkoSound,number>();
  private pegs=new PlinkoPegSoundBag();
- constructor(private muted=false){}
+ private pegSamples=new Map<number,AudioBuffer>();
+ private dumplingVoice:AudioBuffer|null=null;
+ private pegVoices:Array<{source:AudioBufferSourceNode;gain:GainNode}>=[];
+ constructor(private muted=false,private preloadPegClips=true){}
  unlock(){
   if(this.muted)return;
   try{
@@ -26,6 +38,7 @@ export class PlinkoAudio {
     this.ctx=new Audio();this.master=this.ctx.createGain();this.master.gain.value=.55;
     const limiter=this.ctx.createDynamicsCompressor();limiter.threshold.value=-18;limiter.knee.value=18;limiter.ratio.value=8;limiter.attack.value=.003;limiter.release.value=.12;
     this.master.connect(limiter);limiter.connect(this.ctx.destination);
+    if(this.preloadPegClips){void this.loadPegSamples(this.ctx);void this.loadDumplingVoice(this.ctx);}
    }
    if(this.ctx.state==='suspended')void this.ctx.resume().catch(()=>{});
   }catch{/* Sound support must never interrupt the game. */}
@@ -35,7 +48,47 @@ export class PlinkoAudio {
   if(this.ctx&&this.master){this.master.gain.cancelScheduledValues(this.ctx.currentTime);this.master.gain.setValueAtTime(muted?0:.55,this.ctx.currentTime);}
   if(!muted&&this.ctx?.state==='suspended')void this.ctx.resume().catch(()=>{});
  }
- dispose(){const ctx=this.ctx;this.ctx=null;this.master=null;this.noise=null;this.active=0;this.last.clear();if(ctx&&ctx.state!=='closed')void ctx.close().catch(()=>{});}
+ dispose(){const ctx=this.ctx;this.ctx=null;this.master=null;this.noise=null;this.dumplingVoice=null;this.pegSamples.clear();this.pegVoices=[];this.active=0;this.last.clear();if(ctx&&ctx.state!=='closed')void ctx.close().catch(()=>{});}
+ private async loadDumplingVoice(ctx:AudioContext){
+  try{
+   const response=await fetch('/assets/audio/plinkemoji/dumpling-scream-v1.wav');if(!response.ok)return;
+   const buffer=await ctx.decodeAudioData(await response.arrayBuffer());
+   if(this.ctx===ctx&&ctx.state!=='closed')this.dumplingVoice=buffer;
+  }catch{/* The synthesized cartoon cry below covers missing audio files. */}
+ }
+ private playDumplingVoice(){
+  const ctx=this.ctx,master=this.master,buffer=this.dumplingVoice;
+  if(!ctx||!master||!buffer||this.active>=48)return false;
+  const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;gain.gain.value=.75;
+  source.connect(gain);gain.connect(master);this.active++;
+  source.onended=()=>{this.active=Math.max(0,this.active-1);source.disconnect();gain.disconnect();};source.start();return true;
+ }
+ private async loadPegSamples(ctx:AudioContext){
+  await Promise.allSettled(PLINKO_PEG_CLIPS.map(async(clip,index)=>{
+   const response=await fetch(`/assets/audio/plinkemoji/pegs/${clip.file}`);
+   if(!response.ok)return;
+   const buffer=await ctx.decodeAudioData(await response.arrayBuffer());
+   if(this.ctx===ctx&&ctx.state!=='closed')this.pegSamples.set(index,buffer);
+  }));
+ }
+ private playPegSample(index:number){
+  const buffer=this.pegSamples.get(index),ctx=this.ctx,master=this.master;
+  if(!buffer||!ctx||!master||this.active>=48)return false;
+  const now=ctx.currentTime;
+  // Fade older tails when rapid hits would otherwise overlap too much.
+  if(this.pegVoices.length>=4){
+   const oldest=this.pegVoices.shift()!;
+   oldest.gain.gain.cancelScheduledValues(now);oldest.gain.gain.setValueAtTime(oldest.gain.gain.value,now);
+   oldest.gain.gain.linearRampToValueAtTime(0,now+.012);oldest.source.stop(now+.015);
+  }
+  const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;
+  gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.5,now+.003);
+  gain.gain.setValueAtTime(.5,now+Math.max(.003,buffer.duration-.025));gain.gain.linearRampToValueAtTime(0,now+buffer.duration);
+  source.connect(gain);gain.connect(master);
+  const voice={source,gain};this.pegVoices.push(voice);this.active++;
+  source.onended=()=>{this.pegVoices=this.pegVoices.filter(v=>v!==voice);this.active=Math.max(0,this.active-1);source.disconnect();gain.disconnect();};
+  source.start(now);return true;
+ }
  private tone(from:number,to:number,duration:number,wave:OscillatorType='sine',volume=.1,delay=0,wobble=0,depth=0,formant=0){
   const ctx=this.ctx!,master=this.master!;if(this.active>=48)return;
   const now=ctx.currentTime+delay,osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=wave;osc.frequency.setValueAtTime(from,now);osc.frequency.exponentialRampToValueAtTime(Math.max(30,to),now+duration);
@@ -61,11 +114,20 @@ export class PlinkoAudio {
   if(now-(this.last.get(cue)??-Infinity)<gap)return false;this.last.set(cue,now);
   const tone=this.tone.bind(this),air=this.air.bind(this);
   switch(cue){
+   case 'dumpling-pop':
+    air(.08,.14,2200,450,0,true);
+    if(!this.playDumplingVoice()){
+     tone(410,190,.42,'sawtooth',.2,0,24,25,850);
+     tone(820,380,.4,'sawtooth',.08,.015,24,40,1300);
+    }break;
    case 'hover':tone(740,980,.045,'sine',.035);break;
    case 'entry-hover':tone(520+detail*42,700+detail*42,.055,'sine',.045);break;
    case 'drop':air(.2,.11,1500,180);tone(720,100,.25,'triangle',.12);break;
    case 'peg':{
-    switch(this.pegs.next()){
+    const selected=this.pegs.next();
+    if(this.playPegSample(selected))break;
+    // Keep hits audible while clips load, or if a download fails.
+    switch(selected){
      case 0:tone(640,135,.24,'triangle',.14,0,32,70);break;
      case 1:tone(210,950,.07,'sine',.13);tone(950,170,.1,'sine',.08,.055);break;
      case 2:tone(1700,520,.15,'sine',.1,0,24,140);break;

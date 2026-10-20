@@ -1,9 +1,11 @@
-import React, { useLayoutEffect, useRef } from 'react';
-import { motion, useReducedMotion, useAnimationControls } from 'framer-motion';
+import React from 'react';
+import { QuestionCardMotion } from './QuestionCardMotion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Clock, RotateCcw, CheckCircle, XCircle, X, Check } from 'lucide-react';
 import { GeneratedQuestion, GameRunOptions } from '../../../types';
 import { translateInterfaceText as ui, displayTeamName } from '../../../utils/interfaceLanguage';
 import { QuestionCardZoomButton } from '../QuestionCardZoomButton';
+import './question-feedback.css';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './WrittenAnswer';
 
 export interface SharedQuestionFlipCardProps {
@@ -54,6 +56,7 @@ export interface SharedQuestionFlipCardProps {
   rewardLabel?: React.ReactNode;
   autoAdvance?: boolean;
   playfulMotion?: boolean;
+  springFlip?: boolean;
   exiting?: boolean;
   onExitComplete?: () => void;
 }
@@ -107,51 +110,21 @@ export function SharedQuestionFlipCard({
   rewardLabel,
   autoAdvance=false,
   playfulMotion=false,
+  springFlip=playfulMotion,
   exiting=false,
   onExitComplete
 }: SharedQuestionFlipCardProps) {
   const reduced=useReducedMotion();
-  const entrance=useAnimationControls();
-  const exitComplete=useRef(onExitComplete);
-  exitComplete.current=onExitComplete;
-  useLayoutEffect(()=>{
-    if(!playfulMotion)return;
-    let cancelled=false;
-    const animate=async()=>{
-      if(!exiting){
-        entrance.set(reduced?{opacity:0}:{y:'110vh',rotate:-5,scale:.92,opacity:0});
-        await entrance.start(reduced?{opacity:1,transition:{duration:.12}}:{
-          y:0,rotate:[-5,2.5,-1,0],scale:1,opacity:1,
-          transition:{y:{type:'spring',stiffness:185,damping:16,mass:.9},rotate:{type:'tween',duration:.85,times:[0,.55,.8,1]},scale:{duration:.55},opacity:{duration:.2}}
-        });
-        return;
-      }
-      if(reduced){
-        await entrance.start({opacity:0,transition:{duration:.12}});
-      }else{
-        // A small upward lean winds up the downward slide, keeping the answer visible.
-        await entrance.start({y:-26,rotate:-3,scale:1.015,transition:{duration:.22,ease:'easeOut'}});
-        if(cancelled)return;
-        await entrance.start({y:'115vh',rotate:7,scale:.94,opacity:0,transition:{type:'spring',stiffness:85,damping:17,mass:1.15}});
-      }
-      if(!cancelled)exitComplete.current?.();
-    };
-    void animate();
-    return ()=>{cancelled=true;entrance.stop();};
-  },[playfulMotion,exiting,reduced,entrance]);
   return (<div data-playful-motion={playfulMotion || undefined} data-card-exiting={exiting || undefined} role="dialog" aria-modal="true" aria-label={ui("Question")} data-shared-question-card data-written-question-overlay data-question-below-scoreboard className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 ${playfulMotion?'':'animate-fade-in'} overflow-hidden`}>
-                    <motion.div data-question-motion-shell={playfulMotion || undefined}
-                      initial={playfulMotion ? (reduced?{opacity:0}:{y:'110vh',rotate:-4,scale:.88,opacity:0}) : false}
-                      animate={playfulMotion?entrance:undefined}
-                      transition={reduced?{duration:.12}:exiting?{type:'spring',stiffness:85,damping:17,mass:1.15,delay:.15}:{type:'spring',stiffness:190,damping:17,mass:.9}}
+                    <QuestionCardMotion enabled={playfulMotion} exiting={exiting} onExitComplete={onExitComplete}
                       className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <motion.div
-                            data-question-flip={playfulMotion || undefined}
-                            animate={playfulMotion?{rotateY:isFlipped?180:0}:undefined}
+                            data-question-flip={springFlip || undefined}
+                            animate={springFlip?{rotateY:isFlipped?180:0}:undefined}
                             transition={reduced?{duration:.1}:exiting?{type:'spring',stiffness:85,damping:17,mass:1.15}:{type:'spring',stiffness:130,damping:15,mass:.8}}
-                            className={`relative w-full h-full ${playfulMotion?'':'transition-all duration-700'} [transform-style:preserve-3d]
-                            ${!playfulMotion && isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
+                            className={`relative w-full h-full ${springFlip?'':'transition-all duration-700'} [transform-style:preserve-3d]
+                            ${!springFlip && isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                         >
                             {/* FRONT (QUESTION) */}
                             <div data-question-face="front" className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
@@ -424,15 +397,15 @@ export function SharedQuestionFlipCard({
                                                 <WrittenAnswerReview state={writtenAnswer} />
                                                 {/* Multiple Choice Result UI */}
                                                 {hasOptions && mcResult ? (
-                                                    <div className="animate-bounce mb-4 sm:mb-8">
+                                                    <div className="question-choice-feedback" data-testid="question-result-feedback">
                                                         {mcResult === 'correct' ? (
                                                             <div className="flex flex-col items-center">
-                                                                <CheckCircle size={56} className="text-green-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
+                                                                <CheckCircle data-testid="question-result-icon" size={56} className="text-green-500" />
                                                                 <h2 className="text-3xl sm:text-6xl font-black text-green-500 uppercase tracking-widest">{ui("Correct!")}</h2>
                                                             </div>
                                                         ) : (
                                                             <div className="flex flex-col items-center">
-                                                                <XCircle size={56} className="text-red-500 mb-3 sm:w-20 sm:h-20 sm:mb-4" />
+                                                                <XCircle data-testid="question-result-icon" size={56} className="text-red-500" />
                                                                 <h2 className="text-3xl sm:text-6xl font-black text-red-500 uppercase tracking-widest">{ui("Incorrect")}</h2>
                                                             </div>
                                                         )}
@@ -481,6 +454,6 @@ export function SharedQuestionFlipCard({
                                 )}
                             </div>
                         </motion.div>
-                    </motion.div>
+                    </QuestionCardMotion>
                 </div>);
 }

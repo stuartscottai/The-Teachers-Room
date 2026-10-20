@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -709,7 +711,8 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
         }, 500);
     };
 
-    const handleThrow = (hit: boolean) => {
+    const handleThrow = (hit: boolean) => {cardEffects.close(()=>handleThrowAfterExit(hit),hit);};
+    const handleThrowAfterExit = (hit: boolean) => {
         if (currentQuestion) {
             if (hit) {
                 setCorrectCount((prev) => prev + 1);
@@ -824,6 +827,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
     const hasOptions = currentQuestion?.options && currentQuestion.options.length > 0;
     const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'question' ? `${currentQuestion?.id}-${currentTeam}` : null);
+    const cardEffects=useFlipCardEffects({questionKey:phase==='question' ? `${currentQuestion?.id}-${currentTeam}` : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:Boolean(hasOptions),mcResult:mcResult});
     const optionKey = currentQuestion?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
@@ -1285,7 +1289,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
 
             {phase === 'question' && currentQuestion && (
                 <div data-written-question-overlay data-question-below-scoreboard className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-[#120a07]/75 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
-                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
@@ -1537,7 +1541,7 @@ export const DartsGame: React.FC<DartsGameProps> = ({ game, options, onBack, onF
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 

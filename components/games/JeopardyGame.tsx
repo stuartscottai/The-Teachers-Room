@@ -1,3 +1,5 @@
+import { QuestionCardMotion } from './shared/QuestionCardMotion';
+import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -117,6 +119,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     const isBonus = activeQ?.isBonus;
     const hasOptions = activeQ?.options && activeQ.options.length > 0;
     const writtenAnswer = useWrittenAnswer(activeQ, game.config, options, selectedQuestion ? `${selectedQuestion.categoryIndex}-${selectedQuestion.questionIndex}` : null);
+    const cardEffects=useFlipCardEffects({questionKey:selectedQuestion ? `${selectedQuestion.categoryIndex}-${selectedQuestion.questionIndex}` : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:Boolean(hasOptions),mcResult:mcResult});
     const optionKey = activeQ?.options?.join('|') || '';
     const questionImageUrl = resolveGameQuestionImageUrl(activeQ?.image);
     const questionImageAlt = activeQ?.image?.alt || '';
@@ -325,7 +328,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setIsFlipped(false);
     };
 
-    const handleAnswer = (correct: boolean) => {
+    const handleAnswer = (correct: boolean) => {cardEffects.close(()=>handleAnswerAfterExit(correct),correct);};
+    const handleAnswerAfterExit = (correct: boolean) => {
         if (!selectedQuestion || !gameBoard || isProcessing) return;
         setIsProcessing(true); // Lock
 
@@ -333,7 +337,6 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         const q = gameBoard[categoryIndex].questions[questionIndex];
         const points = q.points;
 
-        playSound(correct ? 'correct' : 'incorrect', isMuted, correct ? options.soundConfig?.correct : options.soundConfig?.incorrect);
 
         const newScores = [...scores];
         if (correct) {
@@ -372,7 +375,8 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         setIsFlipped(true);
     };
 
-    const handleBonusAction = () => {
+    const handleBonusAction = () => {cardEffects.close(()=>handleBonusActionAfterExit());};
+    const handleBonusActionAfterExit = () => {
         if (!selectedQuestion || !gameBoard || isProcessing) return;
         setIsProcessing(true); // Lock
 
@@ -425,11 +429,11 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
         });
         
         setIsTimesUp(false);
-        setTimeout(() => {
+
             setSelectedQuestion(null);
             setCurrentTeam((prev) => (prev + 1) % options.players);
             setIsProcessing(false); // Unlock for next round
-        }, 1500);
+
     };
 
     const checkWinner = () => {
@@ -912,7 +916,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             {/* Active Card Modal - Z-Index 200 */}
             {activeQ && (
                 <div data-written-question-overlay data-question-below-scoreboard className={`fixed inset-x-0 bottom-0 ${questionOverlayTopClass} z-[500] flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden`}>
-                    <div className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
+                    <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div 
                             className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] 
@@ -1258,7 +1262,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 )}
                             </div>
                         </div>
-                    </div>
+                    </QuestionCardMotion>
                 </div>
             )}
 
