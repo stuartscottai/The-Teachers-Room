@@ -7,6 +7,7 @@ import { PlinkoAudio, PlinkoSound } from '../../utils/plinkoAudio';
 import { makePlinkoPegs, makePlinkoRails, plinkoRoundLayout, plinkoRoundValues, plinkoDropScore, plinkoBonusOffers, plinkoPocketStars, simulatePlinkoTurn, PlinkoFrame, PlinkoBonus } from '../../utils/plinko';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
 import { StandardQuestionCard } from './shared/StandardQuestionCard';
+import { useActiveTeamScroll } from './shared/useActiveTeamScroll';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { PlinkoBoard } from './PlinkoBoard';
 import { PlinkoBonusIcon, PLINKO_BONUS_COPY, PlinkoFaceIcon, PLINKO_FACES } from './PlinkoIcons';
@@ -94,6 +95,8 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay, onTrivia
   const [flight, setFlight] = useState<{points:number; x:number; y:number; scale:number} | null>(null);
   const dropLock = useRef(false);
   const currentTeam = turn % players;
+  const teamStrip=useRef<HTMLDivElement>(null);
+  useActiveTeamScroll(teamStrip,currentTeam);
   useEffect(() => {
     const panel=container.current?.querySelector<HTMLElement>('.plinko-score-panel');
     if(!panel)return;
@@ -130,7 +133,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay, onTrivia
   const hasTurnPoints = activeFrames.some(f => f.hits > 0 || (f.exitEligible && f.pocket >= 0));
   const boxStars=useMemo(()=>plinkoPocketStars(round-1,values.length),[round,values.length]);
   const question = questions.length ? questions[turn % questions.length] : undefined;
-  useMobileQuestionViewport(container, phase === 'question');
+  useMobileQuestionViewport(container, phase === 'question', {headerSelector:mobile?'.plinko-score-panel':'[data-question-overlay-anchor]'});
   useEffect(() => {
     if (phase !== 'choose' && phase !== 'turn' && phase !== 'round') return;
     let raf = 0, last = 0;
@@ -142,7 +145,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay, onTrivia
     return () => cancelAnimationFrame(raf);
   }, [phase]);
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 639px)');
+    const media = window.matchMedia('(max-width: 767px)');
     const resize = () => setMobile(media.matches);
     const fs = () => setFullscreen(Boolean(document.fullscreenElement));
     resize();
@@ -339,7 +342,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay, onTrivia
             <button className="plinko-cog" aria-label={ui('Game options')} aria-haspopup="dialog" onClick={()=>setShowOptions(true)}><Settings size={22}/><span>{ui('Menu')}</span></button>
           </div>
         <div className="plinko-score-panel plinko-sidebar-box" data-choosing-chips={phase==='chips'}>
-<div className="plinko-scorebar" role="region" aria-label={ui('Scores')}>
+<div ref={teamStrip} className="plinko-scorebar" role="region" aria-label={ui('Scores')}>
           {scores.map((score, index) => <button key={index} className={index === currentTeam ? 'is-active' : ''} aria-current={index === currentTeam ? 'true' : undefined} data-tallying={phase === 'tally' && index === currentTeam} disabled={busy || phase === 'chips'} onClick={() => { setEditing(index); setEditName(names[index]); setEditScore(String(score)); setEditStars(String(stars[index])); }}>{chips[index] >= 0 ? <PlinkoFaceIcon face={chips[index]} size={30}/> : <span className="plinko-unassigned-chip" aria-hidden="true">?</span>}<span className="plinko-team-label"><span className="plinko-team-name">{displayTeamName(names[index])}</span><small ref={element=>{starTargets.current[index]=element;}} data-testid={`plinko-stars-${index}`} className="plinko-team-stars">★ {stars[index]}</small></span><strong ref={element => { scoreTargets.current[index]=element; }} data-testid={`plinko-score-${index}`}>{score}</strong></button>)}
         </div>
         </div><div className="plinko-menu-footer plinko-sidebar-box" data-testid={phase === 'result' ? 'plinko-result' : undefined} data-points={result?.points ?? 0}>

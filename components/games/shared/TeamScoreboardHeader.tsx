@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { GameMenuButton } from './GameMenuButton';
+import { useActiveTeamScroll } from './useActiveTeamScroll';
 import { ArrowLeft, X, Flag, VolumeX, Volume2, Minimize2, Maximize2, Edit2, Settings } from 'lucide-react';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage } from '../../../utils/interfaceLanguage';
 
@@ -23,6 +25,8 @@ interface TeamScoreboardHeaderProps {
 
 export const TeamScoreboardHeader: React.FC<TeamScoreboardHeaderProps> = ({ scores, teamNames, currentTeam, isMobileViewport, isFullscreen, isMuted, onOptions, optionsOnly = false, layout = 'header', onQuit, onEnd, onToggleMute, onToggleFullscreen, onEditTeam, renderScore, footer }) => {
     useInterfaceLanguage();
+    const teamsRef=useRef<HTMLDivElement>(null);
+    useActiveTeamScroll(teamsRef,currentTeam);
     const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
     return (
@@ -65,7 +69,7 @@ export const TeamScoreboardHeader: React.FC<TeamScoreboardHeaderProps> = ({ scor
                     </div>
                     
                     {/* Scoreboard Cards */}
-                    <div data-scoreboard-teams
+                    <div ref={teamsRef} data-scoreboard-teams
                         className={isMobileViewport
                             ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
                             : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
@@ -95,6 +99,7 @@ export const TeamScoreboardHeader: React.FC<TeamScoreboardHeaderProps> = ({ scor
                     </div>
 
                     {footer && <div className="flip-game-sidebar-footer">{footer}</div>}
+                    {optionsOnly&&onOptions&&<GameMenuButton mobileOnly onClick={onOptions}/>}
                     {optionsOnly ? (layout === 'sidebar' ? <div className="trivia-sidebar-controls"><h2 className="font-display text-lg font-bold">{ui('Teams')}</h2></div> : null) : <div className="hidden sm:flex flex-col items-end justify-center min-w-[72px] gap-2">
                         <button 
                             onClick={() => onOptions ? onOptions() : onToggleMute()}

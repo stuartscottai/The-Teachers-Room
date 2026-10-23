@@ -8,11 +8,14 @@
 .game-menu-button:hover{filter:brightness(1.1);transform:translateY(-1px)}
 .game-menu-button:focus-visible{outline:3px solid var(--skin-focus,#0ea5e9);outline-offset:3px}
 @media(min-width:768px){
+ .game-menu-button[data-mobile-only]{display:none!important}
  .trivia-game .trivia-score-sidebar,.trivia-game .flip-game-sidebar{max-height:calc(100% - 64px);position:relative;top:28px}
 }
 @media(max-width:767px){
- :root[data-theme] .gameplay-appearance[data-game-appearance] .game-menu-button{top:8px;right:10px;min-height:40px;padding:6px 12px}
+ :root[data-theme] .gameplay-appearance[data-game-appearance] .game-menu-button:not([data-mobile-only]){display:none}
+ :root[data-theme] .gameplay-appearance[data-game-appearance] .game-menu-button[data-mobile-only]{position:static;flex:none;width:44px;height:44px;min-height:44px;padding:8px;align-self:center}
+ .game-menu-button[data-mobile-only] span{display:none}
  .trivia-game[data-trivia-style] .trivia-play-layout,
- [data-flip-game-shell].flip-game-shell,[data-flip-game-shell].flip-game-shell.has-sidebar{padding-top:58px}
+ [data-flip-game-shell].flip-game-shell,[data-flip-game-shell].flip-game-shell.has-sidebar{padding-top:8px}
  .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-controls{display:none}
 }

@@ -102,10 +102,10 @@ for(let round=0;round<8;round++){
    assert.ok(p.plinkoBlobWallContact(burst,burst.blob.points,rails.map(r=>p.plinkoWallPoints(r.side,r.zigzags))),'Burst is caused by the visible skin touching a wall');
    assert.ok(frames.some(f=>f.blob?.phase==='deflated'),'The body deflates after contact');
    const flying=frames.filter(f=>f.blob?.phase==='deflated'&&f.pocket<0),launched=flying[0];
-   assert.ok(flying.at(-1).time-launched.time>=p.PLINKO_DUMPLING_AIRTIME-.05,'Air-powered loops finish before entering a box');
+   assert.ok(flying.at(-1).time-launched.time>=p.PLINKO_DUMPLING_AIRTIME-.05,'Air-powered flight finishes before entering a box');
    assert.ok(Math.min(...flying.filter(f=>f.time<launched.time+.5).map(f=>f.y))<launched.y-25,'Deflated Dumpling launches upwards first');
    assert.ok(Math.max(...flying.map(f=>f.x))-Math.min(...flying.map(f=>f.x))>100,'The balloon travels around the board rather than falling in place');
-   assert.ok(flying.every(f=>f.y>=80),'The circular flight stays below the top of the board');
+   assert.ok(flying.every(f=>f.y>=80),'The random flight stays below the top of the board');
    for(const f of frames){
     assert.equal(f.blob.points.length,p.PLINKO_BLOB_NODES);
     assert.ok(f.blob.points.every(q=>Number.isFinite(q.x+q.y)),'Every spring node stays finite');
@@ -130,4 +130,17 @@ for(let round=0;round<8;round++){
 }
 assert.ok(lizardSwings>0,'Lizards latch and swing from pegs');
 assert.ok(limitedTongues>0,'Limited tongues are exercised');
-console.log(JSON.stringify({turns,bodies,maxDuration,wallHits,lizardSwings,limitedTongues,abilities}));
+// Fixed seeds check that flight explores new space and can still collect pegs after growth.
+let airbornePegHits=0,productiveFlights=0;const flightRoutes=new Set();
+for(let round=0;round<5;round++)for(let run=0;run<3;run++){
+ let flightSeed=1234+run;const rng=()=>((flightSeed=(Math.imul(flightSeed,1664525)+1013904223)>>>0)/4294967296);
+ const layout=p.plinkoRoundLayout(round),ball=p.simulatePlinkoTurn(p.makePlinkoPegs(round),4,rng,{bonus:'blob',rails:p.makePlinkoRails(round),pocketCount:layout.pocketCount})[0];
+ const frames=ball.frames.filter(f=>f.blob?.phase==='deflated'&&f.pocket<0),flight=frames.filter(f=>f.time<frames[0].time+p.PLINKO_DUMPLING_AIRTIME);
+ const hits=flight.at(-1).hits-flight[0].hits;airbornePegHits+=hits;if(hits)productiveFlights++;
+ assert.ok(Math.max(...flight.map(f=>f.x))-Math.min(...flight.map(f=>f.x))>160,'Flight crosses the board horizontally');
+ assert.ok(Math.max(...flight.map(f=>f.y))-Math.min(...flight.map(f=>f.y))>180,'Flight reaches different heights');
+ flightRoutes.add(JSON.stringify(flight.filter((_,i)=>i%120===0).map(f=>[Math.round(f.x),Math.round(f.y)])));
+}
+assert.equal(flightRoutes.size,15,'Different rounds and random seeds produce different routes');
+assert.ok(productiveFlights>=10&&airbornePegHits>=30,'Burst flight collects remaining pegs beyond the growth area');
+console.log(JSON.stringify({turns,bodies,maxDuration,wallHits,lizardSwings,limitedTongues,abilities,productiveFlights,airbornePegHits}));

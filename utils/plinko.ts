@@ -184,7 +184,7 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
  let removed:number[]=[],brokenAt:number[]=Array(pocketCount).fill(-1);
  const gone=new Set<number>();
  const appearance:PlinkoAppearance=bonus&&bonus!=='two-balls'?bonus:'face';
- type Body={x:number;y:number;vx:number;vy:number;hits:number;redHits:number;pegUnits:number;rotation:number;railHits:number;roofHits:number;frames:PlinkoFrame[];delay:number;pocket:number;floorAt:number;floorX:number;floorRotation:number;appearance:PlinkoAppearance;scale:number;radius:number;exitEligible:boolean;finished:boolean;nextAbility:number;laid:number;generation:number;exploded:boolean;tether?:{index:number;until:number;length:number};effect?:PlinkoEffect;abilityUses:number;blobAt?:number;blobReaction?:{at:number;time:number;x:number;y:number;rail:number;points:Array<{x:number;y:number}>;growth:number};blobLaunched?:boolean;blobBurstAt?:number;blobTouches?:Map<number,number>;blobNodes?:BlobNode[];blobSkin?:PlinkoBlobSkin;blobBurst?:{x:number;y:number;time:number}};
+ type Body={x:number;y:number;vx:number;vy:number;hits:number;redHits:number;pegUnits:number;rotation:number;railHits:number;roofHits:number;frames:PlinkoFrame[];delay:number;pocket:number;floorAt:number;floorX:number;floorRotation:number;appearance:PlinkoAppearance;scale:number;radius:number;exitEligible:boolean;finished:boolean;nextAbility:number;laid:number;generation:number;exploded:boolean;tether?:{index:number;until:number;length:number};effect?:PlinkoEffect;abilityUses:number;blobAt?:number;blobReaction?:{at:number;time:number;x:number;y:number;rail:number;points:Array<{x:number;y:number}>;growth:number};blobLaunched?:boolean;blobFlight?:{next:number;tx:number;ty:number};blobBurstAt?:number;blobTouches?:Map<number,number>;blobNodes?:BlobNode[];blobSkin?:PlinkoBlobSkin;blobBurst?:{x:number;y:number;time:number}};
  const states:Body[]=[];
  const spawn=(x:number,y:number,vx:number,vy:number,delay:number,kind:PlinkoAppearance,scale=1,eligible=true,generation=0)=>{
   const b:Body={x,y,vx,vy,hits:0,redHits:0,pegUnits:0,rotation:0,railHits:0,roofHits:0,frames:[],delay,pocket:-1,floorAt:-1,floorX:0,floorRotation:0,appearance:kind,scale,radius:PLINKO_CHIP_RADIUS*scale,exitEligible:eligible,finished:false,nextAbility:delay+.4,laid:0,generation,exploded:false,abilityUses:0};
@@ -256,13 +256,20 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
     inflating=b.blobAt!==undefined&&(b.blobBurstAt===undefined||elapsed-b.blobBurstAt<PLINKO_DUMPLING_DEFLATION);
     if(inflating&&!reaction)b.x+=(280-b.x)*(1-Math.exp(-dt*2));
     if(b.blobBurstAt!==undefined&&!inflating){
-     if(!b.blobLaunched){b.blobLaunched=true;b.vx=0;b.vy=-370;}
+     if(!b.blobLaunched){b.blobLaunched=true;b.vx=0;b.vy=-370;b.blobFlight={next:elapsed+.35,tx:b.x,ty:110};}
      const flight=elapsed-b.blobBurstAt-PLINKO_DUMPLING_DEFLATION;
      if(flight<PLINKO_DUMPLING_AIRTIME){
-      // Escaping air drives loops, beginning upwards, then dwindles before gravity wins.
-      const air=1-Math.max(0,flight-3.8)/(PLINKO_DUMPLING_AIRTIME-3.8);
-      const direction=reaction!.x<b.x?1:-1,angle=-Math.PI/2+direction*flight*4.1;
-      const speed=110+air*260,steer=1-Math.exp(-dt*9);
+      // Escaping air drives irregular cross-board dashes, then dwindles before gravity wins.
+      const air=1-Math.max(0,flight-3.8)/(PLINKO_DUMPLING_AIRTIME-3.8),course=b.blobFlight!;
+      if(flight>=.35&&(elapsed>=course.next||Math.hypot(course.tx-b.x,course.ty-b.y)<28)){
+       const remaining=near(b,time,650).filter(p=>Math.hypot(p.x-b.x,p.y-b.y)>120);
+       const target=remaining.length&&random()<.65?remaining[Math.floor(random()*remaining.length)]:null;
+       let tx=target?target.x+(random()-.5)*70:80+random()*400,ty=target?target.y+(random()-.5)*60:115+random()*340;
+       if(Math.hypot(tx-b.x,ty-b.y)<140){tx=b.x<280?440:120;ty=110+random()*340;}
+       course.tx=Math.max(78,Math.min(482,tx));course.ty=Math.max(110,Math.min(455,ty));course.next=elapsed+.5+random()*.45;
+      }
+      const angle=flight<.35?-Math.PI/2:Math.atan2(course.ty-b.y,course.tx-b.x);
+      const speed=140+air*380,steer=1-Math.exp(-dt*8);
       let vx=Math.cos(angle)*speed,vy=Math.sin(angle)*speed;
       // Keep the balloon in the playfield while it still has air, including after impacts.
       vx+=Math.max(0,100-b.x)*9-Math.max(0,b.x-460)*9;
@@ -322,6 +329,7 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
     if(speeding){const speed=Math.hypot(b.vx,b.vy)||1;b.vx=b.vx/speed*435;b.vy=b.vy/speed*435;}
     if(b.appearance==='sonic')b.rotation=age*1100;
     if(b.y<80){b.y=80;b.vy=Math.abs(b.vy);}
+    if(balloonPowered&&b.y>PLINKO_ROOF_Y-40){b.y=PLINKO_ROOF_Y-40;b.vy=-Math.abs(b.vy)*.8;}
     if(!b.finished){
      if(b.vy>0&&previousY+b.radius<=PLINKO_ROOF_Y&&b.y+b.radius>=PLINKO_ROOF_Y){
       const box=plinkoPocketAt(b.x,pocketCount);if(brokenAt[box]<0){brokenAt=[...brokenAt];brokenAt[box]=time;roof=box;b.roofHits++;b.y=PLINKO_ROOF_Y-b.radius-.2;b.vy=-Math.max(280,Math.min(390,Math.abs(b.vy)*.85));if(Math.abs(b.vx)<70)b.vx=(random()<.5?-1:1)*105;}

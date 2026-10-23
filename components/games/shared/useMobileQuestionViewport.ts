@@ -4,7 +4,7 @@ import { useLayoutEffect, type RefObject } from 'react';
 export function useMobileQuestionViewport(
   containerRef: RefObject<HTMLElement>,
   active: boolean,
-  { includeDesktop = true, resetKey, boardSelector }: { includeDesktop?: boolean; resetKey?: string; boardSelector?: string } = {},
+  { includeDesktop = true, resetKey, boardSelector, headerSelector }: { includeDesktop?: boolean; resetKey?: string; boardSelector?: string; headerSelector?:string } = {},
 ) {
   useLayoutEffect(() => {
     if (!active) return;
@@ -15,7 +15,7 @@ export function useMobileQuestionViewport(
       if (!container || container.closest('.game-view-zoomed')) return;
       const shell=container.closest<HTMLElement>('[data-flip-game-shell]');
       const shellBoard=shell?.querySelector<HTMLElement>('.flip-game-main');
-      const header = container.querySelector<HTMLElement>('.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
+      const header = container.querySelector<HTMLElement>(headerSelector??'.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
       const overlay = container.querySelector<HTMLElement>('[data-question-below-scoreboard]');
       if (shellBoard && overlay) {
         const rect=shellBoard.getBoundingClientRect();
@@ -70,7 +70,7 @@ export function useMobileQuestionViewport(
     };
 
     update();
-    const header = containerRef.current?.querySelector('.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
+    const header = containerRef.current?.querySelector(headerSelector??'.team-scoreboard-header, [data-scoreboard-header], [data-question-overlay-anchor]');
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
     if (header) observer?.observe(header);
     const shellBoard=containerRef.current?.closest('[data-flip-game-shell]')?.querySelector('.flip-game-main');
@@ -90,5 +90,5 @@ export function useMobileQuestionViewport(
       media.removeEventListener('change', update);
       unlock?.();
     };
-  }, [containerRef, active, includeDesktop, resetKey, boardSelector]);
+  }, [containerRef, active, includeDesktop, resetKey, boardSelector, headerSelector]);
 }

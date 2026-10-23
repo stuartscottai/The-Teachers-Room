@@ -142,3 +142,8 @@ Only the decorative inner tube on question faces and team cards flickers: two br
 HalloweenDecorations lazy-loads HalloweenScene and the existing Three.js engine only when Halloween is selected. One transparent WebGL canvas renders lit, shadow-casting spiders with articulated legs, ribbed pumpkins, extruded flapping bat wings and ghosts with deforming cloth geometry. Panel cobwebs remain lightweight vector artwork. No external models or textures are downloaded. Drawing is capped at 30 frames per second and pixel density at 1.5; hidden pages pause, reduced-motion uses a static scene, and switching styles disposes the renderer, geometries, materials and shadow map. Devices without WebGL retain the themed panels without the animated creatures.
 
 Plinkemoji's desktop and mobile cog controls both display the translated Menu label.
+
+
+### Compact mobile teams
+
+Below 768 px the shared team header is one horizontally scrollable row, with a fixed 44 px cog at the right and no Menu label. There is no separate menu row. Active teams retain their style's highlight plus a focus-colour outline. `useActiveTeamScroll` adjusts only the strip's horizontal scroll position on a turn change or resize, keeping the active team visible without moving the page or question card. Desktop sidebars and labelled menus remain unchanged. Plinkemoji uses the same scrolling helper in a one-row top strip; its board stays full width, and its question card begins immediately below the team strip.
