@@ -1,3 +1,6 @@
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
@@ -350,6 +353,7 @@ const LETTER_PULSE_MS = 1700;
 const CLUE_PURCHASE_COST = 5;
 
 export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const teamCount = Math.max(1, Math.min(4, options.players || 1));
     const initialTeamNames = useMemo(() => {
@@ -1070,6 +1074,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
         if (!activeEntry) return;
 
         const timer = setInterval(() => {
+            if (presentationPaused.current) return;
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
@@ -1270,96 +1275,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     100% { transform: translate(-50%, -50%) scale(1); }
                 }
             `}</style>
-            <div ref={headerRef} data-scoreboard-header="true" className={`bg-slate-800 border-b border-slate-700 ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[114px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 sm:min-h-[140px]`}>
-                <div className={`flex ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-bold flex items-center justify-center`}
-                            title={ui("Quit")}
-                        >
-                            <ArrowLeft size={mobileUsesTwoRowHeader ? 14 : 17} className="sm:mr-2" />
-                            <span className="hidden sm:inline">{ui("Quit")}</span>
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} sm:w-[140px] sm:h-auto sm:px-4 sm:py-2 sm:justify-center bg-rose-700/90 hover:bg-rose-600 text-white text-sm font-bold flex items-center justify-center`}
-                            title={ui("End game now")}
-                        >
-                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} className="sm:mr-2" />
-                            <span className="hidden sm:inline">{ui("End Game")}</span>
-                        </button>
-                        <button
-                            onClick={() => setIsMuted((prev) => !prev)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} border border-slate-700 bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center justify-center`}
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
-                        </button>
-                    </div>
-
-                    <div
-                        className={isMobileViewport
-                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex items-center justify-end sm:justify-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar px-1 sm:px-4'}
-                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
-                    >
-                        {scores.map((score, index) => {
-                            const active = currentTeam === index;
-                            return (
-                                <button data-scoreboard-card="true"
-                                    key={index}
-                                    onClick={() => openEditTeam(index)}
-                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[48px] py-0.5' : 'min-h-[52px] py-1'} w-full min-w-0 px-2 flex flex-col items-center justify-center overflow-hidden` : 'min-w-[110px] sm:min-w-[160px] px-2 py-2 sm:px-4 sm:py-3'} rounded-xl border text-center transition-all ${
-                                        active ? 'bg-cyan-600/20 border-cyan-300' : 'bg-slate-700/60 border-slate-600'
-                                    } relative group`}
-                                >
-                                    <div className={`${mobileUsesTwoRowHeader ? 'text-[9px] leading-none mb-0.5' : 'text-[10px] leading-tight'} sm:text-sm uppercase tracking-wider text-cyan-100 font-bold truncate w-full`}>
-                                        {displayTeamName(teamNames[index])}
-                                    </div>
-                                    <div className={`font-mono font-black leading-none ${mobileUsesTwoRowHeader ? 'text-sm' : 'text-lg'} sm:text-4xl`}>{score}</div>
-                                    <div className={`${mobileUsesTwoRowHeader ? 'mt-0.5 min-h-[6px]' : 'mt-0.5'} flex items-center justify-center gap-1`}>
-                                        {Array.from({ length: MAX_TEAM_CLUES }).map((_, clueIndex) => {
-                                            const cluesRemaining = teamCluesLeft[index] ?? 0;
-                                            const hasClue = clueIndex < cluesRemaining;
-                                            return (
-                                                <span
-                                                    key={clueIndex}
-                                                    className={`${mobileUsesTwoRowHeader ? 'w-1.5 h-1.5' : 'w-2 h-2'} sm:w-2.5 sm:h-2.5 rounded-full ${
-                                                        hasClue
-                                                            ? 'bg-cyan-100 shadow-[0_0_6px_rgba(207,250,254,0.75)]'
-                                                            : 'bg-slate-900/40 border border-cyan-100/35'
-                                                    }`}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="absolute top-1.5 right-1.5 rounded-full bg-slate-200/90 text-slate-800 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Edit2 size={10} />
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="hidden sm:flex shrink-0 flex-col items-end justify-center min-w-[72px] gap-2 self-center">
-                        <button
-                            onClick={toggleFullscreen}
-                            className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
-                            title={isFullscreen ? ui("Exit Fullscreen") : ui("Fullscreen")}
-                        >
-                            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                        </button>
-                        <button
-                            onClick={() => setIsMuted((prev) => !prev)}
-                            className="flex w-10 h-10 items-center justify-center rounded-lg bg-slate-700 text-slate-100 hover:bg-slate-600"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <FlipGameHeader scores={scores} teamNames={teamNames} currentTeam={currentTeam} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}  onEditTeam={openEditTeam} headerRef={headerRef}  renderScore={(score,index) => <span className="text-right"><strong className="text-3xl font-mono">{score}</strong><small className="block text-xs" aria-label={`${teamCluesLeft[index] ?? 0} clues`}>{Array.from({length:MAX_TEAM_CLUES},(_,i)=>i < (teamCluesLeft[index] ?? 0) ? "●" : "○").join(" ")}</small></span>} />
 
             <div className="relative flex-1 min-h-0 overflow-hidden px-3 pt-3 pb-4 sm:px-6 sm:pt-4 sm:pb-5">
                 <div className="absolute inset-0">
@@ -1372,7 +1288,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                     />
                 </div>
                 <div className="relative z-10 max-w-7xl mx-auto h-full flex flex-col items-center justify-between gap-2 sm:gap-3">
-                    <div className="text-center shrink-0">
+                    <div data-game-turn-summary className="text-center shrink-0">
                         <div className="text-sm sm:text-2xl font-black uppercase tracking-wider text-cyan-100">
                             {displayTeamName(teamNames[currentTeam])} {ui(" Turn")}</div>
                         <div className="text-xs sm:text-base text-slate-300 mt-1">
@@ -1463,15 +1379,15 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
             </div>
 
             {cardState !== 'hidden' && activeEntry && (
-                <div
-                    className="absolute inset-x-0 bottom-0 z-[520] flex items-center justify-center bg-slate-900/54 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden"
+                <div data-question-below-scoreboard
+                    className="fixed inset-x-0 bottom-0 z-[520] flex items-center justify-center bg-slate-900/54 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-hidden"
                     style={{ top: `${cardOverlayTop}px` }}
                 >
                     <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-brand-blue text-white p-3 md:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
+                            <div data-question-face="front" className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-white ${isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div data-question-section="header" className="wordwheel-question-heading bg-brand-blue text-white p-3 md:p-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3 h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
                                     <div className="font-black text-sm sm:text-xl truncate">{displayTeamName(teamNames[currentTeam])}</div>
                                     <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 min-w-0 leading-none">
                                         <div className="text-[10px] sm:text-2xl md:text-[28px] font-bold uppercase tracking-wide opacity-90 whitespace-nowrap text-right leading-none">
@@ -1485,7 +1401,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                         {hasTimer ? (
                                             <>
                                                 <div className="flex items-center justify-end gap-1.5 sm:gap-2">
-                                                    <div className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
+                                                    <div data-game-timer-readout className="font-black text-lg sm:text-3xl leading-none flex items-center justify-end">
                                                         <Clock size={16} className="mr-1" /> {timeLeft}s
                                                     </div>
                                                     <button
@@ -1518,8 +1434,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 </div>
 
                                 {hasTimer && (
-                                    <div className="h-2 bg-slate-200">
-                                        <div className="h-full bg-brand-yellow transition-all duration-300" style={{ width: `${timerProgress * 100}%` }} />
+                                    <div data-game-timer-track className="h-2 bg-slate-200">
+                                        <div data-game-timer="fill" className="h-full bg-brand-yellow transition-all duration-300" style={{ width: `${timerProgress * 100}%` }} />
                                     </div>
                                 )}
 
@@ -1579,7 +1495,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             <button
                                                 type="button"
                                                 onClick={() => handlePass(false)}
-                                                className="py-3 sm:py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm sm:text-2xl disabled:opacity-45 disabled:cursor-not-allowed"
+                                                data-game-secondary-action className="py-3 sm:py-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm sm:text-2xl disabled:opacity-45 disabled:cursor-not-allowed"
                                                 disabled={!canPassCurrent}
                                             >
                                                 {ui("Pass")}</button>
@@ -1602,8 +1518,8 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                 </div>
                             </div>
 
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-slate-200 text-slate-700 p-3 md:p-4 flex items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
+                            <div data-question-face="back" className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-slate-50 ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div data-question-section="header" className="bg-slate-200 text-slate-700 p-3 md:p-4 flex items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0">
                                     <div className="font-black text-lg sm:text-3xl">{ui("Result")}</div>
                                 </div>
 
@@ -1650,7 +1566,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                                             <p className="text-base sm:text-2xl font-bold text-slate-500">
                                                 {ui("Answer hidden. This clue stays in play.")}</p>
                                         ) : (
-                                            <div
+                                            <div data-question-copy
                                                 ref={answerTextRef}
                                                 style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.08', overflowWrap: 'anywhere' } : undefined}
                                                 className="font-display font-black text-slate-800 leading-tight text-3xl sm:text-6xl whitespace-pre-wrap break-words max-w-full"
@@ -1729,66 +1645,7 @@ export const WordWheelGame: React.FC<WordWheelGameProps> = ({ game, options, onB
                 </div>
             )}
 
-            {editingTeamIndex !== null && (
-                <div className="fixed inset-0 z-[540] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
-                    <form
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            saveTeamEdit();
-                        }}
-                        className="bg-white rounded-2xl max-w-sm w-full p-6"
-                    >
-                        <button
-                            type="button"
-                            onClick={() => setEditingTeamIndex(null)}
-                            className="ml-auto mb-2 text-slate-400 hover:text-slate-600 block"
-                            aria-label={ui("Close")}
-                        >
-                            <X size={20} />
-                        </button>
-                        <h2 className="text-xl font-bold text-slate-800 mb-4">
-                            {ui("Edit ")}{teamNames[editingTeamIndex] || `Team ${editingTeamIndex + 1}`}
-                        </h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1.5">
-                                    {ui("Team Name")}</label>
-                                <input
-                                    type="text"
-                                    value={editName}
-                                    onChange={(event) => setEditName(event.target.value)}
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-yellow"
-                                    maxLength={32}
-                                    autoFocus
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs uppercase tracking-wider text-slate-500 font-bold mb-1.5">
-                                    {ui("Score")}</label>
-                                <input
-                                    type="number"
-                                    value={editScore}
-                                    onChange={(event) => setEditScore(Number(event.target.value))}
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-brand-yellow"
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 mt-5">
-                            <button
-                                type="button"
-                                onClick={() => setEditingTeamIndex(null)}
-                                className="py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold hover:bg-slate-200"
-                            >
-                                {ui("Cancel")}</button>
-                            <button
-                                type="submit"
-                                className="py-2.5 rounded-lg bg-brand-blue text-white font-bold hover:brightness-110"
-                            >
-                                {ui("Save")}</button>
-                        </div>
-                    </form>
-                </div>
-            )}
+            {editingTeamIndex !== null && (<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>)}
         </div>
     );
 };

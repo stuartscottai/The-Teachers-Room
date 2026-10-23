@@ -317,3 +317,20 @@ html[data-theme='dark'] .workspace-playful .workspace-button-primary { backgroun
   .workspace-menu-panel { max-width: calc(100vw - 32px); }
 }
 @media (prefers-reduced-motion: reduce) { .game-workspace *, .game-workspace *::before, .game-workspace *::after { animation: none !important; transition: none !important; } }
+
+/* Trivia: three aligned controls, followed by a full-width bonus section. */
+.workspace-setup .workspace-trivia-options > .grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.workspace-setup .workspace-trivia-options .workspace-setup-extra { display: contents; }
+.workspace-setup .workspace-trivia-options .workspace-setup-bonuses { grid-column: 1 / -1; }
+.workspace-setup .workspace-trivia-options .workspace-setup-field-group > label { min-height: 24px; margin-bottom: 8px; font-size: 14px; font-weight: 600; line-height: 24px; }
+.workspace-setup .workspace-trivia-options .trivia-style-control { min-height: 54px; padding: 6px 10px; }
+.workspace-setup .workspace-trivia-options .trivia-style-control > .trivia-style-preview { width: 64px; height: 38px; }
+.workspace-setup .workspace-trivia-options .trivia-style-control select { min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
+.workspace-setup .workspace-trivia-options .workspace-setup-field-group > select,
+.workspace-setup .workspace-trivia-options .workspace-setup-field-group > .grid { min-height: 54px; }
+.workspace-setup .workspace-trivia-options .chaos-options > .flex > button:last-child { width: 44px; height: 44px; border-radius: 50%; }
+.workspace-setup .workspace-trivia-options .chaos-options > .mt-4 { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 768px) {
+  .workspace-setup .workspace-trivia-options > .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .workspace-setup .workspace-trivia-options .chaos-options > .mt-4 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

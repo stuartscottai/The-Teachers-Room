@@ -1,4 +1,6 @@
+import { supportsFlipGameStyle } from '../utils/flipGameStyles';
 import { GameEditor } from '../components/games/GameEditor';
+import {normalizeTriviaStyle} from '../utils/triviaStyles';
 import { GamePreview } from '../components/games/GamePreview';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -125,6 +127,7 @@ export const GameSmokeTest: React.FC = () => {
   const [workspace, setWorkspace] = useState(params.get('workspace') || '');
   const [workspaceGame, setWorkspaceGame] = useState<GeneratedGame | null>(null);
   const [workspaceAction, setWorkspaceAction] = useState('');
+  const [setupPlayOptions,setSetupPlayOptions]=useState<GameRunOptions|null>(null);
   const preparationMode = params.get('prepare') || '';
   const bonusesEnabled = params.get('bonuses') === '1';
   const useFullWordWheel = params.get('fullWheel') === '1';
@@ -145,6 +148,16 @@ export const GameSmokeTest: React.FC = () => {
   const type = modes[mode] || GameType.TRIVIA;
   const isPromo = params.get('promo') === '1';
   const baseGame = isPromo ? preparePromoGame(makeGame(type)) : makeGame(type);
+  if(supportsFlipGameStyle(type)){
+    baseGame.config.triviaStyle=normalizeTriviaStyle(params.get('style'));
+    if(params.get('styleFixture')==='1'){
+      baseGame.id='trivia-style-smoke';
+      try{
+        const saved=JSON.parse(localStorage.getItem('teachersRoomGames')||'[]').find((g:GeneratedGame)=>g.id===baseGame.id);
+        baseGame.config.triviaStyle=normalizeTriviaStyle(saved?.config.triviaStyle);
+      }catch{/* A clean fixture still opens with Classic. */}
+    }
+  }
   const isSnakesPreview = type === GameType.SNAKES_LADDERS && params.get('preview') === '1';
   if (isSnakesPreview) {
     baseGame.title = 'Animal adventures';
@@ -261,6 +274,10 @@ export const GameSmokeTest: React.FC = () => {
   }
 
   if (showSetup) {
+    if(params.get('playSetup')==='1'){
+      if(setupPlayOptions)return <LazyGameRunner {...props} options={setupPlayOptions} onBack={()=>setSetupPlayOptions(null)}/>;
+      return <GameSetup game={game} onBack={()=>undefined} onStart={setSetupPlayOptions}/>;
+    }
     if (workspaceAction) return <pre role="status">{workspaceAction}</pre>;
     return <GameSetup game={game} onBack={() => undefined} onStart={options => setWorkspaceAction(JSON.stringify(options))} />;
   }

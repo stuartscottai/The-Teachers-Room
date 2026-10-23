@@ -1,0 +1,20 @@
+/* Mobile keeps a compact top team bar; desktop retains the sidebar. */
+@media(max-width:767px){
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar{order:-1;height:auto!important;align-self:stretch;min-height:0;flex:none}
+ :root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-scoreboard{height:auto;min-height:0;padding:8px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-scoreboard>.flex{flex-direction:row;align-items:flex-start;gap:8px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-teams]{display:grid;grid-template-columns:repeat(var(--flip-mobile-columns,2),minmax(0,1fr));flex:1;gap:6px;padding:2px;overflow:visible;min-width:0}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-card]{height:46px;padding:4px;flex-direction:column;justify-content:center;gap:2px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-name]{max-width:100%;font-size:10px;line-height:1.1;letter-spacing:0}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-score,.trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-card] strong{font-size:18px;line-height:1}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-card] small{font-size:8px;line-height:1}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-controls{order:2;align-self:flex-start;width:40px;flex:none;justify-content:flex-end}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-controls h2{display:none}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-controls>button{width:38px;height:38px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .flip-game-sidebar-footer{display:none}
+ .trivia-game[data-trivia-style] .trivia-play-layout{overflow:hidden;gap:8px;padding:8px}
+ .trivia-game[data-trivia-style] .trivia-play-layout>.trivia-comic-board{flex:1;min-height:0;height:auto}
+ [data-flip-game-shell].flip-game-shell,[data-flip-game-shell].flip-game-shell.has-sidebar{overflow:hidden;gap:8px;padding:8px}
+ [data-flip-game-shell].flip-game-shell .flip-game-main{flex:1;min-height:0;height:auto}
+ [data-flip-game-shell].flip-game-shell .flip-game-main>div{overflow-y:auto}
+}

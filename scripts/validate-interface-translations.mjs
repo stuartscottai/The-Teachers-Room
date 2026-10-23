@@ -81,15 +81,17 @@ function loadBlogModule(file, imports = {}) {
   return moduleExports;
 }
 const rainBlog = loadBlogModule('data/blogRainOnlineLearning.ts');
-const spanishBlog = loadBlogModule('data/blogPosts.es.ts', { './blogRainOnlineLearning': rainBlog });
-const englishBlog = loadBlogModule('data/blogPosts.ts', { './blogPosts.es': spanishBlog, './blogRainOnlineLearning': rainBlog });
+const gameStylesBlog = loadBlogModule('data/blogGameStyles.ts');
+const spanishBlog = loadBlogModule('data/blogPosts.es.ts', { './blogRainOnlineLearning': rainBlog, './blogGameStyles': gameStylesBlog });
+const englishBlog = loadBlogModule('data/blogPosts.ts', { './blogPosts.es': spanishBlog, './blogRainOnlineLearning': rainBlog, './blogGameStyles': gameStylesBlog });
 for (const post of englishBlog.publicBlogPosts) {
   const translated = spanishBlog.spanishBlogPosts[post.id];
   for (const field of ['title', 'subtitle', 'date', 'content']) {
     if (!translated?.[field]?.trim()) failures.push(`Missing Spanish blog ${post.id}: ${field}`);
   }
   if (translated?.content) {
-    const tags = html => html.match(/<[^>]+>/g) || [];
+    // Image descriptions are translated; structure, destinations and other attributes stay identical.
+    const tags = html => (html.match(/<[^>]+>/g) || []).map(tag => tag.replace(/\balt="[^"]*"/g, 'alt="[localized]"'));
     if (JSON.stringify(tags(post.content)) !== JSON.stringify(tags(translated.content))) {
       failures.push(`Spanish blog ${post.id}: HTML structure or link attributes differ from the original`);
     }

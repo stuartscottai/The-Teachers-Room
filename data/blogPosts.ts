@@ -1,8 +1,10 @@
+import { gameStylesBlogPost } from './blogGameStyles';
 import { BlogPost } from '../types';
 import { valenciaRainBlogPost } from './blogRainOnlineLearning';
 import { spanishBlogPosts } from './blogPosts.es';
 
 export const blogPosts: BlogPost[] = [
+    gameStylesBlogPost,
     valenciaRainBlogPost,
     {
         id: 6,

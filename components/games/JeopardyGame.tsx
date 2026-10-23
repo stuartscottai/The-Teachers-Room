@@ -1,3 +1,7 @@
+import './jeopardy-styles.css';
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
@@ -66,6 +70,7 @@ const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName
 };
 
 export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
@@ -96,6 +101,11 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
     // Fullscreen logic
     const containerRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    useEffect(() => {
+        const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [resizeTick, setResizeTick] = useState(0);
     const categoryRowRef = useRef<HTMLDivElement>(null);
@@ -245,7 +255,6 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
     // Toggle Fullscreen
     const toggleFullscreen = () => {
-        if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
             requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
@@ -283,6 +292,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                      if (timerRef.current) clearInterval(timerRef.current);
 
                      timerRef.current = setInterval(() => {
+            if (presentationPaused.current) return;
                         setTimeLeft(prev => {
                             if (prev <= 1) {
                                 clearInterval(timerRef.current!);
@@ -741,96 +751,17 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                 `}
             </style>
             {/* 1. FIXED HEADER (Scoreboard) - Z-Index 250 */}
-            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
-                <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
-                        <button 
-                            onClick={() => setShowQuitConfirm(true)} 
-                            className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
-                        >
-                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
-                            title={ui("End game now")}
-                        >
-                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
-                            title={ui("Quit")}
-                        >
-                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title={ui("End game now")}
-                        >
-                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
-                        </button>
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-brand-blue hover:bg-sky-50 transition-colors`}
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
-                        </button>
-                    </div>
-
-                    {/* Scoreboard Cards */}
-                    <div
-                        className={isMobileViewport
-                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-start sm:justify-center gap-1 sm:gap-4 flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
-                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
-                    >
-                        {scores.map((score, idx) => (
-                            <button data-scoreboard-card="true"
-                                key={idx} 
-                                onClick={() => openEditTeam(idx)}
-                                className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1` : 'shrink-0 px-1.5 py-1 sm:px-6 sm:py-3 sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-all border-b-4 relative group flex flex-col justify-center items-center shadow-sm
-                                    ${currentTeam === idx 
-                                        ? 'bg-brand-blue border-sky-600 text-white'
-                                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
-                            >
-                                <div className={`${mobileTeamNameClass} sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1`}>
-                                    {displayTeamName(teamNames[idx])}
-                                    {currentTeam === idx && <div className="w-2 h-2 rounded-full bg-brand-yellow animate-pulse ml-1"></div>}
-                                </div>
-                                <AnimatedScore score={score} className={`${mobileScoreTextClass} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
-                                {/* Hover Edit Icon */}
-                                <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Edit2 size={12} />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="hidden sm:flex flex-col items-end justify-center min-w-[72px] gap-2">
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                        </button>
-                        <button aria-label={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")} onClick={toggleFullscreen} className="text-slate-400 hover:text-brand-blue p-3 bg-slate-100 hover:bg-sky-50 rounded-xl transition-colors border border-slate-200">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <FlipGameHeader scores={scores} teamNames={teamNames} currentTeam={currentTeam} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}  onEditTeam={openEditTeam}   renderScore={score => <strong className="text-3xl font-mono">{score}</strong>} />
 
             {/* Game Board Grid */}
-            <div className="flex-grow flex flex-col min-h-0 p-3 sm:p-4">
+            <div data-jeopardy-board className="flex-grow flex flex-col min-h-0 p-3 sm:p-4">
                 <div
                     ref={categoryRowRef}
                     className="grid gap-1 sm:gap-2 max-w-full mx-auto w-full mb-2"
                     style={{ gridTemplateColumns: `repeat(${gameBoard.length}, minmax(0, 1fr))` }}
                 >
                     {gameBoard.map((cat: any, idx: number) => (
-                        <div key={`cat-${idx}`} className="bg-brand-blue text-white p-2 sm:p-3 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[74px] sm:min-h-[130px] overflow-hidden">
+                        <div data-jeopardy-category key={`cat-${idx}`} className="bg-brand-blue text-white p-2 sm:p-3 rounded flex items-center justify-center text-center shadow-sm border-b-4 border-sky-700 h-full min-h-[74px] sm:min-h-[130px] overflow-hidden">
                             <h3
                                 data-category-text="true"
                                 className="flex h-full w-full items-center justify-center overflow-hidden px-1 text-center font-display font-bold leading-[1.02] tracking-[-0.03em] whitespace-normal break-normal [overflow-wrap:normal] [word-break:keep-all] hyphens-none"
@@ -871,47 +802,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             </div>
 
              {/* Team Edit Modal */}
-             {editingTeamIndex !== null && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">{ui("Edit Team Details")}</h3>
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Team Name")}</label>
-                            <input 
-                                type="text" 
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg"
-                            />
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Score Override")}</label>
-                            <div className="flex items-center gap-2 justify-center">
-                                <button onClick={() => setEditScore(s => s - 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">-50</button>
-                                <input 
-                                    type="number" 
-                                    value={editScore}
-                                    onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                    className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-lg sm:text-xl"
-                                />
-                                <button onClick={() => setEditScore(s => s + 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">+50</button>
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setEditingTeamIndex(null)}
-                                className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg"
-                            >
-                                {ui("Cancel")}</button>
-                            <button 
-                                onClick={saveTeamEdit}
-                                className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600"
-                            >
-                                {ui("Save Changes")}</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+             {editingTeamIndex !== null && (<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>)}
 
             {/* Active Card Modal - Z-Index 200 */}
             {activeQ && (
@@ -923,7 +814,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                         >
                             {/* Front (Clue or Bonus Alert) */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
+                            <div data-question-face="front" className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
                                 ${isBonus ? 'relative bg-gradient-to-br from-purple-700 via-purple-600 to-indigo-700 border-4 border-yellow-300/80 bonus-glow bonus-pulse' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 
                                 {isBonus ? (
@@ -933,20 +824,20 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         title={ui("Reveal bonus")}
                                     >
                                         <div className="absolute inset-0 bonus-sparkle bonus-shine opacity-60 pointer-events-none"></div>
-                                        <div className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-5xl sm:text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
+                                        <div data-question-copy className="bonus-shimmer text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-amber-300 to-yellow-200 font-display font-black text-5xl sm:text-7xl md:text-9xl tracking-[0.15em] drop-shadow-[0_8px_20px_rgba(250,204,21,0.6)]">
                                             {ui("BONUS")}</div>
                                     </div>
                                 ) : (
                                     <>
                                         {/* HEADER BAR (Blue) */}
-                                        <div className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                        <div data-question-section="header" className="bg-brand-blue text-white p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
                                             <div className="font-bold text-sm sm:text-xl opacity-80 truncate max-w-[45%]">{gameBoard[selectedQuestion!.categoryIndex].name}</div>
                                             <div className="font-black text-2xl sm:text-4xl">{activeQ.points}</div>
                                             <div className="font-bold text-sm sm:text-xl opacity-80 text-right max-w-[35%] truncate">{displayTeamName(teamNames[currentTeam])}</div>
                                         </div>
 
                                         {/* CONTENT BODY (White) */}
-                                        <div className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                        <div data-question-section="body" className={`bg-white flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                             {questionImageUrl && hasOptions ? (
                                                 <div className="flex flex-col flex-1 min-h-0">
                                                     <div
@@ -970,7 +861,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                             ref={questionWrapRef}
                                                             className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
                                                         >
-                                                            <div
+                                                            <div data-question-copy
                                                                 ref={questionTextRef}
                                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                                 className={`font-display font-bold text-slate-800 leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(activeQ.question)}`}
@@ -1050,7 +941,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         ref={questionWrapRef}
                                                         className="w-full flex-1 min-h-0 flex items-center justify-center"
                                                     >
-                                                        <div
+                                                        <div data-question-copy
                                                             ref={questionTextRef}
                                                             style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                             className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(activeQ.question)}`}
@@ -1070,7 +961,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                         ref={questionWrapRef}
                                                         className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
                                                     >
-                                                        <div
+                                                        <div data-question-copy
                                                             ref={questionTextRef}
                                                             style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                             className={`font-display font-bold text-slate-800 leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(activeQ.question)}`}
@@ -1137,14 +1028,14 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                             
                                             {options.timerSeconds > 0 && (
-                                                <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
+                                                <div data-game-timer-track className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
                                                     {!isTimesUp && (
-                                                        <div 
+                                                        <div data-game-timer="fill"
                                                             className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000"
                                                             style={{ width: `${timerProgress * 100}%` }}
                                                         />
                                                     )}
-                                                    <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
+                                                    <div data-game-timer-readout className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
                                                         {isTimesUp ? ui("TIME'S UP!") : (
                                                             <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                         )}
@@ -1166,13 +1057,13 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                             </div>
 
                             {/* Back (Answer or Bonus Effect) */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
+                            <div data-question-face="back" className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full
                                 ${isBonus ? (isPositiveBonus ? 'bg-gradient-to-br from-yellow-100 via-amber-200 to-yellow-300 border-4 border-yellow-300/80 bonus-glow bonus-shimmer' : 'bg-gradient-to-br from-red-200 via-rose-200 to-red-300 border-4 border-red-300') : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
                                 
                                 {isBonus ? (
                                     <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 md:p-12 text-center overflow-hidden">
                                         <div className="w-full flex flex-col items-center justify-center gap-6">
-                                            <div className={`font-display font-black leading-tight break-words ${isNegativeBonus ? 'text-red-900' : 'text-slate-800'} ${getBonusEffectSizeClass(bonusEffectText)}`}>
+                                            <div data-question-copy className={`font-display font-black leading-tight break-words ${isNegativeBonus ? 'text-red-900' : 'text-slate-800'} ${getBonusEffectSizeClass(bonusEffectText)}`}>
                                                 {bonusEffectText}
                                             </div>
                                             <div className={`font-semibold leading-tight break-words max-w-5xl ${isNegativeBonus ? 'text-red-800' : 'text-slate-700'} ${getBonusDetailSizeClass(bonusDetailText)}`}>
@@ -1188,7 +1079,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                 ) : (
                                     <>
                                         {/* HEADER (Gray) */}
-                                        <div className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
+                                        <div data-question-section="header" className="bg-slate-200 text-slate-600 p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10">
                                             <div className="font-bold text-base sm:text-xl opacity-80">{ui("Answer")}</div>
                                             
                                             {/* ALWAYS SHOW FLIP BACK BUTTON */}
@@ -1202,7 +1093,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         </div>
 
                                         {/* CONTENT (White) */}
-                                        <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
+                                        <div data-question-section="body" className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 bg-white text-center overflow-hidden w-full relative z-0">
                                              <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
                                                  <WrittenAnswerReview state={writtenAnswer} />
                                                 {/* Multiple Choice Result UI */}
@@ -1222,7 +1113,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                                     </div>
                                                 ) : null}
 
-                                                <div
+                                                <div data-question-copy
                                                     ref={answerTextRef}
                                                     style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words ${getAnswerFontSizeClass(activeQ.answer)}`}
@@ -1233,7 +1124,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
                                         </div>
                                         
                                         {/* FOOTER (Buttons) */}
-                                        <div className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
+                                        <div data-question-section="actions" className="h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50">
                                             {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : hasOptions ? (
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleAnswer(mcResult === 'correct'); }}
@@ -1312,7 +1203,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
             {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
@@ -1334,7 +1225,7 @@ export const JeopardyGame: React.FC<JeopardyGameProps> = ({ game, options, onBac
 
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">

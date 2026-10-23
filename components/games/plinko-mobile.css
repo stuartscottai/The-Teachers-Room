@@ -27,14 +27,6 @@
  .plinko-game .plinko-sidebar-box::before,.plinko-game .plinko-sidebar-box::after { width: 3px; height: 3px; top: 2px; }
  .plinko-game .plinko-controls .plinko-tools { display: none; }
  .plinko-game .plinko-mobile-menu { display: block; position: relative; grid-row: 1; grid-column: 1; justify-self: end; z-index: 100; margin-right: 4px; }
- .plinko-mobile-menu summary { display: grid; place-items: center; width: 42px; height: 42px; cursor: pointer; list-style: none; border: 2px solid #a1efff; border-radius: 10px; background: linear-gradient(135deg,#49305f,#191b38); color: #d8faff; box-shadow: 0 0 9px #67ddff55,inset 0 0 9px #8870ff44; }
- .plinko-mobile-menu summary::-webkit-details-marker { display: none; }
- .plinko-mobile-menu summary:focus-visible { outline: 3px solid #f2cc7e; outline-offset: 3px; }
- .plinko-mobile-menu[open] summary { color: #ffe19a; border-color: #f2cc7e; }
- .plinko-mobile-menu-options { position: absolute; top: 48px; right: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; width: 230px; padding: 10px; border: 2px solid #a1efff; border-radius: 12px; background: #191b38f5; box-shadow: 0 0 12px #67ddff44,0 10px 30px #0009; }
- .plinko-mobile-menu-options button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 60px; padding: 6px; border: 1px solid #a69ace; border-radius: 7px; color: #e7faff; background: linear-gradient(#49305f,#30213f); }
- .plinko-mobile-menu-options button::after { content: attr(aria-label); font-size: 11px; line-height: 1.2; }
- .plinko-mobile-menu-options button:disabled { opacity: .5; }
  .plinko-game .plinko-score-panel { container-type: normal; flex: 0 1 auto; overflow-y: auto; overscroll-behavior-y: contain; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: #b99bdf #131b31; }
  .plinko-game .plinko-scorebar { height: auto; grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(var(--plinko-players),var(--plinko-mobile-row)); grid-auto-flow: row; gap: 4px; }
  .plinko-game .plinko-scorebar button { min-width: 0; padding: 3px 5px; gap: 5px; border-width: 1px; border-radius: 6px; }

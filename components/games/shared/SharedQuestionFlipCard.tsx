@@ -326,14 +326,14 @@ export function SharedQuestionFlipCard({
                                         <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 bg-white ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
 
                                             {options.timerSeconds > 0 && (
-                                                <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
+                                                <div data-game-timer-track className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
                                                     {!isTimesUp && (
-                                                        <div
+                                                        <div data-game-timer="fill"
                                                             className="absolute inset-y-0 left-0 bg-brand-blue transition-all duration-1000"
                                                             style={{ width: `${timerProgress * 100}%` }}
                                                         />
                                                     )}
-                                                    <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
+                                                    <div data-game-timer-readout className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
                                                         {isTimesUp ? ui("TIME'S UP!") : (
                                                             <><Clock size={18} className="mr-2" /> {timeLeft}s</>
                                                         )}
@@ -423,7 +423,7 @@ export function SharedQuestionFlipCard({
                                         </div>
 
                                         {/* FOOTER (Buttons) */}
-                                        <div className={autoAdvance && (writtenAnswer.writing || hasOptions) ? 'hidden' : 'h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50'}>
+                                        <div data-question-section="actions" className={autoAdvance && (writtenAnswer.writing || hasOptions) ? 'hidden' : 'h-[clamp(88px,14vh,120px)] flex flex-shrink-0 relative z-50'}>
                                             {autoAdvance && (writtenAnswer.writing || hasOptions) ? null : writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : hasOptions ? (
                                                 // Multiple Choice Footer
                                                 <button

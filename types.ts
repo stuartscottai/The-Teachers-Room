@@ -26,8 +26,10 @@ export interface UploadedFile {
 }
 
 export type AnswerMethod = 'say' | 'write';
+export type TriviaStyle = 'classic' | 'comic-pop' | 'pinball-chrome' | 'toy-blocks' | 'paper-cut' | 'candy-circuit' | 'halloween' | 'neon-lights';
 
 export interface GameConfig {
+  triviaStyle?: TriviaStyle;
   answerMethod?: AnswerMethod;
   coverImage?: GameCoverImage;
   playCount?: number; // Legacy saved-game metric when the separate database column is unavailable
@@ -102,6 +104,7 @@ export interface StopTheFireCategory {
 
 // New Interface for Runtime Options (Players, Timer, Bonuses)
 export interface GameRunOptions {
+  triviaStyle?: TriviaStyle;
   answerMethod?: AnswerMethod;
   players: number;
   timerSeconds: number;

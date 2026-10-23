@@ -1,0 +1,24 @@
+/* Timers use the selected style, independent of the game's original timer artwork. */
+.gameplay-appearance [data-trivia-style]{--game-timer-track:#e0f2fe;--game-timer-fill:#0ea5e9;--game-timer-text:#17384b}
+.gameplay-appearance [data-trivia-style=comic-pop]{--game-timer-track:#fff7ea;--game-timer-fill:#ffe35c;--game-timer-text:#20143c}
+.gameplay-appearance [data-trivia-style=pinball-chrome]{--game-timer-track:#0b142b;--game-timer-fill:linear-gradient(90deg,#49305f,#714477);--game-timer-text:#fff0ce}
+.gameplay-appearance [data-trivia-style=toy-blocks]{--game-timer-track:#dcefff;--game-timer-fill:#ffd500;--game-timer-text:#234878}
+.gameplay-appearance [data-trivia-style=paper-cut]{--game-timer-track:#e2eedf;--game-timer-fill:#f7bc9b;--game-timer-text:#143e43}
+.gameplay-appearance [data-trivia-style=candy-circuit]{--game-timer-track:#fffaf0;--game-timer-fill:linear-gradient(90deg,#ffd668,#ffb866);--game-timer-text:#5c1949}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] [data-game-timer-track]{background:var(--game-timer-track)!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] [data-game-timer=fill]{background:var(--game-timer-fill)!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] [data-game-timer-readout]{color:var(--game-timer-text)!important;text-shadow:none;filter:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] [data-question-section=header] [data-game-timer-readout]{color:var(--skin-header-text,var(--comic-ink,inherit))!important}
+/* Dice and turn information retain their arrangement, using the same panel palette. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-skinned .snl-turn-dialog :is(.snl-turn-order-row,.snl-scoreboard,.snl-turn-complete-state){background:var(--skin-score);color:var(--skin-score-text);border-color:var(--skin-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-skinned .snl-turn-dialog :is(.snl-dice-player-label,.snl-dice-team-name,.snl-dice-turn-copy,.snl-turn-order-name,.snl-turn-order-index,.snl-turn-complete-title,.snl-turn-complete-copy){color:var(--skin-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-comic .snl-turn-dialog :is(.snl-turn-order-row,.snl-scoreboard,.snl-turn-complete-state){background:var(--comic-paper);color:var(--comic-ink);border-color:var(--comic-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-comic .snl-turn-dialog :is(.snl-dice-player-label,.snl-dice-team-name,.snl-dice-turn-copy,.snl-turn-order-name,.snl-turn-order-index,.snl-turn-complete-title,.snl-turn-complete-copy){color:var(--comic-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] [data-game-timer-effect]{filter:grayscale(1);mix-blend-mode:luminosity;opacity:.6}
+/* Legacy Darts header labels must inherit the light skins' darker ink. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-skinned [data-question-section=header]>div[class*="text-amber"]{color:var(--skin-header-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-comic [data-question-section=header]>div[class*="text-amber"]{color:var(--comic-ink)}
+
+.gameplay-appearance [data-trivia-style=halloween]{--game-timer-track:#171019;--game-timer-fill:linear-gradient(90deg,#773308,#9f490e);--game-timer-text:#fff2cf}
+
+.gameplay-appearance [data-trivia-style=neon-lights]{--game-timer-track:#100a22;--game-timer-fill:#0e4851;--game-timer-text:#fff3fe}

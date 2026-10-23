@@ -1,3 +1,4 @@
+import { supportsFlipGameStyle } from '../utils/flipGameStyles';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../utils/interfaceLanguage';
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -487,6 +488,11 @@ export const ShareGame: React.FC = () => {
         game={sessionGame || game!}
         onBack={() => setStep(playReturnStep)}
         onStart={handleGameStart}
+        onTriviaStyleChange={triviaStyle=>{
+          const source=sessionGame||game!;
+          setSessionGame({...source,config:{...source.config,triviaStyle}});
+          if(game && supportsFlipGameStyle(game.config.type)&&game.id===source.id)setGame({...game,config:{...game.config,triviaStyle}});
+        }}
         backLabel={playReturnStep === 'preview' ? 'Back to Preview' : 'Back to Editor'}
       />
     );
@@ -499,6 +505,14 @@ export const ShareGame: React.FC = () => {
   const commonProps = {
     game: sessionGame || game!,
     options: playOptions,
+    onTriviaStyleChange: (triviaStyle: NonNullable<GameRunOptions['triviaStyle']>) => {
+      setPlayOptions(previous => previous ? {...previous, triviaStyle} : previous);
+      setSessionGame(previous => {
+        const source = previous || game!;
+        return {...source, config: {...source.config, triviaStyle}};
+      });
+      setGame(previous => previous && supportsFlipGameStyle(previous.config.type) && previous.id === (sessionGame || game)?.id ? {...previous, config: {...previous.config, triviaStyle}} : previous);
+    },
     onFinish: () => navigate('/games'),
     onReplay: handleReplay,
   };

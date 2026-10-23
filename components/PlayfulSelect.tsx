@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 
 type Choice = { value: string; label: string; disabled: boolean; group?: string };
+type PlayfulSelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & { renderOption?: (choice:{value:string;label:string}) => React.ReactNode; menuMinWidth?:number; menuMaxHeight?:number };
 
 /** Keep the real form control; provide one animated picker across browsers. */
-export const PlayfulSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>((props, forwardedRef) => {
+export const PlayfulSelect = forwardRef<HTMLSelectElement, PlayfulSelectProps>((props, forwardedRef) => {
+  const {renderOption,menuMinWidth,menuMaxHeight,...nativeProps}=props;
   const select = useRef<HTMLSelectElement | null>(null);
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -24,11 +26,11 @@ export const PlayfulSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttri
     const viewportBottom = viewportTop + (viewport?.height || innerHeight);
     const below = viewportBottom - box.bottom - 12;
     const above = box.top - viewportTop - 12;
-    const flip = below < 200 && above > below;
-    const height = Math.max(44, Math.min(320, flip ? above : below));
-    const width = Math.min(Math.max(box.width, 180), innerWidth - 16);
+    const flip = below < (menuMaxHeight??200) && above > below;
+    const height = Math.max(44, Math.min(menuMaxHeight??320, flip ? above : below));
+    const width = Math.min(Math.max(box.width, menuMinWidth??180), innerWidth - 16);
     setPosition({ left: Math.max(8, Math.min(box.left, innerWidth - width - 8)), top: flip ? box.top - 6 : box.bottom + 6, width, height, above: flip });
-  }, []);
+  }, [menuMinWidth,menuMaxHeight]);
 
   const show = () => {
     const node = select.current;
@@ -77,7 +79,7 @@ export const PlayfulSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttri
   useEffect(() => { if (props.disabled) setOpen(false); }, [props.disabled]);
 
   return <>
-    <select {...props} ref={node => {
+    <select {...nativeProps} ref={node => {
       select.current = node;
       if (typeof forwardedRef === 'function') forwardedRef(node);
       else if (forwardedRef) forwardedRef.current = node;
@@ -126,11 +128,11 @@ export const PlayfulSelect = forwardRef<HTMLSelectElement, React.SelectHTMLAttri
           <div id={`${id}-${index}`} role="option" aria-selected={select.current?.value === choice.value} aria-disabled={choice.disabled || undefined} data-choice-index={index}
             className={`playful-picker-option${index === active ? ' is-active' : ''}`}
             onPointerMove={() => { if (!choice.disabled) setActive(index); }} onClick={() => choose(index)}>
-            <span>{choice.label}</span>{select.current?.value === choice.value && <Check size={16} aria-hidden="true" />}
+            <span>{renderOption?renderOption(choice):choice.label}</span>{select.current?.value === choice.value && <Check size={16} aria-hidden="true" />}
           </div>
         </React.Fragment>)}
       </div>
-    </div>, document.body)}
+    </div>, document.fullscreenElement || document.body)}
   </>;
 });
 PlayfulSelect.displayName = 'PlayfulSelect';

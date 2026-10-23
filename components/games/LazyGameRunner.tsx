@@ -1,6 +1,10 @@
+import './shared/game-ui-style.css';
+import './shared/game-text-contrast.css';
+import { FlipGamePresentation } from './shared/FlipGamePresentation';
+import { supportsFlipGameStyle } from '../../utils/flipGameStyles';
 import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
-import React, { Suspense, lazy } from 'react';
-import { GameRunOptions, GameType, GeneratedGame } from '../../types';
+import React, { Suspense, lazy, useRef } from 'react';
+import { GameRunOptions, GameType, GeneratedGame, TriviaStyle } from '../../types';
 import { useUnsavedChanges } from '../../contexts/UnsavedChangesContext';
 
 type GameRunnerProps = {
@@ -9,6 +13,7 @@ type GameRunnerProps = {
   onBack: () => void;
   onFinish: () => void;
   onReplay: () => void;
+  onTriviaStyleChange?: (style: TriviaStyle) => void;
   testMode?: boolean;
   testStartPosition?: number;
 };
@@ -73,11 +78,15 @@ const LazyGameRunnerInner: React.FC<GameRunnerProps> = (props) => {
 
 export const LazyGameRunner: React.FC<GameRunnerProps> = (props) => {
   const { gameAppearance } = useUnsavedChanges();
+  const syncStyle=useRef<()=>void>(()=>{});
+  const sharedStyle=supportsFlipGameStyle(props.game.config.type)&&![GameType.TRIVIA,GameType.PLINKO].includes(props.game.config.type);
+  const finish=(action:()=>void)=>()=>{if(sharedStyle)syncStyle.current();action();};
+  const runner=<LazyGameRunnerInner {...props} onBack={finish(props.onBack)} onFinish={finish(props.onFinish)} onReplay={finish(props.onReplay)}/>;
   // Preserve teacher-authored content throughout play, reveal, and game-specific
   // reviews. Site navigation stays outside this translation boundary.
   return <div className="gameplay-viewport"><div translate="no" className="gameplay-appearance notranslate" data-game-appearance={gameAppearance}>
     <Suspense fallback={<GameLoading />}>
-      <LazyGameRunnerInner {...props} />
+      {sharedStyle?<FlipGamePresentation game={props.game} options={props.options} onSelectedStyle={props.onTriviaStyleChange} onSyncReady={sync=>{syncStyle.current=sync;}}>{runner}</FlipGamePresentation>:runner}
     </Suspense>
   </div></div>;
 };

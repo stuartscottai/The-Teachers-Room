@@ -33,6 +33,7 @@ export type PlinkoEffect = { kind: 'blast' | 'tongue' | 'fire' | 'vortex' | 'blo
 export type PlinkoBlobSkin = { points:Array<{x:number;y:number}>; phase:'falling'|'growing'|'startled'|'deflating'|'deflated'; growth:number; reactionAt?:number; burst?:{x:number;y:number;time:number}; contacts:number[] };
 export const PLINKO_DUMPLING_REACTION=.55;
 export const PLINKO_DUMPLING_DEFLATION=.24;
+export const PLINKO_DUMPLING_AIRTIME=6;
 export const PLINKO_BLOB_NODES=48;
 type BlobNode={r:number;v:number};
 export function plinkoBlobWallContact(center:{x:number;y:number},points:Array<{x:number;y:number}>,walls:Array<Array<{x:number;y:number}>>){
@@ -255,9 +256,19 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
     inflating=b.blobAt!==undefined&&(b.blobBurstAt===undefined||elapsed-b.blobBurstAt<PLINKO_DUMPLING_DEFLATION);
     if(inflating&&!reaction)b.x+=(280-b.x)*(1-Math.exp(-dt*2));
     if(b.blobBurstAt!==undefined&&!inflating){
-     if(!b.blobLaunched){b.blobLaunched=true;b.vx=reaction!.x<b.x?270:-270;b.vy=-165;}
+     if(!b.blobLaunched){b.blobLaunched=true;b.vx=0;b.vy=-370;}
      const flight=elapsed-b.blobBurstAt-PLINKO_DUMPLING_DEFLATION;
-     if(flight<1.65){b.vx+=Math.sin(flight*16)*900*dt;b.vy+=Math.cos(flight*13)*580*dt;}
+     if(flight<PLINKO_DUMPLING_AIRTIME){
+      // Escaping air drives loops, beginning upwards, then dwindles before gravity wins.
+      const air=1-Math.max(0,flight-3.8)/(PLINKO_DUMPLING_AIRTIME-3.8);
+      const direction=reaction!.x<b.x?1:-1,angle=-Math.PI/2+direction*flight*4.1;
+      const speed=110+air*260,steer=1-Math.exp(-dt*9);
+      let vx=Math.cos(angle)*speed,vy=Math.sin(angle)*speed;
+      // Keep the balloon in the playfield while it still has air, including after impacts.
+      vx+=Math.max(0,100-b.x)*9-Math.max(0,b.x-460)*9;
+      vy+=Math.max(0,130-b.y)*10-Math.max(0,b.y-425)*12;
+      b.vx+=(vx-b.vx)*steer;b.vy+=(vy-b.vy)*steer;
+     }
     }
    }
    if(b.floorAt>=0){
@@ -268,8 +279,9 @@ export function simulatePlinkoTurn(pegs:PlinkoPeg[],entry:number,random=Math.ran
    }else if(age>0&&!inflating){
     const previousY=b.y;
     if(b.vy>0&&b.y>=PLINKO_ROOF_Y-b.radius&&brokenAt[plinkoPocketAt(b.x,pocketCount)]>=0){b.vy=Math.min(b.vy,145);b.vx*=.985;}
+    const balloonPowered=b.appearance==='blob'&&b.blobBurstAt!==undefined&&elapsed-b.blobBurstAt-PLINKO_DUMPLING_DEFLATION<PLINKO_DUMPLING_AIRTIME;
     const speeding=b.appearance==='sonic'&&age<5.5&&b.roofHits===0;
-    b.vy+=(speeding?0:b.appearance==='dynamite'&&!b.exploded?360:540)*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.rotation+=b.vx*dt/(b.radius||1)*180/Math.PI;
+    b.vy+=(speeding||balloonPowered?0:b.appearance==='dynamite'&&!b.exploded?360:540)*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.rotation+=b.vx*dt/(b.radius||1)*180/Math.PI;
     if(b.appearance==='dragon')b.rotation=b.effect?.kind==='fire'&&time-b.effect.time<b.effect.duration?Math.atan2((b.effect.ty-b.effect.y)*.92,(b.effect.tx-b.effect.x)*.82)*180/Math.PI:Math.max(-25,Math.min(25,b.vx*.1));
     if(b.appearance==='lizard')b.rotation=Math.max(-30,Math.min(30,b.vx*.12));
     if(b.tether){

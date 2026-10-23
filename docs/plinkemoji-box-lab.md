@@ -20,3 +20,11 @@ Peg artwork in the actual game cycles by round:
 Seven transparent 256px WebP sprites live under `public/assets/games/plinko/pegs/`. They were created with the built-in image generation tool; exact prompts and paths are in `docs/plinkemoji-peg-prompts.json`.
 
 Checks include all ten board previews, 50 peg-family/preview asset combinations, six-team fit, mobile widths, working next-turn controls, actual game progression through rounds 1–7 and the repeated sequence from round 6. Test browsers are closed after verification.
+
+## Expanded style review
+
+All original ten previews remain in their original order. Options 11-15 add Studio Modern, Holographic Orbit, Paper Cut, Space Mission and Candy Circuit. A jump link goes directly to the new examples. Each supports the same menu, 2/4/6 teams, active-team selection, Next turn and full board preview. They remain comparison-only.
+
+Pinball Chrome (05) now has a thicker silver cabinet frame, cyan neon inlays and magenta active-team details, reflected in the live Trivia skin and dropdown miniature. Trivia's selectable shortlist is Classic, Comic Pop, Toy Blocks and Pinball Chrome. Older Jelly Glass settings fall back to Classic; the original Jelly Glass preview remains available for comparison. Other games have not been migrated.
+
+Checked the retained original ten, all five new large previews, six-team interactions, 390px mobile fit, and live Trivia Chrome question/answer progression. Type checking and translation validation pass.

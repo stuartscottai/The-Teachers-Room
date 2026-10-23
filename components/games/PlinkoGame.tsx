@@ -1,5 +1,6 @@
+import { HalloweenDecorations } from './shared/HalloweenDecorations';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GeneratedGame, GameRunOptions } from '../../types';
+import { GeneratedGame, GameRunOptions, TriviaStyle } from '../../types';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage } from '../../utils/interfaceLanguage';
 import { requestGameFullscreen } from '../../utils/gameFullscreen';
 import { PlinkoAudio, PlinkoSound } from '../../utils/plinkoAudio';
@@ -10,15 +11,34 @@ import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { PlinkoBoard } from './PlinkoBoard';
 import { PlinkoBonusIcon, PLINKO_BONUS_COPY, PlinkoFaceIcon, PLINKO_FACES } from './PlinkoIcons';
 import { Volume2, VolumeX, Maximize2, Minimize2, LogOut, Flag, Dice5, Settings } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { normalizeTriviaStyle } from '../../utils/triviaStyles';
+import { saveTriviaStyle } from '../../services/triviaStyleStorage';
+import { TriviaStylePicker } from './TriviaStylePicker';
+import { useWorkspaceDialog } from './GameWorkspace';
+import './trivia-comic.css';
+import './trivia-skins.css';
 import './plinko.css';
 import './plinko-chrome.css';
 import './plinko-mobile.css';
+import './plinko-styles.css';
 
-type Props = { game: GeneratedGame; options: GameRunOptions; onBack: () => void; onFinish: () => void; onReplay: () => void };
+type Props = { game: GeneratedGame; options: GameRunOptions; onBack: () => void; onFinish: () => void; onReplay: () => void; onTriviaStyleChange?: (style:TriviaStyle) => void };
 type Phase = 'chips' | 'round' | 'turn' | 'question' | 'bonus' | 'choose' | 'falling' | 'tally' | 'result' | 'over';
 
-export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props) {
+export function PlinkoGame({ game, options, onBack, onFinish, onReplay, onTriviaStyleChange }: Props) {
   useInterfaceLanguage();
+  const {user}=useAuth();
+  const [gameStyle,setGameStyle]=useState(()=>normalizeTriviaStyle(options.triviaStyle??game.config.triviaStyle));
+  const [showOptions,setShowOptions]=useState(false),[styleSaveError,setStyleSaveError]=useState(false);
+  const styleSaves=useRef(Promise.resolve()),styleVersion=useRef(0);
+  const optionsDialog=useWorkspaceDialog(showOptions,()=>setShowOptions(false));
+  const chooseStyle=(next:TriviaStyle)=>{
+    setGameStyle(next);setStyleSaveError(false);onTriviaStyleChange?.(next);
+    const version=++styleVersion.current;
+    styleSaves.current=styleSaves.current.then(async()=>{const saved=await saveTriviaStyle(game,next,user?.id);if(version===styleVersion.current)setStyleSaveError(!saved);});
+  };
+
   const players = Math.max(1, Math.min(6, options.players || 2));
   const rounds = Math.max(1, Math.min(20, options.plinkoRounds || 5));
   const pegPoints = Math.max(1, options.plinkoPegPoints ?? 2);
@@ -60,7 +80,6 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
   const [editStars, setEditStars] = useState('');
   const container = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLDivElement>(null);
-  const mobileMenu = useRef<HTMLDetailsElement>(null);
   const chipDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = chipDialog.current;
@@ -295,16 +314,14 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
   const renderMenuButtons = () => <>
             <button aria-label={muted ? ui('Unmute') : ui('Mute')} onClick={() => {const nextMuted=!muted;audio.current?.setMuted(nextMuted);if(!nextMuted)audio.current?.unlock();setMuted(nextMuted);}}>{muted ? <VolumeX size={19}/> : <Volume2 size={19}/>}</button>
             <button disabled={phase === 'tally'} aria-label={fullscreen ? ui('Exit fullscreen') : ui('Enter fullscreen')} onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else if (container.current) void requestGameFullscreen(container.current); }}>{fullscreen ? <Minimize2 size={19}/> : <Maximize2 size={19}/>}</button>
-            <button aria-label={ui('Quit')} onClick={() => setConfirm('quit')}><LogOut size={19}/></button>
-            <button aria-label={ui('End Game')} onClick={() => setConfirm('end')}><Flag size={19}/></button>
+            <button aria-label={ui('Quit')} onClick={() => {setShowOptions(false);setConfirm('quit');}}><LogOut size={19}/></button>
+            <button aria-label={ui('End Game')} onClick={() => {setShowOptions(false);setConfirm('end');}}><Flag size={19}/></button>
   </>;
-  return <div ref={container} onPointerDownCapture={event=>{audio.current?.unlock();if(mobileMenu.current && !mobileMenu.current.contains(event.target as Node))mobileMenu.current.open=false;}} onKeyDownCapture={()=>audio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')hoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>hoverSound(event.target,event.relatedTarget)} className="plinko-game" data-phase={phase} style={{'--plinko-players':players,'--plinko-team-rows':Math.ceil(players/2)} as React.CSSProperties}>
+  return <div ref={container} onPointerDownCapture={event=>{audio.current?.unlock();}} onKeyDownCapture={()=>audio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')hoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>hoverSound(event.target,event.relatedTarget)} className={`plinko-game ${gameStyle==='comic-pop'?'trivia-comic':'trivia-skinned'}`} data-trivia-style={gameStyle} data-phase={phase} style={{'--plinko-players':players,'--plinko-team-rows':Math.ceil(players/2)} as React.CSSProperties}>
+        {gameStyle==='halloween'&&<HalloweenDecorations muted={muted}/>}
     <div data-question-overlay-anchor />
     <div className="plinko-stage" data-bonus-choices={phase==='bonus'}>
-      <details ref={mobileMenu} className="plinko-mobile-menu" onKeyDown={event=>{if(event.key==='Escape'){event.currentTarget.open=false;event.currentTarget.querySelector('summary')?.focus();}}}>
-        <summary aria-label={ui('Open menu')}><Settings size={24}/></summary>
-        <div className="plinko-mobile-menu-options" onClick={event=>{if((event.target as Element).closest('button') && mobileMenu.current)mobileMenu.current.open=false;}}>{renderMenuButtons()}</div>
-      </details>
+      <button className="plinko-mobile-menu plinko-cog" aria-label={ui('Game options')} aria-haspopup="dialog" onClick={()=>setShowOptions(true)}><Settings size={22}/><span>{ui('Menu')}</span></button>
       {phase==='bonus' && <aside className="plinko-bonus-panel is-picking" aria-label={ui('Bonuses')}>
         <h2>{ui('Choose your bonus')}</h2>
         <div className="plinko-bonus-gallery" style={{'--plinko-offers':offers.length} as React.CSSProperties}>{offers.map((item,index)=><button key={item} className="plinko-gallery-option is-offered" style={{animationDelay:`${index*80}ms`}} data-bonus={item} aria-label={ui(PLINKO_BONUS_COPY[item].label)} aria-describedby={bonusBubble?.bonus===item?'plinko-bonus-bubble':undefined}
@@ -319,7 +336,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
       </div>
       <aside className="plinko-controls" aria-label={ui('Scores')}>
           <div className="plinko-tools plinko-sidebar-box">
-            {renderMenuButtons()}
+            <button className="plinko-cog" aria-label={ui('Game options')} aria-haspopup="dialog" onClick={()=>setShowOptions(true)}><Settings size={22}/><span>{ui('Menu')}</span></button>
           </div>
         <div className="plinko-score-panel plinko-sidebar-box" data-choosing-chips={phase==='chips'}>
 <div className="plinko-scorebar" role="region" aria-label={ui('Scores')}>
@@ -332,7 +349,7 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
         </div>
       </aside>
     </div>
-    <dialog ref={chipDialog} className="plinko-dialog plinko-chip-dialog" aria-labelledby="plinko-chip-heading" onCancel={event=>event.preventDefault()}>
+    <dialog ref={chipDialog} className="plinko-dialog plinko-chip-dialog trivia-theme-dialog trivia-comic-dialog" aria-labelledby="plinko-chip-heading" onCancel={event=>event.preventDefault()}>
 <div className="plinko-chip-picker" aria-labelledby="plinko-chip-heading">
           <h2 id="plinko-chip-heading">{ui('{name}, choose your chip',{name:displayTeamName(names[chipTeam])})}</h2>
           <div className="plinko-face-grid">{PLINKO_FACES.map((label,index)=><button key={label} disabled={chips.includes(index)} aria-label={ui(label)} onClick={()=>chooseChip(index)}><PlinkoFaceIcon face={index} size={48}/><span>{ui(label)}</span></button>)}</div>
@@ -341,11 +358,20 @@ export function PlinkoGame({ game, options, onBack, onFinish, onReplay }: Props)
     </dialog>
     {bonusBubble && phase==='bonus' && <div id="plinko-bonus-bubble" role="tooltip" className={`plinko-bonus-bubble ${bonusBubble.below?'is-below':''}`} style={{left:bonusBubble.x,top:bonusBubble.y,width:bonusBubble.width}}><strong>{ui(PLINKO_BONUS_COPY[bonusBubble.bonus].label)}</strong><p>{ui(PLINKO_BONUS_COPY[bonusBubble.bonus].description)}</p><i/></div>}
     {flight && <span className="plinko-score-flight" data-testid="plinko-score-flight" style={{left:flight.x,top:flight.y,transform:`translate(-50%, -50%) scale(${flight.scale})`}}>{flight.points >= 0 ? '+' : ''}{flight.points}</span>}
-    {phase === 'question' && question && <StandardQuestionCard onSound={sound} chipFace={chips[currentTeam]} key={turn} question={question} config={game.config} options={options} turn={turn} teamName={displayTeamName(names[currentTeam])} onAnswer={correct => {
+    {phase === 'question' && question && <StandardQuestionCard paused={showOptions} onSound={sound} chipFace={chips[currentTeam]} key={turn} question={question} config={game.config} options={options} turn={turn} teamName={displayTeamName(names[currentTeam])} onAnswer={correct => {
       if (correct) { if(stars[currentTeam]>0){const choices=plinkoBonusOffers(stars[currentTeam]);setOffers(choices);setPhase('bonus');}else{setBonus(null);setPhase('choose');} } else { setPhase('result'); }
     }} />}
+    {showOptions&&<div className="plinko-dialog-backdrop plinko-options-backdrop" onClick={event=>{if(event.currentTarget===event.target)setShowOptions(false);}}>
+      <div ref={optionsDialog} role="dialog" aria-modal="true" aria-label={ui('Game options')} className="plinko-dialog plinko-options-dialog trivia-theme-dialog trivia-comic-dialog">
+        <h2>{ui('Game options')}</h2>
+        <TriviaStylePicker value={gameStyle} onChange={chooseStyle}/>
+        {styleSaveError&&<p role="alert">{ui('Failed to save. Please try again.')}</p>}
+        <div className="plinko-style-actions">{renderMenuButtons()}</div>
+        <button className="plinko-primary" onClick={()=>setShowOptions(false)}>{ui('Done')}</button>
+      </div>
+    </div>}
     {starFlights.map(starFlight=><span key={starFlight.id} className="plinko-star-flight" style={{left:starFlight.x,top:starFlight.y,transform:`translate(-50%,-50%) scale(${1-starFlight.progress*.25})`}}>{'★'.repeat(Math.min(3,starFlight.count))}{starFlight.count>3?` +${starFlight.count-3}`:''}</span>)}
-    {confirm && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Confirm')}><div className="plinko-dialog"><h2>{confirm === 'quit' ? ui('Quit game?') : ui('End game now?')}</h2><p>{busy ? ui('Wait for the turn and score tally to finish.') : ui('Choose Continue to keep playing.')}</p><button className="plinko-primary" autoFocus onClick={() => setConfirm(null)}>{ui('Continue')}</button><button className="plinko-secondary" disabled={busy} onClick={() => { cancelAnimationFrame(animation.current); if (confirm === 'quit') onBack(); else setPhase('over'); setConfirm(null); }}>{confirm === 'quit' ? ui('Quit') : ui('End Game')}</button></div></div>}
-    {editing !== null && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Edit team')}><form className="plinko-dialog" onSubmit={saveTeam}><h2>{ui('Edit team')}</h2><label>{ui('Team name')}<input autoFocus value={editName} maxLength={50} onChange={e => setEditName(e.target.value)} /></label><label>{ui('Score')}<input type="number" min="0" value={editScore} onChange={e => setEditScore(e.target.value)} /></label><label>{ui('Stars')}<input type="number" min="0" step="1" value={editStars} onChange={e => setEditStars(e.target.value)} /></label><button className="plinko-primary" type="submit">{ui('Save')}</button><button className="plinko-secondary" type="button" onClick={() => setEditing(null)}>{ui('Cancel')}</button></form></div>}
+    {confirm && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Confirm')}><div className="plinko-dialog trivia-theme-dialog trivia-comic-dialog"><h2>{confirm === 'quit' ? ui('Quit game?') : ui('End game now?')}</h2><p>{busy ? ui('Wait for the turn and score tally to finish.') : ui('Choose Continue to keep playing.')}</p><button className="plinko-primary" autoFocus onClick={() => setConfirm(null)}>{ui('Continue')}</button><button className="plinko-secondary" disabled={busy} onClick={() => { cancelAnimationFrame(animation.current); if (confirm === 'quit') onBack(); else setPhase('over'); setConfirm(null); }}>{confirm === 'quit' ? ui('Quit') : ui('End Game')}</button></div></div>}
+    {editing !== null && <div className="plinko-dialog-backdrop" role="dialog" aria-modal="true" aria-label={ui('Edit team')}><form className="plinko-dialog trivia-theme-dialog trivia-comic-dialog" onSubmit={saveTeam}><h2>{ui('Edit team')}</h2><label>{ui('Team name')}<input autoFocus value={editName} maxLength={50} onChange={e => setEditName(e.target.value)} /></label><label>{ui('Score')}<input type="number" min="0" value={editScore} onChange={e => setEditScore(e.target.value)} /></label><label>{ui('Stars')}<input type="number" min="0" step="1" value={editStars} onChange={e => setEditStars(e.target.value)} /></label><button className="plinko-primary" type="submit">{ui('Save')}</button><button className="plinko-secondary" type="button" onClick={() => setEditing(null)}>{ui('Cancel')}</button></form></div>}
   </div>;
 }

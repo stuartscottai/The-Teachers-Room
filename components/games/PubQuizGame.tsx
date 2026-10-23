@@ -1,3 +1,6 @@
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { matchesWrittenAnswer } from '../../utils/writtenAnswers';
@@ -66,6 +69,7 @@ const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName
 };
 
 export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const [currentRoundIndex, setCurrentRoundIndex] = useState<number | null>(null);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -93,6 +97,11 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const containerRef = useRef<HTMLDivElement>(null);
     const scorebarRef = useRef<HTMLDivElement>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    useEffect(() => {
+        const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
     const [showQuitConfirm, setShowQuitConfirm] = useState(false);
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
     const [scorebarHeight, setScorebarHeight] = useState(140);
@@ -323,6 +332,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
              if (duration > 0 && timeLeft > 0) {
                  if (timerRef.current) clearInterval(timerRef.current);
                  timerRef.current = setInterval(() => {
+            if (presentationPaused.current) return;
                     setTimeLeft(prev => {
                         if (prev <= 1) {
                             clearInterval(timerRef.current);
@@ -473,7 +483,6 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     };
 
     const toggleFullscreen = () => {
-        if (window.innerWidth < 768) return;
         if (!document.fullscreenElement) {
             requestGameFullscreen(containerRef.current);
             setIsFullscreen(true);
@@ -585,100 +594,10 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
     const mobileHeaderColumns = scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length, 1);
 
     return (
-        <div ref={containerRef} className={`bg-[#102b2d] flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`} style={pubQuizBackgroundStyle}>
+        <div ref={containerRef} className={`pubquiz-game bg-[#102b2d] flex flex-col ${containerHeightClass} ${containerOverflowClass} relative transition-colors duration-500`} style={pubQuizBackgroundStyle}>
             
             {/* 1. HEADER (Scoreboard) - Fixed Z-Index */}
-            <div ref={scorebarRef} className={`pub-quiz-scoreboard bg-[#e9f2f0] ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-[0_8px_24px_rgba(5,35,38,0.3)] border-b-2 border-[#6fa8a2] relative sm:min-h-[140px]`}>
-                <div className="hidden sm:flex justify-between items-center gap-4">
-                    <div className="flex flex-col items-start gap-2 min-w-[140px]">
-                        <button 
-                            onClick={() => setShowQuitConfirm(true)} 
-                            className="w-[140px] justify-center text-[#29464d] hover:text-[#e05245] flex items-center text-sm bg-white hover:bg-[#e1efed] px-4 py-2 rounded-lg transition-colors font-bold border border-[#99beb8]"
-                        >
-                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className="w-[140px] justify-center text-white flex items-center text-sm bg-[#e05245] hover:bg-[#ef6759] px-4 py-2 rounded-lg transition-colors font-bold border border-[#ad3c34]"
-                            title={ui("End game now")}
-                        >
-                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
-                    </div>
-
-                    <div className="flex-1 flex justify-center gap-4 overflow-x-auto no-scrollbar px-4 items-center">
-                        {scores.map((score, idx) => (
-                            <button 
-                                key={idx} 
-                                onClick={() => openEditTeam(idx)}
-                                className="px-6 py-3 rounded-xl text-center transition-colors border-b-4 min-w-[150px] relative group h-28 flex flex-col justify-center items-center shadow-[0_5px_12px_rgba(5,50,52,0.3)] bg-[#126c68] border-[#0b4745] text-white hover:bg-[#16807b] hover:border-[#105957]"
-                            >
-                                <div className="text-lg uppercase font-bold tracking-wider truncate max-w-[130px] mb-1 flex items-center gap-1">
-                                    {displayTeamName(teamNames[idx])}
-                                </div>
-                                <AnimatedScore score={score} />
-                                <div className="absolute top-2 right-2 bg-white/15 text-[#ffd166] rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Edit2 size={12} />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                    
-                    <div className="flex flex-col items-end justify-center min-w-[72px] gap-2">
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className="text-[#45646a] hover:text-[#126c68] p-3 bg-white hover:bg-[#e1efed] rounded-xl transition-colors border border-[#99beb8]"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                             {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                        </button>
-                        <button onClick={toggleFullscreen} className="text-[#45646a] hover:text-[#126c68] p-3 bg-white hover:bg-[#e1efed] rounded-xl transition-colors border border-[#99beb8]">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
-                    </div>
-                </div>
-
-                <div className={`flex sm:hidden ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 items-center'}`}>
-                    <div className={`flex shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
-                        <button 
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-[#45646a] hover:text-[#e05245] bg-white hover:bg-[#e1efed] transition-colors border border-[#99beb8]`}
-                            title={ui("Quit")}
-                        >
-                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-white bg-[#e05245] hover:bg-[#ef6759] transition-colors border border-[#ad3c34]`}
-                            title={ui("End game now")}
-                        >
-                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
-                        </button>
-                        <button 
-                            onClick={() => setIsMuted(!isMuted)} 
-                            className={`${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center text-[#45646a] hover:text-[#126c68] bg-white hover:bg-[#e1efed] transition-colors border border-[#99beb8]`}
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                             {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
-                        </button>
-                    </div>
-                    <div
-                        className={`flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`}
-                        style={{ gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` }}
-                    >
-                        {scores.map((score, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => openEditTeam(idx)}
-                                className={`w-full min-w-0 ${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} px-2 py-1 rounded-xl text-center transition-all border-b-4 flex flex-col justify-center items-center shadow-sm bg-[#126c68] border-[#0b4745] text-white`}
-                            >
-                                <div className="text-[10px] uppercase font-bold tracking-wider truncate w-full text-center">
-                                    {displayTeamName(teamNames[idx])}
-                                </div>
-                                <AnimatedScore score={score} className={`${mobileUsesTwoRowHeader ? 'text-base' : 'text-lg'}`} diffClassName="text-[10px] -top-5" />
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+            <FlipGameHeader scores={scores} teamNames={teamNames} currentTeam={-1} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}  onEditTeam={openEditTeam} headerRef={scorebarRef}  renderScore={score => <strong className="text-3xl font-mono">{score}</strong>} />
 
             {/* 2. MAIN CONTENT AREA */}
             <div className={`flex-1 flex flex-col items-center ${mainContentAlign} pb-16 px-4 relative z-10 ${mainContentOverflow} min-h-0`}>
@@ -686,7 +605,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 {/* HOME PHASE: Round Selection */}
                 {phase === 'home' && (
                     <div className="w-full max-w-6xl animate-fade-in pb-24">
-                        <div className="text-center mb-10">
+                        <div data-pubquiz-heading className="text-center mb-10">
                             <h2 className="text-5xl font-display font-black text-white mb-2 drop-shadow-[0_3px_8px_rgba(0,0,0,0.75)]">{ui("Select a Round")}</h2>
                             <p className="text-[#d9ebe8] font-bold text-lg drop-shadow-md">{ui("Choose the next category to play.")}</p>
                         </div>
@@ -696,7 +615,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 const isCompleted = completedRounds.includes(idx);
 
                                 return (
-                                    <button 
+                                    <button data-game-style-panel
                                         key={idx}
                                         onClick={() => !isCompleted && startRound(idx)}
                                         disabled={isCompleted}
@@ -731,7 +650,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                 >
                                     {ui("Finish Game & See Winners")}</button>
                             ) : (
-                                <p className="text-[#d9ebe8] italic font-medium drop-shadow-md">{ui("Complete all rounds to finish the game.")}</p>
+                                <p data-pubquiz-heading className="text-[#d9ebe8] italic font-medium drop-shadow-md">{ui("Complete all rounds to finish the game.")}</p>
                             )}
                         </div>
                     </div>
@@ -739,7 +658,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                 {/* INTRO PHASE */}
                 {phase === 'intro' && currentRound && (
-                    <div className="text-center animate-fade-in max-w-4xl w-full">
+                    <div data-pubquiz-heading className="text-center animate-fade-in max-w-4xl w-full">
                         <h2 className="text-3xl font-bold text-[#ffd166] mb-4 uppercase tracking-widest drop-shadow-lg">{ui("Round ")}{currentRoundIndex! + 1}</h2>
                         <h1 className="text-7xl md:text-9xl font-display font-black text-white mb-16 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">{currentRound.name}</h1>
                         <button 
@@ -753,12 +672,12 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                 {/* REVIEW PHASE */}
                 {phase === 'review' && currentRound && (
                     <div className="w-full max-w-6xl h-full min-h-0 flex flex-col animate-fade-in">
-                        <div className="text-center mb-3 sm:mb-6">
+                        <div data-pubquiz-heading className="text-center mb-3 sm:mb-6">
                             <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-white drop-shadow-lg">{ui("Round Review: ")}{currentRound.name}</h2>
                             <p className="text-[#d9ebe8] font-bold text-sm sm:text-base md:text-lg">{ui("Review answers before scoring.")}</p>
                         </div>
                         
-                        <div className="flex-1 min-h-0 overflow-y-auto bg-[#f8fbfa] rounded-3xl shadow-2xl border-4 border-[#6fa8a2] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
+                        <div data-pubquiz-review className="flex-1 min-h-0 overflow-y-auto bg-[#f8fbfa] rounded-3xl shadow-2xl border-4 border-[#6fa8a2] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                             {currentRound.questions.map((q, idx) => (
                                 <div key={idx} className="border-b border-[#c5dad7] pb-4 sm:pb-6 last:border-0">
                                     <div className="flex justify-between items-start mb-2 sm:mb-3">
@@ -786,7 +705,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             ))}
                         </div>
 
-                        <div className="mt-auto flex justify-center pt-4 pb-3 sm:py-6 gap-3 sm:gap-4">
+                        <div data-pubquiz-review-actions className="mt-auto flex justify-center pt-4 pb-3 sm:py-6 gap-3 sm:gap-4">
                             <button 
                                 onClick={() => {
                                     const allRevealed = Array(currentRound.questions.length).fill(true);
@@ -806,7 +725,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
                 {/* SCORING PHASE */}
                 {phase === 'scoring' && (
-                    <div className="w-full max-w-2xl bg-[#f8fbfa] rounded-2xl shadow-2xl p-4 sm:p-8 animate-fade-in border-4 border-[#6fa8a2] flex flex-col h-full max-h-full sm:h-auto sm:max-h-none min-h-0">
+                    <div data-pubquiz-scoring className="w-full max-w-2xl bg-[#f8fbfa] rounded-2xl shadow-2xl p-4 sm:p-8 animate-fade-in border-4 border-[#6fa8a2] flex flex-col h-full max-h-full sm:h-auto sm:max-h-none min-h-0">
                         <h2 className="text-2xl sm:text-4xl font-display font-bold text-[#172d36] text-center mb-2">{ui("Round Complete!")}</h2>
                         <p className="text-center text-[#526c72] mb-4 sm:mb-8 text-sm sm:text-lg font-medium">{ui("Enter points for this round.")}</p>
                         <div className="space-y-3 sm:space-y-4 overflow-y-auto pr-1 sm:pr-0 flex-1 min-h-0">
@@ -842,66 +761,26 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             </div>
 
             {/* TEAM EDIT MODAL */}
-            {editingTeamIndex !== null && (
-                <div data-testid="pubquiz-team-edit-modal" className="fixed inset-0 z-[700] flex items-center justify-center bg-[#09282a]/70 backdrop-blur-sm p-4">
-                    <div className="bg-[#f8fbfa] p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border-2 border-[#6fa8a2]">
-                        <h3 className="text-lg sm:text-xl font-bold text-[#172d36] mb-3 sm:mb-4">{ui("Edit Team Details")}</h3>
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Team Name")}</label>
-                            <input 
-                                type="text" 
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-2.5 sm:p-3 border border-[#99beb8] bg-white rounded-lg focus:ring-2 focus:ring-[#126c68] outline-none font-bold text-base sm:text-lg text-[#172d36]"
-                            />
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Score Override")}</label>
-                            <div className="flex items-center gap-2 justify-center">
-                                <button onClick={() => setEditScore(s => s - 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">-50</button>
-                                <input 
-                                    type="number" 
-                                    value={editScore}
-                                    onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                    className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-lg sm:text-xl"
-                                />
-                                <button onClick={() => setEditScore(s => s + 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">+50</button>
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setEditingTeamIndex(null)}
-                                className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg"
-                            >
-                                {ui("Cancel")}</button>
-                            <button 
-                                onClick={saveTeamEdit}
-                                className="flex-1 py-3 bg-[#126c68] text-white font-bold rounded-lg hover:bg-[#16807b]"
-                            >
-                                {ui("Save Changes")}</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {editingTeamIndex !== null && (<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>)}
 
             {/* PLAY PHASE: QUESTION CARD MODAL */}
             {phase === 'play' && currentQuestion && (
-                <div data-written-question-overlay data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
+                <div data-question-below-scoreboard data-written-question-overlay data-testid="pubquiz-question-overlay" style={questionOverlayTopStyle} className="fixed inset-x-0 bottom-0 z-[500] flex items-center justify-center bg-[#09282a]/40 backdrop-blur-[2px] p-3 sm:p-4 animate-fade-in overflow-hidden">
                     <QuestionCardMotion key={cardEffects.key} {...cardEffects.motionProps} className="w-full max-w-[420px] h-full max-h-full sm:max-w-[560px] sm:h-full sm:max-h-[90vh] md:max-w-6xl md:h-auto md:max-h-full md:aspect-[16/9] [perspective:1000px]">
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             
                             {/* FRONT */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(4,28,31,0.6)] overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
+                            <div data-question-face="front" className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-[0_24px_70px_rgba(4,28,31,0.6)] overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
                                 {/* Header */}
-                                <div className="bg-[#126c68] text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
+                                <div data-question-section="header" className="bg-[#126c68] text-white p-3 sm:p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-90 truncate max-w-[55%]">{currentRound?.name}</div>
                                     <div className="bg-[#ffd166] text-[#17333b] px-3 py-1 rounded-full font-black text-lg sm:text-xl md:text-2xl shadow-inner">Q{currentQuestionIndex + 1}</div>
                                     <div className="font-bold text-sm sm:text-base md:text-xl opacity-80 text-right">{currentRound?.questions.length} {ui(" Total")}</div>
                                 </div>
 
                                 {/* Body */}
-                                <div className={`bg-[#f8fbfa] flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                <div data-question-section="body" className={`bg-[#f8fbfa] flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {questionImageUrl && hasOptions ? (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div
@@ -925,7 +804,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                     ref={questionWrapRef}
                                                     className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
                                                 >
-                                                    <div
+                                                    <div data-question-copy
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`font-display font-bold text-[#172d36] leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getQuestionFontSizeClass(currentQuestion.question)}`}
@@ -1016,7 +895,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                                 ref={questionWrapRef}
                                                 className="w-full flex-1 min-h-0 flex items-center justify-center"
                                             >
-                                                <div
+                                                <div data-question-copy
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`font-display font-bold text-[#172d36] leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
@@ -1028,7 +907,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     ) : (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
-                                                <div
+                                                <div data-question-copy
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`font-display font-bold text-[#172d36] leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getQuestionFontSizeClass(currentQuestion.question)}`}
@@ -1127,11 +1006,11 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     </div>
 
                                     {options.timerSeconds > 0 && (
-                                        <div className="relative h-[clamp(24px,4.5vh,32px)] bg-[#dcebea] overflow-hidden flex items-center justify-start pointer-events-none border-t border-[#99beb8]">
+                                        <div data-game-timer-track className="relative h-[clamp(24px,4.5vh,32px)] bg-[#dcebea] overflow-hidden flex items-center justify-start pointer-events-none border-t border-[#99beb8]">
                                             {!isTimesUp && (
-                                                <div className="absolute inset-y-0 left-0 bg-[#f3b844] transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
+                                                <div data-game-timer="fill" className="absolute inset-y-0 left-0 bg-[#f3b844] transition-all duration-1000" style={{ width: `${(timeLeft / options.timerSeconds) * 100}%` }} />
                                             )}
-                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-base md:text-lg font-black text-[#17333b] tracking-wider">
+                                            <div data-game-timer-readout className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-base md:text-lg font-black text-[#17333b] tracking-wider">
                                                 {isTimesUp ? ui("TIME'S UP!") : (
                                                     <><Clock size={12} className="mr-1" /> {timeLeft}s</>
                                                 )}
@@ -1142,16 +1021,16 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                             </div>
 
                             {/* BACK (Answer) */}
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="bg-[#0f5555] text-white p-3 md:p-4 flex justify-between items-center h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
+                            <div data-question-face="back" className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full bg-[#f8fbfa] border border-[#6fa8a2] ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div data-question-section="header" className="bg-[#0f5555] text-white p-3 md:p-4 flex justify-between items-center h-20 md:h-24 flex-shrink-0 relative z-10 border-b-2 border-[#f3b844]">
                                     <div className="font-bold text-lg sm:text-xl md:text-2xl opacity-80">{ui("Answer")}</div>
                                     <button onClick={() => setIsFlipped(false)} className="p-2 bg-white rounded-full hover:bg-[#e1efed] text-[#29464d]" title={ui("Flip Back")}><RotateCcw size={20} className="md:w-6 md:h-6" /></button>
                                 </div>
 
-                                <div className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8fbfa] text-center overflow-hidden w-full relative z-0">
+                                <div data-question-section="body" className="written-answer-result-body flex-grow flex flex-col items-center justify-center p-4 md:p-8 bg-[#f8fbfa] text-center overflow-hidden w-full relative z-0">
                                     <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0 px-2 py-2">
                                         <WrittenAnswerReview state={writtenAnswer} />
-                                        <div
+                                        <div data-question-copy
                                             ref={answerTextRef}
                                             style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
                                             className={`font-display font-bold text-[#172d36] leading-snug whitespace-pre-wrap break-words hyphens-none ${getAnswerFontSizeClass(currentQuestion.answer)}`}
@@ -1162,7 +1041,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     
                                     {/* IMMEDIATE SCORING PANEL */}
                                     {!options.studentPractice && !writtenAnswer.writing && (
-                                    <div className="mt-3 w-full bg-[#e6f0ee] rounded-2xl p-3 md:p-4 border-2 border-[#b9d2cf] flex-shrink-0 relative z-10">
+                                    <div data-game-score-panel className="mt-3 w-full bg-[#e6f0ee] rounded-2xl p-3 md:p-4 border-2 border-[#b9d2cf] flex-shrink-0 relative z-10">
                                         <h4 className="text-xs md:text-sm font-bold text-[#61767b] uppercase mb-2 md:mb-3 tracking-widest">{ui("Quick Score (+1 Point)")}</h4>
                                         <div className="flex flex-wrap justify-center gap-2 md:gap-3">
                                             {scores.map((s, i) => (
@@ -1179,7 +1058,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
                                     )}
                                 </div>
 
-                                {writtenAnswer.writing ? (<div className="flex shrink-0 min-h-16"><WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={false} onContinue={() => { handleWrittenContinue(); }} /></div>) : (<div className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
+                                {writtenAnswer.writing ? (<div className="flex shrink-0 min-h-16"><WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={false} onContinue={() => { handleWrittenContinue(); }} /></div>) : (<div data-question-section="actions" className="h-20 md:h-24 flex flex-shrink-0 relative z-50">
                                     <button 
                                         onClick={handleNextQuestion}
                                         className="flex-1 bg-[#e05245] text-white font-bold text-base sm:text-lg md:text-2xl hover:bg-[#ef6759] transition-colors flex items-center justify-center"
@@ -1239,7 +1118,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
             {/* Quit Confirmation Modal */}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <AlertTriangle size={48} className="text-red-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("Your progress will be lost if you haven't saved.")}</p>
@@ -1261,7 +1140,7 @@ export const PubQuizGame: React.FC<PubQuizGameProps> = ({ game, options, onBack,
 
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">

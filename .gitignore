@@ -13,8 +13,8 @@ dist-ssr
 playwright-report
 test-results
 .playwright-cli/
-/output/playwright/
-/output/automatic-writing-build/
+# Generated local previews, screenshots and verification logs
+/output/
 *.local
 .env.prod-smoke
 

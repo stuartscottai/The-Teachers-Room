@@ -1,0 +1,18 @@
+/* Outside the team panel, within the game so fullscreen keeps its menu. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .game-menu-button{
+ position:absolute;top:10px;right:16px;z-index:270;display:flex;align-items:center;justify-content:center;gap:8px;
+ min-height:44px;padding:8px 14px;font-weight:700;background:var(--skin-control,var(--comic-yellow,#ffd500));
+ color:var(--skin-control-text,var(--comic-ink,#17384b));border:var(--skin-width,3px) var(--skin-line,solid) var(--skin-border,var(--comic-ink,#17384b));
+ border-radius:var(--skin-radius,12px);box-shadow:var(--skin-shadow,0 3px 0 #17384b40);transition:transform .18s,filter .18s;
+}
+.game-menu-button:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.game-menu-button:focus-visible{outline:3px solid var(--skin-focus,#0ea5e9);outline-offset:3px}
+@media(min-width:768px){
+ .trivia-game .trivia-score-sidebar,.trivia-game .flip-game-sidebar{max-height:calc(100% - 64px);position:relative;top:28px}
+}
+@media(max-width:767px){
+ :root[data-theme] .gameplay-appearance[data-game-appearance] .game-menu-button{top:8px;right:10px;min-height:40px;padding:6px 12px}
+ .trivia-game[data-trivia-style] .trivia-play-layout,
+ [data-flip-game-shell].flip-game-shell,[data-flip-game-shell].flip-game-shell.has-sidebar{padding-top:58px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar .trivia-sidebar-controls{display:none}
+}

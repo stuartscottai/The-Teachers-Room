@@ -1,0 +1,50 @@
+/* A shared presentation frame; game state and board artwork stay in each game. */
+.flip-game-shell{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;height:calc(var(--app-vh,1vh)*100 - 4rem);min-height:0;padding:8px 16px 16px 8px;overflow:hidden;background:#f0f9ff;color:#17384b}
+.flip-game-shell.has-sidebar{grid-template-columns:minmax(0,1fr) clamp(210px,20vw,300px)}
+:fullscreen .flip-game-shell{height:calc(var(--app-vh,1vh)*100)}
+.flip-game-main{min-width:0;min-height:0;position:relative;overflow:hidden}
+.flip-game-main>div{height:100%!important;min-height:0!important;max-height:100%;width:100%}
+.flip-game-sidebar{align-self:center;min-height:0;min-width:0;position:relative;z-index:250}
+.flip-game-header-host{height:100%;min-height:0}
+.flip-game-sidebar-footer{order:3;flex:none;font-size:12px;font-weight:700;text-align:center}
+.flip-game-menu-overlay{position:absolute;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px;background:#02061799}
+.flip-game-menu-overlay button{min-height:44px}
+.flip-game-menu-overlay button:disabled{opacity:.5;cursor:not-allowed}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned .flip-game-main>div{background:var(--skin-bg);color:var(--skin-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic .flip-game-main>div{background:transparent;color:var(--comic-ink)}
+/* Legacy flip cards use the same skin tokens as Trivia's shared card. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-question-face]{color:var(--skin-text);background:var(--skin-paper)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-question-face] :is(.bg-white,.bg-slate-50,.bg-gray-50){background:var(--skin-paper)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-question-face] :is(.text-slate-900,.text-slate-800,.text-slate-700){color:var(--skin-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-question-face]{background:var(--comic-paper);color:var(--comic-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-question-face] :is(.bg-white,.bg-slate-50){background:var(--comic-paper)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell .trivia-sidebar-scoreboard .font-mono{line-height:1}
+@media(max-width:767px){
+ .flip-game-shell,.flip-game-shell.has-sidebar{display:flex;flex-direction:column;overflow-y:auto;gap:12px;padding:8px 10px 18px}
+ .flip-game-main{flex:none;height:max(420px,65dvh)}
+ .flip-game-sidebar{height:auto!important;align-self:stretch;flex:none}
+ .flip-game-main>div{overflow-y:auto}
+ .flip-game-menu-overlay{position:fixed;top:64px;z-index:3000}
+ :fullscreen .flip-game-menu-overlay{top:0}
+}
+/* Game-specific artwork stays on Classic; selected skins share readable card surfaces. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-question-section=body]{background:var(--skin-paper)!important;color:var(--skin-text);background-image:none!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-question-copy]{color:var(--skin-text);text-shadow:none;filter:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-question-section=body]{background:var(--comic-paper)!important;color:var(--comic-ink);background-image:none!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-question-copy]{color:var(--comic-ink);text-shadow:none;filter:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-game-style-panel]{background:var(--skin-tile);color:var(--skin-tile-text);border:var(--skin-width) var(--skin-line) var(--skin-border);border-radius:var(--skin-radius);box-shadow:var(--skin-shadow)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned [data-game-style-panel] :is(h3,p){color:inherit}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-game-style-panel]{background:var(--comic-yellow);color:var(--comic-ink);border:4px solid var(--comic-ink);border-radius:9px 18px 10px 15px;box-shadow:5px 5px 0 var(--comic-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic [data-game-style-panel] :is(h3,p){color:inherit}
+[data-flip-game-shell] [data-question-below-scoreboard]{top:var(--flip-overlay-top)!important;left:var(--flip-overlay-left)!important;width:var(--flip-overlay-width)!important;bottom:var(--flip-overlay-bottom)!important;right:auto!important}
+@media(max-width:767px){
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-name]{flex-shrink:0}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-card]>span{display:flex;align-items:baseline;justify-content:center;gap:5px}
+ .trivia-game[data-trivia-style] .flip-mobile-scorebar [data-scoreboard-card] small{white-space:nowrap}
+ .flip-game-shell .wordwheel-question-heading{grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:8px}
+ .flip-game-shell .wordwheel-question-heading>div:nth-child(2){flex-direction:column;gap:4px}
+ .flip-game-shell .wordwheel-question-heading>div:nth-child(2)>div:last-child{font-size:32px}
+}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-skinned .snl-question-option{background:var(--skin-option);color:var(--skin-text);border:2px var(--skin-line) var(--skin-border);border-radius:calc(var(--skin-radius)*.35);box-shadow:var(--skin-shadow)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .flip-game-shell.trivia-comic .snl-question-option{background:var(--comic-paper);color:var(--comic-ink);border:3px solid var(--comic-ink);box-shadow:2px 2px 0 var(--comic-ink)}

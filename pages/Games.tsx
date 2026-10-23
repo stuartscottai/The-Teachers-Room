@@ -1,3 +1,4 @@
+import { supportsFlipGameStyle } from '../utils/flipGameStyles';
 import { gameTypeLabel } from '../utils/gameTypeLabel';
 import { PlayfulSelect } from '../components/PlayfulSelect';
 import { useGameHubEntrance } from '../components/games/useGameHubEntrance';
@@ -2915,6 +2916,13 @@ export const Games: React.FC = () => {
                     game={sessionGame || generatedGame}
                     onBack={() => setStep(playReturnStep)}
                     onStart={handleGameStart}
+                    onTriviaStyleChange={triviaStyle=>{
+                        const source=sessionGame||generatedGame;
+                        setSessionGame({...source,config:{...source.config,triviaStyle}});
+                        if(supportsFlipGameStyle(generatedGame.config.type)&&generatedGame.id===source.id){
+                            setGeneratedGame({...generatedGame,config:{...generatedGame.config,triviaStyle}});
+                        }
+                    }}
                     backLabel={playReturnStep === 'preview' ? 'Back to Preview' : 'Back to Editor'}
                 />
             )}
@@ -2932,6 +2940,14 @@ export const Games: React.FC = () => {
                 <LazyGameRunner
                     game={sessionGame || generatedGame!}
                     options={playOptions}
+                    onTriviaStyleChange={triviaStyle => {
+                        setPlayOptions(previous => previous ? {...previous, triviaStyle} : previous);
+                        setSessionGame(previous => {
+                            const source = previous || generatedGame!;
+                            return {...source, config: {...source.config, triviaStyle}};
+                        });
+                        setGeneratedGame(previous => previous && supportsFlipGameStyle(previous.config.type) && previous.id === (sessionGame || generatedGame)?.id ? {...previous, config: {...previous.config, triviaStyle}} : previous);
+                    }}
                     onBack={handleGameEnd}
                     onFinish={() => setStep('hub')}
                     onReplay={handleReplay}

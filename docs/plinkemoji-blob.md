@@ -8,7 +8,7 @@ The playable Blob now uses a live Three.js surface rather than enlarging its bon
 - After reaching the middle, the Blob eases horizontally toward the board centre. Horizontal growth is faster than vertical growth, with travelling irregularities, so it becomes fat and lumpy instead of uniformly scaling.
 - Pegs hold the skin back for 0.32 seconds. The skin dents around their contact points and springs back when they break. Peg destruction still uses the shared, once-only scoring system, including red-peg penalties.
 - Inflation has no fixed end timer or maximum-size trigger. The first intersection of the skin perimeter with an electric zigzag segment causes the single burst, at that contact point.
-- Glossy droplets scatter from the contact point. The body collapses into a rippling, deflated shape and flutters before normal gravity and box rules finish the turn. Only one box scores, and its lid must already be broken.
+- Glossy droplets scatter from the contact point. The body collapses into a rippling, deflated shape, then launches upward into six seconds of air-powered circular flight. Steering keeps it within the playfield while it loops, slowing over the final 2.2 seconds as the air runs out. Normal gravity and box rules then finish the turn. Only one box scores, and its lid must already be broken.
 
 ## Rendering and fallback
 

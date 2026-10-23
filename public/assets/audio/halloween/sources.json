@@ -1,0 +1,16 @@
+{
+  "title": "Scary Scream",
+  "creator": "DRAGON-STUDIO",
+  "source": "https://pixabay.com/sound-effects/film-special-effects-scary-scream-401725/",
+  "license": "https://pixabay.com/service/license-summary/",
+  "providedFile": "dragon-studio-scary-scream-401725.mp3",
+  "sourceSha256": "fdd41c91fff4807e99a83f7da05d4322c860c295e8afabb91e2571dd69bece90",
+  "startSeconds": 0,
+  "durationSeconds": 3.312018140589569,
+  "gainDb": -8.182,
+  "fadeInSeconds": 0,
+  "fadeOutSeconds": 0.03,
+  "file": "scary-scream-401725-v2.mp3",
+  "playbackRate": 1,
+  "bytes": 53959
+}

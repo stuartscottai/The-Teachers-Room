@@ -1,7 +1,18 @@
+import { HalloweenDecorations } from './shared/HalloweenDecorations';
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import './shared/flip-mobile-scorebar.css';
+import './trivia-layout.css';
+import './trivia-comic.css';
+import './trivia-skins.css';
+import { TriviaStylePicker } from './TriviaStylePicker';
+import { saveTriviaStyle } from '../../services/triviaStyleStorage';
+import { useAuth } from '../../contexts/AuthContext';
+import {normalizeTriviaStyle} from '../../utils/triviaStyles';
 import { SharedQuestionFlipCard } from './shared/SharedQuestionFlipCard';
 import { useQuestionCardSounds } from './shared/useQuestionCardSounds';
 import { PlinkoAudio, type PlinkoSound } from '../../utils/plinkoAudio';
 import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
+import { GameMenuButton } from './shared/GameMenuButton';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -9,7 +20,7 @@ import { requestGameFullscreen } from '../../utils/gameFullscreen';
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { QuestionCardZoomButton } from './QuestionCardZoomButton';
-import { BonusCardType, GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem } from '../../types';
+import { BonusCardType, GeneratedGame, GameRunOptions, GeneratedQuestion, PracticeReviewItem, TriviaStyle } from '../../types';
 import { playSound } from '../../utils/gameUtils';
 import { resolveGameQuestionImageUrl } from '../../utils/gameImage';
 import { WinnerCeremonyHero, WinnerCeremonyStandingsTable } from './shared/WinnerCeremonyHero';
@@ -22,6 +33,7 @@ interface TriviaGameProps {
     onBack: () => void;
     onFinish: () => void;
     onReplay: () => void;
+    onTriviaStyleChange?: (style: TriviaStyle) => void;
 }
 
 // Sub-component for animated score numbers
@@ -68,8 +80,40 @@ const AnimatedScore: React.FC<{ score: number; className?: string; diffClassName
     );
 };
 
-export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, onFinish, onReplay, onTriviaStyleChange }) => {
   useUiLanguage();
+    const { user } = useAuth();
+    const [triviaStyle, setTriviaStyle] = useState(() => normalizeTriviaStyle(options.triviaStyle ?? game.config.triviaStyle));
+    const [showGameOptions, setShowGameOptions] = useState(false);
+    const [styleSaveError, setStyleSaveError] = useState(false);
+    const styleSaves = useRef(Promise.resolve());
+    const styleVersion = useRef(0);
+    const optionsDialogRef = useRef<HTMLDivElement>(null);
+    const chooseTriviaStyle = (style: TriviaStyle) => {
+        setTriviaStyle(style);
+        onTriviaStyleChange?.(style);
+        setStyleSaveError(false);
+        const version = ++styleVersion.current;
+        styleSaves.current = styleSaves.current.then(async () => {
+            const saved = await saveTriviaStyle(game, style, user?.id);
+            if (version === styleVersion.current) setStyleSaveError(!saved);
+        });
+    };
+    useEffect(() => {
+        if (!showGameOptions) return;
+        const previousFocus = document.activeElement;
+        optionsDialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') { event.preventDefault(); setShowGameOptions(false); }
+            if (event.key !== 'Tab') return;
+            const elements = Array.from(optionsDialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []);
+            const first = elements[0], last = elements[elements.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => { document.removeEventListener('keydown', onKeyDown); if (previousFocus instanceof HTMLElement) previousFocus.focus(); };
+    }, [showGameOptions]);
     const [scores, setScores] = useState<number[]>(Array(options.players).fill(0));
     const [teamNames, setTeamNames] = useState<string[]>(options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
     const [currentTeam, setCurrentTeam] = useState(0);
@@ -164,14 +208,14 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         ? Math.max(0, Math.min(1, timeLeft / options.timerSeconds))
         : 0;
 
-    useMobileQuestionViewport(containerRef, activeQuestionIndex !== null && !isGameOver);
+    useMobileQuestionViewport(containerRef, activeQuestionIndex !== null && !isGameOver, { boardSelector: '.trivia-comic-board' });
 
     // BODY SCROLL LOCK
     useEffect(() => {
-        const shouldLock = activeQuestionIndex !== null || editingTeamIndex !== null;
+        const shouldLock = activeQuestionIndex !== null || editingTeamIndex !== null || showGameOptions;
         document.body.style.overflow = shouldLock ? 'hidden' : 'auto';
         return () => { document.body.style.overflow = 'auto'; };
-    }, [activeQuestionIndex, isGameOver, editingTeamIndex]);
+    }, [activeQuestionIndex, isGameOver, editingTeamIndex, showGameOptions]);
 
     useEffect(() => {
         const media = window.matchMedia('(max-width: 639px)');
@@ -252,6 +296,8 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         return () => document.removeEventListener('fullscreenchange', handleFsChange);
     }, []);
 
+    // Only question/rule changes rebuild the pool. Changing saved appearance must
+    // preserve randomized order, card values, bonuses and the active turn.
     // Initialize Game Logic (Divisibility & Bonuses)
     useEffect(() => {
         if (!game.questions) return;
@@ -304,7 +350,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             }
         }
         setGameQuestions(questionsCopy);
-    }, [game, options.bonusOptions, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions, options.triviaRandomPoints]);
+    }, [game.questions, options.bonusOptions, options.enableBonuses, options.questionLimit, options.players, options.randomizeQuestions, options.triviaRandomPoints]);
 
     // Calculate Optimal Grid Dimensions (Perfect Rectangles Priority)
     const gridStyle = useMemo(() => {
@@ -351,21 +397,19 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             display: 'grid',
             gridTemplateColumns: `repeat(${bestCols}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${bestRows}, minmax(0, 1fr))`, 
-            gap: isFullscreen ? '0.5rem' : '0.35rem', 
+            gap: triviaStyle==='classic'?(isFullscreen?'0.5rem':'0.35rem'):'clamp(8px, 1vw, 14px)',
             width: '100%',
             height: '100%', 
             paddingBottom: '0.5rem'
         };
-    }, [gameQuestions.length, gridDimensions, isFullscreen]);
+    }, [gameQuestions.length, gridDimensions, isFullscreen,triviaStyle]);
 
-    const toggleFullscreen = () => {
-        if (window.innerWidth < 768) return;
-        if (!document.fullscreenElement) {
-            requestGameFullscreen(containerRef.current);
-            setIsFullscreen(true);
-        } else {
-            document.exitFullscreen();
-            setIsFullscreen(false);
+    const toggleFullscreen = async () => {
+        try {
+            if (!document.fullscreenElement) await requestGameFullscreen(containerRef.current);
+            else await document.exitFullscreen();
+        } catch (error) {
+            console.warn('Could not change fullscreen mode', error);
         }
     };
 
@@ -387,7 +431,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
     // Timer Logic
     useEffect(() => {
-        if (activeQuestionIndex !== null && !isFlipped && !isGameOver && gameQuestions.length > 0) {
+        if (activeQuestionIndex !== null && !isFlipped && !isGameOver && !showGameOptions && !showQuitConfirm && !showEndGameConfirm && editingTeamIndex === null && gameQuestions.length > 0) {
             const q = gameQuestions[activeQuestionIndex];
             if (!q.isBonus) {
                 const duration = options.timerSeconds;
@@ -410,7 +454,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             if (timerRef.current) clearInterval(timerRef.current);
         }
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [activeQuestionIndex, isFlipped, gameQuestions, options.timerSeconds, isGameOver]);
+    }, [activeQuestionIndex, isFlipped, gameQuestions, options.timerSeconds, isGameOver, showGameOptions, showQuitConfirm, showEndGameConfirm, editingTeamIndex]);
 
     // Check for Time's Up Detection
     useEffect(() => {
@@ -761,13 +805,12 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
         );
     }
 
-    const mobileUsesTwoRowHeader = isMobileViewport && scores.length >= 4;
-    const questionOverlayTopClass = isFullscreen
-        ? `${mobileUsesTwoRowHeader ? 'top-[calc(7rem+env(safe-area-inset-top))]' : 'top-[calc(4.5rem+env(safe-area-inset-top))]'} sm:top-[calc(8.75rem+env(safe-area-inset-top))]`
-        : `${mobileUsesTwoRowHeader ? 'top-[calc(11rem+env(safe-area-inset-top))]' : 'top-[calc(8.5rem+env(safe-area-inset-top))]'} sm:top-[calc(12.75rem+env(safe-area-inset-top))]`;
+    const questionOverlayTopClass = isFullscreen ? 'top-0' : 'top-16';
 
     return (
-        <div ref={containerRef} onPointerDownCapture={()=>cardAudio.current?.unlock()} onKeyDownCapture={()=>cardAudio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')cardHoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>cardHoverSound(event.target,event.relatedTarget)} className={`bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+        <div ref={containerRef} onPointerDownCapture={()=>cardAudio.current?.unlock()} onKeyDownCapture={()=>cardAudio.current?.unlock()} onPointerOverCapture={event=>{if(event.pointerType==='mouse')cardHoverSound(event.target,event.relatedTarget);}} onFocusCapture={event=>cardHoverSound(event.target,event.relatedTarget)} data-trivia-style={triviaStyle} className={`trivia-game ${triviaStyle==='comic-pop'?'trivia-comic':triviaStyle!=='classic'?'trivia-skinned':''} bg-sky-50 flex flex-col ${isFullscreen ? 'h-[calc(var(--app-vh,1vh)*100)]' : 'h-[calc(var(--app-vh,1vh)*100-4rem)]'} overflow-hidden transition-all duration-300 relative`}>
+        {triviaStyle==='halloween'&&<HalloweenDecorations muted={isMuted}/>}
+        <GameMenuButton onClick={()=>setShowGameOptions(true)}/>
             <style>
                 {`
                 @keyframes bonus-pulse {
@@ -803,16 +846,39 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                 `}
             </style>
             
-            <TeamScoreboardHeader scores={scores} teamNames={teamNames} currentTeam={currentTeam}
-                isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted}
-                onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}
-                onToggleMute={() => setIsMuted(!isMuted)} onToggleFullscreen={toggleFullscreen} onEditTeam={openEditTeam}
-                renderScore={score => <AnimatedScore score={score} className={`${mobileUsesTwoRowHeader ? 'text-base' : 'text-lg'} sm:text-5xl`} diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />} />
 
+
+            {showGameOptions && <div className="absolute inset-0 z-[900] bg-slate-950/60 flex items-center justify-center p-4" onClick={event => { if (event.target === event.currentTarget) setShowGameOptions(false); }}>
+                <div ref={optionsDialogRef} role="dialog" aria-modal="true" aria-label={ui('Game options')} className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-5 sm:p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 max-h-full overflow-y-auto">
+                    <div className="flex items-center justify-between gap-3 mb-5">
+                        <h2 id="trivia-options-title" className="font-display text-2xl font-bold">{ui('Game options')}</h2>
+                        <button onClick={() => setShowGameOptions(false)} aria-label={ui('Close')} className="p-2 rounded-lg border border-slate-200 hover:bg-slate-100"><X size={20} /></button>
+                    </div>
+                    <TriviaStylePicker value={triviaStyle} onChange={chooseTriviaStyle} />
+                    {styleSaveError && <p role="alert" className="text-sm mt-2">{ui('Failed to save. Please try again.')}</p>}
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                        <button onClick={() => setIsMuted(value => !value)} className="flex min-h-[48px] items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 hover:bg-slate-100" aria-pressed={!isMuted}>
+                            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}{isMuted ? ui('Unmute') : ui('Mute')}
+                        </button>
+                        <button onClick={toggleFullscreen} disabled={!document.fullscreenEnabled} className="flex min-h-[48px] items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}{isFullscreen ? ui('Exit fullscreen') : ui('Enter fullscreen')}
+                        </button>
+                        <button onClick={() => { setShowGameOptions(false); setShowQuitConfirm(true); }} className="flex min-h-[48px] items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 hover:bg-red-50">
+                            <ArrowLeft size={20} />{ui('Quit')}
+                        </button>
+                        <button onClick={() => { setShowGameOptions(false); setShowEndGameConfirm(true); }} className="flex min-h-[48px] items-center justify-center gap-2 p-3 rounded-xl border border-slate-200 hover:bg-rose-50">
+                            <Flag size={20} />{ui('End Game')}
+                        </button>
+                    </div>
+                    <button onClick={() => setShowGameOptions(false)} className="mt-5 w-full py-3 rounded-xl bg-brand-blue text-white font-bold hover:brightness-110">{ui('Done')}</button>
+                </div>
+            </div>}
+
+            <div className="trivia-play-layout">
             {/* 2. MAIN GRID AREA */}
-            <div ref={gridWrapperRef} className="flex-grow w-full h-full relative p-2 overflow-hidden flex flex-col items-center justify-center z-10">
+            <div ref={gridWrapperRef} className="trivia-comic-board flex-grow w-full h-full relative p-2 overflow-hidden flex flex-col items-center justify-center z-10">
                 <div className="w-full h-full">
-                     <div style={gridStyle}>
+                     <div className={triviaStyle==='classic'?undefined:'trivia-comic-grid'} style={gridStyle}>
                         {gameQuestions.map((q, idx) => {
                             const isAnswered = answeredIndices.includes(idx);
                             
@@ -853,48 +919,17 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
                 </div>
             </div>
 
+            <aside className="trivia-score-sidebar flip-mobile-scorebar" aria-label={ui('Teams')} style={{ '--trivia-sidebar-height': `${Math.max(50, scores.length / 6 * 100)}%`, '--flip-mobile-columns': scores.length >= 5 ? 3 : scores.length === 4 ? 2 : Math.max(scores.length,1) } as React.CSSProperties}>
+            <TeamScoreboardHeader scores={scores} teamNames={teamNames} currentTeam={currentTeam}
+                layout="sidebar" optionsOnly isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted}
+                onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}
+                onOptions={() => setShowGameOptions(true)} onToggleMute={() => setIsMuted(!isMuted)} onToggleFullscreen={toggleFullscreen} onEditTeam={openEditTeam}
+                renderScore={score => <AnimatedScore score={score} className="trivia-sidebar-score text-3xl" diffClassName="text-sm -top-5" />} />
+            </aside>
+            </div>
+
             {/* 3. TEAM EDIT MODAL */}
-            {editingTeamIndex !== null && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white p-4 sm:p-6 rounded-2xl w-full max-w-sm shadow-2xl animate-fade-in border border-slate-100">
-                        <h3 className="text-lg sm:text-xl font-bold text-slate-800 mb-3 sm:mb-4">{ui("Edit Team Details")}</h3>
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Team Name")}</label>
-                            <input 
-                                type="text" 
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="w-full p-2.5 sm:p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue outline-none font-bold text-base sm:text-lg"
-                            />
-                        </div>
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-slate-500 mb-1">{ui("Score Override")}</label>
-                            <div className="flex items-center gap-2 justify-center">
-                                <button onClick={() => setEditScore(s => s - 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">-50</button>
-                                <input 
-                                    type="number" 
-                                    value={editScore}
-                                    onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
-                                    className="w-28 sm:w-32 p-2.5 sm:p-3 border border-slate-200 rounded-lg text-center font-mono font-bold text-lg sm:text-xl"
-                                />
-                                <button onClick={() => setEditScore(s => s + 50)} className="px-3 py-2 bg-slate-100 rounded hover:bg-slate-200 text-sm font-bold">+50</button>
-                            </div>
-                        </div>
-                        <div className="flex gap-3">
-                            <button 
-                                onClick={() => setEditingTeamIndex(null)}
-                                className="flex-1 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-lg"
-                            >
-                                {ui("Cancel")}</button>
-                            <button 
-                                onClick={saveTeamEdit}
-                                className="flex-1 py-3 bg-brand-blue text-white font-bold rounded-lg hover:bg-sky-600"
-                            >
-                                {ui("Save Changes")}</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {editingTeamIndex !== null && (<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>)}
 
             {/* 4. ACTIVE QUESTION OVERLAY */}
             {activeQ && (
@@ -997,7 +1032,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
             {/* 5. QUIT CONFIRM */}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("Quit current game?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("Unsaved progress will be lost.")}</p>
                         <div className="flex space-x-4">
@@ -1018,7 +1053,7 @@ export const TriviaGame: React.FC<TriviaGameProps> = ({ game, options, onBack, o
 
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">

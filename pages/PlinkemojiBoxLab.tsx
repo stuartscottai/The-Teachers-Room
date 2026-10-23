@@ -18,6 +18,11 @@ const styles = [
   ['ticket', 'Prize Tickets', 'Scalloped tickets, dashed seams and warm paper.'],
   ['neon', 'Neon Console', 'Dark panels, electric outlines and floating light.'],
   ['cloud', 'Cloud Club', 'Soft cloud shapes, lavender shadows and golden stars.'],
+  ['modern', 'Studio Modern', 'Warm white, precise cobalt edges and a clean editorial layout.'],
+  ['orbit', 'Holographic Orbit', 'Midnight panels wrapped in iridescent light and luminous score rings.'],
+  ['papercut', 'Paper Cut', 'Layered teal paper, coral tabs and crisp cut-out shadows.'],
+  ['mission', 'Space Mission', 'Flight-deck panels, clipped corners and amber instrument details.'],
+  ['candy', 'Candy Circuit', 'Raspberry frames, candy-striped edges and glossy cream buttons.'],
 ] as const;
 const teams = ['Foxes', 'Owls', 'Bears', 'Lions', 'Otters', 'Eagles'];
 const scores = [128, 96, 84, 64, 52, 40];
@@ -65,17 +70,18 @@ export const PlinkemojiBoxLab = () => {
     <header className="boxlab-header">
       <Link to="/game-types/plinkemoji" className="boxlab-back">← Plinkemoji</Link>
       <p className="boxlab-eyebrow">THE BOX STYLE LAB</p>
-      <h1>Choose your Plinkemoji boxes<span>✦</span></h1>
-      <p>The same menu, scores and round in ten different styles. Hover, try Next turn, or preview a style beside the board.</p>
+      <h1>Compare game styles<span>✦</span></h1>
+      <p>The same menu, scores and round in fifteen different styles. Hover, try Next turn, or preview a style beside the board.</p>
       <div className="boxlab-toolbar">
         <div role="group" aria-label="Number of teams"><span>Teams</span>{[2, 4, 6].map(n => <button type="button" key={n} aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}</div>
-        <a href="#boxlab-options">Explore all 10 <span aria-hidden="true">↓</span></a>
+        <a href="#boxlab-options">Explore all {styles.length} <span aria-hidden="true">↓</span></a>
+        <a href="#boxlab-new-options">See the 5 new styles</a>
         {selected !== null && <span className="boxlab-selection"><Check size={16} />Selected: {selected + 1}. {styles[selected][1]}</span>}
       </div>
     </header>
     <main id="boxlab-options" className="boxlab-grid">
-      {styles.map(([key, name, description], i) => <article key={key} className={`boxlab-card ${selected === i ? 'is-selected' : ''}`} data-testid={`box-style-${i + 1}`}>
-        <div className="boxlab-card-heading"><span>{String(i + 1).padStart(2, '0')}</span><div><h2>{name}</h2><p>{description}</p></div></div>
+      {styles.map(([key, name, description], i) => <article key={key} id={i === 10 ? 'boxlab-new-options' : undefined} className={`boxlab-card ${selected === i ? 'is-selected' : ''}`} data-testid={`box-style-${i + 1}`}>
+        <div className="boxlab-card-heading"><span>{String(i + 1).padStart(2, '0')}</span><div><h2>{name}{i >= 10 && <small className="boxlab-new-badge">New</small>}</h2><p>{description}</p></div></div>
         <Demo styleIndex={i} count={count} onExpand={() => open(i)} />
         <button type="button" className="boxlab-preview-button" onClick={() => open(i)}>Preview {i + 1} with the board <ArrowUpRight size={18} /></button>
       </article>)}

@@ -1,12 +1,17 @@
+import { supportsFlipGameStyle } from '../../utils/flipGameStyles';
 import { gameTypeLabel } from '../../utils/gameTypeLabel';
+import { TriviaStylePicker } from './TriviaStylePicker';
+import { normalizeTriviaStyle } from '../../utils/triviaStyles';
+import { saveTriviaStyle } from '../../services/triviaStyleStorage';
+import { useAuth } from '../../contexts/AuthContext';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
 import { supportsWrittenAnswers } from '../../utils/writtenAnswers';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
 import { useWorkspaceDialog } from './GameWorkspace';
 
-import React, { useState, useEffect } from 'react';
-import { BonusCardType, GeneratedGame, GameRunOptions, GameType, SnakesLaddersBonusType } from '../../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { BonusCardType, GeneratedGame, GameRunOptions, GameType, SnakesLaddersBonusType, TriviaStyle } from '../../types';
 import { Play, Clock, Users, Gift, ArrowLeft, Grid, Edit3, AlertCircle, Volume2, VolumeX, Music, X, Settings2, Target, Hash, Zap, Heart, Shuffle, Hexagon } from 'lucide-react';
 import { playSound, SOUND_VARIANTS } from '../../utils/gameUtils';
 
@@ -15,6 +20,7 @@ interface GameSetupProps {
   onBack: () => void;
   onStart: (options: GameRunOptions) => void;
   backLabel?: string;
+  onTriviaStyleChange?: (style:TriviaStyle) => void;
 }
 
 const SNAKES_LADDERS_BONUS_CHOICES: Array<{
@@ -32,8 +38,9 @@ const SNAKES_LADDERS_BONUS_CHOICES: Array<{
   { id: 'send-rival-to-snake', get label() { return ui("Send rival down a snake"); }, get description() { return ui("Choose a rival and send them down the nearest snake behind them."); }, requiresOpponent: true },
 ];
 
-export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, backLabel = 'Back to Editor' }) => {
+export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, onTriviaStyleChange, backLabel = 'Back to Editor' }) => {
   useUiLanguage();
+  const {user}=useAuth();
   // Default settings
   const [options, setOptions] = useState<GameRunOptions>({
     answerMethod: game.config.answerMethod,
@@ -64,6 +71,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     bombDuration: 60,
     randomizeQuestions: true, // Default to random
     triviaRandomPoints: false,
+    triviaStyle:supportsFlipGameStyle(game.config.type)?normalizeTriviaStyle(game.config.triviaStyle):undefined,
     wordWheelScoringMode: game.config.wordWheelScoringMode || 'classic',
     wordWheelLetterRule: game.config.wordWheelLetterRule || 'contains-hard',
     blockBeatersMode: game.config.blockBeatersMode || (game.config.questionType === 'open' ? 'letters' : 'numbers'),
@@ -72,6 +80,22 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     blockBeatersSteals: true,
     blockBeatersStealLimit: 3,
   });
+
+  const styleSaves=useRef(Promise.resolve());
+  const styleVersion=useRef(0);
+  const [styleSaving,setStyleSaving]=useState(false);
+  const [styleSaveError,setStyleSaveError]=useState(false);
+  const chooseTriviaStyle=(style:TriviaStyle)=>{
+    setOptions(previous=>({...previous,triviaStyle:style}));
+    onTriviaStyleChange?.(style);
+    setStyleSaving(true);setStyleSaveError(false);
+    const version=++styleVersion.current;
+    // Serialise quick changes so an older request cannot replace the latest choice.
+    styleSaves.current=styleSaves.current.then(async()=>{
+      const saved=await saveTriviaStyle(game,style,user?.id);
+      if(version===styleVersion.current){setStyleSaving(false);setStyleSaveError(!saved);}
+    });
+  };
 
   const [showSoundLab, setShowSoundLab] = useState(false);
   const soundDialogRef = useWorkspaceDialog(showSoundLab, () => setShowSoundLab(false));
@@ -193,7 +217,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
     });
   };
   const setupCardClass = 'workspace-setup-card';
-  const hasExtraRules = [GameType.PLINKO, GameType.DARTS, GameType.TRIVIA, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type);
+  const hasExtraRules = supportsFlipGameStyle(game.config.type) || [GameType.PLINKO, GameType.DARTS, GameType.TRIVIA, GameType.WORD_WHEEL, GameType.BLOCK_BEATERS].includes(game.config.type);
   const hasBonusOptions = ![GameType.PLINKO, GameType.PUB_QUIZ, GameType.DARTS, GameType.TIME_BOMB, GameType.SURVEY_SHOWDOWN, GameType.WORD_WHEEL].includes(game.config.type);
   const setupLabelClass = 'mb-2 flex items-center text-sm font-semibold text-slate-700';
 
@@ -363,10 +387,16 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
             </div>
           </section>
 
-          {(hasExtraRules || hasBonusOptions) && <section className={`${setupCardClass} lg:col-span-2 workspace-setup-options`}>
+          {(hasExtraRules || hasBonusOptions) && <section className={`${setupCardClass} lg:col-span-2 workspace-setup-options ${game.config.type === GameType.TRIVIA ? 'workspace-trivia-options' : ''}`}>
             <h2 className="workspace-section-title">{ui("Game options")}</h2>
             <div className={`grid gap-5 ${hasExtraRules && hasBonusOptions ? 'lg:grid-cols-2' : ''}`}>
               <div className={hasExtraRules ? `workspace-setup-extra ${game.config.type === GameType.DARTS ? 'workspace-setup-extra-wide' : ''}` : 'hidden'}>
+                {supportsFlipGameStyle(game.config.type) && (
+                        <div className="workspace-trivia-style-field">
+                            <TriviaStylePicker value={normalizeTriviaStyle(options.triviaStyle)} onChange={chooseTriviaStyle}/>
+                            {styleSaveError&&<p role="alert" className="mt-2 text-sm text-red-600">{ui('Failed to save. Please try again.')}</p>}
+                        </div>
+                )}
                 {game.config.type === GameType.PLINKO && <div className="workspace-setup-field-group space-y-4">
                   <label className="block text-sm font-bold">{ui("Rounds")}
                     <PlayfulSelect aria-label={ui("Rounds")} value={options.plinkoRounds} onChange={e => setOptions({...options, plinkoRounds: Number(e.target.value)})} className="w-full rounded-lg border p-3">
@@ -765,7 +795,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ game, onBack, onStart, bac
             </div>
             <button
               onClick={() => onStart(options)}
-              disabled={game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0}
+              disabled={(game.config.type === GameType.TRIVIA && validQuestionCounts.length === 0) || (supportsFlipGameStyle(game.config.type) && styleSaving)}
             className="workspace-button workspace-button-play"
             >
               <Play size={20} className="mr-2" /> {ui(" Start Game")}</button>

@@ -1,0 +1,71 @@
+/* Plinkemoji keeps its cabinet and physics; only its surrounding UI changes skin. */
+.plinko-game[data-trivia-style]{
+ --plinko-ui-border:var(--skin-border,var(--comic-ink));
+ --plinko-ui-line:var(--skin-line,solid);
+ --plinko-ui-radius:var(--skin-radius,12px);
+ --plinko-ui-panel:var(--skin-panel,var(--comic-yellow));
+ --plinko-ui-paper:var(--skin-paper,var(--comic-paper));
+ --plinko-ui-text:var(--skin-text,var(--comic-ink));
+ --plinko-ui-control:var(--skin-control,var(--comic-pink));
+ --plinko-ui-control-text:var(--skin-control-text,var(--comic-ink));
+ --plinko-ui-shadow:var(--skin-shadow,4px 5px 0 var(--comic-ink));
+}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] :is(.plinko-sidebar-box,.plinko-dialog,.plinko-turn-dialog,.plinko-round-intro h2,.plinko-bonus-bubble){
+ background:var(--plinko-ui-panel);color:var(--plinko-ui-text);border:var(--skin-width,3px) var(--plinko-ui-line) var(--plinko-ui-border);border-radius:var(--plinko-ui-radius);box-shadow:var(--plinko-ui-shadow);
+}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] :is(.plinko-tools button,.plinko-secondary,.plinko-face-grid button,.plinko-primary,.plinko-cog,.plinko-style-actions button){
+ background:var(--plinko-ui-control);color:var(--plinko-ui-control-text);border:2px var(--plinko-ui-line) var(--plinko-ui-border);border-radius:calc(var(--plinko-ui-radius)*.5);box-shadow:var(--plinko-ui-shadow);
+}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] :is(.plinko-dialog h2,.plinko-chip-picker h2,.plinko-face-grid span){color:var(--plinko-ui-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] :is(.plinko-scorebar button,.plinko-round-counter,.plinko-dialog input){background:var(--skin-score,var(--comic-paper));color:var(--skin-score-text,var(--comic-ink));border:2px var(--plinko-ui-line) var(--plinko-ui-border);border-radius:calc(var(--plinko-ui-radius)*.5);box-shadow:var(--plinko-ui-shadow)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-scorebar button.is-active{background:var(--skin-active,var(--comic-pink));color:var(--skin-active-text,var(--comic-ink));border-color:var(--skin-active-text,var(--comic-ink))}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-scorebar button.is-active strong{color:inherit}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-team-stars{color:var(--skin-score-text,var(--comic-ink));text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .is-active .plinko-team-stars{color:var(--skin-active-text,var(--comic-ink))}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-bonus-bubble i{background:var(--plinko-ui-panel);border-color:var(--plinko-ui-border)}
+.plinko-game[data-trivia-style]:not([data-trivia-style=pinball-chrome]) .plinko-sidebar-box::before,.plinko-game[data-trivia-style]:not([data-trivia-style=pinball-chrome]) .plinko-sidebar-box::after{display:none}
+.plinko-game[data-trivia-style=toy-blocks] .plinko-sidebar-box{padding-top:22px}
+.plinko-game[data-trivia-style=toy-blocks] .plinko-sidebar-box::before{display:block!important;top:4px;left:8px;width:calc(100% - 16px);height:16px;border:0;border-radius:0;background:radial-gradient(ellipse 7px 4px at 12px 4px,#ffffff80 0 5px,transparent 6px),radial-gradient(ellipse 9px 5px at 12px 7px,#2262ba 0 6px,#003b86 7px 8px,transparent 9px);background-size:26px 16px;background-repeat:space no-repeat;box-shadow:none;pointer-events:none}
+.plinko-game[data-trivia-style=paper-cut] .plinko-sidebar-box{border-radius:4px 20px 4px 20px}
+.plinko-game[data-trivia-style=candy-circuit] .plinko-sidebar-box{border-radius:22px 12px 22px 12px}
+.plinko-game .plinko-options-backdrop{z-index:1600}
+.plinko-game .plinko-options-dialog{width:min(460px,calc(100vw - 24px));max-height:calc(100dvh - 96px);overflow-y:auto;text-align:left}
+.plinko-game .plinko-options-dialog h2{text-align:left;font-size:24px}
+.plinko-style-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.plinko-style-actions button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;min-height:58px;padding:8px}
+.plinko-style-actions button::after{content:attr(aria-label);font-size:12px}
+.plinko-game .plinko-tools{justify-content:flex-end}
+.plinko-game .plinko-tools .plinko-cog{width:42px;flex:none}
+.plinko-game .plinko-tools button:disabled,.plinko-style-actions button:disabled{opacity:.45}
+@media(max-width:639px){.plinko-game[data-trivia-style=toy-blocks] .plinko-sidebar-box{padding-top:20px}}
+
+/* Classic follows the site's sky blue, sunshine yellow and navy palette. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic]{
+ --skin-bg:#f0f9ff;--skin-panel:#fff;--skin-paper:#fff;--skin-text:#17384b;--skin-muted:#526a7d;
+ --skin-heading:#0369a1;--skin-header-text:#fff;--skin-border:#17384b;--skin-width:2px;--skin-line:solid;--skin-radius:16px;
+ --skin-shadow:0 4px 0 #17384b24;--skin-control:#facc15;--skin-control-text:#17384b;
+ --skin-score:#f0f9ff;--skin-score-text:#17384b;--skin-active:#0369a1;--skin-active-text:#fff;
+ --skin-option:#eaf6ff;--skin-hover:#fef08a;--skin-good:#dcfce7;--skin-bad:#fee2e2;--skin-focus:#eab308;
+ background:radial-gradient(ellipse at top left,#fef9c3,transparent 55%),#f0f9ff;color:#17384b;
+}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic] .plinko-stage{background:#ffffffb8;border-color:#cbdfe9;box-shadow:0 10px 30px #17384b12}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic] .plinko-primary{border-color:#eab308;box-shadow:0 3px 0 #ca8a04}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic] .plinko-round-counter{background:#e0f2fe;color:#17384b;text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic] .plinko-round-intro h2{color:#0ea5e9;-webkit-text-stroke:0;text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style=classic] .is-active .plinko-team-stars{color:#fef08a}
+@media(max-width:639px) and (min-height:520px){
+ .plinko-game .plinko-mobile-menu.plinko-cog{display:grid;place-items:center;width:42px;height:42px;cursor:pointer}
+ .plinko-game[data-trivia-style=classic] .plinko-stage{background:transparent;border:0;box-shadow:none}
+}
+.plinko-game[data-trivia-style=classic] .plinko-live-counter strong{color:#17384b;text-shadow:0 2px 0 #fff}
+.plinko-game[data-trivia-style] .plinko-bonus-panel h2{color:var(--plinko-ui-text);text-shadow:none}
+.plinko-game .plinko-controls>.plinko-tools{width:auto;justify-self:end}
+
+.plinko-game .plinko-cog:focus-visible{outline:3px solid var(--skin-focus,#facc15);outline-offset:3px}
+.plinko-game[data-trivia-style=classic] .plinko-scorebar button strong{font-family:inherit}
+
+/* Both desktop and portrait menus show their label beside the cog. */
+.plinko-game .plinko-tools .plinko-cog,
+.plinko-game .plinko-mobile-menu.plinko-cog{width:auto;min-width:104px;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;font-size:16px;font-weight:700}
+.plinko-game .plinko-mobile-menu.plinko-cog{display:none}
+@media(max-width:639px) and (min-height:520px){.plinko-game .plinko-mobile-menu.plinko-cog{display:flex;width:auto;min-width:100px;height:42px}}

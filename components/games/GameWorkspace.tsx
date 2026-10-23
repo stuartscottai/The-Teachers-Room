@@ -4,8 +4,8 @@ import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 import './game-workspace.css';
 
 /** Keep keyboard focus inside a workspace dialog and restore it on close. */
-export const useWorkspaceDialog = (open: boolean, onClose: () => void) => {
-  const ref = useRef<HTMLDivElement>(null);
+export const useWorkspaceDialog = <T extends HTMLElement = HTMLDivElement>(open: boolean, onClose: () => void) => {
+  const ref = useRef<T>(null);
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {

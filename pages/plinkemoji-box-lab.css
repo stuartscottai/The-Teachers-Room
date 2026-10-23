@@ -167,3 +167,65 @@
 @media (max-width:620px) { .boxlab-page { padding:26px 16px 36px; }.boxlab-grid { grid-template-columns:minmax(0,1fr); max-width:390px; gap:24px; }.boxlab-card { padding:20px 24px; }.boxlab-card-heading { min-height:87px; }.boxlab-eyebrow { margin-top:26px; }.boxlab-toolbar { gap:16px; }.boxlab-demo { height:550px; }.boxlab-preview-dialog { padding:14px; width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }.boxlab-preview-stage { grid-template-columns:minmax(0,1fr); gap:12px; }.boxlab-preview-board { max-width:420px; width:100%; margin:auto; }.boxlab-preview-stage>.boxlab-demo { width:min(290px,100%); justify-self:center; height:550px; }.boxlab-preview-heading h2 { font-size:21px; }.boxlab-preview-footer { gap:6px; flex-wrap:wrap; }.boxlab-preview-footer button { padding:8px; font-size:12px; } }
 
 .boxlab-peg-picker { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:7px; margin:0 0 16px; font-size:12px; }.boxlab-peg-picker>span { color:#bcafd0; margin-right:6px; }.boxlab-peg-picker button { border:1px solid #735f89; padding:5px 9px; border-radius:8px; color:#dfd4ea; background:#2b223d; }.boxlab-peg-picker button[aria-pressed="true"] { color:#1c2342; background:#8de9fa; border-color:#d8fbff; }
+/* 11-15: new comparison-only families. */
+#boxlab-new-options { scroll-margin-top:90px; }
+.boxlab-new-badge { display:inline-block; margin-left:8px; padding:3px 7px; border:1px solid #8de8ff77; border-radius:7px; color:#8de8ff; font-size:10px; line-height:1; vertical-align:middle; text-transform:uppercase; letter-spacing:.08em; }
+/* Polished cabinet hardware, matching the revised Trivia Chrome. */
+.boxlab-chrome .boxlab-box { border:7px ridge #d8e7fb; box-shadow:0 0 0 1px #07101c,0 0 0 2px #65eaff,0 0 18px #65eaff33,inset 0 0 0 2px #65eaff77,0 6px 0 #060b1a; }
+.boxlab-chrome .boxlab-team { border:3px inset #b2d4e9; box-shadow:inset 0 0 0 1px #67eaff44,inset 0 2px 7px #0008; }
+.boxlab-chrome .boxlab-team.is-active { background:linear-gradient(135deg,#5a285d,#2e2149); color:#fff0bc; border:3px solid #f8a4ee; box-shadow:inset 0 0 12px #ff70df22,0 0 10px #ff70df55; }
+.boxlab-chrome .boxlab-team.is-active small { color:#ffe188; }
+/* 11: precise contemporary framing and confident cobalt type. */
+.boxlab-modern { color:#152c45; }
+.boxlab-modern .boxlab-box { background:#f8f9fc; border:1px solid #d5dce8; border-radius:16px; box-shadow:0 8px 20px #080e2426,inset 0 1px 0 #fff; }
+.boxlab-modern .boxlab-menu { border-top:4px solid #365cfa; }
+.boxlab-modern .boxlab-menu button { background:#eef1f9; border:1px solid #d4dbea; color:#284bbc; border-radius:9px; box-shadow:none; }
+.boxlab-modern .boxlab-team { background:white; color:#152c45; border:1px solid #dce1eb; border-radius:9px; box-shadow:0 2px 4px #12315108; }
+.boxlab-modern .boxlab-team strong { font-family:system-ui,sans-serif; font-weight:700; }
+.boxlab-modern .boxlab-team small { color:#916000; }
+.boxlab-modern .boxlab-team.is-active { color:#2348d4; background:#eaf0ff; border-color:#365cfa; border-left-width:5px; box-shadow:none; }
+.boxlab-modern .boxlab-next { background:#365cfa; color:white; border:1px solid #2346cb; border-radius:9px; box-shadow:0 3px 0 #1f3f9d; }
+/* 12: spectral rails around deep indigo instruments. */
+.boxlab-orbit { color:#eef4ff; }
+.boxlab-orbit .boxlab-box { border:2px solid transparent; border-radius:22px; background:linear-gradient(145deg,#151b38,#211b40) padding-box,conic-gradient(from 30deg,#a9f8ff,#9a8aff,#ff9ddb,#a9f8ff) border-box; box-shadow:0 0 0 3px #0c1020,0 0 24px #8a86ff44,inset 0 0 18px #9d94ff0c; }
+.boxlab-orbit .boxlab-menu button { background:#282a4d; border:1px solid #8187bd; color:#c8faff; border-radius:50%; box-shadow:inset 0 1px 0 #e3faff44; }
+.boxlab-orbit .boxlab-team { background:#11182e; border:1px solid #505b82; color:#e2eaff; border-radius:22px; box-shadow:none; }
+.boxlab-orbit .boxlab-team strong { padding:2px 5px; border-bottom:2px solid #ad9aff; }
+.boxlab-orbit .boxlab-team.is-active { border-color:#bdfcff; background:linear-gradient(110deg,#254664,#363263); color:#fff; box-shadow:0 0 12px #97efff44; }
+.boxlab-orbit .boxlab-team.is-active small { color:#ffe693; }
+.boxlab-orbit .boxlab-next { background:linear-gradient(110deg,#b3f8fc,#c4baff); border:1px solid #eafaff; color:#22244a; border-radius:24px; box-shadow:0 3px 0 #72679e; }
+/* 13: cut paper with a different coloured sheet peeking underneath. */
+.boxlab-papercut { color:#143e43; }
+.boxlab-papercut .boxlab-box { background:#fcf5e8; border:2px solid #195b60; border-radius:4px 20px 4px 20px; box-shadow:5px 5px 0 #54aaa4,9px 9px 0 #123c43; }
+.boxlab-papercut .boxlab-menu { background:#f47f6a; transform:rotate(-1deg); }
+.boxlab-papercut .boxlab-menu button { background:#fff8e8; color:#18464c; border:2px solid #174e55; border-radius:5px; box-shadow:2px 2px 0 #174e55; }
+.boxlab-papercut .boxlab-team { background:#e2eeDF; border:1px solid #8aaea7; border-radius:3px; box-shadow:2px 2px 0 #9dc4b8; }
+.boxlab-papercut .boxlab-team.is-active { background:#ffdfa0; color:#143e43; border:2px solid #174e55; border-left:7px solid #ee7863; transform:rotate(-1deg); box-shadow:2px 2px 0 #ee7863; }
+.boxlab-papercut .boxlab-team small { color:#865812; }
+.boxlab-papercut .boxlab-next { background:#195b60; color:#fff6df; border:2px solid #123c43; border-radius:3px 12px 3px 12px; box-shadow:3px 3px 0 #ef8d75; }
+/* 14: clipped instrument frames with a restrained safety stripe. */
+.boxlab-mission { color:#eaf2fd; font-family:ui-monospace,monospace; }
+.boxlab-mission .boxlab-box { border:2px solid #91a8be; border-radius:2px 18px 2px 18px; background:repeating-linear-gradient(135deg,#fdb94d 0 5px,#1b273b 5px 10px) top/100% 5px no-repeat,linear-gradient(145deg,#27364a,#111c2f); box-shadow:4px 5px 0 #080d18,inset 0 0 0 4px #101b2e; }
+.boxlab-mission .boxlab-menu button { background:#304457; border:1px solid #88a2b8; color:#bdeaff; border-radius:2px 8px 2px 8px; box-shadow:0 3px 0 #080f1a; }
+.boxlab-mission .boxlab-team { background:#101d2b; border:1px solid #6c8295; border-radius:2px 10px 2px 10px; color:#ccdfeb; box-shadow:inset 3px 0 0 #486777; }
+.boxlab-mission .boxlab-team.is-active { color:#ffe7a3; background:#483a25; border-color:#fbbd55; box-shadow:inset 4px 0 0 #fbbd55,0 0 9px #fbbd5522; }
+.boxlab-mission .boxlab-team.is-active small { color:#ffe7a3; }
+.boxlab-mission .boxlab-next { background:#f9bb55; color:#182637; border:2px solid #fbe0a1; border-radius:2px 10px 2px 10px; box-shadow:0 3px 0 #8a6029; }
+/* 15: candy-shop plastic, striped seams and dark raspberry outlines. */
+.boxlab-candy { color:#5c1949; }
+.boxlab-candy .boxlab-box { border:4px solid #792358; border-radius:26px 14px 26px 14px; background:linear-gradient(#fff4e8,#ffe4e4); box-shadow:0 0 0 3px #ffb6d4,5px 7px 0 #4e1c48,inset 0 3px 0 #fff; }
+.boxlab-candy .boxlab-menu { background:repeating-linear-gradient(120deg,#fc9bc1 0 12px,#ffcee1 12px 24px); }
+.boxlab-candy .boxlab-menu button { background:linear-gradient(#fff,#ffe9a5); color:#74224f; border:2px solid #8a3461; border-radius:12px; box-shadow:0 3px 0 #ad577d; }
+.boxlab-candy .boxlab-team { background:#fffaf0; color:#5c1949; border:2px solid #e08cb1; border-radius:14px 6px 14px 6px; box-shadow:0 2px 0 #e08cb1; }
+.boxlab-candy .boxlab-team.is-active { background:linear-gradient(#ffd668,#ffb866); color:#56223c; border-color:#842554; box-shadow:0 3px 0 #b6516e; }
+.boxlab-candy .boxlab-team small { color:#835007; }
+.boxlab-candy .boxlab-next { background:linear-gradient(#ed6aaa,#bf347c); color:#fff5e4; border:2px solid #8a285b; border-radius:18px 8px 18px 8px; box-shadow:0 4px 0 #792358,inset 0 2px 0 #ffa9d6; }
+
+.boxlab-chrome .boxlab-menu { padding:8px; }
+
+/* First LEGO-like version: one interior stud row. */
+.boxlab-blocks .boxlab-box { background:#0055bf; border:5px solid #003b86; border-radius:6px; box-shadow:inset 0 3px 0 #ffffff66,0 7px 0 #002d68,3px 9px 0 #10315d44; }
+.boxlab-blocks .boxlab-box::before { content:''; position:absolute; top:2px; left:8px; right:8px; height:10px; background:radial-gradient(ellipse 8px 4px at 12px 4px,#4394e9 0 6px,#003b86 7px,transparent 8px) 0 0/24px 10px repeat-x; pointer-events:none; }
+.boxlab-blocks .boxlab-menu button,.boxlab-blocks .boxlab-next { background:#ffd500; color:#173653; border-radius:4px; border-color:#ba8900; box-shadow:inset 0 2px 0 #fff8,0 4px 0 #ba8900; }
+.boxlab-blocks .boxlab-team { background:#004a9d; border:2px solid #00316b; border-radius:4px; box-shadow:inset 0 2px 0 #ffffff55,0 4px 0 #00316b; }
+.boxlab-blocks .boxlab-team.is-active { background:#ffd500; color:#173653; border-color:#ba8900; box-shadow:inset 0 2px 0 #fff8,0 4px 0 #ba8900; }

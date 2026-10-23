@@ -1,0 +1,75 @@
+/* Keep foreground/background pairs together across the shared game styles. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic){--readable-paper:var(--skin-paper,var(--comic-paper));--readable-ink:var(--skin-text,var(--comic-ink));--readable-muted:var(--skin-muted,#5e4c74);--readable-option:var(--skin-option,#fff7ea);--readable-control:var(--skin-control,var(--comic-yellow));--readable-control-ink:var(--skin-control-text,var(--comic-ink));--readable-border:var(--skin-border,var(--comic-ink))}
+/* Light lettering needs a sufficiently dark pink even at the brightest gradient stop. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic)[data-trivia-style=candy-circuit]{--skin-control:linear-gradient(#a82c70,#872355)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic)[data-trivia-style=pinball-chrome]{--skin-control:linear-gradient(#86427c,#663865)}
+/* Labels on the blue block frame cannot use the dark ink intended for paper. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic)[data-trivia-style=toy-blocks] .trivia-sidebar-scoreboard>h2{color:#fff4cc}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-score-panel]{background:var(--readable-option);color:var(--readable-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-score-panel] h4{color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-score-panel] button,:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-score-panel] button:hover{background:var(--readable-control);color:var(--readable-control-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .written-answer-entry{color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) textarea::placeholder,:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) input::placeholder{color:var(--readable-muted);opacity:1}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-written-footer] button:not(.written-answer-continue){background:var(--readable-control);color:var(--readable-control-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game [data-pubquiz-heading],:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game [data-pubquiz-heading] :is(h1,h2,p){color:var(--readable-ink);text-shadow:none;filter:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game :is([data-pubquiz-review],[data-pubquiz-scoring]){background:var(--readable-paper);color:var(--readable-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game :is([data-pubquiz-review],[data-pubquiz-scoring]) :is(h2,p,div.font-bold,div.font-mono){color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game [data-pubquiz-scoring] .bg-white{background:var(--readable-option);color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game :is([data-pubquiz-review],[data-pubquiz-scoring],[data-pubquiz-review-actions]) button,:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game :is([data-pubquiz-review],[data-pubquiz-scoring],[data-pubquiz-review-actions]) button:hover{background:var(--readable-control);color:var(--readable-control-ink);border-color:var(--readable-border)}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .pubquiz-game [data-game-style-panel]>div>span{background:var(--readable-control);color:var(--readable-control-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .snl-turn-order-row :is(.snl-turn-order-name,.snl-turn-order-index){color:var(--skin-score-text,var(--comic-ink))}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) :is([data-game-turn-summary],[data-game-turn-summary]>div){color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-steal-panel]{background:var(--readable-paper);color:var(--readable-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-steal-panel] :is(div,span){color:var(--readable-ink)!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-header-label]{color:var(--skin-header-text,var(--comic-ink))}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic)[data-trivia-style=toy-blocks] .flip-game-sidebar-footer{color:#fff4cc}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .plinko-dialog{background:var(--readable-paper)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .plinko-turn-announcement h2{color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .plinko-bonus-bubble{background:var(--readable-paper)}
+/* Miniature style previews still need readable numbers. */
+.trivia-style-preview.preview-classic .trivia-preview-board>i{background:#0369a1;color:#fff}
+.trivia-style-preview.preview-toy-blocks .trivia-preview-board>i:nth-child(3){background:#00723c}
+/* Classic keeps the blue palette with deeper blue for white lettering. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=classic] :is(.trivia-theme-dialog .bg-brand-blue,[data-scoreboard-card][aria-current=true]){background:#0369a1;color:#fff}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=comic-pop] [data-game-grid-tile],:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=comic-pop] [data-game-grid-tile]>span{color:var(--comic-ink);-webkit-text-stroke:0;text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=toy-blocks].trivia-skinned [data-game-grid-tile]{background:var(--brick-face)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=toy-blocks].trivia-skinned [data-game-grid-tile]:nth-child(4n){--brick-face:#00723c}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-game-grid-tile]:not(:disabled){color:#142f41;text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-game-grid-tile]:not(:disabled)>span{filter:none;text-shadow:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-jeopardy-category]{color:#142f41}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-section=header]{background:var(--skin-heading,var(--comic-yellow))!important;color:var(--skin-header-text,var(--comic-ink))}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-dialog.trivia-theme-dialog{background:var(--plinko-ui-paper);color:var(--plinko-ui-text)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] .plinko-game[data-trivia-style] .plinko-face-grid button span{color:var(--plinko-ui-control-text)}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-face] span[data-option-label]{color:var(--readable-control-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-section=header] :is(.snl-question-roll,.snl-question-target,.bg-black\/35){background:var(--readable-control);color:var(--readable-control-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:not([data-trivia-style=pinball-chrome]) [data-question-section=body] :is(.text-green-500,.text-green-600),:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:not([data-trivia-style=pinball-chrome]) .written-answer-review[data-result=correct] .written-answer-result{color:#15803d}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:not([data-trivia-style=pinball-chrome]) [data-question-section=body] :is(.text-red-500,.text-red-600),:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:not([data-trivia-style=pinball-chrome]) .written-answer-review[data-result=incorrect] .written-answer-result{color:#b91c1c}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=pinball-chrome] [data-question-section=body] :is(.text-green-500,.text-green-600){color:#80edb4}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=pinball-chrome] [data-question-section=body] :is(.text-red-500,.text-red-600){color:#ffa8b8}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-question-section=header].bg-brand-blue{background:#0369a1}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-question-section=actions]>button.bg-green-500{background:#15803d;color:white}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style][data-trivia-style=classic] [data-question-section=actions]>button.bg-red-500{background:#b91c1c;color:white}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-surface-copy]{color:var(--readable-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-face] button[data-game-secondary-action],:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-face] button[data-game-secondary-action]:hover{background:var(--readable-control);color:var(--readable-control-ink)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-question-section=header] :is(.opacity-80,.opacity-90){opacity:1}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] .trivia-game.trivia-skinned[data-trivia-style=paper-cut]{--skin-header-text:#10383d}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-turn-panel]{background:var(--readable-paper);color:var(--readable-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-turn-panel]>.min-w-0 :is(div,span){color:var(--readable-ink)!important}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) [data-game-turn-panel] button{background:var(--readable-control);color:var(--readable-control-ink)}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) .stop-fire-raised{background:var(--readable-paper);color:var(--readable-ink);border-color:var(--readable-border)}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style] span[data-game-timer-readout]{background:var(--game-timer-track);padding:1px 6px;border-radius:6px}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=classic] .stop-fire-raised .bg-brand-blue{background:#0369a1;color:white}
+
+/* These labels sit over game artwork, so give their ink an opaque surface. */
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:is(.trivia-skinned,.trivia-comic) :is([data-pubquiz-heading],[data-game-turn-summary]){background:var(--readable-paper);padding:10px 14px;border-radius:var(--skin-radius,12px)}
+
+:root[data-theme] .gameplay-appearance[data-game-appearance=dark] [data-trivia-style=classic] .trivia-sidebar-controls h2{color:#e2f2ff}

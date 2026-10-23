@@ -2,7 +2,7 @@ import { translateInterfaceText as ui, useInterfaceLanguage as useUiLanguage } f
 
 import React, { useEffect, useState } from 'react';
 import { Link, To, useNavigate } from 'react-router-dom';
-import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw, Radio } from 'lucide-react';
+import { Play, Clock, Smile, Zap, Star, ArrowRight, Triangle, Circle, Hexagon, Square, Grid, Trophy, List, HelpCircle, Dice5, Activity, Beer, GraduationCap, X, DollarSign, Target, Timer, Flame, RefreshCw, Radio, BookOpen } from 'lucide-react';
 import { TestimonialCarousel } from '../components/TestimonialCarousel';
 import { PromoVideoSection } from '../components/PromoVideoSection';
 import { GameType } from '../types';
@@ -480,6 +480,22 @@ export const Home: React.FC = () => {
               <p className="text-center text-sky-100 mb-12 text-lg">{ui("Join thousands of happy educators transforming their classrooms.")}</p>
               <TestimonialCarousel />
           </div>
+      </section>
+
+      {/* News and classroom updates, near the end of the home page. */}
+      <section className="relative bg-sky-50 py-12 sm:py-16" aria-labelledby="home-blog-heading">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <span className="shrink-0 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-yellow text-slate-900" aria-hidden="true"><BookOpen size={28} /></span>
+            <div>
+              <h2 id="home-blog-heading" className="font-display text-2xl sm:text-3xl font-bold text-slate-800">{ui("News & Blog")}</h2>
+              <p className="mt-2 max-w-xl text-slate-600">{ui("Game updates, seasonal surprises and ideas for your classroom.")}</p>
+            </div>
+          </div>
+          <Link to="/blog" className="self-start sm:self-auto inline-flex shrink-0 items-center gap-3 rounded-full border-2 border-sky-800 bg-white px-6 py-3 font-bold text-sky-900 transition-colors hover:bg-sky-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-800">
+            {ui("Visit the blog")}<ArrowRight size={20} aria-hidden="true" />
+          </Link>
+        </div>
       </section>
 
       {/* CTA */}

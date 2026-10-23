@@ -10,3 +10,6 @@ The four new article covers were made with the built-in image generation tool an
 | ESL Strategies for 2025 | `public/assets/blog-esl-conversation.webp` | Candid editorial photograph of adult English-language learners practising conversation at a cafe-style classroom table with a teacher, notebooks, simple menus and cups; soft daylight, warm neutrals and restrained blue and yellow details; landscape and crop-safe; no readable text, logos, watermarks or identifiable real people. |
 
 Existing article: `public/assets/blog-ai-report-writer.webp` (cover) and `public/assets/blog-ai-report-writer-hero.webp` (article hero) are optimized copies of the site's existing AI Report Writer images.
+
+
+Game style update (23 October 2026): `public/assets/blog-game-styles.webp` is a 1,200 x 675 cover and inline illustration rendered from the app's actual style CSS. It shows all eight looks in an even four-by-two grid, including equally sized Halloween and Neon Lights panels, and was converted to WebP at quality 86 (about 51 KB). It uses local game UI artwork rather than a stock or generated approximation. Capture source: `output/playwright/blog-game-styles-source.png`.

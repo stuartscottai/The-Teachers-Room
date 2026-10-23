@@ -1,6 +1,8 @@
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
-import { TeamScoreboardHeader } from './shared/TeamScoreboardHeader';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
 import { useMobileQuestionViewport } from './shared/useMobileQuestionViewport';
 import { translateInterfaceText as ui, displayTeamName, useInterfaceLanguage as useUiLanguage } from '../../utils/interfaceLanguage';
@@ -1333,6 +1335,7 @@ interface SnakesLaddersGameProps {
 }
 
 export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, options, onBack, onFinish, onReplay, testMode = false, testStartPosition }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const [positions, setPositions] = useState<number[]>(() => {
         const positions = Array(options.players).fill(0);
@@ -1385,6 +1388,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const [isMuted, setIsMuted] = useState(options.muted);
     const [isImageZoomOpen, setIsImageZoomOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    useEffect(() => {
+        const syncFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+        document.addEventListener('fullscreenchange', syncFullscreen);
+        return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+    }, []);
     const [isMobileViewport, setIsMobileViewport] = useState(false);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
     const [boardSize, setBoardSize] = useState<number | null>(null);
@@ -1403,7 +1411,16 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     const questionImageUrl = resolveGameQuestionImageUrl(currentQuestion?.image);
     const questionImageAlt = currentQuestion?.image?.alt || '';
 
-    const teamNames = options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`);
+    const [teamNames,setTeamNames] = useState(()=>options.teamNames || Array.from({length: options.players}, (_, i) => `Team ${i+1}`));
+    const [editingTeamIndex,setEditingTeamIndex]=useState<number|null>(null);
+    const [editName,setEditName]=useState(''),[editScore,setEditScore]=useState(1);
+    const openEditTeam=(index:number)=>{setEditName(teamNames[index]);setEditScore(positions[index]+1);setEditingTeamIndex(index);};
+    const saveTeamEdit=()=>{
+        if(editingTeamIndex===null)return;
+        setTeamNames(previous=>previous.map((name,index)=>index===editingTeamIndex?editName.trim()||name:name));
+        setPositions(previous=>previous.map((position,index)=>index===editingTeamIndex?Math.max(0,Math.min(99,Math.round(editScore)-1)):position));
+        setEditingTeamIndex(null);
+    };
     const currentTeamId = turnOrder[currentTurnIndex];
     const writtenAnswer = useWrittenAnswer(currentQuestion, game.config, options, phase === 'question' ? `${currentQuestion?.id}-${currentTeamId}` : null);
     const cardEffects=useFlipCardEffects({questionKey:phase==='question' ? `${currentQuestion?.id}-${currentTeamId}` : null,isFlipped,muted:isMuted,writing:writtenAnswer.writing,matches:writtenAnswer.matches,hasOptions:Boolean(currentQuestion?.options?.length),mcResult:mcResult});
@@ -1792,6 +1809,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
     useEffect(() => {
         if (phase === 'question' && options.timerSeconds > 0 && !isFlipped && !isTimesUp) {
             const timer = setInterval(() => {
+            if (presentationPaused.current) return;
                 setTimeLeft(prev => {
                     if (prev <= 1) {
                         clearInterval(timer);
@@ -2333,10 +2351,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 }
                 `}
             </style>
-            <TeamScoreboardHeader scores={positions.map(position => position + 1)} teamNames={teamNames} currentTeam={currentTeamId}
-                isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted}
-                onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}
-                onToggleMute={() => setIsMuted(!isMuted)} onToggleFullscreen={toggleFullscreen} />
+            <FlipGameHeader onEditTeam={openEditTeam} scores={positions.map(position => position + 1)} teamNames={teamNames} currentTeam={currentTeamId} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}     renderScore={score => <strong className="text-3xl font-mono">{score}</strong>} />
 
             <div className="snl-table flex-1 p-2 sm:p-3 relative overflow-hidden">
                 <button onClick={() => setShowCredits(true)} aria-label={ui("View asset credits")} title={ui("Asset credits")}
@@ -2398,7 +2413,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 <div className={`snl-turn-overlay ${showBoardNotice ? 'is-board-notice' : ''}`}
                     style={{ display: !showExpandedBonusCard && (showTurnPopup || showBoardNotice) ? 'flex' : 'none' }}>
                     <div ref={turnDialogRef}
-                        className={`snl-control-panel snl-turn-dialog ${teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}
+                        className={`trivia-theme-dialog trivia-comic-dialog snl-control-panel snl-turn-dialog ${teamNames.length >= 5 ? 'snl-control-panel--many-players' : ''}`}
                         role={showTurnPopup ? 'dialog' : 'status'} aria-modal={showTurnPopup ? true : undefined}
                         aria-label={phase === 'setup' ? ui("Turn Order") : phase === 'roll' ? ui("Roll Dice") : phase === 'turn-complete' ? ui("Turn Complete") : pendingBonusChoice?.effect.type === 'move-five' ? ui("Choose your move") : ui("Choose another player")}
                         onKeyDown={event => {
@@ -2564,7 +2579,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
             {/* QUESTION MODAL */}
             {phase === 'question' && currentQuestion && (
-                <div data-written-question-overlay
+                <div data-question-below-scoreboard data-written-question-overlay
                     className={`snl-question-overlay ${isMobileViewport
                         ? 'fixed inset-x-0 bottom-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-3 animate-fade-in overflow-hidden'
                         : 'fixed inset-x-0 bottom-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in'
@@ -2577,13 +2592,13 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                         <QuestionCardZoomButton />
                         <div className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
                             {/* FRONT */}
-                            <div className={`snl-question-card absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl overflow-hidden flex flex-col h-full ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
-                                <div className="snl-question-card-header snl-question-front-header">
+                            <div data-question-face="front" className={`snl-question-card absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl overflow-hidden flex flex-col h-full ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
+                                <div data-question-section="header" className="snl-question-card-header snl-question-front-header">
                                     <div className="snl-question-team">{ui("Question for ")}{displayTeamName(teamNames[currentTeamId])}</div>
                                     <div className="snl-question-roll">{ui("You rolled a ")}{diceValue}</div>
                                     <div className={`snl-question-target ${targetStatus.color}`}>{targetStatus.text}</div>
                                 </div>
-                                <div className={`snl-question-card-body flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                <div data-question-section="body" className={`snl-question-card-body flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {questionImageUrl && hasOptions ? (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div
@@ -2607,7 +2622,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                     ref={questionWrapRef}
                                                     className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
                                                 >
-                                                    <div
+                                                    <div data-question-copy
                                                         ref={questionTextRef}
                                                         style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                         className={`snl-question-text font-display font-bold leading-tight w-full whitespace-pre-wrap break-normal hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${getFontSizeClass(currentQuestion.question)}`}
@@ -2678,7 +2693,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                                 className={`snl-question-image h-40 sm:h-48 md:h-56 w-full rounded-xl object-contain ${isMobileViewport ? '' : 'cursor-zoom-in'}`}
                                             />
                                             <div ref={questionWrapRef} className="w-full flex-1 min-h-0 flex items-center justify-center">
-                                                <div
+                                                <div data-question-copy
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`snl-question-text font-display font-bold leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getFontSizeClass(currentQuestion.question)}`}
@@ -2690,7 +2705,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                     ) : (
                                         <div className="flex flex-col flex-1 min-h-0">
                                             <div ref={questionWrapRef} className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}>
-                                                <div
+                                                <div data-question-copy
                                                     ref={questionTextRef}
                                                     style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                     className={`snl-question-text font-display font-bold leading-tight text-center w-full whitespace-pre-wrap break-normal hyphens-none ${getFontSizeClass(currentQuestion.question)}`}
@@ -2748,10 +2763,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                 <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { handleFlip(); }} />
                                 <div data-written-footer className="snl-question-footer flex flex-col shrink-0 relative z-50">
                                     {options.timerSeconds > 0 && (
-                                        <div className="snl-question-timer relative overflow-hidden flex items-center justify-center pointer-events-none" role="timer" aria-label={ui("Time remaining")}>
-                                            {!isTimesUp && <div className="snl-question-timer-fill absolute inset-y-0 left-0 transition-all duration-1000" style={{ width: `${timerProgress * 100}%` }} />}
+                                        <div data-game-timer-track className="snl-question-timer relative overflow-hidden flex items-center justify-center pointer-events-none" role="timer" aria-label={ui("Time remaining")}>
+                                            {!isTimesUp && <div data-game-timer="fill" className="snl-question-timer-fill absolute inset-y-0 left-0 transition-all duration-1000" style={{ width: `${timerProgress * 100}%` }} />}
                                             <div className="snl-question-timer-label relative flex items-center justify-center gap-2">
-                                                {isTimesUp ? ui("TIME'S UP!") : <><Clock size={18} aria-hidden="true" /><span>{timeLeft}s</span></>}
+                                                {isTimesUp ? ui("TIME'S UP!") : <><Clock size={18} aria-hidden="true" /><span data-game-timer-readout>{timeLeft}s</span></>}
                                             </div>
                                         </div>
                                     )}
@@ -2766,11 +2781,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                             </div>
 
                             {/* BACK */}
-                            <div className={`snl-question-card snl-question-card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden flex flex-col h-full ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className="snl-question-card-header snl-question-answer-header">
+                            <div data-question-face="back" className={`snl-question-card snl-question-card-back absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl overflow-hidden flex flex-col h-full ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div data-question-section="header" className="snl-question-card-header snl-question-answer-header">
                                     <div className="font-bold text-xl opacity-80">{ui("Answer")}</div>
                                 </div>
-                                <div className="written-answer-result-content snl-question-card-body flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                <div data-question-section="body" className="written-answer-result-content snl-question-card-body flex-1 flex flex-col items-center justify-center p-8 text-center">
                                     <WrittenAnswerReview state={writtenAnswer} />
                                     {currentQuestion.options && mcResult && (
                                         <div className="mb-6 animate-bounce">
@@ -2781,11 +2796,11 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                                             )}
                                         </div>
                                     )}
-                                    <div className={`snl-question-text font-display font-bold leading-tight whitespace-pre-wrap ${getFontSizeClass(currentQuestion.answer)}`}>
+                                    <div data-question-copy className={`snl-question-text font-display font-bold leading-tight whitespace-pre-wrap ${getFontSizeClass(currentQuestion.answer)}`}>
                                         {currentQuestion.answer}
                                     </div>
                                 </div>
-                                <div className="snl-question-actions flex gap-0 flex-shrink-0">
+                                <div data-question-section="actions" className="snl-question-actions flex gap-0 flex-shrink-0">
                                     {writtenAnswer.writing ? (<WrittenAnswerContinue key={writtenAnswer.key} state={writtenAnswer} disabled={flipLock || isProcessing} onContinue={() => handleAnswer(writtenAnswer.matches)} />) : currentQuestion.options && currentQuestion.options.length > 0 ? (
                                         <button 
                                             disabled={flipLock || isProcessing}
@@ -2925,9 +2940,10 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
                 </div>
             )}
 
+            {editingTeamIndex!==null&&<TeamEditDialog name={editName} score={editScore} scoreLabel={ui('Board position')} min={1} max={100} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>}
             {showQuitConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("Quit Game?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("Progress will be lost.")}</p>
                         <div className="flex space-x-4">
@@ -2940,7 +2956,7 @@ export const SnakesLaddersGame: React.FC<SnakesLaddersGameProps> = ({ game, opti
 
             {showEndGameConfirm && (
                 <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
+                    <div className="trivia-theme-dialog trivia-comic-dialog bg-white text-slate-900 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border border-slate-100">
                         <h2 className="text-2xl font-bold mb-2">{ui("End game now?")}</h2>
                         <p className="text-slate-500 mb-6">{ui("The game will stop and move to the winners screen.")}</p>
                         <div className="flex space-x-4">

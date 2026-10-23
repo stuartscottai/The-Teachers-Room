@@ -1,8 +1,10 @@
+import { spanishGameStylesBlogPost } from './blogGameStyles';
 import type { BlogPost } from '../types';
 import { spanishValenciaRainBlogPost } from './blogRainOnlineLearning';
 
 /** Spanish (Spain) editorial drafts. Article IDs, images and links stay unchanged. */
 export const spanishBlogPosts: Record<number, Pick<BlogPost, 'title' | 'subtitle' | 'date' | 'content'>> = {
+  8: spanishGameStylesBlogPost,
   7: spanishValenciaRainBlogPost,
   6: {
     title: 'Cómo redactar informes del alumnado con IA y plantillas personalizadas',

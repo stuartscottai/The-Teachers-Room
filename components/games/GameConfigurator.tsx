@@ -1,3 +1,4 @@
+import { supportsFlipGameStyle } from '../../utils/flipGameStyles';
 import { gameTypeLabel } from '../../utils/gameTypeLabel';
 import { PlayfulSelect } from '../PlayfulSelect';
 import { AnswerMethodSelect } from './shared/AnswerMethodSettings';
@@ -271,6 +272,7 @@ export const GameConfigurator: React.FC<GameConfiguratorProps> = ({ type, mode, 
             pointsMode: 'fixed',
             topic: '',
             isAI: mode === 'ai',
+            triviaStyle: supportsFlipGameStyle(type) ? 'classic' : undefined,
             isPublic: true, // Default to Public
             customInstructions: '',
             webSearch: false,

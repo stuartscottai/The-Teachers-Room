@@ -1,4 +1,9 @@
 {
+  "Menu": "Men\u00fa",
+  "News & Blog": "Noticias y blog",
+  "Game updates, seasonal surprises and ideas for your classroom.": "Novedades de los juegos, sorpresas de temporada e ideas para tu clase.",
+  "Visit the blog": "Visita el blog",
+  "Board position": "Posici?n en el tablero",
   "61 seconds": "61 segundos",
   "Music credits": "Créditos de la música",
   "90 seconds": "90 segundos",
@@ -2679,5 +2684,10 @@
   "A short tongue grabs nearby pegs and swings from them. Its reach is limited.": "Una lengua corta atrapa las clavijas cercanas y se balancea desde ellas. Su alcance es limitado.",
   "Zooms in straight lines without gravity, ricochets off pegs and walls, then drops into a box.": "Se mueve en línea recta sin gravedad, rebota contra las clavijas y las paredes y luego cae en una caja.",
   "Stops halfway down and stretches around pegs. Touching an electric side makes it pop and flutter into a box.": "Se detiene a mitad del tablero y se estira alrededor de las clavijas. Al tocar un lateral eléctrico, explota y revolotea hasta caer en una casilla.",
-  "Stars": "Estrellas"
+  "Stars": "Estrellas",
+  "Game style": "Estilo del juego",
+  "Comic Pop": "C?mic Pop",
+  "Pinball Chrome": "Pinball cromado",
+  "Toy Blocks": "Bloques de juguete",
+  "Jelly Glass": "Cristal gelatinoso"
 }

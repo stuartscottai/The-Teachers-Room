@@ -1,3 +1,4 @@
+import { supportsFlipGameStyle } from './flipGameStyles';
 
 import { GameType, GeneratedGame, GeneratedQuestion, UploadedFile, User } from "../types";
 import { supabase } from "../services/supabase";
@@ -7,6 +8,7 @@ import { optimizeImageForUpload } from "./imageOptimize";
 import mammoth from "mammoth";
 import { ensureGameCover } from '../services/gameCoverService';
 import { selectTrendingGamesByMode } from './trendingGames';
+import { normalizeTriviaStyle } from './triviaStyles';
 
 // --- ASSET HELPERS ---
 export const resolvePath = (path: string) => {
@@ -633,6 +635,7 @@ const prepareQuestionForStorage = (question: GeneratedQuestion): GeneratedQuesti
 
 const prepareGameContentForStorage = (game: GeneratedGame): GeneratedGame => ({
     ...game,
+    config:supportsFlipGameStyle(game.config.type)?{...game.config,triviaStyle:normalizeTriviaStyle(game.config.triviaStyle)}:game.config,
     questions: (game.questions || []).map(prepareQuestionForStorage),
     jeopardyBoard: game.jeopardyBoard?.map((category) => ({
         ...category,

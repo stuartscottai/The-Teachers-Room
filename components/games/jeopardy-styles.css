@@ -1,0 +1,23 @@
+/* Category headings share one colour per skin, distinct from every question tile. */
+.gameplay-appearance [data-trivia-style=comic-pop]{--jeopardy-category-bg:#422064;--jeopardy-category-text:#fff7ea}
+.gameplay-appearance [data-trivia-style=pinball-chrome]{--jeopardy-category-bg:linear-gradient(135deg,#713b89,#43265f);--jeopardy-category-text:#fff1ff}
+.gameplay-appearance [data-trivia-style=toy-blocks]{--jeopardy-category-bg:#153069;--jeopardy-category-text:#fff5c9}
+.gameplay-appearance [data-trivia-style=paper-cut]{--jeopardy-category-bg:#195b60;--jeopardy-category-text:#fff6df}
+.gameplay-appearance [data-trivia-style=candy-circuit]{--jeopardy-category-bg:#792358;--jeopardy-category-text:#fff5e4}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style]:not([data-trivia-style=classic]) [data-jeopardy-category]{
+ position:relative;background:var(--jeopardy-category-bg);color:var(--jeopardy-category-text);
+ border:var(--skin-width,3px) var(--skin-line,solid) var(--skin-border,var(--comic-ink));
+ border-radius:var(--skin-radius,12px);box-shadow:var(--skin-shadow,3px 4px 0 var(--comic-ink));
+}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=pinball-chrome] [data-jeopardy-category]{border:5px ridge #d8e7fb;box-shadow:inset 0 0 0 2px #dd9bff88,0 4px 0 #060c1c,0 0 10px #bd67ff33}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=toy-blocks] [data-jeopardy-category]{padding-top:23px;border-color:#081d45;box-shadow:inset 0 3px 0 #ffffff55,0 5px 0 #081d45}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=toy-blocks] [data-jeopardy-category]::before{content:'';position:absolute;top:4px;left:8px;right:8px;height:14px;background:radial-gradient(ellipse 8px 4px at 12px 4px,#5b73a5 0 6px,#081d45 7px,transparent 8px) 0 0/24px 14px repeat-x;pointer-events:none}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=paper-cut] [data-jeopardy-category]{border-radius:3px 14px 3px 14px;box-shadow:3px 3px 0 #54aaa4,5px 5px 0 #123c43}
+:root[data-theme] .gameplay-appearance[data-game-appearance] [data-trivia-style=candy-circuit] [data-jeopardy-category]{border-color:#a94480;border-radius:18px 8px 18px 8px;box-shadow:inset 0 2px 0 #ffffff44,0 4px 0 #4e1c48}
+
+/* Anchor the block studs inside each tile rather than above the category row. */
+[data-jeopardy-board] [data-game-grid-tile]{position:relative}
+
+.gameplay-appearance [data-trivia-style=halloween]{--jeopardy-category-bg:#812e08;--jeopardy-category-text:#fff4d6}
+
+.gameplay-appearance [data-trivia-style=neon-lights]{--jeopardy-category-bg:#492063;--jeopardy-category-text:#fff0ff}

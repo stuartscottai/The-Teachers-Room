@@ -10,9 +10,9 @@ import { SharedQuestionFlipCard } from './SharedQuestionFlipCard';
 import { useQuestionCardSounds } from './useQuestionCardSounds';
 
 /** Plinkemoji's question turn uses the same flip-card renderer as Trivia. */
-export function StandardQuestionCard({ question, config, options, turn, teamName, chipFace=0, onSound, onAnswer }: {
+export function StandardQuestionCard({ question, config, options, turn, teamName, chipFace=0, paused=false, onSound, onAnswer }: {
   question: GeneratedQuestion; config: GameConfig; options: GameRunOptions; turn: number;
-  teamName: string; chipFace?:number; onSound?:(cue:PlinkoSound)=>void; onAnswer: (correct: boolean) => void;
+  teamName: string; chipFace?:number; paused?:boolean; onSound?:(cue:PlinkoSound)=>void; onAnswer: (correct: boolean) => void;
 }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [mcResult, setMcResult] = useState<'correct' | 'incorrect' | null>(null);
@@ -72,10 +72,10 @@ export function StandardQuestionCard({ question, config, options, turn, teamName
     return () => window.removeEventListener('resize', resize);
   }, []);
   useEffect(() => {
-    if (isFlipped || isTimesUp || options.timerSeconds <= 0) return;
+    if (paused || isFlipped || isTimesUp || options.timerSeconds <= 0) return;
     const timer = window.setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(timer);
-  }, [isFlipped, isTimesUp, options.timerSeconds]);
+  }, [paused, isFlipped, isTimesUp, options.timerSeconds]);
     // Helper for dynamic font size to avoid scrollbars on cards
     const getQuestionFontSizeClass = (text: string) => {
         const len = text ? text.length : 0;

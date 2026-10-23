@@ -1,8 +1,8 @@
-.plinko-game { min-height: 100dvh; display: flex; flex-direction: column; background: #272a2f; color: #fff; }
-.plinko-game:fullscreen { overflow-y: auto; min-height: 100dvh; }
+.plinko-game { min-height: var(--plinko-viewport-height,100dvh); display: flex; flex-direction: column; background: #272a2f; color: #fff; }
+.plinko-game:fullscreen { overflow-y: auto; min-height: var(--plinko-viewport-height,100dvh); }
 .plinko-stage { flex: 1; display: flex; align-items: center; justify-content: center; gap: clamp(24px, 3vw, 52px); width: 100%; padding: 12px 24px 20px; background: transparent; }
-.plinko-board-wrap { width: min(calc(100vw - 340px), calc((100dvh - 145px) * 1.02), 1000px); flex-shrink: 1; margin: 0; }
-.gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 340px), calc((100dvh - 145px) * 1.02), 1120px); }
+.plinko-board-wrap { width: min(calc(100vw - 340px), calc((var(--plinko-viewport-height,100dvh) - 145px) * 1.02), 1000px); flex-shrink: 1; margin: 0; }
+.gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 340px), calc((var(--plinko-viewport-height,100dvh) - 145px) * 1.02), 1120px); }
 .plinko-cabinet { position: relative; isolation: isolate; aspect-ratio: 1.02; }
 .plinko-board { display: block; width: 100%; height: 100%; overflow: visible; }
 .plinko-entries { position: absolute; top: 6.4%; left: 0; width: 100%; height: 7%; z-index: 1; }
@@ -16,7 +16,7 @@
 .plinko-hit-score { fill: #fff1b5; font-size: 16px; font-weight: 900; paint-order: stroke; stroke: #1c153c; stroke-width: 3px; }
 .plinko-pocket-glow { animation: plinko-prize-glow 1.4s ease-in-out infinite alternate; }
 @keyframes plinko-prize-glow { to { opacity: .45; } }
-.plinko-controls { display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: 250px; flex-shrink: 0; max-height: calc(100dvh - 32px); overflow-y: auto; color: #e3e1e8; padding: 3px; }
+.plinko-controls { display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: 250px; flex-shrink: 0; max-height: calc(var(--plinko-viewport-height,100dvh) - 32px); overflow-y: auto; color: #e3e1e8; padding: 3px; }
 .plinko-round { color: #c3c0ca; font-size: 13px; white-space: nowrap; }
 .plinko-round strong { color: #f4e2be; font-weight: 700; margin-left: 5px; }
 .plinko-drop-counter { font-size: 14px; color: #d8d4df; }
@@ -94,7 +94,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .plinko-current { animation: none; } }
 
-body:has(.plinko-game) .playful-navbar, body:has(.plinko-game) footer { display: none; }
+body:has(.plinko-game) footer { display: none; }
 
 .plinko-layout-summary { color: #e3cf9e; font-size: 12px; line-height: 1.5; }
 
@@ -106,7 +106,7 @@ body:has(.plinko-game) .playful-navbar, body:has(.plinko-game) footer { display:
 .plinko-controls { padding: 4px; }
 @media (max-width: 900px) { .plinko-live-counter { min-height: 60px; } }
 
-.plinko-controls { height: min(570px, calc(100dvh - 64px)); padding: 20px; gap: 24px; background: #20242b; border: 1px solid #454b57; border-radius: 18px; box-shadow: 0 12px 32px #0002; align-items: stretch; }
+.plinko-controls { height: min(570px, calc(var(--plinko-viewport-height,100dvh) - 64px)); padding: 20px; gap: 24px; background: #20242b; border: 1px solid #454b57; border-radius: 18px; box-shadow: 0 12px 32px #0002; align-items: stretch; }
 .plinko-controls > .plinko-tools { flex-shrink: 0; }
 .plinko-menu-footer { margin-top: auto; width: 100%; }
 .plinko-menu-footer p { margin-bottom: 12px; font-size: 13px; line-height: 1.5; }
@@ -114,9 +114,10 @@ body:has(.plinko-game) .playful-navbar, body:has(.plinko-game) footer { display:
 @media (max-width: 900px) { .plinko-controls { width: min(100%, 620px); height: auto; min-height: 280px; max-height: none; padding: 18px; gap: 20px; } .plinko-controls > .plinko-tools { justify-content: space-between; } }
 /* Fit the complete cabinet and every team into the available screen. */
 html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
-.plinko-game, .plinko-game:fullscreen { position: fixed; inset: 0; height: 100dvh; min-height: 0; overflow: hidden; z-index: 100; }
+.plinko-game { --plinko-viewport-height:calc(100dvh - 4rem); position:relative; height:var(--plinko-viewport-height); min-height:0; overflow:hidden; z-index:0; }
+.gameplay-viewport:fullscreen .plinko-game,.plinko-game:fullscreen { --plinko-viewport-height:100dvh; }
 .plinko-stage { height: 100%; min-height: 0; flex: 1; flex-direction: row; gap: clamp(12px,2vw,32px); padding: 10px 18px; }
-.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 300px),calc((100dvh - 80px)*1.02),1100px); min-height: 0; flex-shrink: 1; }
+.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 300px),calc((var(--plinko-viewport-height,100dvh) - 80px)*1.02),1100px); min-height: 0; flex-shrink: 1; }
 .plinko-live-counter { min-height: 54px; height: 54px; }
 .plinko-live-counter strong { font-size: 32px; }
 .plinko-controls { width: clamp(210px,23vw,280px); height: 100%; min-height: 0; max-height: 740px; overflow: hidden; padding: clamp(10px,1.4vw,20px); gap: clamp(10px,2vh,22px); align-items: stretch; }
@@ -143,7 +144,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 .plinko-star-flight { position: fixed; z-index: 955; pointer-events: none; font-size: 30px; letter-spacing: 3px; color: #ffe78e; text-shadow: 0 0 15px #fbbf24,0 2px 4px #000; }
 @media (max-width: 639px) and (min-height: 520px) {
  .plinko-stage { flex-direction: column; gap: 5px; padding: 6px 10px; }
- .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 20px),calc((100dvh - 310px)*1.02)); }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 20px),calc((var(--plinko-viewport-height,100dvh) - 310px)*1.02)); }
  .plinko-live-counter { height: 42px; min-height: 42px; }
  .plinko-live-counter strong { font-size: 27px; }
  .plinko-controls { width: 100%; max-width: 460px; height: 240px; min-height: 0; gap: 8px; padding: 10px; }
@@ -162,7 +163,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 }
 @media (max-height: 520px) {
  .plinko-controls { width: 230px; gap: 7px; padding: 9px; }
- .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 280px),calc((100dvh - 65px)*1.02)); }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(calc(100vw - 280px),calc((var(--plinko-viewport-height,100dvh) - 65px)*1.02)); }
  .plinko-live-counter { min-height: 40px; height: 40px; }
  .plinko-scorebar button strong { font-size: 20px; }
  .plinko-scorebar button > svg { width: 22px; height: 22px; }
@@ -180,7 +181,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
  .plinko-bonus-option span { font-size: 10px; }
 }
 .plinko-stage { display: grid; grid-template-columns: clamp(170px,18vw,250px) minmax(0,1fr) clamp(200px,21vw,280px); gap: clamp(10px,1.5vw,26px); align-items: center; padding: 10px clamp(10px,1.5vw,24px); }
-.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); justify-self: center; }
+.plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 80px)*1.02)); justify-self: center; }
 .plinko-controls { width: 100%; }
 .plinko-bonus-panel { height: 100%; max-height: 740px; min-height: 0; display: flex; flex-direction: column; padding: clamp(10px,1.3vw,18px); background: #20242b; border: 1px solid #454b57; border-radius: 18px; gap: 10px; overflow: hidden; }
 .plinkemoji-brand { font-size: clamp(20px,2vw,29px); letter-spacing: -.8px; color: #ffe1a2; font-weight: 900; line-height: 1.2; }
@@ -210,7 +211,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
  .plinko-gallery-option > img { width: 35px; height: 35px; }
  .plinko-gallery-option strong { font-size: 8px; max-width: 40px; }
  .plinko-bonus-panel-note { font-size: 8px; min-height: 0; line-height: 1.2; }
- .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { grid-column: 2; grid-row: 1; width: min(100%,calc((100dvh - 300px)*1.02)); }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { grid-column: 2; grid-row: 1; width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 300px)*1.02)); }
  .plinko-controls { grid-column: 1 / -1; grid-row: 2; height: 100%; max-width: none; }
 }
 @media (max-height: 520px) {
@@ -223,16 +224,16 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
  .plinko-gallery-option strong { font-size: 9px; }
  .plinko-bonus-gallery { gap: 3px; }
  .plinko-bonus-panel-note { font-size: 9px; min-height: 0; }
- .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((100dvh - 60px)*1.02)); }
+ .plinko-board-wrap, .gameplay-viewport:fullscreen .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 60px)*1.02)); }
 }
 .plinko-offer-instruction { color: #ffe1a2; font-size: 12px; line-height: 1.35; }
 @media (max-height:520px) { .plinko-offer-instruction { font-size: 9px; } }
 @media (max-width:639px) and (min-height:520px) { .plinko-offer-instruction { font-size: 8px; line-height: 1.2; } }
 /* The offer panel only exists while a team is choosing its earned bonus. */
 .plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr) clamp(200px,21vw,280px); }
-.plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); }
+.plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 80px)*1.02)); }
 .plinko-bonus-gallery { grid-template-columns: minmax(0,1fr); grid-template-rows: repeat(var(--plinko-offers), minmax(0,1fr)); gap: 12px; }
-.plinko-bonus-panel { height: auto; max-height: calc(100dvh - 32px); overflow: visible; }
+.plinko-bonus-panel { height: auto; max-height: calc(var(--plinko-viewport-height,100dvh) - 32px); overflow: visible; }
 .plinko-bonus-gallery { flex: 0 1 auto; }
 .plinko-gallery-option { position: relative; padding: 10px; animation: plinkemoji-pop-in .65s cubic-bezier(.2,1.7,.4,1) backwards; }
 .plinko-gallery-option > img { width: min(100%,140px); height: min(17vh,130px); }
@@ -266,7 +267,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 @keyframes plinkemoji-score-pop { 0% { transform:scale(.88); } 55% { transform:scale(1.15); } 100% { transform:scale(1); } }
 @media (max-width:639px) and (min-height:520px) {
  .plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr); }
- .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { grid-column: 1; width: min(100%,calc((100dvh - 310px)*1.02)); }
+ .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { grid-column: 1; width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 310px)*1.02)); }
  .plinko-bonus-panel { max-height: 100%; }
  .plinko-bonus-gallery { gap: 8px; }
  .plinko-gallery-option { flex-direction: column; padding: 6px 2px; }
@@ -276,7 +277,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 }
 @media (max-height:520px) {
  .plinko-stage[data-bonus-choices='false'] { grid-template-columns: minmax(0,1fr) 210px; }
- .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 60px)*1.02)); }
+ .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 60px)*1.02)); }
  .plinko-bonus-panel { max-height: 100%; }
  .plinko-bonus-gallery { gap: 6px; }
  .plinko-gallery-option { flex-direction: row; gap: 4px; padding: 4px; }
@@ -292,7 +293,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 .plinko-board-wrap { position: relative; grid-column: 2; grid-row: 1; }
 .plinko-controls { grid-column: 3; grid-row: 1; padding: 16px; gap: 14px; border: 3px solid #746496; border-radius: 28px 28px 32px 24px; background: linear-gradient(155deg,#383244,#262832 65%); box-shadow: 0 7px 0 #151620, inset 0 2px 0 #d2b5ef33; }
 .plinko-tools button { border: 2px solid #8f80a5; background: #292634; border-radius: 12px; box-shadow: 0 3px 0 #151620; color: #fff0d0; }
-.plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(72px,calc((100dvh - 320px)/6))); align-content: start; }
+.plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(72px,calc((var(--plinko-viewport-height,100dvh) - 320px)/6))); align-content: start; }
 .plinko-scorebar button { border: 2px solid #575569; border-left-width: 5px; border-radius: 14px; background: #373846; box-shadow: 0 3px 0 #171822; }
 .plinko-scorebar button.is-active { border-color: #ffe6a0; background: linear-gradient(135deg,#ffe5a1,#e8bd68); box-shadow: 0 3px 0 #8a6436,0 0 18px #f4cd7c20; }
 .plinko-menu-footer .plinko-primary { border: 2px solid #fff1c8; border-radius: 16px; box-shadow: 0 4px 0 #977440; }
@@ -322,7 +323,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 @media (max-height:520px) {
  .plinko-stage, .plinko-stage[data-bonus-choices='false'] { grid-template-columns: 160px minmax(0,1fr) 210px; }
  .plinko-controls { padding: 9px; gap: 7px; border-radius: 18px; }
- .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(38px,calc((100dvh - 130px)/6))); gap: 4px; }
+ .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(38px,calc((var(--plinko-viewport-height,100dvh) - 130px)/6))); gap: 4px; }
  .plinko-bonus-panel h2 { font-size: 13px; }
  .plinko-gallery-option > img { width: 60px; height: 60px; }
  .plinko-turn-overlay { inset: 40px 0 0; gap: 10px; }
@@ -332,7 +333,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 /* A single illustrated arcade stage keeps the board and both side spaces together. */
 .plinko-game { background: #251355 url('/assets/games/plinko/arcade-background-v1.webp') center / cover no-repeat; }
 .plinko-stage, .plinko-stage[data-bonus-choices='false'] { flex: 1; height: auto; width: calc(100% - 24px); margin: 12px; min-height: 0; border: 2px solid #c5a5ff66; border-radius: 30px; background: linear-gradient(135deg,#2412478c,#181c3d99); box-shadow: inset 0 1px 0 #fff3,0 12px 45px #100b3440; }
-.plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 112px)*1.02)); }
+.plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 112px)*1.02)); }
 .plinko-live-counter strong { color: #fff0b5; text-shadow: 0 2px 0 #492c66,0 0 22px #efc56870; }
 .plinko-bonus-panel h2 { color: #fff0b5; text-shadow: 0 2px 3px #1a124e; }
 @media (prefers-reduced-motion:no-preference) {
@@ -341,11 +342,11 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 @keyframes plinko-blast-rumble { 0%,100% { transform:translate(0); } 15% { transform:translate(-3px,2px); } 30% { transform:translate(3px,-2px); } 45% { transform:translate(-2px,-1px); } 60% { transform:translate(2px,1px); } 80% { transform:translate(-1px,0); } }
 @media (max-width:639px) and (min-height:520px) {
  .plinko-stage, .plinko-stage[data-bonus-choices='false'] { margin: 6px; width: calc(100% - 12px); border-radius: 20px; }
- .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 334px)*1.02)); }
+ .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 334px)*1.02)); }
 }
 @media (max-height:520px) {
  .plinko-stage, .plinko-stage[data-bonus-choices='false'] { margin: 6px; width: calc(100% - 12px); border-radius: 18px; }
- .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((100dvh - 80px)*1.02)); }
+ .plinko-stage .plinko-board-wrap, .plinko-stage[data-bonus-choices='false'] .plinko-board-wrap { width: min(100%,calc((var(--plinko-viewport-height,100dvh) - 80px)*1.02)); }
 }
 .plinko-round-counter { color: #ffe7a6; text-align: center; font-size: clamp(15px,1.5vw,20px); font-weight: 800; letter-spacing: .02em; margin: 0 0 10px; text-shadow: 0 2px 0 #171321; }
 @media (max-width:639px) and (min-height:520px) {
@@ -355,7 +356,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 }
 @media (max-height:520px) {
  .plinko-round-counter { font-size: 12px; margin-bottom: 3px; line-height: 16px; }
- .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(35px,calc((100dvh - 160px)/6))); }
+ .plinko-scorebar { grid-template-rows: repeat(var(--plinko-players),min(35px,calc((var(--plinko-viewport-height,100dvh) - 160px)/6))); }
 }
 /* Colourful, outlined box fronts and light sloping roofs match the game reference. */
 .plinko-pocket-number { fill: #fff; stroke: #11131d; stroke-width: 4px; paint-order: stroke fill; letter-spacing: -.6px; font-family: 'Outfit',system-ui,sans-serif; font-weight: 1000; stroke-linejoin: round; }
@@ -363,7 +364,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 /* Keep both side spaces beside the cabinet, including on wide displays. */
 .plinko-stage, .plinko-stage[data-bonus-choices='false'] {
  --plinko-side-width: clamp(160px,18vw,250px);
- --plinko-board-width: min(calc((100dvh - 112px)*1.02),calc(100vw - var(--plinko-side-width)*2 - 164px));
+ --plinko-board-width: min(calc((var(--plinko-viewport-height,100dvh) - 112px)*1.02),calc(100vw - var(--plinko-side-width)*2 - 164px));
  grid-template-columns: var(--plinko-side-width) minmax(0,var(--plinko-board-width)) var(--plinko-side-width);
  /* The cabinet artwork has a small transparent margin of its own. */
  column-gap: max(8px,calc(1cm - var(--plinko-board-width)*.04));
@@ -386,7 +387,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
  .plinko-controls { transform: rotate(.2deg); border-radius: 18px 24px 17px 23px; box-shadow: 4px 5px 0 #161327,6px 7px 0 #a27d47; }
 }
 @media (max-height:520px) {
- .plinko-stage, .plinko-stage[data-bonus-choices='false'] { --plinko-side-width: 160px; --plinko-board-width: min(calc((100dvh - 80px)*1.02),calc(100vw - 380px)); grid-template-columns: 160px minmax(0,var(--plinko-board-width)) 160px; column-gap: max(8px,calc(1cm - var(--plinko-board-width)*.04)); }
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { --plinko-side-width: 160px; --plinko-board-width: min(calc((var(--plinko-viewport-height,100dvh) - 80px)*1.02),calc(100vw - 380px)); grid-template-columns: 160px minmax(0,var(--plinko-board-width)) 160px; column-gap: max(8px,calc(1cm - var(--plinko-board-width)*.04)); }
  .plinko-controls { transform: rotate(.4deg); padding: 8px; }
  .plinko-scorebar button { gap: 4px; padding: 4px; }
  .plinko-scorebar button strong { font-size: 18px; }
@@ -395,7 +396,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
 .plinko-bonus-panel { justify-self: end; width: min(100%,180px); }
 /* Three independent raised boxes share the exact cabinet height. */
 .plinko-game { align-items: center; justify-content: center; }
-.plinko-stage, .plinko-stage[data-bonus-choices='false'] { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 24px); height: auto; max-height: calc(100dvh - 20px); margin: auto; padding: 12px 16px 16px; align-items: end; }
+.plinko-stage, .plinko-stage[data-bonus-choices='false'] { flex: 0 1 auto; width: fit-content; max-width: calc(100% - 24px); height: auto; max-height: calc(var(--plinko-viewport-height,100dvh) - 20px); margin: auto; padding: 12px 16px 16px; align-items: end; }
 .plinko-bonus-panel { align-self: center; }
 .plinko-controls { display: grid; grid-template-rows: auto minmax(0,1fr) auto; align-self: end; height: calc(var(--plinko-board-width)/1.02); min-height: 0; max-height: none; margin-top: 54px; padding: 0 8px 8px 0; gap: 14px; border: 0; border-radius: 0; background: transparent; box-shadow: none; transform: none; }
 .plinko-controls::after { display: none; }
@@ -423,7 +424,7 @@ html:has(.plinko-game), body:has(.plinko-game) { overflow: hidden; }
  .plinko-controls .plinko-menu-footer .plinko-primary { padding: 7px 6px; line-height: 20px; }
 }
 @media (max-width:639px) and (min-height:520px) {
- .plinko-stage, .plinko-stage[data-bonus-choices='false'] { width: calc(100% - 12px); max-width: none; max-height: calc(100dvh - 12px); margin: auto; padding: 6px; grid-template-rows: minmax(0,1fr) 240px; align-items: center; }
+ .plinko-stage, .plinko-stage[data-bonus-choices='false'] { width: calc(100% - 12px); max-width: none; max-height: calc(var(--plinko-viewport-height,100dvh) - 12px); margin: auto; padding: 6px; grid-template-rows: minmax(0,1fr) 240px; align-items: center; }
  .plinko-controls { height: 240px; grid-template-rows: 40px minmax(0,1fr) 65px; gap: 6px; margin: 0; padding: 0 4px 5px 0; }
  .plinko-sidebar-box { padding: 4px; border-width: 2px; border-radius: 12px 17px 11px 16px; box-shadow: 2px 3px 0 #161327,4px 5px 0 #a27d47; }
  .plinko-scorebar { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: repeat(3,min(32px,calc((100cqh - 10px)/3))); gap: 5px; }

@@ -101,6 +101,11 @@ for(let round=0;round<8;round++){
    assert.ok(collapse.every(f=>f.x===reaction[0].x&&f.y===reaction[0].y),'Flight waits until after deflation');
    assert.ok(p.plinkoBlobWallContact(burst,burst.blob.points,rails.map(r=>p.plinkoWallPoints(r.side,r.zigzags))),'Burst is caused by the visible skin touching a wall');
    assert.ok(frames.some(f=>f.blob?.phase==='deflated'),'The body deflates after contact');
+   const flying=frames.filter(f=>f.blob?.phase==='deflated'&&f.pocket<0),launched=flying[0];
+   assert.ok(flying.at(-1).time-launched.time>=p.PLINKO_DUMPLING_AIRTIME-.05,'Air-powered loops finish before entering a box');
+   assert.ok(Math.min(...flying.filter(f=>f.time<launched.time+.5).map(f=>f.y))<launched.y-25,'Deflated Dumpling launches upwards first');
+   assert.ok(Math.max(...flying.map(f=>f.x))-Math.min(...flying.map(f=>f.x))>100,'The balloon travels around the board rather than falling in place');
+   assert.ok(flying.every(f=>f.y>=80),'The circular flight stays below the top of the board');
    for(const f of frames){
     assert.equal(f.blob.points.length,p.PLINKO_BLOB_NODES);
     assert.ok(f.blob.points.every(q=>Number.isFinite(q.x+q.y)),'Every spring node stays finite');

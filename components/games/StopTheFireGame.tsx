@@ -1,3 +1,6 @@
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { PlayfulSelect } from '../PlayfulSelect';
@@ -401,6 +404,7 @@ const getDefaultTeamNames = (count: number) =>
     Array.from({ length: count }, (_, i) => (count === 1 ? 'Player 1' : `Team ${i + 1}`));
 
 export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const [players, setPlayers] = useState<number>(options.players || 2);
     const [teamNames, setTeamNames] = useState<string[]>(
@@ -663,6 +667,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
     const startTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
+            if (presentationPaused.current) return;
             setTimeLeftMs((prev) => {
                 if (prev <= TIMER_STEP_MS) {
                     if (timerRef.current) clearInterval(timerRef.current);
@@ -801,6 +806,15 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
         : timerProgress <= 0.5
             ? '0 0 16px rgba(251,146,60,0.78), 0 0 28px rgba(239,68,68,0.52)'
             : '0 0 14px rgba(251,191,36,0.66), 0 0 24px rgba(249,115,22,0.46)';
+    const [editingTeamIndex,setEditingTeamIndex]=useState<number|null>(null);
+    const [editName,setEditName]=useState(''),[editScore,setEditScore]=useState(0);
+    const openEditTeam=(index:number)=>{setEditName(teamNames[index]);setEditScore(scores[index]+(showReview?(roundTotals[index]||0):0));setEditingTeamIndex(index);};
+    const saveTeamEdit=()=>{
+        if(editingTeamIndex===null)return;
+        setTeamNames(previous=>previous.map((name,index)=>index===editingTeamIndex?editName.trim()||name:name));
+        setScores(previous=>previous.map((score,index)=>index===editingTeamIndex?editScore-(showReview?(roundTotals[index]||0):0):score));
+        setEditingTeamIndex(null);
+    };
     const scoreboardScores = showReview ? scores.map((score, idx) => score + (roundTotals[idx] || 0)) : scores;
     const leaderboardTopScore = scoreboardScores.length ? Math.max(...scoreboardScores) : 0;
     const mobileScoreColumns = Math.min(3, Math.max(1, teamNames.length));
@@ -872,66 +886,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
     return (
         <div ref={containerRef} className="stop-fire-game min-h-screen bg-slate-100 flex flex-col relative overflow-hidden">
-            <div
-                data-scoreboard-header="true"
-                className="team-scoreboard-header bg-white relative z-[650] w-full overflow-visible border-b border-slate-200 px-3 py-2 sm:px-6 sm:py-3"
-            >
-                <div className="relative max-w-6xl mx-auto flex items-center gap-2 sm:gap-4">
-                    <button
-                        onClick={onBack}
-                        className="shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 h-9 sm:h-11 px-3 sm:px-4 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-bold"
-                    >
-                        <ArrowLeft size={16} />
-                        <span className="hidden sm:inline">{ui("Back")}</span>
-                    </button>
-                    <div className="flex-1 min-w-0">
-                        <div
-                            className="grid gap-1.5 sm:gap-2 items-stretch"
-                            style={{ gridTemplateColumns: `repeat(${isMobileViewport ? mobileScoreColumns : Math.max(1, teamNames.length)}, minmax(0, 1fr))` }}
-                        >
-                            {scoreboardScores.map((score, idx) => {
-                                const isLeader = leaderboardTopScore > 0 && score === leaderboardTopScore;
-                                const isTieBreakerTeam = isTieBreaker && tieBreakerTeams.includes(idx);
-                                return (
-                                    <div data-scoreboard-card="true"
-                                        key={`score-${idx}`}
-                                        className={`min-w-0 rounded-xl border-2 px-2 py-1 sm:px-3 sm:py-2 text-center transition-all ${
-                                            isTieBreakerTeam
-                                                ? 'border-sky-600 bg-brand-blue text-white'
-                                                : isLeader
-                                                    ? 'border-sky-600 bg-brand-blue text-white'
-                                                    : 'border-slate-200 bg-white text-slate-600'
-                                        }`}
-                                    >
-                                        <div className="text-[9px] sm:text-[11px] font-bold uppercase tracking-[0.13em] text-inherit truncate">
-                                            {displayTeamName(teamNames[idx])}
-                                        </div>
-                                        <div className="font-mono text-lg sm:text-3xl leading-none font-black text-inherit tabular-nums truncate [text-shadow:0_1px_0_rgba(122,47,18,0.45)]">
-                                            {score}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1.5 sm:gap-2">
-                        <button
-                            onClick={() => setIsMuted((prev) => !prev)}
-                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                        </button>
-                        <button
-                            onClick={toggleFullscreen}
-                            className="h-9 w-9 sm:h-11 sm:w-11 rounded-lg border border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center justify-center"
-                            title={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")}
-                        >
-                            {isFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <FlipGameHeader onEditTeam={openEditTeam} scores={scoreboardScores} teamNames={teamNames} currentTeam={-1} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={onBack} onEnd={() => setShowWinner(true)} confirmActions    renderScore={score => <strong className="text-3xl font-mono">{score}</strong>} />
 
             <div
                 className={`relative z-10 flex-1 flex flex-col items-center px-4 pt-6 pb-12 ${
@@ -973,7 +928,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 }`}
                             >
                         {/* FRONT - SETUP */}
-                        <div
+                        <div data-question-face="front"
                             ref={setupFaceRef}
                             className={`${
                                 !isFlipped
@@ -983,12 +938,12 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                 isFlipped ? 'pointer-events-none' : ''
                             }`}
                         >
-                            <div
+                            <div data-question-section="header"
                                 className="relative text-[#f8efe9] p-4 flex items-center justify-between overflow-hidden border-b border-[#4f4540]/70"
                                 style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
                                 <div className="relative">
-                                    <div className="text-xs uppercase tracking-widest text-white/80">{ui("Round settings")}</div>
+                                    <div data-game-header-label className="text-xs uppercase tracking-widest text-white/80">{ui("Round settings")}</div>
                                     <div className="text-lg sm:text-2xl font-bold">
                                         {isTieBreaker ? ui("Tie-breaker Round") : ui("Round {roundIndex}", { "roundIndex": (roundIndex) })}
                                     </div>
@@ -1194,22 +1149,22 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
 
                         {/* BACK - PLAY */}
                             {!(isMobileViewport && !isFlipped) && (
-                                <div
+                                <div data-question-face="back"
                                     className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-visible flex flex-col h-full bg-[#14110f] ${
                                         !isFlipped ? 'pointer-events-none' : ''
                                     }`}
                                 >
-                            <div
+                            <div data-question-section="header"
                                 className="relative px-4 py-5 sm:px-6 sm:py-7 min-h-[122px] sm:min-h-[138px] flex items-center justify-between text-[#f8efe9] border-b border-[#4f4540]/70 overflow-hidden rounded-t-2xl"
                                 style={{ backgroundColor: 'var(--stop-heading)' }}
                             >
                                 <div className="relative z-10">
-                                    <div className="text-xs uppercase tracking-widest text-[#e7c9b8]">
+                                    <div data-game-header-label className="text-xs uppercase tracking-widest text-[#e7c9b8]">
                                         {isTieBreaker ? ui("Tie-breaker") : ui("Round {roundIndex}", { "roundIndex": (roundIndex) })}
                                     </div>
                                 </div>
                                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                    <div className="translate-y-[2px] text-[clamp(54px,7.8vw,112px)] font-black leading-none text-white [text-shadow:0_3px_8px_rgba(0,0,0,0.55)]">
+                                    <div data-game-header-label className="translate-y-[2px] text-[clamp(54px,7.8vw,112px)] font-black leading-none text-white [text-shadow:0_3px_8px_rgba(0,0,0,0.55)]">
                                         {currentLetter}
                                     </div>
                                 </div>
@@ -1227,22 +1182,22 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                     <div className="relative h-8 sm:h-10 overflow-visible">
                                         <div className="absolute inset-0 rounded-full overflow-hidden bg-[#20130e]/85 shadow-[inset_0_3px_8px_rgba(0,0,0,0.5)]">
                                             <div className="absolute inset-[2px] rounded-full bg-[#352016]/70" />
-                                            <div className="absolute inset-[2px] rounded-full overflow-hidden">
-                                                <div
+                                            <div data-game-timer-track className="absolute inset-[2px] rounded-full overflow-hidden">
+                                                <div data-game-timer="fill"
                                                     className="relative h-full rounded-full overflow-visible"
                                                     style={{ width: timerFillWidth, background: fireBarGradient, transition: 'width 70ms linear' }}
                                                 >
-                                                    {timerProgress > 0.01 && <FireTimerCanvas urgency={timerUrgency} mode="fill" />}
+                                                    {timerProgress > 0.01 && <span data-game-timer-effect><FireTimerCanvas urgency={timerUrgency} mode="fill" /></span>}
                                                 </div>
                                             </div>
                                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                <span className="text-white font-black text-sm sm:text-lg drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+                                                <span data-game-timer-readout className="text-white font-black text-sm sm:text-lg drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
                                                     {timeLeft}s
                                                 </span>
                                             </div>
                                         </div>
                                         <div
-                                            className="absolute top-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
+                                            data-game-timer-effect className="absolute top-1/2 w-3 h-3 rounded-full pointer-events-none z-10"
                                             style={{
                                                 left: timerFillWidth,
                                                 transform: 'translate(-50%, -50%)',
@@ -1251,7 +1206,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             }}
                                         />
                                         <div
-                                            className="absolute top-1/2 pointer-events-none overflow-visible z-20"
+                                            data-game-timer-effect className="absolute top-1/2 pointer-events-none overflow-visible z-20"
                                             style={{
                                                 left: timerFillWidth,
                                                 width: isMobileViewport ? 280 : 360,
@@ -1305,7 +1260,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                                             </div>
                                             <div className="flex-1 min-w-0 overflow-hidden">
                                                 <div
-                                                    className="font-semibold text-slate-800 leading-tight overflow-hidden"
+                                                    data-game-surface-copy className="font-semibold text-slate-800 leading-tight overflow-hidden"
                                                     style={{
                                                         fontSize: size,
                                                         lineHeight: 1.08,
@@ -1556,6 +1511,7 @@ export const StopTheFireGame: React.FC<StopTheFireGameProps> = ({ game, options,
                 </div>
             )}
 
+            {editingTeamIndex!==null&&<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>}
         </div>
     );
 };

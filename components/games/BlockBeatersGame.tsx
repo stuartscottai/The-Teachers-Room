@@ -1,3 +1,6 @@
+import { TeamEditDialog } from './shared/TeamEditDialog';
+import { FlipGameHeader } from './shared/FlipGamePresentation';
+import { useGameMenuPause } from './shared/FlipGamePresentationContext';
 import { QuestionCardMotion } from './shared/QuestionCardMotion';
 import { useFlipCardEffects } from './shared/useFlipCardEffects';
 import { useWrittenAnswer, WrittenAnswerInput, WrittenAnswerReview, WrittenAnswerContinue } from './shared/WrittenAnswer';
@@ -212,6 +215,7 @@ const getTileCenter = (row: number, col: number) => {
 };
 
 export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, options, onBack, onFinish, onReplay }) => {
+    const presentationPaused = useGameMenuPause();
   useUiLanguage();
     const teamCount = Math.max(1, Math.min(4, options.players || 1));
     const teamNames = useMemo(() => getTeamNames(teamCount, options.teamNames), [teamCount, options.teamNames]);
@@ -390,6 +394,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
         if (options.timerSeconds <= 0) return;
         if (timerRef.current) window.clearInterval(timerRef.current);
         timerRef.current = window.setInterval(() => {
+            if (presentationPaused.current) return;
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -864,101 +869,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
 
     return (
         <div ref={containerRef} className={`${isFullscreen ? 'h-screen' : 'h-[calc(100vh-4rem)]'} min-h-0 bg-[#151614] text-[#fffaf0] overflow-hidden flex flex-col`}>
-            <div className={`team-scoreboard-header bg-white ${mobileUsesTwoRowHeader ? 'px-2 py-1.5 h-[110px]' : 'p-2 min-h-[70px]'} sm:p-4 shrink-0 z-[250] shadow-sm border-b border-slate-200 relative sm:min-h-[140px]`}>
-                <div className={`flex w-full ${mobileUsesTwoRowHeader ? 'gap-2 items-start' : 'gap-3 sm:gap-4 items-center'}`}>
-                    <div className={`flex min-w-fit shrink-0 ${mobileUsesTwoRowHeader ? 'gap-1' : 'gap-1.5'} sm:flex-col sm:items-start sm:gap-2 sm:min-w-[64px] ${mobileUsesTwoRowHeader ? 'flex-col items-start' : 'flex-row items-center'}`}>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className="hidden sm:flex w-[140px] justify-center text-slate-500 hover:text-red-600 items-center text-sm bg-slate-100 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors font-bold border border-slate-200"
-                        >
-                            <ArrowLeft size={16} className="mr-2" /> {ui(" Quit")}</button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className="hidden sm:flex w-[140px] justify-center text-white items-center text-sm bg-rose-700 hover:bg-rose-600 px-4 py-2 rounded-lg transition-colors font-bold border border-rose-800"
-                        >
-                            <Flag size={16} className="mr-2" /> {ui(" End Game")}</button>
-                        <button
-                            onClick={() => setShowQuitConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors`}
-                            title={ui("Quit")}
-                        >
-                            <X size={mobileUsesTwoRowHeader ? 14 : 17} />
-                        </button>
-                        <button
-                            onClick={() => setShowEndGameConfirm(true)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-rose-700 bg-rose-700 text-white hover:bg-rose-600 transition-colors`}
-                            title={ui("End game now")}
-                        >
-                            <Flag size={mobileUsesTwoRowHeader ? 12 : 14} />
-                        </button>
-                        <button
-                            onClick={() => setIsMuted(!isMuted)}
-                            className={`sm:hidden ${mobileUsesTwoRowHeader ? 'w-[30px] h-[30px] rounded-md' : 'w-9 h-9 rounded-lg'} flex items-center justify-center border border-slate-200 bg-slate-100 text-slate-500 hover:text-[#0f766e] hover:bg-teal-50 transition-colors`}
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={mobileUsesTwoRowHeader ? 14 : 17} /> : <Volume2 size={mobileUsesTwoRowHeader ? 14 : 17} />}
-                        </button>
-                    </div>
-
-                    <div
-                        className={isMobileViewport
-                            ? `flex-1 grid ${mobileUsesTwoRowHeader ? 'gap-1 content-start' : 'gap-1.5'} items-stretch`
-                            : 'flex-1 flex justify-end sm:justify-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap overflow-x-auto no-scrollbar px-1 sm:px-4 items-center'}
-                        style={isMobileViewport ? { gridTemplateColumns: `repeat(${mobileHeaderColumns}, minmax(0, 1fr))` } : undefined}
-                    >
-                        {localTeamNames.map((name, index) => {
-                            const active = currentTeam === index;
-                            return (
-                                <button data-scoreboard-card="true"
-                                    key={index}
-                                    onClick={() => { setEditingTeamIndex(index); setEditName(name); setEditScore(scores[index] || 0); }}
-                                    className={`${isMobileViewport ? `${mobileUsesTwoRowHeader ? 'h-[46px]' : 'h-12'} w-full min-w-0 px-2 py-1 overflow-hidden` : 'px-2 py-1 sm:px-6 sm:py-3 min-w-[86px] sm:min-w-[150px] h-12 sm:h-28'} rounded-xl text-center transition-colors border-b-4 relative group flex flex-col justify-center items-center ${active ? 'text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
-                                    style={active ? { backgroundColor: PLAYER_COLORS[index].base, borderColor: PLAYER_COLORS[index].strong, color: PLAYER_COLORS[index].text } : undefined}
-                                >
-                                    {isMobileViewport ? (
-                                        <>
-                                            <div className="flex max-w-full items-center gap-1 truncate text-[9px] font-black uppercase leading-none tracking-wider">
-                                                <span className="truncate">{displayTeamName(name)}</span>
-                                                {active && <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f2c14e] animate-pulse" />}
-                                            </div>
-                                            <div className="mt-1 flex max-w-full items-baseline justify-center gap-1 truncate leading-none">
-                                                <AnimatedScore score={scores[index] || 0} className="text-base leading-none" diffClassName="text-[10px] -top-5" />
-                                                <span className="text-[8px] font-black opacity-75">/</span>
-                                                <span className="truncate text-[8px] font-black uppercase opacity-75">{correctCounts[index] || 0} {ui(" correct")}</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="text-[9px] leading-none sm:text-lg uppercase font-bold tracking-wider truncate max-w-full sm:max-w-[130px] mb-0.5 sm:mb-1 flex items-center gap-1">
-                                                {displayTeamName(name)}
-                                                {active && <div className="w-2 h-2 rounded-full bg-[#f2c14e] animate-pulse ml-1" />}
-                                            </div>
-                                            <AnimatedScore score={scores[index] || 0} className="text-xl leading-none sm:text-5xl" diffClassName="text-[10px] sm:text-xl -top-5 sm:-top-8" />
-                                            <div className="text-[8px] leading-none sm:text-xs font-black uppercase opacity-75 mt-1">{correctCounts[index] || 0} {ui(" correct")}</div>
-                                        </>
-                                    )}
-                                    <div className="absolute top-2 right-2 bg-slate-100 text-slate-900 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Edit2 size={12} />
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="hidden sm:flex flex-col items-end justify-center min-w-[72px] gap-2">
-                        <button
-                            onClick={() => setIsMuted(!isMuted)}
-                            className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200"
-                            title={isMuted ? ui("Unmute") : ui("Mute")}
-                        >
-                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                        </button>
-                        <button aria-label={isFullscreen ? ui("Exit fullscreen") : ui("Enter fullscreen")} onClick={toggleFullscreen} className="text-slate-400 hover:text-[#0f766e] p-3 bg-slate-100 hover:bg-teal-50 rounded-xl transition-colors border border-slate-200">
-                            {isFullscreen ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <FlipGameHeader scores={scores} teamNames={localTeamNames} currentTeam={currentTeam} isMobileViewport={isMobileViewport} isFullscreen={isFullscreen} isMuted={isMuted} onToggleMute={() => setIsMuted(value => !value)} onToggleFullscreen={toggleFullscreen} onQuit={() => setShowQuitConfirm(true)} onEnd={() => setShowEndGameConfirm(true)}  onEditTeam={index => { setEditingTeamIndex(index); setEditName(localTeamNames[index]); setEditScore(scores[index] || 0); }}   renderScore={(score,index) => <span className="text-right"><strong className="text-3xl font-mono">{score}</strong><small className="block text-xs">{correctCounts[index] || 0} {ui(" correct")}</small></span>} />
 
             <main className="relative flex-1 min-h-0 overflow-hidden p-2 sm:p-4">
                 {currentTeamBonusCard && (
@@ -1021,7 +932,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                 )}
 
                 <div
-                    className="absolute bottom-3 right-3 z-30 hidden flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:right-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.35rem,0.7vw,0.75rem)]"
+                    data-game-steal-panel className="absolute bottom-3 right-3 z-30 hidden flex-col overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/92 via-[#121512]/90 to-[#0f2f2a]/88 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:right-[1cm] sm:top-[1cm] sm:bottom-auto sm:flex sm:p-[clamp(0.35rem,0.7vw,0.75rem)]"
                     style={{ width: 'clamp(13rem, min(19vw, 34vh), 19rem)' }}
                 >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(242,193,78,0.18),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(13,148,136,0.24),transparent_40%)]" />
@@ -1063,7 +974,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     </div>
                 </div>
 
-                <div className="absolute inset-x-3 bottom-3 z-30 flex items-center gap-2 overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/94 via-[#121512]/92 to-[#0f2f2a]/90 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:hidden">
+                <div data-game-turn-panel className="absolute inset-x-3 bottom-3 z-30 flex items-center gap-2 overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-slate-950/94 via-[#121512]/92 to-[#0f2f2a]/90 p-2 text-white shadow-[0_18px_45px_rgba(0,0,0,0.45)] backdrop-blur-md sm:hidden">
                     <div
                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-black shadow-lg"
                         style={{ backgroundColor: PLAYER_COLORS[currentTeam].base, color: PLAYER_COLORS[currentTeam].text }}
@@ -1377,8 +1288,8 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                             </div>
                         ) : (
                         <div key={questionCardKey} className={`relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}>
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
-                                <div className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-[#0f766e] text-white'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
+                            <div data-question-face="front" className={`absolute inset-0 [backface-visibility:hidden] [transform:translateZ(0)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-white'} ${isFlipped ? 'pointer-events-none' : ''} ${writtenAnswer.writing ? 'written-answer-card' : ''}`}>
+                                <div data-question-section="header" className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-[#0f766e] text-white'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 font-bold text-sm sm:text-xl opacity-85 truncate">
                                             {pendingFinal !== null && <Crown size={18} />}
@@ -1392,7 +1303,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                     </button>
                                 </div>
 
-                                <div className={`${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
+                                <div data-question-section="body" className={`${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow w-full flex flex-col px-0 ${hasOptions ? 'pt-3 sm:pt-4 md:pt-6 pb-0' : 'py-3 sm:py-4 md:py-6'} relative overflow-hidden z-0`}>
                                     {pendingFinal !== null && (
                                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.28),transparent_40%)]" />
                                     )}
@@ -1428,7 +1339,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                         ref={questionWrapRef}
                                                         className={`flex-1 min-h-0 flex items-center justify-center ${isMobileViewport ? 'text-center' : 'text-left'}`}
                                                     >
-                                                        <div
+                                                        <div data-question-copy
                                                             ref={questionTextRef}
                                                             style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                             className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight w-full whitespace-pre-wrap break-words hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
@@ -1493,7 +1404,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                             ref={questionWrapRef}
                                                             className={`flex-1 min-h-0 flex flex-col items-center overflow-hidden ${isMobileViewport ? 'justify-center text-center' : 'justify-center text-left'}`}
                                                         >
-                                                            <div
+                                                            <div data-question-copy
                                                                 ref={questionTextRef}
                                                                 style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                                 className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight w-full whitespace-pre-wrap break-words hyphens-none ${isMobileViewport ? 'text-center' : 'text-left'} ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
@@ -1507,7 +1418,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                         ref={questionWrapRef}
                                                         className={`w-full flex-1 min-h-0 flex flex-col items-center overflow-hidden px-4 sm:px-6 md:px-8 ${hasOptions ? 'justify-start mb-1 sm:mb-3' : 'justify-center'}`}
                                                     >
-                                                        <div
+                                                        <div data-question-copy
                                                             ref={questionTextRef}
                                                             style={questionFontSize ? { fontSize: `${questionFontSize}px`, lineHeight: '1.15' } : undefined}
                                                             className={`font-display font-bold ${pendingFinal !== null ? 'text-slate-950 drop-shadow-[0_2px_0_rgba(251,191,36,0.35)]' : 'text-slate-800'} leading-tight text-center w-full whitespace-pre-wrap break-words hyphens-none ${questionFontSize ? '' : getQuestionFontSizeClass(shownQuestion.question)}`}
@@ -1550,9 +1461,9 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 <WrittenAnswerInput state={writtenAnswer} disabled={isFlipped} onReveal={() => { setIsFlipped(true); }} />
                                 <div data-written-footer className={`flex flex-col relative flex-shrink-0 z-50 ${pendingFinal !== null ? 'bg-amber-50' : 'bg-white'} ${hasOptions ? 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] px-0 py-0' : 'h-[clamp(76px,12vh,104px)] sm:h-[clamp(88px,14vh,120px)] px-3 sm:px-4 md:px-8 py-1 sm:py-2 md:py-0'}`}>
                                     {options.timerSeconds > 0 && (
-                                        <div className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
-                                            <div className={`absolute inset-y-0 left-0 ${pendingFinal !== null ? 'bg-amber-400' : 'bg-[#0f766e]'} transition-all duration-1000`} style={{ width: `${timerProgress * 100}%` }} />
-                                            <div className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
+                                        <div data-game-timer-track className={`relative ${hasOptions ? 'h-full' : 'h-[clamp(38px,6.5vh,46px)] sm:h-[clamp(32px,5.5vh,40px)] -mx-3 sm:-mx-4 md:-mx-8'} bg-white overflow-hidden flex items-center justify-start pointer-events-none`}>
+                                            <div data-game-timer="fill" className={`absolute inset-y-0 left-0 ${pendingFinal !== null ? 'bg-amber-400' : 'bg-[#0f766e]'} transition-all duration-1000`} style={{ width: `${timerProgress * 100}%` }} />
+                                            <div data-game-timer-readout className="absolute inset-0 flex items-center justify-center text-sm sm:text-lg md:text-xl font-black text-slate-900 tracking-wider">
                                                 <Clock size={18} className="mr-2" /> {timeLeft}s
                                             </div>
                                         </div>
@@ -1566,15 +1477,15 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                 </div>
                             </div>
 
-                            <div className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
-                                <div className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-slate-200 text-slate-600'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
+                            <div data-question-face="back" className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full ${pendingFinal !== null ? 'border-4 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-100 shadow-[0_0_90px_rgba(250,204,21,0.45)]' : 'bg-slate-50'} ${!isFlipped ? 'pointer-events-none' : ''}`}>
+                                <div data-question-section="header" className={`${pendingFinal !== null ? 'bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 text-slate-950' : 'bg-slate-200 text-slate-600'} p-3 md:p-4 flex justify-between items-center h-[clamp(72px,12vh,96px)] sm:h-20 md:h-24 flex-shrink-0 relative z-10`}>
                                     <div className="font-bold text-base sm:text-xl opacity-80">{ui("Answer")}</div>
                                     <button onClick={(event) => { event.stopPropagation(); setIsFlipped(false); }} className="p-2 bg-white rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer relative z-50">
                                         <RotateCcw size={18} className="sm:w-5 sm:h-5" />
                                     </button>
                                 </div>
 
-                                <div className={`written-answer-result-body ${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 text-center overflow-hidden w-full relative z-0`}>
+                                <div data-question-section="body" className={`written-answer-result-body ${pendingFinal !== null ? 'bg-gradient-to-br from-white via-amber-50 to-yellow-100' : 'bg-white'} flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 text-center overflow-hidden w-full relative z-0`}>
                                     <div ref={answerWrapRef} className="written-answer-result-content flex-1 overflow-hidden flex flex-col items-center justify-center w-full min-h-0">
                                         <WrittenAnswerReview state={writtenAnswer} />
                                         {mcResult && (
@@ -1592,7 +1503,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                                                 )}
                                             </div>
                                         )}
-                                        <div
+                                        <div data-question-copy
                                             ref={answerTextRef}
                                             style={answerFontSize ? { fontSize: `${answerFontSize}px`, lineHeight: '1.15' } : undefined}
                                             className={`font-display font-bold text-slate-800 leading-tight whitespace-pre-wrap break-words ${getAnswerFontSizeClass(shownQuestion.answer)}`}
@@ -1685,21 +1596,7 @@ export const BlockBeatersGame: React.FC<BlockBeatersGameProps> = ({ game, option
                     </div>
                 </div>
             )}
-            {editingTeamIndex !== null && (
-                <div className="fixed inset-0 z-[700] flex items-center justify-center bg-black/60 p-4">
-                    <form onSubmit={(event) => { event.preventDefault(); saveTeamEdit(); }} className="w-full max-w-sm rounded-2xl bg-white p-6 text-slate-900">
-                        <h2 className="mb-4 text-xl font-black">{ui("Edit team")}</h2>
-                        <label className="mb-3 block text-sm font-bold">{ui("Name")}<input value={editName} onChange={(event) => setEditName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
-                        </label>
-                        <label className="block text-sm font-bold">{ui("Score")}<input type="number" value={editScore} onChange={(event) => setEditScore(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-bold" />
-                        </label>
-                        <div className="mt-5 grid grid-cols-2 gap-3">
-                            <button type="button" onClick={() => setEditingTeamIndex(null)} className="rounded-lg bg-slate-100 py-3 font-bold">{ui("Cancel")}</button>
-                            <button type="submit" className="rounded-lg bg-[#0f766e] py-3 font-bold text-white">{ui("Save")}</button>
-                        </div>
-                    </form>
-                </div>
-            )}
+            {editingTeamIndex !== null && (<TeamEditDialog name={editName} score={editScore} onNameChange={setEditName} onScoreChange={setEditScore} onSave={saveTeamEdit} onCancel={()=>setEditingTeamIndex(null)}/>)}
         </div>
     );
 };
